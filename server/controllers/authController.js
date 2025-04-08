@@ -4,11 +4,11 @@ const jwt = require('jsonwebtoken');
 
 exports.signup = async (req, res) => {
   try {
-    const { username, email, password } = req.body;
+    const { username, firstname, middlename, lastname, email, password } = req.body;
     
     // Validate input
-    if (!username || !email || !password) {
-      return res.status(400).json({ message: 'All fields are required' });
+    if (!username || !firstname || !lastname || !email || !password) {
+      return res.status(400).json({ message: 'All required fields must be filled' });
     }
     
     // Check if user already exists
@@ -29,8 +29,8 @@ exports.signup = async (req, res) => {
     
     // Create user
     const [result] = await db.query(
-      'INSERT INTO users (username, email, password) VALUES (?, ?, ?)',
-      [username, email, hashedPassword]
+      'INSERT INTO users (username, firstname, middlename, lastname, email, password) VALUES (?, ?, ?, ?, ?, ?)',
+      [username, firstname, middlename || null, lastname, email, hashedPassword]
     );
     
     // Generate JWT token
@@ -46,10 +46,13 @@ exports.signup = async (req, res) => {
       user: {
         id: result.insertId,
         username,
+        firstname,
+        lastname,
         email
       }
     });
   } catch (error) {
+    console.error('Signup error:', error);
     res.status(500).json({ message: error.message });
   }
 };

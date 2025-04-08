@@ -1,0 +1,110 @@
+.account-container {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  min-height: 100vh;
+  background-color: #f8f8f8;
+  padding-top: 100px;
+  padding-bottom: 40px;
+}
+
+.account-wrapper {
+  width: 100%;
+  max-width: 800px;
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  padding: 2rem;
+  margin: 0 1rem;
+}
+
+.account-title {
+  color: var(--primary-color);
+  font-size: 1.8rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #eee;
+}
+
+.account-section h2 {
+  color: var(--primary-color);
+  font-size: 1.4rem;
+  margin-bottom: 1rem;
+}
+
+.info-row {
+  display: flex;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.info-label {
+  font-weight: 600;
+  width: 150px;
+  color: #555;
+  margin: 0;
+}
+
+.info-value {
+  flex: 1;
+  margin: 0;
+}
+
+/* Purchases Page Styles */
+.purchases-section {
+  margin-top: 2rem;
+}
+
+.empty-purchases {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #666;
+}
+
+.empty-purchases svg {
+  color: #ccc;
+  margin-bottom: 1rem;
+}
+
+.empty-purchases h3 {
+  font-size: 1.2rem;
+  margin-bottom: 0.5rem;
+  color: #333;
+}
+
+.empty-purchases p {
+  max-width: 400px;
+  margin-bottom: 1.5rem;
+}
+
+.shop-now-btn {
+  background-color: #e8b25d;
+  color: white;
+  border: none;
+  border-radius: 25px;
+  padding: 0.7rem 1.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.shop-now-btn:hover {
+  background-color: #b48c4b;
+}
+
+/* Responsive Styles */
+@media (max-width: 768px) {
+  .info-row {
+    flex-direction: column;
+  }
+  
+  .info-label {
+    width: 100%;
+    margin-bottom: 0.25rem;
+  }
+} 
