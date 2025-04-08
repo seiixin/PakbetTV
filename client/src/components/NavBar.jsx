@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import './NavBar.css';
 
@@ -8,6 +8,10 @@ const NavBar = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const { user, logout, loggingOut } = useAuth();
   const dropdownRef = useRef(null);
+  const location = useLocation();
+  
+  // Check if current page is shop
+  const isShopPage = location.pathname === '/shop';
   
   useEffect(() => {
     const handleScroll = () => {
@@ -51,7 +55,7 @@ const NavBar = () => {
         <p>Logging out...</p>
       </div>}
       
-      <nav className={`navbar red ${scrolled ? 'scrolled' : ''}`}>
+      <nav className={`navbar red ${scrolled ? 'scrolled' : ''} ${isShopPage ? 'shop-page' : ''}`}>
         <div className="navbar-container">
           <div className="navbar-logo">
             <Link to="/" className="logo-link">
@@ -67,7 +71,7 @@ const NavBar = () => {
               <Link to="/" className="navbar-link">Home</Link>
             </li>
             <li className="navbar-item">
-              <Link to="#" className="navbar-link">Shop</Link>
+              <Link to="/shop" className="navbar-link">Shop</Link>
             </li>
             <li className="navbar-item">
               <Link to="#" className="navbar-link">Consultations</Link>

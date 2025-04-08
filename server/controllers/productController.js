@@ -26,15 +26,18 @@ exports.getProductById = async (req, res) => {
 exports.createProduct = async (req, res) => {
   try {
     // Extract product data from request body (already processed by file upload middleware)
-    const { name, description, price, image_url, category, stock } = req.body;
+    const { 
+      name, description, price, image_url, category, stock,
+      is_best_seller, is_flash_deal, flash_deal_end, discount_percentage 
+    } = req.body;
     
-    // Check if all required fields are provided
+    // Check if all fields are provided
     if (!name || !price || !category) {
       return res.status(400).json({ message: 'Name, price, and category are required' });
     }
     
     // Validate category
-    const validCategories = ['books', 'amulets', 'bracelets', 'plants', 'decor', 'mirrors', 'figurines'];
+    const validCategories = ['books', 'amulets', 'bracelets'];
     if (!validCategories.includes(category)) {
       return res.status(400).json({ 
         message: `Invalid category. Must be one of: ${validCategories.join(', ')}` 
@@ -64,10 +67,21 @@ exports.createProduct = async (req, res) => {
     // Create the new product code
     const productCode = `${categoryPrefix}-${productNumber}`;
     
+    // Parse boolean fields and handle default values
+    const isBestSeller = is_best_seller === 'true';
+    const isFlashDeal = is_flash_deal === 'true';
+    const discountPercentageValue = parseInt(discount_percentage) || 0;
+    
     // Insert the product into the database
     const [result] = await db.query(
-      'INSERT INTO products (product_code, name, description, price, image_url, category, stock) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [productCode, name, description, price, productImage, category, stock || 0]
+      `INSERT INTO products 
+       (product_code, name, description, price, image_url, category, stock, 
+        is_best_seller, is_flash_deal, flash_deal_end, discount_percentage) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        productCode, name, description, price, productImage, category, stock || 0,
+        isBestSeller, isFlashDeal, flash_deal_end || null, discountPercentageValue
+      ]
     );
     
     const [newProduct] = await db.query('SELECT * FROM products WHERE id = ?', [result.insertId]);
@@ -81,7 +95,10 @@ exports.createProduct = async (req, res) => {
 
 exports.updateProduct = async (req, res) => {
   try {
-    const { name, description, price, category, stock } = req.body;
+    const { 
+      name, description, price, category, stock,
+      is_best_seller, is_flash_deal, flash_deal_end, discount_percentage
+    } = req.body;
     const productId = req.params.id;
     
     // Check if product exists
@@ -99,12 +116,16 @@ exports.updateProduct = async (req, res) => {
       price: price || current.price,
       image_url: req.body.image_url || current.image_url,
       category: category || current.category,
-      stock: stock || current.stock
+      stock: stock || current.stock,
+      is_best_seller: is_best_seller === 'true' || (is_best_seller !== 'false' && current.is_best_seller),
+      is_flash_deal: is_flash_deal === 'true' || (is_flash_deal !== 'false' && current.is_flash_deal),
+      flash_deal_end: flash_deal_end || current.flash_deal_end,
+      discount_percentage: discount_percentage !== undefined ? parseInt(discount_percentage) : current.discount_percentage
     };
     
     // Validate category if being updated
     if (category && category !== current.category) {
-      const validCategories = ['books', 'amulets', 'bracelets', 'plants', 'decor', 'mirrors', 'figurines'];
+      const validCategories = ['books', 'amulets', 'bracelets'];
       if (!validCategories.includes(category)) {
         return res.status(400).json({ 
           message: `Invalid category. Must be one of: ${validCategories.join(', ')}` 
@@ -114,8 +135,18 @@ exports.updateProduct = async (req, res) => {
     
     // Update the product
     const [result] = await db.query(
-      'UPDATE products SET name = ?, description = ?, price = ?, image_url = ?, category = ?, stock = ? WHERE id = ?',
-      [updatedValues.name, updatedValues.description, updatedValues.price, updatedValues.image_url, updatedValues.category, updatedValues.stock, productId]
+      `UPDATE products 
+       SET name = ?, description = ?, price = ?, image_url = ?, category = ?, 
+           stock = ?, is_best_seller = ?, is_flash_deal = ?, flash_deal_end = ?, 
+           discount_percentage = ? 
+       WHERE id = ?`,
+      [
+        updatedValues.name, updatedValues.description, updatedValues.price, 
+        updatedValues.image_url, updatedValues.category, updatedValues.stock,
+        updatedValues.is_best_seller, updatedValues.is_flash_deal, 
+        updatedValues.flash_deal_end, updatedValues.discount_percentage,
+        productId
+      ]
     );
     
     const [updatedProduct] = await db.query('SELECT * FROM products WHERE id = ?', [productId]);
@@ -144,6 +175,53 @@ exports.deleteProduct = async (req, res) => {
 exports.getProductsByCategory = async (req, res) => {
   try {
     const [products] = await db.query('SELECT * FROM products WHERE category = ?', [req.params.category]);
+    res.status(200).json(products);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// New endpoints for featured products
+
+exports.getBestSellers = async (req, res) => {
+  try {
+    const [products] = await db.query(
+      'SELECT * FROM products WHERE is_best_seller = TRUE ORDER BY id DESC'
+    );
+    res.status(200).json(products);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.getFlashDeals = async (req, res) => {
+  try {
+    const currentDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
+    
+    const [products] = await db.query(
+      `SELECT * FROM products 
+       WHERE is_flash_deal = TRUE 
+       AND (flash_deal_end IS NULL OR flash_deal_end > ?) 
+       ORDER BY flash_deal_end ASC`,
+      [currentDate]
+    );
+    res.status(200).json(products);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.getNewArrivals = async (req, res) => {
+  try {
+    // Get products added in the last 30 days
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const dateString = thirtyDaysAgo.toISOString().slice(0, 19).replace('T', ' ');
+    
+    const [products] = await db.query(
+      'SELECT * FROM products WHERE created_at > ? ORDER BY created_at DESC LIMIT 10',
+      [dateString]
+    );
     res.status(200).json(products);
   } catch (error) {
     res.status(500).json({ message: error.message });

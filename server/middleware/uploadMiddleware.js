@@ -1,4 +1,4 @@
-const pechkin = require('pechkin');
+const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
@@ -8,33 +8,61 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-// Configure the upload options
-const uploadOptions = {
-  uploadDir: uploadsDir,
-  maxFileSize: 5 * 1024 * 1024, // 5MB
-  allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+// Configure multer storage
+const storage = multer.diskStorage({
+  destination: function(req, file, cb) {
+    cb(null, uploadsDir);
+  },
+  filename: function(req, file, cb) {
+    // Create a unique filename using timestamp and original extension
+    const uniquePrefix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, uniquePrefix + ext);
+  }
+});
+
+// Configure allowed file types
+const fileFilter = (req, file, cb) => {
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Invalid file type. Only JPEG, PNG, GIF and WebP are allowed.'), false);
+  }
 };
 
-const uploadProductImage = async (req, res, next) => {
-  try {
-    // Parse the incoming form data
-    const uploadResult = await pechkin.parseAsync(req, uploadOptions);
+// Set up multer upload
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  },
+  fileFilter: fileFilter
+});
+
+// Middleware to handle product image uploads
+const uploadProductImage = (req, res, next) => {
+  // Single file upload using 'productImage' as the field name
+  const uploadSingle = upload.single('productImage');
+  
+  uploadSingle(req, res, function(err) {
+    if (err instanceof multer.MulterError) {
+      // A Multer error occurred during upload
+      return res.status(400).json({ message: `Upload error: ${err.message}` });
+    } else if (err) {
+      // An unknown error occurred
+      return res.status(500).json({ message: err.message });
+    }
     
-    // Add the file data to the request object
-    req.files = uploadResult.files;
-    req.body = { ...req.body, ...uploadResult.fields };
-    
-    // If an image was uploaded, add its path to the request body
-    if (uploadResult.files && uploadResult.files.productImage) {
-      const imageFile = uploadResult.files.productImage[0];
-      req.body.image_url = `/uploads/${imageFile.savedPath.replace(uploadsDir, '')}`;
+    // If a file was uploaded, add its URL to the request body
+    if (req.file) {
+      // Create URL path for the uploaded file
+      const relativePath = path.relative(uploadsDir, req.file.path);
+      req.body.image_url = `/uploads/${relativePath.replace(/\\/g, '/')}`;
     }
     
     next();
-  } catch (error) {
-    console.error('File upload error:', error);
-    res.status(400).json({ message: error.message || 'Error uploading file' });
-  }
+  });
 };
 
 module.exports = { uploadProductImage }; 

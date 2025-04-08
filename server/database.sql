@@ -21,6 +21,10 @@ CREATE TABLE IF NOT EXISTS products (
   image_url VARCHAR(255),
   category ENUM('books', 'amulets', 'bracelets') NOT NULL,
   stock INT DEFAULT 0,
+  is_best_seller BOOLEAN DEFAULT FALSE,
+  is_flash_deal BOOLEAN DEFAULT FALSE,
+  flash_deal_end DATETIME,
+  discount_percentage INT DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE IF NOT EXISTS orders (

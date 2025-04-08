@@ -258,6 +258,8 @@ section {
   overflow: hidden;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   transition: transform 0.3s ease;
+  display: flex;
+  flex-direction: column;
 }
 
 .product-card:hover {
@@ -288,6 +290,42 @@ section {
 .product-card button {
   margin: 0 1rem 1rem;
   width: calc(100% - 2rem);
+  margin-top: auto;
+}
+
+.loading-indicator, .no-products {
+  text-align: center;
+  padding: 2rem;
+  font-size: 1.2rem;
+  color: var(--secondary-color);
+}
+
+.product-price {
+  padding: 0 1rem 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.original-price {
+  text-decoration: line-through;
+  color: #888;
+  font-size: 0.9rem;
+}
+
+.discounted-price {
+  font-weight: bold;
+  color: var(--primary-color);
+}
+
+.discount-tag {
+  background-color: var(--primary-color);
+  color: white;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  margin-left: 0.5rem;
 }
 
 /* Categories Section */
@@ -324,7 +362,7 @@ section {
 .category-image {
   height: 100%;
   width: 100%;
-  background-color: #f0f0f0;
+  background-color: rgba(162, 32, 26, 0.85);
   background-size: cover;
   background-position: center;
 }
@@ -333,8 +371,8 @@ section {
   position: absolute;
   bottom: 0;
   width: 100%;
-  background-color: rgba(162, 32, 26, 0.85);
-  color: var(--white-color);
+  background-color: white;
+  color: rgba(162, 32, 26, 0.85);
   margin: 0;
   padding: 1rem;
   text-align: center;

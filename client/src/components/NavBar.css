@@ -464,4 +464,13 @@
 button:disabled {
   opacity: 0.6;
   cursor: not-allowed !important;
+}
+
+/* Add shop page specific navbar styling */
+.navbar.shop-page {
+  background-color: rgba(162, 32, 26, 1);
+}
+
+.navbar.shop-page.scrolled {
+  background-color: rgba(162, 32, 26, 0.95);
 } 

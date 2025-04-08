@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import './Home.css';
 import placeholderImages from '../assets/placeholder.js';
 import Logo from '/Logo.png';
@@ -8,6 +8,40 @@ import NavBar from './NavBar';
 // Component imports will go here
 
 const Home = () => {
+  const [newArrivals, setNewArrivals] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Fetch new arrivals from API
+    const fetchNewArrivals = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/products/new-arrivals');
+        if (!response.ok) {
+          throw new Error('Failed to fetch new arrivals');
+        }
+        const data = await response.json();
+        setNewArrivals(data);
+      } catch (error) {
+        console.error('Error fetching new arrivals:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchNewArrivals();
+  }, []);
+
+  // Calculate discounted price
+  const calculateDiscountedPrice = (price, discount) => {
+    if (!discount) return price;
+    return (price - (price * discount / 100)).toFixed(2);
+  };
+
+  // Format currency
+  const formatPrice = (price) => {
+    return `₱${Number(price).toFixed(2)}`;
+  };
+
   return (
     <div className="home">
       <NavBar />
@@ -68,32 +102,36 @@ const Home = () => {
           <h2>New Arrivals</h2>
           <p>Our latest additions to bring balance and harmony</p>
         </div>
-        <div className="products-grid">
-          <div className="product-card">
-            <div className="product-image" style={{ backgroundImage: `url(${placeholderImages.prosperityBuddha})` }}></div>
-            <h3>Prosperity Buddha</h3>
-            <p>$89.99</p>
-            <button className="secondary-button">Add to Cart</button>
+        
+        {loading ? (
+          <div className="loading-indicator">Loading new arrivals...</div>
+        ) : newArrivals.length === 0 ? (
+          <div className="no-products">No new arrivals found</div>
+        ) : (
+          <div className="products-grid">
+            {newArrivals.map(product => (
+              <div key={product.id} className="product-card">
+                <div 
+                  className="product-image" 
+                  style={{ backgroundImage: `url(http://localhost:5000${product.image_url})` }}
+                ></div>
+                <h3>{product.name}</h3>
+                {product.is_flash_deal ? (
+                  <div className="product-price">
+                    <span className="original-price">{formatPrice(product.price)}</span>
+                    <span className="discounted-price">
+                      {formatPrice(calculateDiscountedPrice(product.price, product.discount_percentage))}
+                    </span>
+                    <span className="discount-tag">-{product.discount_percentage}%</span>
+                  </div>
+                ) : (
+                  <p>{formatPrice(product.price)}</p>
+                )}
+                <button className="primary-button">Add to Cart</button>
+              </div>
+            ))}
           </div>
-          <div className="product-card">
-            <div className="product-image" style={{ backgroundImage: `url(${placeholderImages.crystalWealthBowl})` }}></div>
-            <h3>Crystal Wealth Bowl</h3>
-            <p>$129.99</p>
-            <button className="secondary-button">Add to Cart</button>
-          </div>
-          <div className="product-card">
-            <div className="product-image" style={{ backgroundImage: `url(${placeholderImages.bambooFlute})` }}></div>
-            <h3>Bamboo Flute</h3>
-            <p>$45.99</p>
-            <button className="secondary-button">Add to Cart</button>
-          </div>
-          <div className="product-card">
-            <div className="product-image" style={{ backgroundImage: `url(${placeholderImages.redAgateBracelet})` }}></div>
-            <h3>Red Agate Bracelet</h3>
-            <p>$39.99</p>
-            <button className="secondary-button">Add to Cart</button>
-          </div>
-        </div>
+        )}
       </section>
 
       {/* Categories Section */}
@@ -105,23 +143,23 @@ const Home = () => {
         <div className="categories-grid">
           <div className="category-card">
             <div className="category-image" style={{ backgroundImage: `url(${placeholderImages.waterElements})` }}></div>
-            <h3>Water Elements</h3>
+            <h3>Best Sellers</h3>
           </div>
           <div className="category-card">
             <div className="category-image" style={{ backgroundImage: `url(${placeholderImages.woodElements})` }}></div>
-            <h3>Wood Elements</h3>
+            <h3>Flash Deals</h3>
           </div>
           <div className="category-card">
             <div className="category-image" style={{ backgroundImage: `url(${placeholderImages.fireElements})` }}></div>
-            <h3>Fire Elements</h3>
+            <h3>Books</h3>
           </div>
           <div className="category-card">
             <div className="category-image" style={{ backgroundImage: `url(${placeholderImages.earthElements})` }}></div>
-            <h3>Earth Elements</h3>
+            <h3>Amulets</h3>
           </div>
           <div className="category-card">
             <div className="category-image" style={{ backgroundImage: `url(${placeholderImages.metalElements})` }}></div>
-            <h3>Metal Elements</h3>
+            <h3>Bracelets</h3>
           </div>
         </div>
       </section>
