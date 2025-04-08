@@ -26,8 +26,8 @@
 }
 
 .primary-button {
-  background-color: var(--primary-color);
-  color: var(--white-color);
+  background-color: #e8b25d;
+  color: white !important;
   padding: 0.8rem 1.5rem;
   border: none;
   border-radius: 4px;
@@ -35,10 +35,12 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
+  margin-top: -20px;
+  margin-right: 20px;
 }
 
 .primary-button:hover {
-  background-color: #8a1c16;
+  background-color: #b48c4b;
   transform: translateY(-2px);
 }
 
@@ -69,57 +71,104 @@ section {
 .hero-section {
   background-color: var(--primary-color);
   color: var(--white-color);
-  height: 70vh;
-  min-height: 1000px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  min-height: 800px;
   width: 100vw;
   max-width: 100vw;
   margin: 0;
-  padding: 70px 5% 0;
+  padding: 70px 5% 120px;
   position: relative;
   overflow: hidden;
 }
 
-.hero-left {
-  width: 40%;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: center;
-  text-align: left;
-  padding-right: 2rem;
+.hero-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto auto;
+  grid-template-areas: 
+    "top-left top-right"
+    "bottom-left bottom-right";
+  height: 100%;
+  width: 100%;
 }
 
-.hero-right {
-  width: 60%;
-  height: 100%;
+.hero-top-left {
+  grid-area: top-left;
   display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding-right: 2rem;
+  margin-top: -200px;
+}
+
+.hero-top-right {
+  grid-area: top-right;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
 }
 
-.hero-right img {
-  margin-top: -300px;
-  margin-left: 300px;
-  max-width: 150%;
-  max-height: 75%;
+.hero-bottom-left {
+  grid-area: bottom-left;
+}
+
+.hero-bottom-right {
+  grid-area: bottom-right;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  padding-bottom: 30px;
+}
+
+.hero-top-right img {
+  margin-top: -50px;
+  margin-left: 150px;
+  max-width: 180%;
+  max-height: 80%;
   object-fit: contain;
   width: 100%;
+}
+
+.hero-why-consult {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  z-index: 1;
+  margin-left: 200px;
+}
+
+.hero-why-consult h3 {
+  font-size: 1rem;
+  margin-bottom: 1.5rem;
+  color: var(--primary-color);
+  text-transform: uppercase;
+  font-weight: bold;
+}
+
+.hero-why-consult .why-consult-image {
+  max-width: 400px;
+  height: auto;
+  margin: 0 auto;
+  display: block;
 }
 
 .hero-content {
   width: 100%;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
+  margin-top: 200px;
 }
 
 .hero-content .hero-logo {
-  max-width: 500px;
+  max-width: 400px;
   height: auto;
-  margin-left: 50px;
+  margin-left: 10px;
 }
 .hero-content .hero-image {
   max-width: 100%;
@@ -134,9 +183,8 @@ section {
   color: var(--secondary-color);
   text-transform: uppercase;
   font-weight: bold;
-  white-space: nowrap;
+  text-align: center;
   width: 100%;
-  overflow: hidden;
 }
 .hero-content h2 {
   font-size: 2rem;
@@ -144,20 +192,21 @@ section {
   color: var(--secondary-color);
   text-transform: uppercase;
   font-weight: bold;
-  white-space: nowrap;
+  text-align: center;
   width: 100%;
-  overflow: hidden;
 }
 .hero-content p {
   font-size: 1.2rem;
   margin-bottom: 2rem;
-  color: var(--white-color);
-  color:#e8b25d;
+  color: var(--secondary-color);
+  text-align: center;
+  max-width: 80%;
+  line-height: 1.5;
 }
 .hero-content button {
-  margin-left: 200px;
+  margin-left: 0;
   background-color: var(--secondary-color);
-  color:rgba(43, 43, 43, 0.85);
+  color: rgba(43, 43, 43, 0.85);
   border-radius: 100px;
   border-color: #2b2b2b;
   border-width: 1px;

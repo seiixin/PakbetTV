@@ -20,17 +20,28 @@ const Home = () => {
         backgroundPosition: 'center center',
         backgroundRepeat: 'no-repeat'
       }}>
-        <div className="hero-left">
-          <div className="hero-content">
-            {Logo && <img src={Logo} alt="Logo" className="hero-logo" />}
-            <h1>MICHAEL DE MESA</h1>
-            <h2>BAZI & FENG SHUI CONSULTANCY</h2>
-            <p>Will give you a step-by-step guideline that will help you towards your desired outcome"</p>
-            <button className="primary-button">Learn More</button>
+        <div className="hero-grid">
+          <div className="hero-top-left">
+            <div className="hero-content">
+              {Logo && <img src={Logo} alt="Logo" className="hero-logo" />}
+              <h1>MICHAEL DE MESA</h1>
+              <h2>BAZI & FENG SHUI CONSULTANCY</h2>
+              <p>Will give you a step-by-step guideline that will help you towards your desired outcomeimage.png</p>
+              <button className="primary-button">Learn More</button>
+            </div>
           </div>
-        </div>
-        <div className="hero-right">
-          {Michael && <img src={Michael} alt="Michael De Mesa"  className='hero-image'/>}
+          <div className="hero-top-right">
+            {Michael && <img src={Michael} alt="Michael De Mesa" className="hero-image"/>}
+          </div>
+          <div className="hero-bottom-left">
+            {/* Bottom left content if needed */}
+          </div>
+          <div className="hero-bottom-right">
+            <div className="hero-why-consult">
+              <h3>WHY CONSULT WITH MASTER MICHAEL DE MESA</h3>
+              <img src="/why-consult.png" alt="Why Consult with Master Michael De Mesa" className="why-consult-image" />
+            </div>
+          </div>
         </div>
       </section>
       <section className="new-arrivals">
