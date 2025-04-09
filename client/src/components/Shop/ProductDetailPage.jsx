@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useCart } from '../../context/CartContext';
 import './Shop.css';
 
 const ProductDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { addToCart } = useCart();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [quantity, setQuantity] = useState(1);
+  const [addedToCart, setAddedToCart] = useState(false);
 
   useEffect(() => {
     fetchProductDetails();
@@ -52,13 +55,18 @@ const ProductDetailPage = () => {
   };
 
   const handleAddToCart = () => {
-    // Add to cart logic here
-    alert(`Added ${quantity} of ${product?.name} to cart`);
+    addToCart(product, quantity);
+    setAddedToCart(true);
+    
+    // Reset the "Added to cart" message after 3 seconds
+    setTimeout(() => {
+      setAddedToCart(false);
+    }, 3000);
   };
 
   const handleBuyNow = () => {
-    // Buy now logic here
-    alert(`Proceeding to checkout with ${quantity} of ${product?.name}`);
+    addToCart(product, quantity);
+    navigate('/cart');
   };
 
   const goBack = () => {
@@ -129,6 +137,15 @@ const ProductDetailPage = () => {
         </svg>
         Back to Shop
       </button>
+      
+      {addedToCart && (
+        <div className="added-to-cart-message">
+          <span>✓</span> Item added to your cart!
+          <button className="view-cart-button" onClick={() => navigate('/cart')}>
+            View Cart
+          </button>
+        </div>
+      )}
       
       <div className="product-detail-content">
         <div className="product-detail-left">

@@ -72,6 +72,7 @@ export const AuthProvider = ({ children }) => {
     
     // Wait for 2 seconds before completing logout
     setTimeout(() => {
+      // Note: We don't remove cart data here, as it's handled by CartContext
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       setUser(null);

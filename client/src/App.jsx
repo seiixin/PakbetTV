@@ -5,15 +5,20 @@ import Login from './components/Auth/Login'
 import Signup from './components/Auth/Signup'
 import NavBar from './components/NavBar'
 import { AuthProvider } from './context/AuthContext'
+import { CartProvider } from './context/CartContext'
 import Account from './components/Account/Account'
 import Purchases from './components/Account/Purchases'
 import ProductManagement from './components/Admin/ProductManagement'
 import ProductPage from './components/Shop/ProductPage'
 import ProductDetailPage from './components/Shop/ProductDetailPage'
+import Cart from './components/Shop/Cart'
+import TransactionComplete from './components/Shop/TransactionComplete'
 
 function AppContent() {
   const location = useLocation();
   const isAuthPage = location.pathname === '/login' || location.pathname === '/signup';
+  
+  console.log('Current location:', location.pathname);
   
   return (
     <>
@@ -27,16 +32,22 @@ function AppContent() {
         <Route path="/admin/products" element={<ProductManagement />} />
         <Route path="/shop" element={<ProductPage />} />
         <Route path="/product/:id" element={<ProductDetailPage />} />
+        <Route path="/cart" element={<Cart />} />
+        <Route path="/transaction-complete" element={<TransactionComplete />} />
       </Routes>
     </>
   );
 }
 
 function App() {
+  console.log('App component rendering');
+  
   return (
     <Router>
       <AuthProvider>
-        <AppContent />
+        <CartProvider>
+          <AppContent />
+        </CartProvider>
       </AuthProvider>
     </Router>
   )

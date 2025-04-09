@@ -157,7 +157,7 @@
 
 /* Red navbar variant */
 .navbar.red {
-  background-color: transparent;
+  background-color: var(--primary-color, #A2201A);
 }
 
 .navbar.red .logo-text h3,
@@ -276,8 +276,49 @@
 }
 
 @media screen and (max-width: 768px) {
+  .navbar-container {
+    padding: 0 15px;
+  }
+  
+  .navbar-menu {
+    display: none;
+  }
+  
   .search-bar {
     display: none;
+  }
+  
+  .navbar-logo {
+    margin-right: 0;
+  }
+  
+  .logo-text h3 {
+    font-size: 14px;
+  }
+  
+  .logo-text p {
+    font-size: 8px;
+  }
+  
+  .cart-button span {
+    display: none;
+  }
+  
+  .cart-button {
+    padding: 8px;
+  }
+  
+  .profile-button span {
+    display: none;
+  }
+  
+  .auth-buttons {
+    display: flex;
+  }
+  
+  .login-button, .signup-button {
+    padding: 6px 10px;
+    font-size: 12px;
   }
 }
 

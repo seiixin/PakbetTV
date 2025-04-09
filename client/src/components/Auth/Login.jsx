@@ -1,17 +1,31 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useCart } from '../../context/CartContext';
 import './Auth.css';
 
 function Login() {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const location = useLocation();
+  const authContext = useAuth();
+  const { mergeGuestCartWithUserCart } = useCart();
+  console.log('Auth context in Login:', authContext);
+  
+  const { login } = authContext || {};
+  
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    // If there's a state with a 'from' path, show a message
+    if (location.state?.from === '/cart') {
+      setError('Please login to checkout');
+    }
+  }, [location]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -33,10 +47,23 @@ function Login() {
       return;
     }
 
+    if (!login) {
+      setError('Authentication service not available');
+      setLoading(false);
+      return;
+    }
+
     const result = await login(formData);
     
     if (result.success) {
-      navigate('/');
+      // Merge guest cart with user cart
+      setTimeout(() => {
+        mergeGuestCartWithUserCart();
+      }, 500); // Small delay to ensure auth state is updated
+      
+      // Redirect to the previous page if it exists
+      const redirectPath = location.state?.from || '/';
+      navigate(redirectPath);
     } else {
       setError(result.message);
       setLoading(false);

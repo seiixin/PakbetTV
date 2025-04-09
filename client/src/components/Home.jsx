@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useCart } from '../context/CartContext';
 import './Home.css';
 import placeholderImages from '../assets/placeholder.js';
 import Logo from '/Logo.png';
@@ -10,6 +12,13 @@ import NavBar from './NavBar';
 const Home = () => {
   const [newArrivals, setNewArrivals] = useState([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+  const { addToCart } = useCart();
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const carouselRef = React.useRef(null);
 
   useEffect(() => {
     // Fetch new arrivals from API
@@ -41,6 +50,118 @@ const Home = () => {
   const formatPrice = (price) => {
     return `₱${Number(price).toFixed(2)}`;
   };
+
+  // Scroll the carousel left or right
+  const scrollCarousel = (direction) => {
+    if (!carouselRef.current) return;
+    
+    const scrollWidth = carouselRef.current.scrollWidth;
+    const clientWidth = carouselRef.current.clientWidth;
+    const scrollAmount = direction * (clientWidth * 0.75);
+    
+    carouselRef.current.scrollBy({
+      left: scrollAmount,
+      behavior: 'smooth'
+    });
+  };
+
+  const navigateToProduct = (id) => {
+    navigate(`/product/${id}`);
+  };
+
+  const handleAddToCart = (product) => {
+    addToCart(product, 1);
+  };
+
+  // Carousel touch/drag functionality
+  const handleMouseDown = (e) => {
+    setIsDragging(true);
+    setStartX(e.pageX - carouselRef.current.offsetLeft);
+    setScrollLeft(carouselRef.current.scrollLeft);
+  };
+
+  const handleTouchStart = (e) => {
+    setIsDragging(true);
+    setStartX(e.touches[0].pageX - carouselRef.current.offsetLeft);
+    setScrollLeft(carouselRef.current.scrollLeft);
+  };
+
+  const handleMouseLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging) return;
+    e.preventDefault();
+    const x = e.pageX - carouselRef.current.offsetLeft;
+    const walk = (x - startX) * 2; // Scroll speed
+    carouselRef.current.scrollLeft = scrollLeft - walk;
+  };
+
+  const handleTouchMove = (e) => {
+    if (!isDragging) return;
+    const x = e.touches[0].pageX - carouselRef.current.offsetLeft;
+    const walk = (x - startX) * 2; // Scroll speed
+    carouselRef.current.scrollLeft = scrollLeft - walk;
+  };
+
+  // Update active index when scrolling
+  const handleScroll = () => {
+    if (!carouselRef.current) return;
+    
+    const scrollPosition = carouselRef.current.scrollLeft;
+    const scrollWidth = carouselRef.current.scrollWidth;
+    const clientWidth = carouselRef.current.clientWidth;
+    
+    // Calculate how many indicator dots to show based on viewport capacity
+    const maxScroll = scrollWidth - clientWidth;
+    const scrollRatio = maxScroll > 0 ? scrollPosition / maxScroll : 0;
+    
+    // Fixed number of dots for better visual consistency
+    const totalDots = 3;
+    const newIndex = Math.min(Math.floor(scrollRatio * totalDots), totalDots - 1);
+    
+    if (newIndex !== activeIndex) {
+      setActiveIndex(newIndex);
+    }
+  };
+
+  // Scroll to dot index
+  const scrollToDot = (index) => {
+    if (!carouselRef.current) return;
+    
+    const scrollWidth = carouselRef.current.scrollWidth;
+    const clientWidth = carouselRef.current.clientWidth;
+    const maxScroll = scrollWidth - clientWidth;
+    
+    // Fixed number of dots
+    const totalDots = 3;
+    const scrollPosition = index * (maxScroll / (totalDots - 1));
+    
+    carouselRef.current.scrollTo({
+      left: scrollPosition,
+      behavior: 'smooth'
+    });
+    
+    setActiveIndex(index);
+  };
+
+  // Register scroll event listener
+  useEffect(() => {
+    const carousel = carouselRef.current;
+    if (carousel) {
+      carousel.addEventListener('scroll', handleScroll);
+      return () => carousel.removeEventListener('scroll', handleScroll);
+    }
+  }, []);
 
   return (
     <div className="home">
@@ -108,28 +229,77 @@ const Home = () => {
         ) : newArrivals.length === 0 ? (
           <div className="no-products">No new arrivals found</div>
         ) : (
-          <div className="products-grid">
-            {newArrivals.map(product => (
-              <div key={product.id} className="product-card">
-                <div 
-                  className="product-image" 
-                  style={{ backgroundImage: `url(http://localhost:5000${product.image_url})` }}
-                ></div>
-                <h3>{product.name}</h3>
-                {product.is_flash_deal ? (
-                  <div className="product-price">
-                    <span className="original-price">{formatPrice(product.price)}</span>
-                    <span className="discounted-price">
-                      {formatPrice(calculateDiscountedPrice(product.price, product.discount_percentage))}
-                    </span>
-                    <span className="discount-tag">-{product.discount_percentage}%</span>
+          <div className="carousel-wrapper">
+            <div className="carousel-container">
+              <div 
+                className="carousel-products" 
+                id="new-arrivals-carousel"
+                ref={carouselRef}
+                onMouseDown={handleMouseDown}
+                onMouseLeave={handleMouseLeave}
+                onMouseUp={handleMouseUp}
+                onMouseMove={handleMouseMove}
+                onTouchStart={handleTouchStart}
+                onTouchEnd={handleTouchEnd}
+                onTouchMove={handleTouchMove}
+                onScroll={handleScroll}
+              >
+                {newArrivals.map(product => (
+                  <div 
+                    key={product.id} 
+                    className="carousel-product-card"
+                    onClick={() => navigateToProduct(product.id)}
+                  >
+                    <div 
+                      className="product-image" 
+                      style={{ backgroundImage: `url(http://localhost:5000${product.image_url})` }}
+                    ></div>
+                    <h3>{product.name}</h3>
+                    {product.is_flash_deal ? (
+                      <div className="product-price">
+                        <span className="original-price">{formatPrice(product.price)}</span>
+                        <span className="discounted-price">
+                          {formatPrice(calculateDiscountedPrice(product.price, product.discount_percentage))}
+                        </span>
+                        <span className="discount-tag">-{product.discount_percentage}%</span>
+                      </div>
+                    ) : (
+                      <p>{formatPrice(product.price)}</p>
+                    )}
+                    <button 
+                      className="primary-button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAddToCart(product);
+                      }}
+                    >
+                      Add to Cart
+                    </button>
                   </div>
-                ) : (
-                  <p>{formatPrice(product.price)}</p>
-                )}
-                <button className="primary-button">Add to Cart</button>
+                ))}
               </div>
-            ))}
+            </div>
+            
+            {/* Arrow navigation */}
+            <div className="carousel-controls">
+              <button 
+                className="carousel-nav-button prev"
+                onClick={() => scrollCarousel(-1)}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+              </button>
+              
+              <button 
+                className="carousel-nav-button next"
+                onClick={() => scrollCarousel(1)}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+              </button>
+            </div>
           </div>
         )}
       </section>

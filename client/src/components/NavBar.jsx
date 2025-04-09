@@ -1,14 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
 import './NavBar.css';
 
 const NavBar = () => {
   const [scrolled, setScrolled] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const { user, logout, loggingOut } = useAuth();
+  const { getTotalCount } = useCart();
   const dropdownRef = useRef(null);
   const location = useLocation();
+  const navigate = useNavigate();
   
   // Check if current page is shop
   const isShopPage = location.pathname === '/shop';
@@ -55,7 +58,7 @@ const NavBar = () => {
         <p>Logging out...</p>
       </div>}
       
-      <nav className={`navbar red ${scrolled ? 'scrolled' : ''} ${isShopPage ? 'shop-page' : ''}`}>
+      <nav className={`navbar red ${scrolled ? 'scrolled' : ''}`}>
         <div className="navbar-container">
           <div className="navbar-logo">
             <Link to="/" className="logo-link">
@@ -146,8 +149,12 @@ const NavBar = () => {
                   <Link to="/signup" className="signup-button">Sign Up</Link>
                 </div>
               )}
-              <button className="cart-button" disabled={loggingOut}>
-                <span>Cart (0)</span>
+              <button 
+                className="cart-button" 
+                disabled={loggingOut}
+                onClick={() => navigate('/cart')}
+              >
+                <span>Cart ({getTotalCount()})</span>
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="cart-icon">
                   <circle cx="9" cy="21" r="1"></circle>
                   <circle cx="20" cy="21" r="1"></circle>

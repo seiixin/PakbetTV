@@ -43,4 +43,16 @@ CREATE TABLE IF NOT EXISTS order_items (
   price DECIMAL(10, 2) NOT NULL,
   FOREIGN KEY (order_id) REFERENCES orders(id),
   FOREIGN KEY (product_id) REFERENCES products(id)
+);
+
+-- Payments table for storing payment transaction details
+CREATE TABLE IF NOT EXISTS payments (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  order_id INT NOT NULL,
+  txn_id VARCHAR(50) NOT NULL UNIQUE,
+  ref_no VARCHAR(50),
+  status VARCHAR(20) NOT NULL,
+  message TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (order_id) REFERENCES orders(id)
 ); 
