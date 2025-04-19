@@ -189,10 +189,10 @@ const Home = () => {
             {Michael && <img src={Michael} alt="Michael De Mesa" className="hero-image"/>}
           </div>
           <div className="hero-bottom-left">
-            {/* Bottom left content if needed */}
           </div>
           <div className="hero-bottom-right">
             <div className="hero-why-consult">
+
               <h3>WHY CONSULT WITH MASTER MICHAEL DE MESA</h3>
               <div className="why-consult-icons">
                 <div className="why-consult-icon">

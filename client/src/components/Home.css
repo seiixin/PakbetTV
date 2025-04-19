@@ -197,6 +197,7 @@ section {
   height: auto;
   margin-bottom: 2rem;
   object-fit: contain;
+  z-index: 1;
 }
 
 .hero-content h1 {
