@@ -63,11 +63,12 @@ const uploadVariantImage = multer({
 // @desc    Create a new product with multiple images
 // @access  Private/Admin (AUTH REMOVED FOR TESTING)
 // --- REMOVED: auth, admin middleware ---
-router.post('/', [uploadProductImages.array('productImages', 10)], [ // Allow up to 10 images
+router.post('/', [uploadProductImages.array('productImages', 10)], [
   body('name', 'Name is required').notEmpty(),
   body('product_code', 'Product code is required').notEmpty(),
   body('category_id', 'Category ID is required').isNumeric(),
-  // Add validation for other product fields if necessary
+  body('price', 'Price is required').isNumeric(),
+  body('stock', 'Stock is required').isNumeric()
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -87,6 +88,8 @@ router.post('/', [uploadProductImages.array('productImages', 10)], [ // Allow up
     await connection.beginTransaction();
 
     const { name, product_code, description, category_id } = req.body;
+    const price = parseFloat(req.body.price);
+    const stock = parseInt(req.body.stock);
 
     // Check if product code already exists
     const [existingProducts] = await connection.query('SELECT product_id FROM products WHERE product_code = ?', [product_code]);
@@ -99,10 +102,10 @@ router.post('/', [uploadProductImages.array('productImages', 10)], [ // Allow up
       return res.status(400).json({ message: 'Product code already exists' });
     }
 
-    // Insert new product (without images first)
+    // Insert new product (including price and stock)
     const [result] = await connection.query(
-      'INSERT INTO products (name, product_code, description, category_id) VALUES (?, ?, ?, ?)',
-      [name, product_code, description || null, category_id]
+      'INSERT INTO products (name, product_code, description, category_id, price, stock) VALUES (?, ?, ?, ?, ?, ?)',
+      [name, product_code, description || null, category_id, price, stock]
     );
     const productId = result.insertId;
 
@@ -122,16 +125,20 @@ router.post('/', [uploadProductImages.array('productImages', 10)], [ // Allow up
 
     await connection.commit(); // Commit transaction
 
-    // Fetch the newly created product with its images to return
-    const [newProductData] = await connection.query('SELECT * FROM products WHERE product_id = ?', [productId]);
-    const [newProductImages] = await connection.query('SELECT image_url, alt_text, sort_order FROM product_images WHERE product_id = ? ORDER BY sort_order', [productId]);
-
+    // Fetch the newly created product with its images to return (ensure price/stock are selected)
+    const [newProductData] = await connection.query('SELECT p.*, c.name as category_name FROM products p LEFT JOIN categories c ON p.category_id = c.category_id WHERE p.product_id = ?', [productId]);
+    const [newProductImages] = await connection.query('SELECT image_id, image_url, alt_text, sort_order FROM product_images WHERE product_id = ? ORDER BY sort_order', [productId]);
 
     res.status(201).json({
       message: 'Product created successfully',
       product: {
         ...newProductData[0],
-        images: newProductImages // Include images in response
+        images: newProductImages.map(img => ({ 
+             id: img.image_id, 
+             url: `/uploads/${img.image_url}`, 
+             alt: img.alt_text, 
+             order: img.sort_order 
+        })) // Include images in response
       }
     });
   } catch (err) {
@@ -383,7 +390,19 @@ router.put('/:id', [uploadProductImages.array('productImages', 10)], async (req,
     await connection.beginTransaction();
     const productId = req.params.id;
     // Note: When using FormData, boolean/null might come as strings
-    const { name, description, category_id, product_code /* Add other fields as needed */ } = req.body;
+    // Extract all potential fields
+    const { 
+      name, 
+      description, 
+      category_id, 
+      product_code, 
+      price, 
+      stock, 
+      is_best_seller, 
+      is_flash_deal, 
+      flash_deal_end, 
+      discount_percentage 
+    } = req.body;
 
     // Check if product exists
     const [products] = await connection.query('SELECT product_id FROM products WHERE product_id = ?', [productId]);
@@ -415,13 +434,20 @@ router.put('/:id', [uploadProductImages.array('productImages', 10)], async (req,
         }
     }
 
-    // Create an object with the non-image fields to update
+    // Create an object with the fields to update
     const updates = {};
     if (name !== undefined) updates.name = name;
     if (description !== undefined) updates.description = description;
-    if (category_id !== undefined) updates.category_id = category_id;
+    if (category_id !== undefined) updates.category_id = parseInt(category_id); // Ensure number
     if (product_code !== undefined) updates.product_code = product_code;
-    // Add other updatable fields here, converting from string if necessary
+    if (price !== undefined) updates.price = parseFloat(price); // Parse price
+    if (stock !== undefined) updates.stock = parseInt(stock);   // Parse stock
+    // Handle boolean fields correctly ( FormData sends 'true'/'false' strings)
+    if (is_best_seller !== undefined) updates.is_best_seller = (is_best_seller === 'true');
+    if (is_flash_deal !== undefined) updates.is_flash_deal = (is_flash_deal === 'true');
+    // Handle nullable fields 
+    updates.flash_deal_end = flash_deal_end || null;
+    updates.discount_percentage = discount_percentage ? parseFloat(discount_percentage) : null;
 
     // Update main product details if any fields were provided
     if (Object.keys(updates).length > 0) {
@@ -454,14 +480,13 @@ router.put('/:id', [uploadProductImages.array('productImages', 10)], async (req,
     await connection.commit();
 
     // Fetch updated product data to return
-    const [updatedProductData] = await connection.query('SELECT * FROM products WHERE product_id = ?', [productId]);
+    const [updatedProductData] = await connection.query('SELECT p.*, c.name as category_name FROM products p LEFT JOIN categories c ON p.category_id = c.category_id WHERE p.product_id = ?', [productId]);
     const [updatedProductImages] = await connection.query('SELECT image_id, image_url, alt_text, sort_order FROM product_images WHERE product_id = ? ORDER BY sort_order', [productId]);
 
     res.json({
         message: 'Product updated successfully',
         product: {
             ...updatedProductData[0],
-             // Prepend base path for client consumption
              images: updatedProductImages.map(img => ({ 
                  id: img.image_id, 
                  url: `/uploads/${img.image_url}`, 

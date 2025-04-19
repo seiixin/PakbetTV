@@ -179,17 +179,34 @@ const ProductManagement = () => {
   };
 
   const generateProductCode = (categoryId) => {
-    if (!categoryId) return '';
+    console.log('[generateProductCode] Received categoryId:', categoryId, typeof categoryId);
+    if (!categoryId || isNaN(categoryId)) { // Ensure it's a valid number
+      console.log('[generateProductCode] Invalid or missing categoryId.');
+      return '';
+    } 
     
-    const category = categories.find(cat => cat.id === parseInt(categoryId));
-    if (!category) return '';
+    console.log('[generateProductCode] Categories available:', categories);
+    const category = categories.find(cat => cat.category_id === categoryId); // Use category_id
+    console.log('[generateProductCode] Found category:', category);
+    if (!category) {
+      console.log('[generateProductCode] Category object not found.');
+      return '';
+    } 
     
-    const prefix = category.code || category.name.substring(0, 2).toUpperCase();
+    const prefix = category.code || category.name.substring(0, 3).toUpperCase(); // Use 3 chars for prefix
+    console.log('[generateProductCode] Calculated prefix:', prefix);
     
-    const existingProducts = products.filter(p => p.category_id === parseInt(categoryId));
+    console.log('[generateProductCode] Existing products state:', products);
+    // Ensure category_id comparison is correct (both should be numbers)
+    const existingProducts = products.filter(p => parseInt(p.category_id) === categoryId);
+    console.log('[generateProductCode] Filtered existing products in category:', existingProducts);
+    
     const nextNumber = (existingProducts.length + 1).toString().padStart(3, '0');
+    console.log('[generateProductCode] Calculated next number:', nextNumber);
     
-    return `${prefix}${nextNumber}`;
+    const finalCode = `${prefix}${nextNumber}`;
+    console.log('[generateProductCode] Returning final code:', finalCode);
+    return finalCode;
   };
 
   const handleInputChange = (e) => {
@@ -204,20 +221,24 @@ const ProductManagement = () => {
     }
     
     if (type === 'number' || name === 'category_id') {
-      setCurrentProduct({
-        ...currentProduct,
-        [name]: value === '' ? '' : Number(value)
-      });
-      
-      // Generate product code if category changes
-      if (name === 'category_id' && !isEditing && value !== '') {
-        const newProductCode = generateProductCode(Number(value));
-        setCurrentProduct(prev => ({
+      setCurrentProduct(prev => {
+        const numericValue = value === '' ? '' : Number(value);
+        console.log(`Input change - Name: ${name}, Raw Value: ${value}, Parsed Value: ${numericValue}, Type: ${typeof numericValue}`); // Log price/stock changes
+        
+        const updated = {
           ...prev,
-          [name]: Number(value),
-          product_code: newProductCode
-        }));
-      }
+          [name]: numericValue
+        };
+        
+        // Generate product code if category changes
+        if (name === 'category_id' && !isEditing && !isNaN(numericValue)) {
+          const newProductCode = generateProductCode(numericValue);
+          updated.product_code = newProductCode;
+        }
+        
+        console.log('Updated product state:', updated);
+        return updated;
+      });
       return;
     }
     
@@ -665,32 +686,7 @@ const ProductManagement = () => {
                   id="category_id"
                   name="category_id"
                   value={currentProduct.category_id || ''}
-                  onChange={(e) => {
-                    const numericId = parseInt(e.target.value);
-                    console.log('Category selected:', e.target.value, typeof e.target.value);
-                    console.log('Converted to number:', numericId, typeof numericId);
-                    
-                    // Update state with numeric ID
-                    setCurrentProduct(prev => {
-                      const updated = {
-                        ...prev,
-                        category_id: numericId
-                      };
-                      
-                      // Generate code if needed
-                      if (!isEditing && !isNaN(numericId)) {
-                        // Find the category using the correct ID field
-                        const selectedCategory = categories.find(cat => cat.category_id === numericId);
-                        const prefix = selectedCategory ? 
-                          (selectedCategory.code || selectedCategory.name.substring(0, 3).toUpperCase()) : 
-                          'PRD';
-                        updated.product_code = `${prefix}${new Date().getTime().toString().slice(-4)}`;
-                      }
-                      
-                      console.log('Updated product state:', updated);
-                      return updated;
-                    });
-                  }}
+                  onChange={handleInputChange}
                   required
                 >
                   <option key="placeholder" value="">Select a category</option>
