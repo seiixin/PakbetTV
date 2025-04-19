@@ -31,6 +31,7 @@ const cartRoutes = require('./routes/cart');
 const orderRoutes = require('./routes/orders');
 const authRoutes = require('./routes/auth');
 const transactionRoutes = require('./routes/transactions');
+const reviewRoutes = require('./routes/reviews');
 
 // API routes
 app.use('/api/users', userRoutes);
@@ -40,6 +41,7 @@ app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/transactions', transactionRoutes);
+app.use('/api/reviews', reviewRoutes);
 
 // Root route
 app.get('/', (req, res) => {

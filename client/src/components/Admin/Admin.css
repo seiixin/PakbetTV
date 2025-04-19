@@ -262,27 +262,100 @@
 .products-table {
   width: 100%;
   border-collapse: collapse;
+  margin-top: 20px;
+  table-layout: fixed;
 }
 
 .products-table th,
 .products-table td {
-  padding: 1rem;
+  border: 1px solid #ddd;
+  padding: 10px;
   text-align: left;
-  border-bottom: 1px solid #eee;
+  vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .products-table th {
-  background-color: #f9f9fa;
-  font-weight: 600;
-  color: #555;
+  background-color: #f2f2f2;
+  font-weight: bold;
 }
 
-.product-thumbnail {
-  width: 60px;
-  height: 60px;
+.products-table td:nth-child(7) {
+  white-space: normal;
+}
+
+.products-table .product-thumbnail {
+  max-width: 60px;
+  max-height: 60px;
   object-fit: cover;
   border-radius: 4px;
-  background-color: #f5f5f5; /* Light gray background for images */
+}
+
+.products-table .product-tags .tag {
+  margin-right: 5px;
+  margin-bottom: 5px;
+  display: inline-block;
+}
+
+.products-table .action-buttons {
+  display: flex;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.products-table .action-buttons .btn {
+  padding: 5px 8px;
+  font-size: 0.85em;
+}
+
+.products-table th:nth-child(1),
+.products-table td:nth-child(1) {
+  width: 8%;
+}
+
+.products-table th:nth-child(2),
+.products-table td:nth-child(2) {
+  width: 15%;
+  white-space: normal;
+}
+
+.products-table th:nth-child(3),
+.products-table td:nth-child(3) {
+  width: 10%;
+}
+
+.products-table th:nth-child(4),
+.products-table td:nth-child(4) {
+  width: 8%;
+}
+
+.products-table th:nth-child(5),
+.products-table td:nth-child(5) {
+  width: 8%;
+}
+
+.products-table th:nth-child(6),
+.products-table td:nth-child(6) {
+  width: 10%;
+}
+
+.products-table th:nth-child(7),
+.products-table td:nth-child(7) {
+  width: 20%;
+  white-space: normal;
+}
+
+.products-table th:nth-child(8),
+.products-table td:nth-child(8) {
+  width: 11%;
+  white-space: normal;
+}
+
+.products-table th:nth-child(9),
+.products-table td:nth-child(9) {
+  width: 10%;
 }
 
 .product-price-cell {
@@ -382,4 +455,64 @@
   .products-table td:nth-child(5) {
     display: none;
   }
+}
+
+/* --- Styles for Existing Images in Edit Form --- */
+.existing-images-section {
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px solid #eee;
+}
+
+.existing-images-section p {
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.existing-images-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 15px;
+}
+
+.existing-image-item {
+  position: relative;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.existing-image-thumbnail {
+  display: block;
+  width: 100%;
+  height: 100px; /* Adjust height as needed */
+  object-fit: cover;
+}
+
+.btn-delete-image {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background-color: rgba(255, 0, 0, 0.7);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 25px;
+  height: 25px;
+  font-size: 14px;
+  line-height: 25px;
+  text-align: center;
+  padding: 0;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  font-weight: bold;
+}
+
+.btn-delete-image:hover {
+  background-color: rgba(255, 0, 0, 1);
+}
+
+/* Ensure full-width class applies correctly if needed */
+.form-group.full-width {
+    grid-column: 1 / -1; /* Span across all columns in grid layout */
 } 

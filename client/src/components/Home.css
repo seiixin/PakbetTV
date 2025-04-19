@@ -431,36 +431,52 @@ section {
 
 .zodiac-icons-container {
   display: flex;
-  flex-wrap: wrap; 
-  justify-content: center;
-  gap: 2.5rem; /* Slightly increased gap */
-  max-width: 1800px; /* Significantly increased max-width */
+  flex-wrap: wrap; /* Allow wrapping, but we'll try to fit them */
+  justify-content: center; /* Center items horizontally */
+  gap: 1rem; /* Reduce the gap between items */
+  max-width: 2000px; /* Or adjust as needed */
   margin: 0 auto;
-  padding: 0 2rem; 
+  padding: 0 1rem; 
+  /* Remove overflow-x and scrollbar styles */
 }
+
+/* Remove scrollbar styles */
 
 .zodiac-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 90px; /* Keep width relatively small */
-  margin-top: -3rem;
+  padding: 10px;
+  min-width: 110px; 
+  max-width: 120px; 
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.3s ease;
+  flex-shrink: 1; 
+  flex-basis: calc(100% / 12 - 1rem);
+}
+
+.zodiac-item:hover {
+  transform: translateY(-4px); /* Adjust hover effect */
 }
 
 .zodiac-icon {
-  height: 200px; 
+  height: 200px; /* Increase icon height */
   width: auto;
   object-fit: contain;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.75rem; /* Increase margin */
+  margin-top: -50px;
 }
 
 .zodiac-name {
-  font-size: 1rem; /* Adjust name font size */
-  color: #444; /* Adjust name color */
+  font-size: 0.9rem; /* Slightly increase name font size */
+  color: #444;
   font-weight: 600;
   text-transform: uppercase;
-  font-family: serif; /* Example: Match title font */
-  margin-top: -2rem;
+  font-family: serif;
+  margin-top: -50px;
+  text-align: center;
 }
 
 /* Shop by Aspiration */

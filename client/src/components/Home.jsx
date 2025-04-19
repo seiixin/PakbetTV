@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import './Home.css';
 import placeholderImages from '../assets/placeholder.js';
@@ -350,13 +350,13 @@ const Home = () => {
           </div>
           <div className="category-card">
             <div className="category-image">
-              <img src="/Categories-4.png" alt="Amulets Icon" />
+              <img src="/Categories-5.png" alt="Bracelets Icon" />
             </div>
             <h3>Amulets</h3>
           </div>
           <div className="category-card">
             <div className="category-image">
-              <img src="/Categories-5.png" alt="Bracelets Icon" />
+              <img src="/Categories-4.png" alt="Amulets Icon" />
             </div>
             <h3>Bracelets</h3>
           </div>
@@ -371,10 +371,10 @@ const Home = () => {
         </div>
         <div className="zodiac-icons-container">
           {zodiacSigns.map((sign) => (
-            <div key={sign.name} className="zodiac-item">
+            <Link to={`/prosper-guide/${sign.name.toLowerCase()}`} key={sign.name} className="zodiac-item">
               <img src={sign.image} alt={sign.name} className="zodiac-icon" />
               <p className="zodiac-name">{sign.name}</p>
-            </div>
+            </Link>
           ))}
         </div>
       </section>

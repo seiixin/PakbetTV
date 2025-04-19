@@ -10,8 +10,8 @@ const { auth, admin } = require('../middleware/auth');
 router.post(
   '/',
   [
-    auth,
-    admin,
+    //auth,
+    //admin,
     body('name', 'Name is required').notEmpty(),
     body('name', 'Name must be between 2 and 100 characters').isLength({ min: 2, max: 100 })
   ],

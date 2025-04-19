@@ -91,57 +91,66 @@ router.post('/payment', async (req, res) => {
     const paymentId = paymentResult.insertId;
     
     if (payment_method === 'dragonpay') {
-      // Create Dragonpay payment request
-      const requestUrl = `${BASE_URL}/${txnId}/post`;
+      // Dragonpay configuration
+      const MERCHANT_ID = process.env.DRAGONPAY_MERCHANT_ID || 'TEST';
+      const SECRET_KEY = process.env.DRAGONPAY_SECRET_KEY || 'test_key';
       
-      // Create auth token for basic auth
-      const authToken = Buffer.from(`${MERCHANT_ID}:${API_KEY}`).toString('base64');
+      // Create payload
+      const amount = parseFloat(order.total_price).toFixed(2);
+      const description = `Order #${order_id}`;
+      const email = payment_details.email || order.email;
+      const returnUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/transaction-complete`;
       
-      // Construct payment request payload
+      // Using HTML redirect method (previously working approach)
+      // Format merchant ID in uppercase as required by Dragonpay
+      const merchantIdUpper = MERCHANT_ID.toUpperCase();
+      
+      // Build the digest string as specified by Dragonpay
+      const digestString = merchantIdUpper + ':' + txnId + ':' + amount + ':PHP:' + description + ':' + email + ':' + SECRET_KEY;
+      
+      console.log('Digest string format (without actual secret key):', 
+        merchantIdUpper + ':' + txnId + ':' + amount + ':PHP:' + description + ':' + email + ':***');
+      
+      // Use SHA1 hash as specified in the Dragonpay documentation
+      const digest = crypto.createHash('sha1')
+        .update(digestString)
+        .digest('hex');
+      
+      console.log('Generated SHA1 digest:', digest);
+      
+      // Assemble the payload with all required parameters
       const payload = {
-        Amount: parseFloat(order.total_price).toFixed(2),
-        Currency: "PHP",
-        Description: `Order #${order_id}`,
-        Email: payment_details.email || order.email,
-        // Optional: Include ProcId if specified payment channel is desired
-        // ProcId: "GCSH", // For GCash
+        merchantid: merchantIdUpper,
+        txnid: txnId,
+        amount: amount,
+        ccy: 'PHP',
+        description: description,
+        email: email,
+        param1: order_id.toString(),
+        digest: digest,
+        returnurl: returnUrl
       };
       
-      // Make request to Dragonpay API
-      const response = await fetch(requestUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Basic ${authToken}`
-        },
-        body: JSON.stringify(payload)
-      });
+      console.log('Dragonpay payload:', payload);
       
-      // Log the raw response status and text
-      console.log('Dragonpay Response Status:', response.status);
-      const responseText = await response.text();
-      console.log('Dragonpay Raw Response Text:', responseText);
-
-      // Now try to parse the JSON
-      const data = JSON.parse(responseText);
-
-      if (data.Status === 'S') {
-        // Update payment record with reference number
-        await db.query(
-          'UPDATE payments SET reference_number = ? WHERE payment_id = ?',
-          [data.RefNo, paymentId]
-        );
-        
-        // Send payment URL back to client
-        res.json({
-          success: true,
-          payment_id: paymentId,
-          payment_url: data.Url,
-          reference_number: data.RefNo
-        });
-      } else {
-        throw new Error(data.Message || 'Payment initialization failed');
-      }
+      // Construct the URL with parameters
+      const redirectUrl = `https://test.dragonpay.ph/Pay.aspx?${new URLSearchParams(payload).toString()}`;
+      
+      console.log('Redirecting to Dragonpay URL:', redirectUrl);
+      
+      // Update payment record with reference number
+      await db.query(
+        'UPDATE payments SET reference_number = ? WHERE payment_id = ?',
+        [txnId, paymentId]
+      );
+      
+      // Send payment URL back to client
+      res.json({
+        success: true,
+        payment_id: paymentId,
+        payment_url: redirectUrl,
+        reference_number: txnId
+      });
     } else {
       res.status(400).json({ message: 'Unsupported payment method' });
     }
@@ -240,17 +249,17 @@ router.post('/postback', async (req, res) => {
     // Update order status
     if (status === 'S') {
       await db.query(
-        'UPDATE orders SET order_status = ?, payment_status = ? WHERE order_id = ?',
-        ['processing', 'paid', orderId]
+        'UPDATE orders SET order_status = ? WHERE order_id = ?',
+        ['processing', orderId]
       );
     } else if (status === 'F') {
       await db.query(
-        'UPDATE orders SET order_status = ?, payment_status = ? WHERE order_id = ?',
-        ['cancelled', 'failed', orderId]
+        'UPDATE orders SET order_status = ? WHERE order_id = ?',
+        ['cancelled', orderId]
       );
     } else if (status === 'P') {
       await db.query(
-        'UPDATE orders SET payment_status = ? WHERE order_id = ?',
+        'UPDATE orders SET order_status = ? WHERE order_id = ?',
         ['pending', orderId]
       );
     }

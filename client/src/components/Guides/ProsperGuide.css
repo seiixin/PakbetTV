@@ -1,0 +1,172 @@
+.prosper-guide-container {
+  width: 100%;
+  background-color: #fff;
+  min-height: 100vh;
+}
+
+.prosper-guide-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+.prosper-guide-header {
+  text-align: center;
+  margin-bottom: 40px;
+  padding-top: 60px;
+}
+
+.prosper-guide-header h1 {
+  font-size: 48px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.prosper-guide-header h2 {
+  font-size: 24px;
+  font-weight: 400;
+  color: #666;
+}
+
+.prosper-guide-sections {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.guide-section {
+  margin-bottom: 30px;
+  background-color: #f8f8f8;
+  border-radius: 5px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.guide-section h3 {
+  padding: 15px 20px;
+  margin: 0;
+  background-color: #A2201A;
+  color: white;
+  font-size: 20px;
+  font-weight: 600;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+}
+
+.section-content {
+  padding: 20px;
+  line-height: 1.6;
+}
+
+.section-content p {
+  margin: 0;
+  color: #333;
+  font-size: 16px;
+}
+
+/* Footer styles (matching Home component) */
+.footer {
+  background-color: #000;
+  color: #fff;
+  padding: 40px 20px;
+}
+
+.footer-content {
+  display: flex;
+  justify-content: space-between;
+  max-width: 1200px;
+  margin: 0 auto;
+  flex-wrap: wrap;
+}
+
+.footer-section {
+  flex: 1;
+  min-width: 250px;
+  margin-bottom: 20px;
+}
+
+.footer-section h3 {
+  font-size: 18px;
+  margin-bottom: 15px;
+  font-weight: bold;
+}
+
+.footer-section ul {
+  list-style: none;
+  padding: 0;
+}
+
+.footer-section li, 
+.footer-section p {
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.footer-section a {
+  color: #fff;
+  text-decoration: none;
+}
+
+.footer-section a:hover {
+  text-decoration: underline;
+}
+
+.footer-bottom {
+  max-width: 1200px;
+  margin: 30px auto 0;
+  padding-top: 20px;
+  border-top: 1px solid #333;
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.footer-bottom div {
+  display: flex;
+  gap: 20px;
+}
+
+.footer-bottom p {
+  font-size: 12px;
+  margin: 0;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .prosper-guide-header h1 {
+    font-size: 36px;
+  }
+  
+  .prosper-guide-header h2 {
+    font-size: 20px;
+  }
+  
+  .footer-content {
+    flex-direction: column;
+  }
+  
+  .footer-section {
+    margin-bottom: 30px;
+  }
+  
+  .footer-bottom {
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .footer-bottom div {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .prosper-guide-header h1 {
+    font-size: 28px;
+  }
+  
+  .prosper-guide-header h2 {
+    font-size: 16px;
+  }
+} 

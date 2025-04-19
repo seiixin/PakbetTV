@@ -13,6 +13,7 @@ import ProductPage from './components/Shop/ProductPage'
 import ProductDetailPage from './components/Shop/ProductDetailPage'
 import Cart from './components/Shop/Cart'
 import TransactionComplete from './components/Shop/TransactionComplete'
+import ProsperGuide from './components/Guides/ProsperGuide'
 
 function AppContent() {
   const location = useLocation();
@@ -34,6 +35,7 @@ function AppContent() {
         <Route path="/product/:id" element={<ProductDetailPage />} />
         <Route path="/cart" element={<Cart />} />
         <Route path="/transaction-complete" element={<TransactionComplete />} />
+        <Route path="/prosper-guide/:sign" element={<ProsperGuide />} />
       </Routes>
     </>
   );
