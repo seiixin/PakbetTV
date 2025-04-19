@@ -20,6 +20,32 @@ const Home = () => {
   const [activeIndex, setActiveIndex] = useState(0);
   const carouselRef = React.useRef(null);
 
+  const zodiacSigns = [
+    { name: 'RAT', image: '/Prosper-1.png' },
+    { name: 'OX', image: '/Prosper-2.png' },
+    { name: 'TIGER', image: '/Prosper-3.png' },
+    { name: 'RABBIT', image: '/Prosper-4.png' },
+    { name: 'DRAGON', image: '/Prosper-5.png' },
+    { name: 'SNAKE', image: '/Prosper-6.png' },
+    { name: 'HORSE', image: '/Prosper-7.png' },
+    { name: 'GOAT', image: '/Prosper-8.png' },
+    { name: 'MONKEY', image: '/Prosper-9.png' },
+    { name: 'ROOSTER', image: '/Prosper-10.png' },
+    { name: 'DOG', image: '/Prosper-11.png' },
+    { name: 'PIG', image: '/Prosper-12.png' },
+  ];
+
+  const aspirations = [
+    { name: 'Balance', image: '/Aspiration-1.png' },
+    { name: 'Health', image: '/Aspiration-2.png' },
+    { name: 'Love', image: '/Aspiration-3.png' },
+    { name: 'Luck', image: '/Aspiration-4.png' },
+    { name: 'Positivity', image: '/Aspiration-5.png' },
+    { name: 'Protection', image: '/Aspiration-6.png' },
+    { name: 'Wealth', image: '/Aspiration-7.png' },
+    { name: 'Wisdom', image: '/Aspiration-8.png' },
+  ];
+
   useEffect(() => {
     // Fetch new arrivals from API
     const fetchNewArrivals = async () => {
@@ -166,8 +192,6 @@ const Home = () => {
   return (
     <div className="home">
       <NavBar />
-      
-      {/* Hero Section */}
       <section className="hero-section" style={{ 
         backgroundColor: '#A2201A',
         backgroundImage: `url(/HeroBG-01-01.png)`,
@@ -220,7 +244,7 @@ const Home = () => {
       </section>
       <section className="new-arrivals">
         <div className="section-header">
-          <h2>New Arrivals</h2>
+          <h2>NEW ARRIVALS</h2>
           <p>Our latest additions to bring balance and harmony</p>
         </div>
         
@@ -279,8 +303,6 @@ const Home = () => {
                 ))}
               </div>
             </div>
-            
-            {/* Arrow navigation */}
             <div className="carousel-controls">
               <button 
                 className="carousel-nav-button prev"
@@ -303,88 +325,82 @@ const Home = () => {
           </div>
         )}
       </section>
-
-      {/* Categories Section */}
       <section className="categories">
         <div className="section-header">
-          <h2>Categories</h2>
-          <p>Find the perfect Feng Shui elements for your space</p>
+          <h2>CATEGORIES</h2>
         </div>
         <div className="categories-grid">
           <div className="category-card">
-            <div className="category-image" style={{ backgroundImage: `url(${placeholderImages.waterElements})` }}></div>
+            <div className="category-image">
+              <img src="/Categories-1.png" alt="Best Sellers Icon" />
+            </div>
             <h3>Best Sellers</h3>
           </div>
           <div className="category-card">
-            <div className="category-image" style={{ backgroundImage: `url(${placeholderImages.woodElements})` }}></div>
+            <div className="category-image">
+              <img src="/Categories-2.png" alt="Flash Deals Icon" />
+            </div>
             <h3>Flash Deals</h3>
           </div>
           <div className="category-card">
-            <div className="category-image" style={{ backgroundImage: `url(${placeholderImages.fireElements})` }}></div>
+            <div className="category-image">
+              <img src="/Categories-3.png" alt="Books Icon" />
+            </div>
             <h3>Books</h3>
           </div>
           <div className="category-card">
-            <div className="category-image" style={{ backgroundImage: `url(${placeholderImages.earthElements})` }}></div>
+            <div className="category-image">
+              <img src="/Categories-4.png" alt="Amulets Icon" />
+            </div>
             <h3>Amulets</h3>
           </div>
           <div className="category-card">
-            <div className="category-image" style={{ backgroundImage: `url(${placeholderImages.metalElements})` }}></div>
+            <div className="category-image">
+              <img src="/Categories-5.png" alt="Bracelets Icon" />
+            </div>
             <h3>Bracelets</h3>
           </div>
         </div>
       </section>
 
-      {/* 2025 Prosper Guide */}
-      <section className="prosper-guide">
-        <div className="guide-content">
-          <div className="guide-text">
-            <h2>2025 Prosper Guide</h2>
-            <p>Navigate the Year of the Snake with our exclusive Feng Shui guide. Learn how to optimize your space for maximum prosperity and harmony.</p>
-            <button className="primary-button">Get Your Guide</button>
-          </div>
-          <div className="guide-image" style={{ backgroundImage: `url(${placeholderImages.prosperGuide})` }}></div>
+      {/* 2025 Prosper Guide - Updated Structure */}
+      <section className="prosper-guide-section">
+        <div className="section-header prosper-header">
+          <h2>2025 PROSPER GUIDE</h2> 
+          <p>Career, Health, Love, & Wealth</p>
+        </div>
+        <div className="zodiac-icons-container">
+          {zodiacSigns.map((sign) => (
+            <div key={sign.name} className="zodiac-item">
+              <img src={sign.image} alt={sign.name} className="zodiac-icon" />
+              <p className="zodiac-name">{sign.name}</p>
+            </div>
+          ))}
         </div>
       </section>
 
       {/* Shop by Aspiration */}
       <section className="shop-aspirations">
         <div className="section-header">
-          <h2>Shop by Aspiration</h2>
+          <h2>SHOP BY ASPIRATION</h2>
           <p>Find products aligned with your life goals</p>
         </div>
         <div className="aspirations-grid">
-          <div className="aspiration-card">
-            <div className="aspiration-icon" style={{ backgroundImage: `url(${placeholderImages.wealthIcon})` }}></div>
-            <h3>Wealth & Prosperity</h3>
-          </div>
-          <div className="aspiration-card">
-            <div className="aspiration-icon" style={{ backgroundImage: `url(${placeholderImages.loveIcon})` }}></div>
-            <h3>Love & Relationships</h3>
-          </div>
-          <div className="aspiration-card">
-            <div className="aspiration-icon" style={{ backgroundImage: `url(${placeholderImages.careerIcon})` }}></div>
-            <h3>Career & Success</h3>
-          </div>
-          <div className="aspiration-card">
-            <div className="aspiration-icon" style={{ backgroundImage: `url(${placeholderImages.healthIcon})` }}></div>
-            <h3>Health & Wellness</h3>
-          </div>
-          <div className="aspiration-card">
-            <div className="aspiration-icon" style={{ backgroundImage: `url(${placeholderImages.familyIcon})` }}></div>
-            <h3>Family Harmony</h3>
-          </div>
-          <div className="aspiration-card">
-            <div className="aspiration-icon" style={{ backgroundImage: `url(${placeholderImages.knowledgeIcon})` }}></div>
-            <h3>Knowledge & Wisdom</h3>
-          </div>
+          {aspirations.map((item) => (
+            <div key={item.name} className="aspiration-card">
+              <div className="aspiration-icon">
+                 <img src={item.image} alt={`${item.name} Icon`} />
+              </div>
+              <h3>{item.name}</h3>
+            </div>
+          ))}
         </div>
       </section>
 
       {/* Blog Section */}
       <section className="blog-section">
         <div className="section-header">
-          <h2>Feng Shui Insights</h2>
-          <p>Learn from our experts about ancient wisdom for modern living</p>
+          <h2>BLOG</h2>
         </div>
         <div className="blog-grid">
           <div className="blog-card">
@@ -418,40 +434,49 @@ const Home = () => {
       <footer className="footer">
         <div className="footer-content">
           <div className="footer-section">
-            <h3>About Us</h3>
-            <p>Authentic Feng Shui products curated by masters to enhance your life's harmony and balance.</p>
-          </div>
-          <div className="footer-section">
-            <h3>Quick Links</h3>
+            <h3>FAQ</h3>
             <ul>
-              <li><a href="#">Home</a></li>
-              <li><a href="#">Shop</a></li>
-              <li><a href="#">Categories</a></li>
-              <li><a href="#">2025 Prosper Guide</a></li>
-              <li><a href="#">Blog</a></li>
+              <li><a href="#">Delivery</a></li>
+              <li><a href="#">Return/Exchange</a></li>
+              <li><a href="#">Order/Cancellation</a></li>
+              <li><a href="#">Payment</a></li>
+              <li><a href="#">Product Availability</a></li>
+              <li><a href="#">Gift Wrapping Services</a></li>
             </ul>
           </div>
           <div className="footer-section">
-            <h3>Customer Service</h3>
+            <h3>VISIT US</h3>
             <ul>
-              <li><a href="#">Contact Us</a></li>
-              <li><a href="#">Shipping & Returns</a></li>
-              <li><a href="#">FAQ</a></li>
-              <li><a href="#">Privacy Policy</a></li>
-              <li><a href="#">Terms of Service</a></li>
+              <p>Feng Shui by Pakbet TV</p>
+              <p>Unit 1004 Cityland Shaw Tower</p>
+              <p>Corner St. Francis, Shaw Blvd.</p>
+              <p>Mandaluyong City, Philippines</p>
+              <p>Hours</p>
+              <p>Monday - Sunday</p>
+              <p>8:00 AM - 5:00 PM</p>
+              <p>Public Holidays - CLOSED</p>
             </ul>
           </div>
           <div className="footer-section">
-            <h3>Newsletter</h3>
-            <p>Subscribe to receive Feng Shui tips and exclusive offers.</p>
-            <form className="newsletter-form">
-              <input type="email" placeholder="Your email address" />
-              <button type="submit" className="primary-button">Subscribe</button>
-            </form>
+            <h3>FOLLOW US</h3>
+            <ul>
+              <p>Facebook</p>
+              <p>Instagram</p>
+              <p>YouTube</p>
+              <p>NEED HELP?</p>
+              <p>admin@pakbettv.com</p>
+              <p>09123-12312-12123</p>
+            </ul>
           </div>
         </div>
         <div className="footer-bottom">
-          <p>&copy; 2025 Feng Shui E-Commerce. All rights reserved.</p>
+          <div>
+          <p>COPYRIGHT 2025 FENG SHUI BY PAKBET TV. ALL RIGHTS RESERVED.</p>
+          </div>
+          <div>
+            <p>Terms of Use</p>
+            <p>Privacy Policy</p>
+          </div>
         </div>
       </footer>
     </div>

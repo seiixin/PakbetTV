@@ -37,14 +37,25 @@ const ProductPage = () => {
       setLoading(true);
       const response = await fetch('http://localhost:5000/api/products');
       if (!response.ok) {
-        throw new Error('Failed to fetch products');
+        // Attempt to parse error message from backend if possible
+        let errorMsg = 'Failed to fetch products';
+        try {
+          const errorData = await response.json();
+          errorMsg = errorData.message || errorMsg;
+        } catch (parseError) {
+          // Ignore if response body isn't valid JSON
+        }
+        throw new Error(errorMsg);
       }
       const data = await response.json();
-      setProducts(data);
+      // Ensure data is an array, checking for potential nesting under 'products' or directly as an array
+      const productsArray = Array.isArray(data) ? data : (data && Array.isArray(data.products) ? data.products : []);
+      setProducts(productsArray); // Set the main products state
       setError(null);
     } catch (err) {
       setError('Error loading products. Please try again later.');
       console.error('Error fetching products:', err);
+      setProducts([]); // Ensure products is an empty array on error
     } finally {
       setLoading(false);
     }

@@ -157,7 +157,7 @@
 
 /* Red navbar variant */
 .navbar.red {
-  background-color: var(--primary-color, #A2201A);
+  /* background-color: var(--primary-color, #A2201A); */
 }
 
 .navbar.red .logo-text h3,
@@ -213,8 +213,8 @@
 
 /* Add a semi-transparent background when scrolled */
 .navbar.scrolled {
-  background-color: rgba(162, 32, 26, 0.85);
-  backdrop-filter: blur(10px);
+  /* background-color: rgba(162, 32, 26, 0.85); */
+  /* backdrop-filter: blur(10px); */
   box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
 }
 
@@ -509,9 +509,9 @@ button:disabled {
 
 /* Add shop page specific navbar styling */
 .navbar.shop-page {
-  background-color: rgba(162, 32, 26, 1);
+  /* background-color: rgba(162, 32, 26, 1); */
 }
 
 .navbar.shop-page.scrolled {
-  background-color: rgba(162, 32, 26, 0.95);
+  /* background-color: rgba(162, 32, 26, 0.95); */
 } 

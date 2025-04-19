@@ -1,0 +1,40 @@
+# Dependency directories
+node_modules/
+
+# Environment variables
+.env
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage
+
+# nyc test coverage
+.nyc_output
+
+# Built output
+dist/
+build/
+
+# Uploaded files
+uploads/*
+!uploads/.gitkeep
+
+# Temporary files
+.tmp/
+.temp/
+
+# IDE / Editors
+.idea/
+.vscode/
+*.swp
+*.swo 

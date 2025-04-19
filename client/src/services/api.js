@@ -24,7 +24,11 @@ api.interceptors.request.use(
 
 // Auth services
 export const authService = {
-  signup: (userData) => api.post('/auth/signup', userData),
+  signup: (userData) => {
+    const url = '/auth/signup';
+    console.log('[API Service] Attempting POST to:', api.defaults.baseURL + url);
+    return api.post(url, userData);
+  },
   login: (credentials) => api.post('/auth/login', credentials),
   getProfile: () => api.get('/auth/profile')
 };

@@ -9,7 +9,6 @@ function Signup() {
   const [formData, setFormData] = useState({
     username: '',
     firstname: '',
-    middlename: '',
     lastname: '',
     email: '',
     password: '',
@@ -55,7 +54,6 @@ function Signup() {
     const userData = {
       username: formData.username,
       firstname: formData.firstname,
-      middlename: formData.middlename,
       lastname: formData.lastname,
       email: formData.email,
       password: formData.password
@@ -124,19 +122,6 @@ function Signup() {
               disabled={loading}
             />
           </div>
-        </div>
-        
-        <div className="form-group">
-          <label htmlFor="middlename">Middle Name (Optional)</label>
-          <input
-            type="text"
-            id="middlename"
-            name="middlename"
-            value={formData.middlename}
-            onChange={handleChange}
-            placeholder="Enter your middle name"
-            disabled={loading}
-          />
         </div>
         
         <div className="form-group">

@@ -1,4 +1,14 @@
+@import url('https://fonts.googleapis.com/css2?family=ZCOOL+XiaoWei&display=swap');
+
 /* General Styles */
+body {
+  font-family: 'ZCOOL XiaoWei', serif; /* Apply ZCOOL XiaoWei globally */
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  background-color: #f8f8f8; /* Example background */
+}
+
 .home {
   width: 100vw;
   max-width: 100vw;
@@ -16,8 +26,9 @@
 
 .section-header h2 {
   font-size: 2.5rem;
-  color: var(--primary-color);
+  color: black;
   margin-bottom: 0.5rem;
+  font-family: 'ZCOOL XiaoWei', serif; /* Apply ZCOOL XiaoWei */
 }
 
 .section-header p {
@@ -126,7 +137,7 @@ section {
 }
 
 .hero-top-right img {
-  margin-top: -50px;
+  margin-top: -50px; /* Reverted to original value */
   margin-left: 120px;
   max-width: 200%;
   max-height: 100%;
@@ -141,7 +152,6 @@ section {
   align-items: center;
   justify-content: center;
   text-align: center;
-  z-index: 1;
   margin-left: 150px;
 }
 
@@ -208,6 +218,7 @@ section {
   font-weight: bold;
   text-align: center;
   width: 100%;
+  font-family: sans-serif; /* Explicitly set fallback sans-serif */
 }
 .hero-content h2 {
   font-size: 2rem;
@@ -217,6 +228,7 @@ section {
   font-weight: bold;
   text-align: center;
   width: 100%;
+  font-family: sans-serif; /* Explicitly set fallback sans-serif */
 }
 .hero-content p {
   font-size: 1.2rem;
@@ -228,8 +240,8 @@ section {
 }
 .hero-content button {
   margin-left: 0;
-  background-color: var(--secondary-color);
-  color: rgba(43, 43, 43, 0.85);
+  background-color: var(--secondary-color) !important;
+  color: black !important;
   border-radius: 100px;
   border-color: #2b2b2b;
   border-width: 1px;
@@ -341,82 +353,114 @@ section {
 .categories-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap:.5rem;
+  gap: 2.5rem;
   margin: 0 auto;
-  max-width: 1200px;
+  max-width: 1400px;
   padding: 0 2rem;
+  height: 100%;
+  width: 100%;
 }
 
 .category-card {
-  position: relative;
-  height: 240px;
-  border-radius: 8px;
+  background-color: var(--white-color);
+  border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  transition: transform 0.3s ease;
-  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+  height: 100%;
+  width: 100%;
 }
 
 .category-card:hover {
-  transform: scale(1.03);
+  transform: translateY(-5px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
 }
 
 .category-image {
-  height: 100%;
+  height: 100%; /* Adjust height as needed */
+  background-image: linear-gradient(to bottom, #A2201A, #800000); /* Maroon Gradient */
   width: 100%;
-  background-color: rgba(162, 32, 26, 0.85);
-  background-size: cover;
-  background-position: center;
+  display: flex; /* Use flexbox for centering the img */
+  align-items: center; /* Center vertically */
+  justify-content: center; /* Center horizontally */
+  padding: 1rem; /* Add some padding around the image */
+  box-sizing: border-box; /* Include padding in height/width */
+}
+
+.category-image img {
+  max-width: 100%; /* Ensure image doesn't overflow */
+  max-height: 100%; /* Ensure image doesn't overflow */
+  height: 80%; /* Adjust size relative to container, e.g., 80% */
+  object-fit: contain; /* Maintain aspect ratio */
 }
 
 .category-card h3 {
-  position: absolute;
-  bottom: 0;
-  width: 100%;
-  background-color: white;
-  color: rgba(162, 32, 26, 0.85);
-  margin: 0;
   padding: 1rem;
+  font-size: 1.1rem;
+  color: var(--primary-color); /* Use primary color for text */
+  margin: 0;
+  background-color: var(--white-color); /* Ensure text background is white */
+  border-top: 1px solid #eee; /* Optional separator line */
+}
+
+/* New Prosper Guide Section Styles */
+.prosper-guide-section {
+  background-color: white; /* Or your desired background */
+  width: 100%;
+  margin: 0;
+  padding: 4rem 0;
   text-align: center;
 }
 
-/* Prosper Guide Section */
-.prosper-guide {
-  background-color: var(--secondary-color);
-  padding: 0;
-  width: 100%;
-  margin: 0;
+.prosper-header h2 {
+  font-size: 2.8rem; /* Adjust as needed */
+  color: black; 
+  margin-bottom: 0.5rem;
+  /* font-family: serif; */ /* Removed serif font to inherit ZCOOL */
 }
 
-.guide-content {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  max-width: 1200px;
+.prosper-header p {
+  font-size: 1.2rem; /* Adjust as needed */
+  color: #555; /* Adjust color */
+  margin-bottom: 3rem;
+  font-family: sans-serif; /* Example: Use a sans-serif font */
+}
+
+.zodiac-icons-container {
+  display: flex;
+  flex-wrap: wrap; 
+  justify-content: center;
+  gap: 2.5rem; /* Slightly increased gap */
+  max-width: 1800px; /* Significantly increased max-width */
   margin: 0 auto;
-  width: 100%;
+  padding: 0 2rem; 
 }
 
-.guide-text {
-  padding: 5rem 3rem;
-  color: var(--black-color);
+.zodiac-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 90px; /* Keep width relatively small */
+  margin-top: -3rem;
 }
 
-.guide-text h2 {
-  font-size: 2.5rem;
-  margin-bottom: 1.5rem;
-  color: var(--primary-color);
+.zodiac-icon {
+  height: 200px; 
+  width: auto;
+  object-fit: contain;
+  margin-bottom: 0.75rem;
 }
 
-.guide-text p {
-  font-size: 1.1rem;
-  margin-bottom: 2rem;
-}
-
-.guide-image {
-  background-color: #e8b25d;
-  background-image: url('/src/assets/prosper-guide.jpg');
-  background-size: cover;
-  background-position: center;
+.zodiac-name {
+  font-size: 1rem; /* Adjust name font size */
+  color: #444; /* Adjust name color */
+  font-weight: 600;
+  text-transform: uppercase;
+  font-family: serif; /* Example: Match title font */
+  margin-top: -2rem;
 }
 
 /* Shop by Aspiration */
@@ -429,37 +473,56 @@ section {
 
 .aspirations-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 2rem;
   margin: 0 auto;
-  max-width: 1200px;
+  max-width: 1600px;
   padding: 0 2rem;
 }
 
 .aspiration-card {
+  background-color: var(--white-color);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  display: flex;
+  flex-direction: column;
   text-align: center;
-  transition: transform 0.3s ease;
-  cursor: pointer;
 }
 
 .aspiration-card:hover {
-  transform: translateY(-8px);
+  transform: translateY(-5px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
 }
 
 .aspiration-icon {
-  height: 80px;
-  width: 80px;
-  margin: 0 auto 1rem;
-  background-color: var(--secondary-color);
-  border-radius: 50%;
+  height: 160px;
+  background-image: linear-gradient(to bottom, #A2201A, #800000);
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 1rem;
+  box-sizing: border-box;
+  border-radius: 0;
+  margin: 0;
+}
+
+.aspiration-icon img {
+  max-width: 100%;
+  max-height: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .aspiration-card h3 {
+  padding: 1rem;
   font-size: 1.1rem;
-  color: var(--black-color);
+  color: var(--primary-color);
+  margin: 0;
+  background-color: var(--white-color);
+  border-top: 1px solid #eee;
 }
 
 /* Blog Section */
@@ -592,10 +655,22 @@ section {
 
 .footer-bottom {
   background-color: #111;
-  text-align: center;
-  padding: 1.5rem 0;
+  padding: 1.5rem 2rem;
   color: #999;
   width: 100%;
+  margin: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.footer-bottom > div:last-child {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.footer-bottom p {
   margin: 0;
 }
 

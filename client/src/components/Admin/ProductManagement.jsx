@@ -420,9 +420,9 @@ const ProductManagement = () => {
                     <td>
                       <img 
                         src={
-                          product.image_url.includes('default') ? 
-                          getCategoryPlaceholder(product.category) : 
-                          `http://localhost:5000${product.image_url}`
+                          (product.image_url && typeof product.image_url === 'string' && !product.image_url.includes('default')) 
+                          ? `http://localhost:5000${product.image_url}` 
+                          : getCategoryPlaceholder(product.category)
                         } 
                         alt={product.name}
                         className="product-thumbnail" 
