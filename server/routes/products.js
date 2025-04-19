@@ -341,7 +341,17 @@ router.get('/:id', async (req, res) => {
 
     // Get product details
     const [productResult] = await db.query(`
-      SELECT p.*, c.name AS category_name
+      SELECT 
+        p.product_id, 
+        p.name, 
+        p.product_code, 
+        p.description, 
+        p.category_id, 
+        p.price, 
+        p.stock AS stock_quantity,  -- Alias stock as stock_quantity
+        p.created_at, 
+        p.updated_at,
+        c.name AS category_name
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.category_id
       WHERE p.product_id = ?

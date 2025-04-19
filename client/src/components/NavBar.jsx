@@ -51,6 +51,12 @@ const NavBar = () => {
     logout(); // Call the logout function
   };
 
+  // Determine navbar classes based on route and scroll state
+  const isHomePage = location.pathname === '/';
+  const navClassName = `navbar ${
+    !isHomePage || scrolled ? 'red' : 'transparent' // red unless homepage and not scrolled
+  } ${scrolled ? 'scrolled' : ''}`;
+
   return (
     <>
       {loggingOut && <div className="logout-overlay">
@@ -58,7 +64,7 @@ const NavBar = () => {
         <p>Logging out...</p>
       </div>}
       
-      <nav className={`navbar red ${scrolled ? 'scrolled' : ''}`}>
+      <nav className={navClassName}>
         <div className="navbar-container">
           <div className="navbar-logo">
             <Link to="/" className="logo-link">

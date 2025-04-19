@@ -1,6 +1,7 @@
 :root {
   /* Theme Colors */
   --primary-color: #A2201A; /* Maroon */
+  --primary-color-dark: #8a1c16; /* Darker maroon for hover */
   --secondary-color: #FEC16E; /* Gold/yellow */
   --text-color: #333333;
   --light-text-color: #666666;
