@@ -281,20 +281,27 @@ router.post('/', handleCombinedUpload, [
     
     // Insert variants and their images using connection with ? placeholders
     if (variants.length > 0) {
-      let imageIndex = 0; // Initialize index for variant images
+      let imageIndex = 0; 
       for (let i = 0; i < variants.length; i++) {
         const variant = variants[i];
-        // Insert variant using connection with ? placeholders
+        // --- MODIFIED: Insert using attributes column ---
         const [variantInsertResult] = await connection.query(
           `INSERT INTO product_variants (
-            product_id, size, color, price, stock, sku, weight, height, width
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
-          [productId, variant.size || '', variant.color || '', variant.price || 0, variant.stock || 0, variant.sku, variant.weight || 0, variant.height || 0, variant.width || 0]
+            product_id, price, stock, sku, attributes, image_url
+          ) VALUES (?, ?, ?, ?, ?, ?)`, 
+          [
+            productId, 
+            variant.price || 0, 
+            variant.stock || 0, 
+            variant.sku, 
+            JSON.stringify(variant.attributes || {}), // Expect attributes object, stringify for DB
+            null // Image URL is updated later
+          ]
         );
-        const variantId = variantInsertResult.insertId; // Get insertId
-        console.log(`Created variant with ID: ${variantId}`);
+        const variantId = variantInsertResult.insertId;
+        console.log(`Created variant with ID: ${variantId}, Attributes:`, variant.attributes);
 
-        // Update variant image URL using connection with ? placeholders, using imageIndex
+        // Update variant image URL (logic remains similar)
         if (variant.has_image && req.variantImages && imageIndex < req.variantImages.length) {
           const variantImage = req.variantImages[imageIndex]; // Get image based on imageIndex
           await connection.query(
@@ -412,9 +419,9 @@ router.get('/', async (req, res) => {
             delete product.display_price; // Optional: remove temporary column
         });
     }
-
+    
     res.json({
-      products, 
+      products,
       pagination: {
         currentPage: page,
         totalPages,
@@ -453,27 +460,40 @@ router.get('/:id', async (req, res) => {
     const product = productResult[0];
     
     // Get product variants using ? placeholder
-    const [variants] = await db.query('SELECT * FROM product_variants WHERE product_id = ?', [productId]);
+    // --- MODIFIED: Select attributes --- 
+    const [variants] = await db.query('SELECT variant_id, product_id, sku, price, stock, image_url, attributes, created_at, updated_at FROM product_variants WHERE product_id = ?', [productId]);
     
     // Map variants with additional information
     const variantsWithDetails = [];
     for (const variant of variants) {
+      // --- MODIFIED: Parse attributes and generate name --- 
+      let parsedAttributes = {};
+      try {
+        parsedAttributes = typeof variant.attributes === 'string' ? JSON.parse(variant.attributes) : variant.attributes; // Parse JSON attributes from DB
+      } catch (e) {
+        console.error(`Error parsing attributes for variant ${variant.variant_id}:`, e);
+      }
+      // Generate a name based on attributes (example)
+      const attributeString = Object.entries(parsedAttributes || {}).map(([key, value]) => value).join(' ');
+      const variantName = attributeString ? `${product.name} - ${attributeString}` : product.name;
+
       // Get variant image if available
       let variantImage = null;
       if (variant.image_url) {
         variantImage = {
           id: `variant-img-${variant.variant_id}`,
           url: `/uploads/${variant.image_url}`,
-          alt: `${product.name} - ${variant.color} ${variant.size}`,
+          alt: `${product.name} - ${attributeString}`,
           order: 0
         };
       }
       
       variantsWithDetails.push({
-        ...variant,
+        ...variant, // Spread original variant data (includes raw attributes)
+        attributes: parsedAttributes, // Add the parsed attributes object
         parent_product_id: productId,
         images: variantImage ? [variantImage] : [],
-        name: `${product.name} - ${variant.color} ${variant.size}`
+        name: variantName
       });
     }
     
@@ -571,36 +591,50 @@ router.put('/:id', handleCombinedUpload, async (req, res) => {
     
     // Insert or update variants using connection with ? placeholders
     if (variants.length > 0) {
-      let imageIndex = 0; // Initialize index for variant images
+      let imageIndex = 0; 
       for (let i = 0; i < variants.length; i++) {
         const variant = variants[i];
-        // Check if variant exists using connection with ? placeholders
+        // Check if variant exists (logic remains similar)
         const [existingResult] = await connection.query( // Destructure for mysql2
           'SELECT variant_id FROM product_variants WHERE sku = ? AND product_id = ?',
           [variant.sku, id]
         );
         let variantId;
-        if (existingResult.length > 0) { // Check array length
-          // Update existing variant using connection with ? placeholders
+        if (existingResult.length > 0) {
           variantId = existingResult[0].variant_id;
+          // --- MODIFIED: Update using attributes --- 
           await connection.query(
             `UPDATE product_variants SET
-              size = ?, color = ?, price = ?, stock = ?, weight = ?, height = ?, width = ?
+              price = ?, stock = ?, attributes = ?
             WHERE variant_id = ?`,
-            [variant.size || '', variant.color || '', variant.price || 0, variant.stock || 0, variant.weight || 0, variant.height || 0, variant.width || 0, variantId]
+            [
+              variant.price || 0, 
+              variant.stock || 0, 
+              JSON.stringify(variant.attributes || {}), // Expect attributes object
+              variantId
+            ]
           );
+          console.log(`Updated variant with ID: ${variantId}, Attributes:`, variant.attributes);
         } else {
-          // Insert new variant using connection with ? placeholders
-          const [variantInsertResult] = await connection.query( // Destructure for mysql2
+          // --- MODIFIED: Insert using attributes --- 
+          const [variantInsertResult] = await connection.query(
             `INSERT INTO product_variants (
-              product_id, size, color, price, stock, sku, weight, height, width
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
-            [id, variant.size || '', variant.color || '', variant.price || 0, variant.stock || 0, variant.sku, variant.weight || 0, variant.height || 0, variant.width || 0]
+              product_id, price, stock, sku, attributes, image_url
+            ) VALUES (?, ?, ?, ?, ?, ?)`, 
+            [
+              id, // Use product id from route param
+              variant.price || 0, 
+              variant.stock || 0, 
+              variant.sku, 
+              JSON.stringify(variant.attributes || {}), // Expect attributes object
+              null // Image URL is updated later
+            ]
           );
-          variantId = variantInsertResult.insertId; // Get insertId
+          variantId = variantInsertResult.insertId;
+          console.log(`Created variant with ID: ${variantId}, Attributes:`, variant.attributes);
         }
         
-        // Update variant image URL using connection with ? placeholders, using imageIndex
+        // Update variant image URL (logic remains similar)
         if (variant.has_image && req.variantImages && imageIndex < req.variantImages.length) {
           const variantImage = req.variantImages[imageIndex]; // Get image based on imageIndex
           await connection.query(

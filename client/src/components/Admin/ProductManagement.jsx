@@ -133,16 +133,18 @@ const ProductManagement = () => {
   const [categories, setCategories] = useState([]);
   const [includeVariants, setIncludeVariants] = useState(false);
   const [variants, setVariants] = useState([]);
-  const [currentVariant, setCurrentVariant] = useState({
-    sku: '',
-    size: '',
-    color: '',
+  
+  // --- NEW State for Dynamic Attributes ---
+  const [variantAttributes, setVariantAttributes] = useState([]); // Stores attribute names ['Size', 'Color']
+  const [newAttributeName, setNewAttributeName] = useState(''); // Input for adding new attribute
+  // --- END NEW State ---
+  
+  const [currentVariant, setCurrentVariant] = useState({ // Base structure for adding new variant row
     price: '',
     stock: '',
-    weight: '',
-    height: '',
-    width: '',
-    image: null
+    image: null,
+    preview: null,
+    attributes: {} // Initialize with empty attributes object
   });
   const [currentProduct, setCurrentProduct] = useState({
     name: '',
@@ -309,16 +311,14 @@ const ProductManagement = () => {
     setUserInitiatedSubmit(false);
     setIncludeVariants(false);
     setVariants([]);
-    setCurrentVariant({
-      sku: '',
-      size: '',
-      color: '',
-      price: '',
-      stock: '',
-      weight: 0,
-      height: 0,
-      width: 0,
-      image: null
+    setVariantAttributes([]); // Reset defined attributes
+    setNewAttributeName(''); // Reset attribute input
+    setCurrentVariant({ // Reset template for adding variants
+        price: '',
+        stock: '',
+        image: null,
+        preview: null,
+        attributes: {}
     });
   };
 
@@ -332,6 +332,7 @@ const ProductManagement = () => {
       setIsEditing(true);
       setSuccessMessage('');
       setError('');
+      resetForm(); // Reset form state first, including attributes
       
       // Fetch full product details including variants
       const response = await fetch(`${API_URL}/api/products/${product.product_id}`);
@@ -342,46 +343,63 @@ const ProductManagement = () => {
       const productDetails = await response.json();
       console.log('Product details for editing:', productDetails);
       
-      // Set current product
+      // --- MODIFIED: Set product state (remove legacy fields if they existed) ---
       setCurrentProduct({
         product_id: productDetails.product_id,
         product_code: productDetails.product_code,
         name: productDetails.name,
         description: productDetails.description,
-        price: productDetails.price,
-        stock: productDetails.stock_quantity || productDetails.stock,
+        // Base price/stock are less relevant when editing variants, keep for consistency?
+        price: productDetails.price, 
+        stock: productDetails.stock_quantity, 
         category_id: productDetails.category_id,
-        weight: productDetails.weight || 0,
-        height: productDetails.height || 0,
-        width: productDetails.width || 0,
-        length: productDetails.length || 0,
+        // Remove weight, height, width, length if they are now in attributes
+        // weight: productDetails.weight || 0, 
+        // height: productDetails.height || 0,
+        // width: productDetails.width || 0,
+        // length: productDetails.length || 0, 
         is_featured: productDetails.is_featured || false,
         images: productDetails.images || []
       });
       
-      // Reset new images
-      setNewProductImages([]);
+      setNewProductImages([]); // Reset new image uploads
       
-      // Load variants if available
+      // --- NEW: Load variants and determine attributes ---
       if (Array.isArray(productDetails.variants) && productDetails.variants.length > 0) {
-        // Format variants for the form
+        setIncludeVariants(true);
+
+        // Extract unique attribute keys from all variants
+        const attributeKeys = new Set();
+        productDetails.variants.forEach(variant => {
+          if (variant.attributes) {
+            Object.keys(variant.attributes).forEach(key => attributeKeys.add(key));
+          }
+        });
+        const definedAttributes = Array.from(attributeKeys);
+        setVariantAttributes(definedAttributes); // Set the defined attribute names
+        console.log('Determined variant attributes for editing:', definedAttributes);
+
+        // Format variants for the state, ensuring attributes object exists
         const formattedVariants = productDetails.variants.map(variant => ({
           variant_id: variant.variant_id,
-          size: variant.size || '',
-          color: variant.color || '',
           price: variant.price || 0,
           stock: variant.stock || 0,
-          weight: variant.weight || 0,
-          height: variant.height || 0,
-          width: variant.width || 0,
-          sku: variant.sku || '',
-          image_url: variant.image_url || (variant.images && variant.images[0]?.url),
-          preview: null
+          sku: variant.sku || '', // Keep SKU if needed for updates
+          image_url: variant.image_url || null, // Existing image URL
+          attributes: variant.attributes || {}, // Use parsed attributes from API
+          image: null, // For potential new image upload
+          preview: null // For new image preview
         }));
         setVariants(formattedVariants);
+        console.log('Formatted variants for editing:', formattedVariants);
+
       } else {
+        // No variants from API
+        setIncludeVariants(false);
         setVariants([]);
+        setVariantAttributes([]);
       }
+      // --- END NEW --- 
       
       // Open the modal
       setIsModalOpen(true);
@@ -389,8 +407,11 @@ const ProductManagement = () => {
     } catch (error) {
       console.error('Error fetching product details for editing:', error);
       setError('Failed to load product details for editing. Please try again.');
+      // Ensure modal doesn't open on error
+      setIsModalOpen(false); 
+      setIsEditing(false);
     }
-  }, [API_URL]);
+  }, [API_URL]); // Dependencies remain the same
 
   // Add a direct test function
   const testDirectApiCall = async () => {
@@ -447,16 +468,18 @@ const ProductManagement = () => {
   };
 
   const handleAddVariant = () => {
+    // Initialize new variant with keys based on currently defined attributes
+    const initialAttributes = variantAttributes.reduce((acc, attr) => {
+        acc[attr] = ''; // Start with empty string for each defined attribute
+        return acc;
+    }, {});
+
     const newVariant = {
-      size: '',
-      color: '',
       price: '',
       stock: '',
-      weight: 0,
-      height: 0,
-      width: 0,
       image: null,
-      preview: null
+      preview: null,
+      attributes: initialAttributes // Use generated initial attributes
     };
     
     setVariants([...variants, newVariant]);
@@ -468,10 +491,20 @@ const ProductManagement = () => {
 
   const handleVariantChange = (index, field, value) => {
     const updatedVariants = [...variants];
-    updatedVariants[index] = {
-      ...updatedVariants[index],
-      [field]: value
-    };
+    const currentVariant = updatedVariants[index];
+
+    // Check if the field is a standard one or a dynamic attribute
+    if (field === 'price' || field === 'stock') {
+      // Handle standard fields (convert to number if appropriate)
+      currentVariant[field] = (field === 'price' || field === 'stock') ? (value === '' ? '' : Number(value)) : value;
+    } else {
+      // Assume it's a dynamic attribute
+      currentVariant.attributes = {
+        ...currentVariant.attributes,
+        [field]: value // Use field name as the key in the attributes object
+      };
+    }
+
     setVariants(updatedVariants);
   };
 
@@ -544,43 +577,37 @@ const ProductManagement = () => {
         });
       }
       
-      // Handle variants with improved image handling
+      // Handle variants with dynamic attributes and image handling
       if (variants.length > 0) {
         formData.append('include_variants', 'true');
         
-        // Generate timestamp to make SKUs more unique
-        const timestamp = Date.now();
-        const randomString = Math.random().toString(36).substring(2, 6); 
+        const timestamp = Date.now(); 
+        const randomString = Math.random().toString(36).substring(2, 6);
         
-        // Create variants with timestamp-based SKUs
-        const variantsWithSKUs = variants.map((variant, index) => {
+        // --- MODIFIED: Map variants to include attributes object --- 
+        const variantsToSend = variants.map((variant, index) => {
           const variantNumber = index + 1;
-          const sku = currentProduct.product_code ? 
-            `${currentProduct.product_code}-${variantNumber}-${timestamp}-${randomString}` : 
-            `SKU-${variantNumber}-${timestamp}-${randomString}`;
+          // Generate SKU (ensure product_code exists or fallback)
+          const baseCode = currentProduct.product_code || `TEMP-${timestamp}`;
+          const sku = `${baseCode}-${variantNumber}-${randomString}`;
             
-          // Only include necessary fields (match server expectations)
+          // Return the structure expected by the backend
           return {
-            size: variant.size,
-            color: variant.color,
-            price: variant.price,
-            stock: variant.stock,
-            weight: variant.weight || 0,
-            height: variant.height || 0,
-            width: variant.width || 0,
+            price: variant.price || 0, // Ensure price has a default
+            stock: variant.stock || 0, // Ensure stock has a default
             sku,
-            // Flag to indicate if this variant has an image
-            has_image: !!variant.image
+            attributes: variant.attributes || {}, // Send the dynamic attributes object
+            has_image: !!variant.image // Flag if a new image file is present
           };
         });
         
-        formData.append('variants', JSON.stringify(variantsWithSKUs));
+        formData.append('variants', JSON.stringify(variantsToSend)); // Send the structured data
+        // --- END MODIFICATION --- 
         
-        // Append each variant image separately
-        variants.forEach((variant, index) => {
+        // Append each variant image file separately (logic remains the same)
+        variants.forEach((variant) => {
           if (variant.image && variant.image instanceof File) {
             formData.append('variantImages', variant.image);
-            console.log(`Added variant image for index ${index}:`, variant.image.name);
           }
         });
       }
@@ -761,6 +788,32 @@ const ProductManagement = () => {
     }
   }, []);
 
+  // --- NEW: Handler to Add a Variant Attribute Definition ---
+  const handleAddAttribute = () => {
+    const trimmedName = newAttributeName.trim();
+    // Prevent adding empty or duplicate attributes
+    if (trimmedName && !variantAttributes.includes(trimmedName)) {
+      setVariantAttributes([...variantAttributes, trimmedName]);
+      // Also update existing variants to include this new attribute key
+      setVariants(prevVariants => prevVariants.map(v => ({
+        ...v,
+        attributes: { ...v.attributes, [trimmedName]: '' } // Initialize with empty string
+      })));
+    }
+    setNewAttributeName(''); // Clear input field
+  };
+
+  // --- NEW: Handler to Remove a Variant Attribute Definition ---
+  const handleRemoveAttribute = (attributeToRemove) => {
+    setVariantAttributes(variantAttributes.filter(attr => attr !== attributeToRemove));
+    // Also remove the attribute key from all existing variants
+    setVariants(prevVariants => prevVariants.map(v => {
+      const newAttributes = { ...v.attributes };
+      delete newAttributes[attributeToRemove];
+      return { ...v, attributes: newAttributes };
+    }));
+  };
+
   return (
     <div className="admin-container">
       <h1>Product Management</h1>
@@ -880,8 +933,57 @@ const ProductManagement = () => {
                   checked={includeVariants}
                   onChange={() => setIncludeVariants(!includeVariants)}
                 />
-                <label htmlFor="include_variants">Include Variants (Size, Color, etc.)</label>
+                <label htmlFor="include_variants">Include Variants (e.g., Size, Color, Material)</label>
               </div>
+              
+              {/* --- MODIFIED/NEW: Variant Attribute Definition Section --- */}
+              {includeVariants && (
+                <div className="attribute-definition-section full-width">
+                  <h5>Define Variant Attributes</h5>
+                  <p className="text-muted small">Define the properties that differ between variants (e.g., Size, Color, Material).</p>
+                  
+                  {/* Display existing attributes with remove buttons */}
+                  {variantAttributes.length > 0 && (
+                    <div className="defined-attributes-list">
+                      <strong>Defined:</strong>
+                      {variantAttributes.map(attr => (
+                        <span key={attr} className="attribute-tag">
+                          {attr}
+                          <button 
+                            type="button" 
+                            onClick={() => handleRemoveAttribute(attr)}
+                            className="remove-attribute-btn"
+                            title="Remove this attribute"
+                          >
+                            &times;
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Input to add new attribute */}                  
+                  <div className="add-attribute-input-group">
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="New attribute name (e.g., Material)"
+                      value={newAttributeName}
+                      onChange={(e) => setNewAttributeName(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddAttribute(); } }}
+                    />
+                    <button 
+                      type="button" 
+                      className="btn btn-primary"
+                      onClick={handleAddAttribute}
+                      disabled={!newAttributeName.trim()}
+                    >
+                      Add Attribute
+                    </button>
+                  </div>
+                </div>
+              )}
+              {/* --- END Attribute Definition Section --- */}
               
               <div className="form-group checkbox-group">
                 <input
@@ -1001,62 +1103,69 @@ const ProductManagement = () => {
                 </div>
               )}
 
+              {/* --- MODIFIED: Variant Input Section --- */}
               {includeVariants && (
                 <div className="variants-section full-width">
                   <h3>Product Variants</h3>
-                  <p>Add variants with different sizes, colors, prices, and stock levels</p>
+                  
+                  {variantAttributes.length > 0 ? (
+                    <p className="text-muted small">Add variants with specific values for each attribute defined above.</p>
+                  ) : (
+                    <div className="alert alert-warning">
+                      <i className="fas fa-info-circle me-2"></i>
+                      Please define at least one variant attribute above before adding variants.
+                    </div>
+                  )}
                   
                   {variants.map((variant, index) => (
-                    <div key={index} className="variant-form mb-4 p-3 border rounded">
-                      <div className="d-flex justify-content-between mb-2">
-                        <h6>Variant {index + 1}</h6>
+                    <div key={index} className="variant-form">
+                      <div className="d-flex justify-content-between align-items-center mb-3">
+                        <h6 className="m-0"><strong>Variant {index + 1}</strong></h6>
                         <button 
                           type="button" 
-                          className="btn btn-sm btn-danger"
+                          className="btn btn-sm btn-outline-danger"
                           onClick={() => handleRemoveVariant(index)}
                         >
-                          Remove
+                          <i className="fas fa-times me-1"></i> Remove
                         </button>
                       </div>
                       
+                      {/* Dynamically render inputs for defined attributes */}                      
                       <div className="row">
-                        <div className="col-md-6">
-                          <div className="mb-3">
-                            <label htmlFor={`variant-size-${index}`} className="form-label">Size</label>
-                            <input
-                              type="text"
-                              className="form-control"
-                              id={`variant-size-${index}`}
-                              value={variant.size || ''}
-                              onChange={(e) => handleVariantChange(index, 'size', e.target.value)}
-                            />
+                        {variantAttributes.map(attrName => (
+                          <div key={`${index}-${attrName}`} className="col-md-6">
+                            <div className="mb-3">
+                              <label htmlFor={`variant-${index}-${attrName}`} className="form-label">{attrName}</label>
+                              <input
+                                type="text"
+                                className="form-control"
+                                id={`variant-${index}-${attrName}`}
+                                value={variant.attributes[attrName] || ''} // Access nested attribute value
+                                onChange={(e) => handleVariantChange(index, attrName, e.target.value)} // Pass attrName as field
+                                placeholder={`Enter ${attrName}`}
+                              />
+                            </div>
                           </div>
-                        </div>
-                        <div className="col-md-6">
-                          <div className="mb-3">
-                            <label htmlFor={`variant-color-${index}`} className="form-label">Color</label>
-                            <input
-                              type="text"
-                              className="form-control"
-                              id={`variant-color-${index}`}
-                              value={variant.color || ''}
-                              onChange={(e) => handleVariantChange(index, 'color', e.target.value)}
-                            />
-                          </div>
-                        </div>
-                      </div>
+                        ))}
+                      </div> 
                       
+                      {/* Price and Stock for the variant */}                      
                       <div className="row">
                         <div className="col-md-6">
                           <div className="mb-3">
-                            <label htmlFor={`variant-price-${index}`} className="form-label">Price</label>
-                            <input
-                              type="number"
-                              className="form-control"
-                              id={`variant-price-${index}`}
-                              value={variant.price || ''}
-                              onChange={(e) => handleVariantChange(index, 'price', e.target.value)}
-                            />
+                            <label htmlFor={`variant-price-${index}`} className="form-label">Price*</label>
+                            <div className="input-group">
+                              <span className="input-group-text">₱</span>
+                              <input
+                                type="number"
+                                className="form-control"
+                                id={`variant-price-${index}`}
+                                value={variant.price || ''}
+                                onChange={(e) => handleVariantChange(index, 'price', e.target.value)}
+                                placeholder="0.00"
+                                required // Price per variant is required
+                              />
+                            </div>
                           </div>
                         </div>
                         <div className="col-md-6">
@@ -1068,28 +1177,35 @@ const ProductManagement = () => {
                               id={`variant-stock-${index}`}
                               value={variant.stock || ''}
                               onChange={(e) => handleVariantChange(index, 'stock', e.target.value)}
+                              placeholder="0"
                             />
                           </div>
                         </div>
                       </div>
                       
+                      {/* Variant Image */}                      
                       <div className="mb-3">
-                        <label htmlFor={`variant-image-${index}`} className="form-label">Variant Image</label>
+                        <label htmlFor={`variant-image-${index}`} className="form-label">Variant Image (Optional)</label>
                         <input
                           type="file"
                           className="form-control"
                           id={`variant-image-${index}`}
                           onChange={(e) => handleVariantImageChange(index, e)}
+                          accept="image/*"
                         />
-                        
                         {/* Show preview image if available */}
                         {(variant.preview || (variant.image_url && !variant.preview)) && (
                           <div className="mt-2 variant-image-preview">
                             <img 
                               src={variant.preview || `${API_URL}/${variant.image_url}`} 
-                              alt={`Variant ${index + 1}`} 
+                              alt={`Variant ${index + 1} Preview`}
                               className="img-thumbnail" 
-                              style={{ maxHeight: '100px' }}
+                              style={{ maxHeight: '100px', minHeight: '60px', minWidth: '60px' }} 
+                              onError={(e) => { 
+                                console.log("Image error");
+                                e.target.src = '/placeholder-product.jpg'; 
+                                e.target.onerror = null; 
+                              }}
                             />
                           </div>
                         )}
@@ -1097,40 +1213,47 @@ const ProductManagement = () => {
                     </div>
                   ))}
                   
-                  {/* Add button for new variants */}
-                  <div className="d-flex justify-content-center mt-3 mb-4">
-                    <button 
-                      type="button" 
-                      className="btn btn-primary"
-                      onClick={handleAddVariant}
-                    >
-                      <i className="fas fa-plus me-2"></i> Add Variant
-                    </button>
-                  </div>
+                  {/* Add Variant Button - Disable if no attributes are defined */}                  
+                  {variantAttributes.length > 0 && (
+                    <div className="d-flex justify-content-center my-4">
+                      <button 
+                        type="button" 
+                        className="btn btn-success"
+                        onClick={handleAddVariant}
+                      >
+                        <i className="fas fa-plus me-2"></i> Add Variant
+                      </button>
+                    </div>
+                  )}
                   
                 </div>
               )}
+              {/* --- END Variant Input Section --- */}
               
+              {/* Form Buttons */}
               <div className="form-buttons">
                 <button 
                   type="button" 
-                  className="btn btn-secondary" 
-                  onClick={resetForm}
-                  onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
+                  className="btn btn-outline-secondary" 
+                  onClick={() => setIsModalOpen(false)}
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit" 
-                  className="btn btn-primary"
+                  className={`btn ${isEditing ? 'btn-warning' : 'btn-success'}`}
                   disabled={
                     !currentProduct.name || 
                     !currentProduct.category_id || 
-                    (includeVariants ? variants.length === 0 : !currentProduct.price)
+                    (includeVariants ? variants.length === 0 : !currentProduct.price) ||
+                    isSubmitting
                   }
-                  onClick={() => setUserInitiatedSubmit(true)}
                 >
-                  {isEditing ? 'Update Product' : 'Create Product'}
+                  {isSubmitting ? (
+                    <><span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Saving...</>
+                  ) : (
+                    isEditing ? <><i className="fas fa-save me-2"></i>Update Product</> : <><i className="fas fa-plus me-2"></i>Create Product</>
+                  )}
                 </button>
               </div>
             </form>

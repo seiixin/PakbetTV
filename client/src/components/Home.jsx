@@ -15,7 +15,7 @@ const Home = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
-  const { addToCart } = useCart();
+  const { } = useCart();
 
   const zodiacSigns = [
     { name: 'RAT', image: '/Prosper-1.png' },
@@ -111,10 +111,6 @@ const Home = () => {
     navigate(`/product/${id}`);
   };
 
-  const handleAddToCart = (product) => {
-    addToCart(product, 1);
-  };
-
   // New Arrivals Section
   const renderNewArrivals = () => {
     if (loading) return <LoadingSpinner />;
@@ -124,23 +120,26 @@ const Home = () => {
       <section className="new-arrivals">
         <div className="section-header">
           <h2>New Arrivals</h2>
-          <p>Discover our latest products</p>
         </div>
         <div className="new-arrivals-grid">
           {newArrivals.map(product => {
-            // Correctly determine the primary image URL
-            let primaryImageUrl = null;
-            if (Array.isArray(product.images) && product.images.length > 0) {
-              const primaryImage = product.images.find(img => img.order === 0) || product.images[0];
-              if (primaryImage && primaryImage.url) {
-                // Prepend the base URL to the relative path from the API
-                primaryImageUrl = primaryImage.url.startsWith('/') 
-                  ? `http://localhost:5000${primaryImage.url}` 
-                  : primaryImage.url;
-              }
+            // Logic to determine the image URL
+            let imageUrl = '/placeholder-product.jpg';
+            
+            // First priority: Use the first variant's image if available
+            if (product.variants && product.variants.length > 0 && product.variants[0].image_url) {
+              imageUrl = `http://localhost:5000${product.variants[0].image_url}`;
             }
-            // Use the determined URL or a placeholder
-            const imageToDisplay = primaryImageUrl || '/placeholder-product.jpg';
+            // Second priority: Use the first product image if available
+            else if (product.images && product.images.length > 0 && product.images[0].url) {
+              imageUrl = `http://localhost:5000${product.images[0].url}`;
+            }
+            // Third priority: Use the legacy image_url if available
+            else if (product.image_url) {
+              imageUrl = `http://localhost:5000${product.image_url}`;
+            }
+
+            const discountPercent = Math.round(((product.regular_price - product.price) / product.regular_price) * 100);
             
             return (
               <div 
@@ -150,12 +149,12 @@ const Home = () => {
               >
                 <div 
                   className="shop-product-image" 
-                  style={{ backgroundImage: `url(${imageToDisplay})` }}
+                  style={{ backgroundImage: `url(${imageUrl})` }}
                 >
                   {/* Discount Percentage Tag */}
-                  {product.discount_percentage > 0 && (
+                  {product.regular_price > product.price && (
                     <div className="discount-percentage-tag">
-                      -{product.discount_percentage}%
+                      Save {discountPercent}%
                     </div>
                   )}
                 </div>
@@ -165,14 +164,13 @@ const Home = () => {
                   </div>
                   <div className="product-card-bottom">
                     <div className="product-price">
-                      {product.discount_percentage > 0 ? (
-                        <div className="price-amount">
-                          <span className="discounted-price">{formatPrice(calculateDiscountedPrice(product.price, product.discount_percentage))}</span>
-                        </div>
+                      {product.regular_price > product.price ? (
+                        <>
+                          <span className="sale-price">{formatPrice(product.price)}</span>
+                          <span className="regular-price">{formatPrice(product.regular_price)}</span>
+                        </>
                       ) : (
-                        <div className="price-amount">
-                          <span className="regular-price">{formatPrice(product.price)}</span>
-                        </div>
+                        <span>{formatPrice(product.price)}</span>
                       )}
                     </div>
                     <div className="items-sold">{formatItemsSold(product.items_sold || 0)}</div>

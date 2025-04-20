@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useCart } from '../../context/CartContext';
 import './Shop.css';
 
 const ProductPage = () => {
@@ -14,9 +13,7 @@ const ProductPage = () => {
   );
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [addedToCart, setAddedToCart] = useState(null);
   const navigate = useNavigate();
-  const { addToCart } = useCart();
 
   const categories = [
     { id: 'all', name: 'All Products' },
@@ -120,18 +117,6 @@ const ProductPage = () => {
 
   const handleProductClick = (productId) => {
     navigate(`/product/${productId}`);
-  };
-
-  // Handle adding product to cart
-  const handleAddToCart = (e, product) => {
-    e.stopPropagation(); // Prevent navigation when clicking the button
-    addToCart(product, 1);
-    setAddedToCart(product.product_id);
-    
-    // Reset the "Added to cart" state after 2 seconds
-    setTimeout(() => {
-      setAddedToCart(null);
-    }, 2000);
   };
 
   // Format currency (Add robustness)
@@ -255,12 +240,6 @@ const ProductPage = () => {
                       
                       <div className="product-meta">
                         <span className="items-sold">{displayItemsSold}</span>
-                        <button 
-                          className={`add-to-cart-btn ${addedToCart === product.product_id ? 'added' : ''}`}
-                          onClick={(e) => handleAddToCart(e, product)}
-                        >
-                          {addedToCart === product.product_id ? 'Added' : 'Add'}
-                        </button>
                       </div>
                     </div>
                   </div>

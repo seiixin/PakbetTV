@@ -36,46 +36,83 @@ router.post('/orders',async (req, res) => {
     
     // Insert order items and deduct stock
     for (const item of items) {
-      await connection.query(
-        'INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)',
-        [orderId, item.product_id, item.quantity, item.price]
+      // First insert basic order item information
+      const [orderItemResult] = await connection.query(
+        'INSERT INTO order_items (order_id, product_id, quantity, price, variant_id) VALUES (?, ?, ?, ?, ?)',
+        [orderId, item.product_id, item.quantity, item.price, item.variant_id || null]
       );
+      
+      const orderItemId = orderItemResult.insertId;
+      
+      // If we have variant attributes, store them as JSON
+      if (item.variant_attributes && Object.keys(item.variant_attributes).length > 0) {
+        await connection.query(
+          'UPDATE order_items SET variant_data = ? WHERE order_item_id = ?',
+          [JSON.stringify(item.variant_attributes), orderItemId]
+        );
+      }
 
       // --- BEGIN STOCK DEDUCTION --- 
-      // Check stock in the base products table first
-      const [[product]] = await connection.query(
-        'SELECT stock FROM products WHERE product_id = ?',
-        [item.product_id]
-      );
-
-      if (!product) {
-         await connection.rollback();
-         console.error(`Product not found during stock check: ID ${item.product_id}`);
-         // Use a generic message for the client
-         return res.status(400).json({ message: `Product details not found for one of the items.` });
-      }
-      
-      const currentStock = product.stock;
-      const requestedQuantity = item.quantity;
-
-      if (currentStock < requestedQuantity) {
+      // Check if we need to deduct from variant stock or product stock
+      if (item.variant_id) {
+        // Deduct from variant stock
+        const [[variant]] = await connection.query(
+          'SELECT stock FROM product_variants WHERE variant_id = ?',
+          [item.variant_id]
+        );
+        
+        if (!variant) {
           await connection.rollback();
-          // Provide product name if possible, or just ID
-          return res.status(400).json({ message: `Not enough stock for product ID ${item.product_id}. Available: ${currentStock}` });
+          console.error(`Variant not found during stock check: ID ${item.variant_id}`);
+          return res.status(400).json({ message: `Variant details not found for one of the items.` });
+        }
+        
+        const currentStock = variant.stock;
+        const requestedQuantity = item.quantity;
+        
+        if (currentStock < requestedQuantity) {
+          await connection.rollback();
+          return res.status(400).json({ 
+            message: `Not enough stock for product variant. Available: ${currentStock}` 
+          });
+        }
+        
+        // Deduct stock from variant
+        const newStock = currentStock - requestedQuantity;
+        await connection.query(
+          'UPDATE product_variants SET stock = ? WHERE variant_id = ?',
+          [newStock, item.variant_id]
+        );
+      } else {
+        // Deduct from product stock
+        const [[product]] = await connection.query(
+          'SELECT stock FROM products WHERE product_id = ?',
+          [item.product_id]
+        );
+
+        if (!product) {
+           await connection.rollback();
+           console.error(`Product not found during stock check: ID ${item.product_id}`);
+           // Use a generic message for the client
+           return res.status(400).json({ message: `Product details not found for one of the items.` });
+        }
+        
+        const currentStock = product.stock;
+        const requestedQuantity = item.quantity;
+
+        if (currentStock < requestedQuantity) {
+            await connection.rollback();
+            // Provide product name if possible, or just ID
+            return res.status(400).json({ message: `Not enough stock for product ID ${item.product_id}. Available: ${currentStock}` });
+        }
+
+        // Deduct stock from the products table
+        const newStock = currentStock - requestedQuantity;
+        await connection.query(
+          'UPDATE products SET stock = ? WHERE product_id = ?',
+          [newStock, item.product_id]
+        );
       }
-
-      // Deduct stock from the products table
-      const newStock = currentStock - requestedQuantity;
-      await connection.query(
-        'UPDATE products SET stock = ? WHERE product_id = ?',
-        [newStock, item.product_id]
-      );
-
-      // Optionally: Record inventory change for base product (if applicable)
-      // await connection.query(
-      //   'INSERT INTO inventory (product_id, change_type, quantity, reason) VALUES (?, ?, ?, ?)',
-      //   [item.product_id, 'remove', requestedQuantity, `Order ${orderId}`]
-      // );
       // --- END STOCK DEDUCTION ---
     }
     

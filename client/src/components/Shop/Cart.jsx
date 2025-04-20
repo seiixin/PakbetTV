@@ -4,6 +4,20 @@ import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import './Shop.css';
 
+// Helper function to construct full image URLs
+const getFullImageUrl = (url) => {
+  if (!url) {
+      return '/placeholder-product.jpg'; // Default placeholder
+  }
+  if (url.startsWith('http')) {
+      return url;
+  }
+  if (url.startsWith('/')) {
+      return `http://localhost:5000${url}`;
+  }
+  return `http://localhost:5000/${url}`; // Adjusted to remove double uploads/
+};
+
 const Cart = () => {
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -15,6 +29,7 @@ const Cart = () => {
     cartItems, 
     loading,
     removeFromCart,
+    removeSelectedItems,
     updateQuantity,
     toggleItemSelection,
     toggleSelectAll,
@@ -31,14 +46,16 @@ const Cart = () => {
   
   // Format currency
   const formatPrice = (price) => {
+    if (isNaN(price)) return '₱--.--';
     return '₱' + parseFloat(price).toFixed(2);
   };
   
-  // Calculate discounted price
+  // Calculate discounted price for display
   const calculateDiscountedPrice = (item) => {
-    if (item.is_flash_deal && item.discount_percentage) {
+    if (item.discount_percentage) { // Use direct discount percentage if available
       return parseFloat(item.price) * (1 - (item.discount_percentage / 100));
     }
+    // Add logic here if flash deals have separate discount logic
     return parseFloat(item.price);
   };
   
@@ -87,10 +104,19 @@ const Cart = () => {
     navigate('/shop');
   };
   
+  // Handle deleting selected items
+  const handleDeleteSelected = () => {
+    if (getSelectedCount() > 0) {
+      if (window.confirm(`Are you sure you want to remove ${getSelectedCount()} selected item(s)?`)) {
+        removeSelectedItems(); // Call the context function
+      }
+    }
+  };
+  
   if (cartItems.length === 0) {
     return (
       <div className="shop-container">
-        <div className="cart-container empty-cart">
+        <div className="cart-container empty-cart cart-redesign">
           <h2>Your Shopping Cart is Empty</h2>
           <p>Add items to your cart to see them here.</p>
           <button className="continue-shopping-button" onClick={handleContinueShopping}>
@@ -106,143 +132,139 @@ const Cart = () => {
   
   return (
     <div className="shop-container">
-      <div className="cart-container">
-        <h1>Shopping Cart</h1>
-        
+      <div className="cart-container cart-redesign">
         {error && <div className="error-message">{error}</div>}
         
-        <div className="cart-header">
-          <div className="cart-select-all">
+        <div className="cart-header-new">
+          <div className="cart-header-select">
             <input
               type="checkbox"
               checked={allSelected}
               onChange={() => toggleSelectAll(!allSelected)}
-              id="select-all"
+              id="cart-select-all-header"
             />
-            <label htmlFor="select-all">Select All</label>
           </div>
-          <div className="cart-header-price">Price</div>
+          <div className="cart-header-product">Product</div>
+          <div className="cart-header-unit-price">Unit Price</div>
           <div className="cart-header-quantity">Quantity</div>
-          <div className="cart-header-total">Total</div>
-          <div className="cart-header-action">Action</div>
+          <div className="cart-header-total-price">Total Price</div>
+          <div className="cart-header-actions">Actions</div>
         </div>
         
-        <div className="cart-items">
-          {cartItems.map(item => (
-            <div key={item.id} className="cart-item">
-              <div className="cart-item-select">
-                <input
-                  type="checkbox"
-                  checked={item.selected}
-                  onChange={() => toggleItemSelection(item.id)}
-                />
-              </div>
-              
-              <div className="cart-item-info">
-                <div 
-                  className="cart-item-image"
-                  style={{ backgroundImage: `url(http://localhost:5000${item.image_url})` }}
-                ></div>
-                <div className="cart-item-details">
-                  <h3 className="cart-item-name">{item.name}</h3>
-                  <div className="cart-item-code">Product Code: {item.product_code}</div>
-                  {(item.size || item.color) && (
-                    <div className="cart-item-variant">
-                      Variant: {item.size && <span className="variant-size">{item.size}</span>}
-                      {item.size && item.color && <span> / </span>}
-                      {item.color && <span className="variant-color">{item.color}</span>}
-                    </div>
-                  )}
-                  {item.is_flash_deal && item.discount_percentage > 0 && (
-                    <div className="discount-badge">SALE {item.discount_percentage}% OFF</div>
-                  )}
-                </div>
-              </div>
-              
-              <div className="cart-item-price">
-                {item.is_flash_deal && item.discount_percentage ? (
-                  <>
-                    <span className="original-price">{formatPrice(item.price)}</span>
-                    <span className="discounted-price">
-                      {formatPrice(calculateDiscountedPrice(item))}
-                    </span>
-                  </>
-                ) : (
-                  <span className="regular-price">{formatPrice(item.price)}</span>
-                )}
-              </div>
-              
-              <div className="cart-item-quantity">
-                <div className="quantity-input">
-                  <button 
-                    className="quantity-btn" 
-                    onClick={() => updateQuantity(item.id, item.quantity - 1, item.variant_id)}
-                    disabled={item.quantity <= 1}
-                  >
-                    -
-                  </button>
+        <div className="cart-items-new">
+          {cartItems.map(item => {
+            const itemTotalPrice = calculateDiscountedPrice(item) * item.quantity;
+            const displayPrice = calculateDiscountedPrice(item);
+            const hasDiscount = item.price > displayPrice;
+
+            return (
+              <div key={item.variant_id || item.id} className="cart-item-new">
+                <div className="cart-item-select-new">
                   <input
-                    type="number"
-                    value={item.quantity}
-                    onChange={(e) => updateQuantity(item.id, parseInt(e.target.value) || 1, item.variant_id)}
-                    min="1"
-                    max={item.stock || 10}
+                    type="checkbox"
+                    checked={item.selected}
+                    onChange={() => toggleItemSelection(item.product_id, item.variant_id)}
                   />
+                </div>
+                
+                <div className="cart-item-product-new">
+                  <img 
+                    src={getFullImageUrl(item.image_url)} 
+                    alt={item.name} 
+                    className="cart-item-image-new"
+                    onError={(e) => e.target.src = '/placeholder-product.jpg'}
+                  />
+                  <div className="cart-item-details-new">
+                    <p className="cart-item-name-new">{item.name}</p>
+                    {item.variant_attributes && Object.keys(item.variant_attributes).length > 0 && (
+                        <div className="cart-item-variation-new">
+                          Variations: {Object.entries(item.variant_attributes)
+                            .map(([key, value]) => `${key}: ${value}`)
+                            .join(', ')}
+                        </div>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="cart-item-unit-price-new">
+                  {hasDiscount && (
+                    <span className="cart-original-price-new">{formatPrice(item.price)}</span>
+                  )}
+                  <span className="cart-current-price-new">{formatPrice(displayPrice)}</span>
+                </div>
+                
+                <div className="cart-item-quantity-new">
+                  <div className="cart-quantity-input-new">
+                    <button 
+                      className="cart-quantity-btn-new" 
+                      onClick={() => updateQuantity(item.product_id, item.quantity - 1, item.variant_id)}
+                      disabled={item.quantity <= 1}
+                    >
+                      -
+                    </button>
+                    <input
+                      type="number"
+                      value={item.quantity}
+                      onChange={(e) => updateQuantity(item.product_id, parseInt(e.target.value) || 1, item.variant_id)}
+                      min="1"
+                      max={item.stock_quantity || 99}
+                    />
+                    <button 
+                      className="cart-quantity-btn-new" 
+                      onClick={() => updateQuantity(item.product_id, item.quantity + 1, item.variant_id)}
+                      disabled={item.quantity >= (item.stock_quantity || 99)}
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="cart-item-total-price-new">
+                  {formatPrice(itemTotalPrice)}
+                </div>
+                
+                <div className="cart-item-actions-new">
                   <button 
-                    className="quantity-btn" 
-                    onClick={() => updateQuantity(item.id, item.quantity + 1, item.variant_id)}
-                    disabled={item.quantity >= (item.stock || 10)}
+                    className="cart-delete-button-new"
+                    onClick={() => removeFromCart(item.product_id, item.variant_id)}
                   >
-                    +
+                    Delete
                   </button>
                 </div>
               </div>
-              
-              <div className="cart-item-total">
-                {formatPrice(
-                  (item.is_flash_deal && item.discount_percentage 
-                    ? calculateDiscountedPrice(item) 
-                    : item.price) * item.quantity
-                )}
-              </div>
-              
-              <div className="cart-item-action">
-                <button 
-                  className="remove-button"
-                  onClick={() => removeFromCart(item.id, item.variant_id)}
-                >
-                  Remove
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
         
-        <div className="cart-footer">
-          <div className="cart-summary">
-            <div className="selected-items">
-              Selected Items: <strong>{getSelectedCount()}</strong>
-            </div>
-            <div className="cart-total">
-              Total: {formatPrice(getTotalPrice())}
-            </div>
-          </div>
-          
-          <div className="cart-actions">
-            <button 
-              className="continue-shopping-button"
-              onClick={handleContinueShopping}
-            >
-              Continue Shopping
-            </button>
-            <button 
-              className="checkout-button"
+        <div className="cart-footer-new">
+           <div className="cart-footer-select-all-new">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                onChange={() => toggleSelectAll(!allSelected)}
+                id="cart-select-all-footer"
+              />
+              <label htmlFor="cart-select-all-footer">Select All ({cartItems.length})</label>
+           </div>
+           <button 
+             className="cart-footer-delete-button-new"
+             onClick={handleDeleteSelected}
+             disabled={getSelectedCount() === 0}
+           >
+             Delete
+           </button>
+           <div className="cart-footer-spacer-new"></div>
+           <div className="cart-footer-summary-new">
+             Total ({getSelectedCount()} item{getSelectedCount() !== 1 ? 's' : ''}): 
+             <span className="cart-footer-total-price-new">{formatPrice(getTotalPrice())}</span>
+           </div>
+           <button 
+              className="cart-checkout-button-new"
               onClick={handleCheckout}
               disabled={checkoutLoading || getSelectedCount() === 0}
             >
-              {checkoutLoading ? 'Processing...' : 'Checkout'}
+              {checkoutLoading ? 'Processing...' : 'Check Out'}
             </button>
-          </div>
         </div>
       </div>
     </div>

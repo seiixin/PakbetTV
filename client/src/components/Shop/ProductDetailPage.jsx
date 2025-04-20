@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import LoadingSpinner from '../common/LoadingSpinner';
@@ -72,12 +72,11 @@ const ProductDetailPage = () => {
   const [selectedImageUrl, setSelectedImageUrl] = useState(null);
   const [reviews, setReviews] = useState([]);
 
-  // New state for variants
+  // --- NEW State for Dynamic Attributes ---
   const [selectedVariant, setSelectedVariant] = useState(null);
-  const [availableSizes, setAvailableSizes] = useState([]);
-  const [availableColors, setAvailableColors] = useState([]);
-  const [selectedSize, setSelectedSize] = useState('');
-  const [selectedColor, setSelectedColor] = useState('');
+  const [attributeOptions, setAttributeOptions] = useState({});
+  const [selectedAttributes, setSelectedAttributes] = useState({});
+  // --- END NEW State ---
 
   // State for review functionality
   const [canReview, setCanReview] = useState(false);
@@ -93,123 +92,96 @@ const ProductDetailPage = () => {
     fetchProductDetails();
   }, [id]);
 
-  // New useEffect for handling variant selection
+  // --- NEW: useEffect to set default image from first variant ---
   useEffect(() => {
-    // Log when the effect runs and the state values
-    console.log(`[Variant Effect] Running. Size: ${selectedSize}, Color: ${selectedColor}, Product Loaded: ${!!product}`);
-
-    if (product && product.variants && product.variants.length > 0) {
-      // Extract unique sizes and colors only once when product loads
-      if (availableSizes.length === 0) { 
-        const sizes = [...new Set(product.variants.map(v => v.size))];
-        setAvailableSizes(sizes);
-        // Set default size only if not already selected
-        if (!selectedSize && sizes.length > 0) {
-          setSelectedSize(sizes[0]);
-          // Early return here? Let the state update trigger the effect again.
-          // return; // Let's try without early return first.
-        }
+    if (product) {
+      let defaultImageUrl = null;
+      
+      // First priority: Use first variant's image if available
+      if (product.variants && product.variants.length > 0 && product.variants[0].image_url) {
+        defaultImageUrl = getFullImageUrl(product.variants[0].image_url);
+        console.log('Using first variant image as default:', defaultImageUrl);
       }
-      if (availableColors.length === 0) {
-        const colors = [...new Set(product.variants.map(v => v.color))];
-        setAvailableColors(colors);
-        // Set default color only if not already selected
-        if (!selectedColor && colors.length > 0) {
-          setSelectedColor(colors[0]);
-          // Early return here? Let the state update trigger the effect again.
-          // return; // Let's try without early return first.
-        }
+      // Second priority: Use product's first image if available
+      else if (product.images && product.images.length > 0) {
+        defaultImageUrl = getFullImageUrl(product.images[0].url);
+        console.log('Using product image as default:', defaultImageUrl);
       }
       
-      // Always attempt to find the variant based on the CURRENT selectedSize and selectedColor
-      // Ensure we have valid selections before trying to update
-      if (selectedSize && selectedColor) {
-          console.log(`[Variant Effect] Attempting updateSelectedVariant with Size: ${selectedSize}, Color: ${selectedColor}`);
-          updateSelectedVariant(selectedSize, selectedColor);
-      } else {
-          // Handle case where selections might be missing after product load but before defaults are set by subsequent renders
-          console.log(`[Variant Effect] Skipping updateSelectedVariant: Size or Color not yet selected.`);
-          // Optionally set selectedVariant to null if needed
-          // setSelectedVariant(null);
+      if (defaultImageUrl) {
+        setSelectedImageUrl(defaultImageUrl);
+        
+        // If we have variants with this image, select that variant
+        if (product.variants) {
+          const matchingVariant = product.variants.find(v => 
+            v.image_url && getFullImageUrl(v.image_url) === defaultImageUrl
+          );
+          
+          if (matchingVariant && matchingVariant.attributes) {
+            // Set selected attributes based on first variant
+            setSelectedAttributes(matchingVariant.attributes);
+            console.log('Setting initial attributes from first variant:', matchingVariant.attributes);
+          }
+        }
       }
     }
-  }, [product, selectedSize, selectedColor]);
+  }, [product]);
 
-  // Update selected variant based on size and color
-  const updateSelectedVariant = (size, color) => {
+  // --- MODIFIED: useEffect for handling variant selection (now depends on selectedAttributes) ---
+  useEffect(() => {
+    // Update the selected variant whenever the selected attributes change
+    // Ensure product and its variants are loaded, and we have attributes selected
+    if (product && product.variants && product.variants.length > 0 && Object.keys(selectedAttributes).length > 0) {
+        console.log('[Attribute Effect] Updating variant based on selected attributes:', selectedAttributes);
+        updateSelectedVariant(); // Pass no args, it will use selectedAttributes state
+    }
+  }, [product, selectedAttributes]); // Depend on product and the whole selectedAttributes object
+
+  // --- NEW/REWRITTEN: Update selected variant based on the selectedAttributes state ---
+  const updateSelectedVariant = () => {
     if (!product || !product.variants) return;
-    console.log(`[updateSelectedVariant] Trying to find variant for size: ${size}, color: ${color}`); // Log input
-    
-    const variant = product.variants.find(v => 
-      v.size === size && v.color === color
-    );
-    
-    console.log(`[updateSelectedVariant] Found variant:`, variant); // Log the found variant (or undefined)
-    
+
+    console.log(`[updateSelectedVariant] Finding variant matching:`, selectedAttributes);
+
+    const variant = product.variants.find(v => {
+        // Check if EVERY selected attribute matches the variant's attributes
+        return Object.entries(selectedAttributes).every(([key, value]) => {
+            return v.attributes && v.attributes[key] === value;
+        });
+    });
+
+    console.log(`[updateSelectedVariant] Found variant:`, variant);
+
     if (variant) {
-      setSelectedVariant(variant);
-      
+      setSelectedVariant(variant); // Set the found variant state
       // Reset quantity if it exceeds the variant's stock
       if (quantity > variant.stock) {
         setQuantity(1);
       }
     } else {
-      // If no variant matches, set selectedVariant to null
-      // This could be the cause of the ₱0.00/Out of Stock display
-      setSelectedVariant(null);
-      console.warn(`[updateSelectedVariant] No variant found for size: ${size}, color: ${color}`);
+      setSelectedVariant(null); // No matching variant found
+      console.warn(`[updateSelectedVariant] No variant found matching attributes:`, selectedAttributes);
     }
   };
 
-  // Change handler for size selection
-  const handleSizeChange = (size) => {
-    console.log(`[handleSizeChange] Called with size: ${size}`); // Log when size changes
-    setSelectedSize(size);
-
-    // --- NEW: Update color based on new size ---
-    // Find available colors for the newly selected size
-    if (product && product.variants) {
-      const colorsForNewSize = [...new Set(
-        product.variants
-          .filter(v => v.size === size)
-          .map(v => v.color)
-      )];
-      
-      console.log(`[handleSizeChange] Available colors for size ${size}:`, colorsForNewSize);
-
-      // If there are colors for this size and the current color isn't one of them,
-      // or if no color was selected previously, select the first available color.
-      if (colorsForNewSize.length > 0 && !colorsForNewSize.includes(selectedColor)) {
-        const newColor = colorsForNewSize[0];
-        console.log(`[handleSizeChange] Auto-selecting color: ${newColor}`);
-        setSelectedColor(newColor); // This will trigger the useEffect again
-      } else if (colorsForNewSize.length > 0 && selectedColor === '') {
-        // Handle case where initial color wasn't set
-        const newColor = colorsForNewSize[0];
-        console.log(`[handleSizeChange] Setting initial color for size ${size}: ${newColor}`);
-        setSelectedColor(newColor);
-      }
-       // If the current color IS valid for the new size, we don't need to change it.
-    }
-    // --- End NEW ---
+  // --- NEW: Generic handler for attribute selection changes ---
+  const handleAttributeChange = (attributeName, value) => {
+    console.log(`[handleAttributeChange] Setting ${attributeName} to ${value}`);
+    setSelectedAttributes(prev => ({
+      ...prev,
+      [attributeName]: value
+    }));
+    // The useEffect depending on selectedAttributes will handle finding the variant
   };
 
-  // Change handler for color selection
-  const handleColorChange = (color) => {
-    setSelectedColor(color);
-  };
-
-  // Check if a variant is available for the given size/color combination
-  const isVariantAvailable = (size, color) => {
+  // --- Helper to check availability (can be enhanced later) ---
+  const isVariantCombinationAvailable = (currentSelections) => {
     if (!product || !product.variants) return false;
-    return product.variants.some(v => v.size === size && v.color === color && v.stock > 0);
-  };
-
-  // Get available colors for a selected size
-  const getAvailableColorsForSize = (size) => {
-    if (!product || !product.variants) return [];
-    const variantsWithSize = product.variants.filter(v => v.size === size);
-    return [...new Set(variantsWithSize.map(v => v.color))];
+    return product.variants.some(v => 
+      Object.entries(currentSelections).every(([key, value]) => 
+          v.attributes && v.attributes[key] === value
+      ) && v.stock > 0
+    );
   };
 
   useEffect(() => {
@@ -275,18 +247,21 @@ const ProductDetailPage = () => {
     try {
       setLoading(true);
       setError(null);
-      setReviews([]); // Reset reviews on new product load
-      setSelectedVariant(null); // Reset selected variant
+      setReviews([]);
+      setSelectedVariant(null);
+      // --- Reset NEW state --- 
+      setAttributeOptions({});
+      setSelectedAttributes({});
+      // --- End Reset ---
       
       const response = await fetch(`http://localhost:5000/api/products/${id}`);
-      
       if (!response.ok) {
         throw new Error('Failed to fetch product details');
       }
-      
       const data = await response.json();
       console.log('Product data from API:', data);
-      
+
+      // Basic parsing (remains similar)
       const parsedProduct = {
         ...data,
         stock_quantity: data.stock_quantity !== undefined ? Number(data.stock_quantity) : 0,
@@ -303,14 +278,44 @@ const ProductDetailPage = () => {
           parsedProduct.images = [];
       }
       
-      setProduct(parsedProduct);
-      
-      // Set default image
-      if (parsedProduct.images && parsedProduct.images.length > 0 && parsedProduct.images[0].url) {
-          setSelectedImageUrl(getFullImageUrl(parsedProduct.images[0].url));
-      } else if (parsedProduct.image_url) { // Fallback to primary image_url if exists
-          setSelectedImageUrl(getFullImageUrl(parsedProduct.image_url));
+      // --- NEW: Process Variants for Dynamic Attributes --- 
+      if (Array.isArray(data.variants) && data.variants.length > 0) {
+        const options = {}; // To build attributeOptions
+        const initialSelections = {}; // To build initial selectedAttributes
+
+        // First pass: Find all unique attribute keys
+        const allKeys = new Set();
+        data.variants.forEach(variant => {
+          if (variant.attributes) {
+            Object.keys(variant.attributes).forEach(key => allKeys.add(key));
+          }
+        });
+
+        // Second pass: Find unique values for each key and set initial selection
+        allKeys.forEach(key => {
+          const values = [...new Set(data.variants
+            .map(variant => variant.attributes ? variant.attributes[key] : undefined)
+            .filter(value => value !== undefined && value !== null && value !== '')) // Filter out empty/null values
+          ];
+          if (values.length > 0) {
+            options[key] = values; // Store available options
+            initialSelections[key] = values[0]; // Select the first option by default
+          }
+        });
+
+        setAttributeOptions(options);
+        // We don't set selectedAttributes here anymore since we'll do it in the useEffect based on the first variant's image
+        console.log('Determined Attribute Options:', options);
+        
+        // Add parsed variants to product object (API already returns parsed attributes)
+        parsedProduct.variants = data.variants; 
+
+      } else {
+        parsedProduct.variants = [];
       }
+      // --- END NEW Variant Processing ---
+      
+      setProduct(parsedProduct);
       
       // Fetch reviews
       const productIdForReviews = parsedProduct.product_id || parsedProduct.id; 
@@ -362,7 +367,7 @@ const ProductDetailPage = () => {
     // Check if we have variants and a selected variant
     if (product.variants && product.variants.length > 0) {
       if (!selectedVariant) {
-        toast.error('Please select a size and color');
+        toast.error('Please select all options');
         return;
       }
       
@@ -391,14 +396,21 @@ const ProductDetailPage = () => {
       product_code: product.product_code,
       // Add variant information if available
       variant_id: selectedVariant ? selectedVariant.variant_id : null,
-      size: selectedVariant ? selectedVariant.size : null,
-      color: selectedVariant ? selectedVariant.color : null,
-      sku: selectedVariant ? selectedVariant.sku : null
+      variant_attributes: selectedVariant ? selectedVariant.attributes : null
     };
     
     try {
       addToCart(itemToAdd, quantity);
-      toast.success(`${quantity} x ${product.name} ${selectedVariant ? `(${selectedVariant.size}, ${selectedVariant.color})` : ''} added to cart successfully!`);
+      
+      // Generate a formatted variant name for the toast
+      let variantText = '';
+      if (selectedVariant && selectedVariant.attributes) {
+        variantText = Object.entries(selectedVariant.attributes)
+          .map(([key, value]) => `${key}: ${value}`)
+          .join(', ');
+      }
+      
+      toast.success(`${quantity} x ${product.name} ${variantText ? `(${variantText})` : ''} added to cart successfully!`);
       setAddedToCart(true);
       setTimeout(() => {
         setAddedToCart(false);
@@ -588,7 +600,7 @@ const ProductDetailPage = () => {
         <div className="product-detail-image-gallery">
           <div className="main-image-container">
             <img
-              src={selectedVariant?.image_url ? getFullImageUrl(selectedVariant.image_url) : (product.images?.[0]?.url ? getFullImageUrl(product.images[0].url) : '/placeholder-product.jpg')}
+              src={selectedVariant?.image_url ? getFullImageUrl(selectedVariant.image_url) : (selectedImageUrl || (product.images?.[0]?.url ? getFullImageUrl(product.images[0].url) : '/placeholder-product.jpg'))}
               alt={product.name}
               className="main-product-image"
               onError={(e) => { e.target.onerror = null; e.target.src='/placeholder-product.jpg'}}
@@ -598,29 +610,30 @@ const ProductDetailPage = () => {
           <div className="thumbnail-container">
             {/* Primary product images */}
             {Array.isArray(product.images) && product.images.length > 0 && product.images.map((image, idx) => {
-              if (!image || !image.url) return null;
               const imageUrl = getFullImageUrl(image.url);
-              // Determine if this thumbnail corresponds to the currently displayed image
-              const isCurrentImage = selectedVariant ? false : (idx === 0);
+              const isBaseImageActive = !selectedVariant && idx === 0; // Active if no variant selected and it's the first image
               return (
                 <div
                   key={image.id || `image-${idx}`}
-                  className={`thumbnail-item ${isCurrentImage ? 'active' : ''}`}
-                  // MODIFIED: Clicking a product thumbnail should clear variant selection or select first variant?
-                  // For now, let's just make it select the first variant if available, otherwise do nothing specific to image
-                  onClick={() => { 
-                    if (product.variants && product.variants.length > 0) {
-                        setSelectedSize(product.variants[0].size);
-                        setSelectedColor(product.variants[0].color);
-                    } 
+                  className={`thumbnail-item ${isBaseImageActive ? 'active' : ''}`}
+                  onClick={() => {
+                    // Clicking base image could reset selections or select first default variant
+                    // Let's try resetting selections for now
+                     const initialSelections = {};
+                     Object.keys(attributeOptions).forEach(key => {
+                         if (attributeOptions[key]?.length > 0) {
+                             initialSelections[key] = attributeOptions[key][0];
+                         }
+                     });
+                     setSelectedAttributes(initialSelections);
                   }}
-                >
+                 >
                   <img
                     src={imageUrl}
                     alt={`${product.name} - view ${idx + 1}`}
                     onError={(e) => { e.target.style.display='none'; }}
                   />
-                </div>
+        </div>
               );
             })}
             
@@ -629,21 +642,21 @@ const ProductDetailPage = () => {
               .filter(variant => variant.image_url)
               .map((variant, idx) => {
                 const variantImageUrl = getFullImageUrl(variant.image_url);
-                // Determine if this thumbnail corresponds to the currently selected variant
                 const isCurrentVariantImage = selectedVariant?.variant_id === variant.variant_id;
                 return (
                   <div
                     key={`variant-${variant.variant_id}`}
                     className={`thumbnail-item ${isCurrentVariantImage ? 'active' : ''}`}
-                    // MODIFIED: Clicking a variant thumbnail just selects that variant
+                    // MODIFIED: Clicking variant thumbnail sets all its attributes
                     onClick={() => {
-                      setSelectedSize(variant.size);
-                      setSelectedColor(variant.color);
+                        if(variant.attributes) {
+                            setSelectedAttributes(variant.attributes);
+                        }
                     }}
                   >
                     <img
                       src={variantImageUrl}
-                      alt={`${product.name} - ${variant.size} ${variant.color}`}
+                      alt={`${product.name} - ${variant.attributes ? Object.entries(variant.attributes).map(([key, value]) => `${key}: ${value}`).join(', ') : 'Variant'}`}
                       onError={(e) => { e.target.style.display='none'; }}
                     />
                   </div>
@@ -672,7 +685,7 @@ const ProductDetailPage = () => {
               <span className="regular-price">{formatPrice(currentPrice)}</span>
             )}
           </div>
-
+          
           {/* Rating Summary */}
           <div className="product-rating-summary">
             {product.average_rating !== null && Number(product.average_rating) > 0 ? (
@@ -685,64 +698,40 @@ const ProductDetailPage = () => {
               <span className="rating-stars no-rating">{renderStars(0)}</span> 
             )}
           </div>
-
-          {/* Variant Selection - Only show if product has variants */}
-          {product.variants && product.variants.length > 0 && (
+          
+          {/* Variant Selection - MODIFIED TO BE DYNAMIC */}
+          {Object.keys(attributeOptions).length > 0 && (
             <div className="variant-selection-container">
-              {/* Size Selection */}
-              {availableSizes.length > 0 && (
-                <div className="variant-options">
-                  <label>Size:</label>
-                  <div className="variant-buttons size-buttons">
-                    {availableSizes.map((size) => (
+              {Object.entries(attributeOptions).map(([attributeName, availableValues]) => (
+                <div key={attributeName} className="variant-options">
+                  <label>{attributeName}:</label>
+                  <div className="variant-buttons">
+                    {availableValues.map((value) => (
                       <button
-                        key={`size-${size}`}
-                        className={`variant-button ${selectedSize === size ? 'selected' : 'inactive-variant'} ${
-                          !getAvailableColorsForSize(size).length ? 'disabled' : ''
-                        }`}
-                        onClick={() => handleSizeChange(size)}
-                        disabled={!getAvailableColorsForSize(size).length}
+                        key={`${attributeName}-${value}`}
+                        className={`variant-button ${selectedAttributes[attributeName] === value ? 'selected' : 'inactive-variant'}`}
+                        onClick={() => handleAttributeChange(attributeName, value)}
+                        // Add logic here later to disable buttons for unavailable combinations if needed
                       >
-                        {size}
+                        {value}
                       </button>
                     ))}
                   </div>
                 </div>
-              )}
-              
-              {/* Color Selection */}
-              {availableColors.length > 0 && (
-                <div className="variant-options">
-                  <label>Color:</label>
-                  <div className="variant-buttons color-buttons">
-                    {availableColors
-                      .filter(color => isVariantAvailable(selectedSize, color))
-                      .map((color) => (
-                        <button
-                          key={`color-${color}`}
-                          className={`variant-button color-button ${selectedColor === color ? 'selected' : 'inactive-variant'}`}
-                          onClick={() => handleColorChange(color)}
-                          title={color} // Keep title for hover
-                        >
-                           {/* Show color text */}
-                           {color} 
-                        </button>
-                      ))}
-                  </div>
-                </div>
-              )}
+              ))}
             </div>
           )}
+          {/* --- END DYNAMIC Variant Selection --- */}
 
           {/* Shipping Info */}
           <div className="product-detail-shipping">
             <i className="fas fa-truck"></i>
             <span>Free shipping on orders over ₱1000</span>
           </div>
-                    
+          
           {/* Stock Status & Actions - Use variant stock if selected */}          
           {currentStock > 0 ? (
-            <div className="product-detail-actions">
+          <div className="product-detail-actions">
               {/* Stock Display */}          
               <div className="quantity-control-wrapper">
                 <span className="stock-available">
@@ -751,26 +740,26 @@ const ProductDetailPage = () => {
                     <><i className="fas fa-check-circle"></i> In Stock ({currentStock} available)</>}
                 </span>
                 {/* Quantity Input - Ensure borders via CSS */}          
-                <div className="quantity-input">
-                  <button 
-                    className="quantity-btn" 
-                    onClick={decrementQuantity} 
-                    disabled={quantity <= 1}
+              <div className="quantity-input">
+                <button 
+                  className="quantity-btn" 
+                  onClick={decrementQuantity}
+                  disabled={quantity <= 1}
                     aria-label="Decrease quantity"
-                  >
+                >
                     <i className="fas fa-minus"></i>
-                  </button>
-                  <input
-                    type="number"
-                    value={quantity}
-                    onChange={handleQuantityChange}
-                    min="1"
+                </button>
+                <input
+                  type="number"
+                  value={quantity}
+                  onChange={handleQuantityChange}
+                  min="1"
                     max={currentStock}
                     aria-label="Quantity"
-                  />
-                  <button 
-                    className="quantity-btn" 
-                    onClick={incrementQuantity} 
+                />
+                <button 
+                  className="quantity-btn" 
+                  onClick={incrementQuantity}
                     disabled={quantity >= currentStock}
                     aria-label="Increase quantity"
                   >
@@ -834,12 +823,12 @@ const ProductDetailPage = () => {
           {/* NEW: Add Review Section (Conditional) */}
           {user && canReview && !hasReviewed && (
             <div className="add-review-section">
-                <button 
+              <button 
                   className="toggle-review-form-btn" 
                   onClick={() => setShowReviewForm(!showReviewForm) /* Simple toggle */}
-                >
+              >
                   {showReviewForm ? 'Cancel' : 'Write a Review'}
-                </button>
+              </button>
               {showReviewForm && (
                 <form onSubmit={handleReviewSubmit} className="review-form">
                   <div className="form-group rating-input">
@@ -860,7 +849,7 @@ const ProductDetailPage = () => {
                   {reviewError && <p className="error-message">{reviewError}</p>}
                   <button type="submit" disabled={reviewLoading} className="submit-review-btn">
                     {reviewLoading ? 'Submitting...' : 'Submit Review' /* Always Submit */}
-                  </button>
+              </button>
                 </form>
               )}
             </div>
@@ -899,4 +888,4 @@ const ProductDetailPage = () => {
   );
 };
 
-export default ProductDetailPage;
+export default ProductDetailPage; 

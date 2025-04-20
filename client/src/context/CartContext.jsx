@@ -191,9 +191,8 @@ export const CartProvider = ({ children }) => {
             : item.price,
           // Add variant information if available
           variant_id: item.variant_id || null,
-          size: item.size || null,
-          color: item.color || null,
-          sku: item.sku || null
+          // Use the variant_attributes object which contains all dynamic attributes
+          variant_attributes: item.variant_attributes || null
         }))
       };
       
@@ -261,11 +260,17 @@ export const CartProvider = ({ children }) => {
     }
   };
   
+  // --- NEW: Remove selected items from cart ---
+  const removeSelectedItems = () => {
+    setCartItems(prevItems => prevItems.filter(item => !item.selected));
+  };
+  
   const value = {
     cartItems,
     loading,
     addToCart,
     removeFromCart,
+    removeSelectedItems,
     updateQuantity,
     toggleItemSelection,
     toggleSelectAll,

@@ -6,6 +6,9 @@ const path = require('path');
 // Load environment variables
 dotenv.config();
 
+// Import database migration handler
+const { runMigrations } = require('./config/db-migrations');
+
 // Create Express app
 const app = express();
 
@@ -158,6 +161,13 @@ app.use((err, req, res, next) => {
 
 // Set port and start server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`Server is running on port ${PORT}`);
+  
+  // Run database migrations after server starts
+  try {
+    await runMigrations();
+  } catch (err) {
+    console.error('Failed to run database migrations:', err);
+  }
 }); 
