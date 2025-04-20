@@ -43,6 +43,15 @@ const Home = () => {
     { name: 'Wisdom', image: '/Aspiration-8.png' },
   ];
 
+  // Define categories for the home page, mapping display name to filter ID
+  const homeCategories = [
+    { name: 'Best Sellers', image: '/Categories-1.png', filterId: 'best-sellers' },
+    { name: 'Flash Deals', image: '/Categories-2.png', filterId: 'flash-deals' },
+    { name: 'Books', image: '/Categories-3.png', filterId: 'books' },
+    { name: 'Amulets', image: '/Categories-5.png', filterId: 'amulets' }, // Note image name vs filterId
+    { name: 'Bracelets', image: '/Categories-4.png', filterId: 'bracelets' } // Note image name vs filterId
+  ];
+
   useEffect(() => {
     const fetchNewArrivals = async () => {
       try {
@@ -237,36 +246,18 @@ const Home = () => {
           <h2>CATEGORIES</h2>
         </div>
         <div className="categories-grid">
-          <div className="category-card">
-            <div className="category-image">
-              <img src="/Categories-1.png" alt="Best Sellers Icon" />
-            </div>
-            <h3>Best Sellers</h3>
-          </div>
-          <div className="category-card">
-            <div className="category-image">
-              <img src="/Categories-2.png" alt="Flash Deals Icon" />
-            </div>
-            <h3>Flash Deals</h3>
-          </div>
-          <div className="category-card">
-            <div className="category-image">
-              <img src="/Categories-3.png" alt="Books Icon" />
-            </div>
-            <h3>Books</h3>
-          </div>
-          <div className="category-card">
-            <div className="category-image">
-              <img src="/Categories-5.png" alt="Bracelets Icon" />
-            </div>
-            <h3>Amulets</h3>
-          </div>
-          <div className="category-card">
-            <div className="category-image">
-              <img src="/Categories-4.png" alt="Amulets Icon" />
-            </div>
-            <h3>Bracelets</h3>
-          </div>
+          {homeCategories.map(category => (
+            <Link 
+              to={`/shop?category=${category.filterId}`} 
+              key={category.filterId} 
+              className="category-card" // Apply styling to the Link
+            >
+              <div className="category-image">
+                <img src={category.image} alt={`${category.name} Icon`} />
+              </div>
+              <h3>{category.name}</h3>
+            </Link>
+          ))}
         </div>
       </section>
 

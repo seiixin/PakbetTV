@@ -6,247 +6,329 @@ const fs = require('fs');
 const { body, validationResult } = require('express-validator');
 const db = require('../config/db');
 const { auth, admin } = require('../middleware/auth');
+const { promisify } = require('util');
+const mkdirp = promisify(require('mkdirp'));
 
-// --- NEW: Storage configuration for PRODUCT images ---
-const productImageStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = path.join(__dirname, '../uploads/products'); // New directory
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
+// Helper function to create directories if they don't exist
+const ensureDir = async (dir) => {
+  try {
+    if (!fs.existsSync(dir)) {
+      console.log(`Creating directory: ${dir}`);
+      await mkdirp(dir);
     }
+    return true;
+  } catch (err) {
+    console.error(`Error creating directory ${dir}:`, err);
+    throw err;
+  }
+};
+
+// Main product images storage configuration
+const productStorage = multer.diskStorage({
+  destination: async function(req, file, cb) {
+    const uploadDir = path.join(__dirname, '../uploads/products');
+    await ensureDir(uploadDir);
     cb(null, uploadDir);
   },
-  filename: (req, file, cb) => {
+  filename: function(req, file, cb) {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     cb(null, 'product-' + uniqueSuffix + path.extname(file.originalname));
   }
 });
 
-// --- NEW: Multer instance for PRODUCT images ---
-const imageFileFilter = (req, file, cb) => {
-    // Accept only images
-  if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/i)) { // Case-insensitive match
-      return cb(new Error('Only image files are allowed!'), false);
-    }
-    cb(null, true);
-};
-
-const uploadProductImages = multer({
-  storage: productImageStorage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit per file
-  fileFilter: imageFileFilter
-});
-
-// --- EXISTING: Storage configuration for VARIANT images ---
-const variantImageStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
+// Variant images storage configuration
+const variantStorage = multer.diskStorage({
+  destination: async function(req, file, cb) {
     const uploadDir = path.join(__dirname, '../uploads/variants');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
+    await ensureDir(uploadDir);
     cb(null, uploadDir);
   },
-  filename: (req, file, cb) => {
+  filename: function(req, file, cb) {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     cb(null, 'variant-' + uniqueSuffix + path.extname(file.originalname));
   }
 });
 
-// --- EXISTING: Multer instance for VARIANT images ---
-const uploadVariantImage = multer({
-  storage: variantImageStorage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
-  fileFilter: imageFileFilter
+// File filter for image uploads
+const fileFilter = (req, file, cb) => {
+  // Accept only image files
+  if(file.mimetype.startsWith('image/')) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only images are allowed!'), false);
+  }
+};
+
+// Configure multer for product images
+const uploadProductImages = multer({ 
+  storage: productStorage, 
+  fileFilter,
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
 });
+
+// Configure multer for variant images
+const uploadVariantImages = multer({ 
+  storage: variantStorage, 
+  fileFilter,
+  limits: { fileSize: 2 * 1024 * 1024 } // 2MB limit
+});
+
+// Configure multer for combined uploads (product and variant images)
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: async function(req, file, cb) {
+      try {
+        // Use different directories based on field name
+        let uploadDir;
+        if (file.fieldname === 'productImages') {
+          uploadDir = path.join(__dirname, '../uploads/products');
+        } else if (file.fieldname === 'variantImages') {
+          uploadDir = path.join(__dirname, '../uploads/variants');
+        } else {
+          uploadDir = path.join(__dirname, '../uploads');
+        }
+        
+        // Create the directory if it doesn't exist
+        await ensureDir(uploadDir);
+        cb(null, uploadDir);
+      } catch (error) {
+        console.error('Error creating upload directory:', error);
+        cb(error);
+      }
+    },
+    filename: function(req, file, cb) {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      const prefix = file.fieldname === 'productImages' ? 'product-' : 
+                    file.fieldname === 'variantImages' ? 'variant-' : '';
+      cb(null, prefix + uniqueSuffix + path.extname(file.originalname));
+    }
+  }),
+  fileFilter,
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+}).fields([
+  { name: 'productImages', maxCount: 10 },
+  { name: 'variantImages', maxCount: 20 }
+]);
+
+// Middleware to handle file uploads and data processing
+const handleCombinedUpload = async (req, res, next) => {
+  console.log('Starting file upload processing...');
+  
+  upload(req, res, async function (err) {
+    if (err) {
+      console.error('Multer upload error:', err);
+      return res.status(400).json({ message: 'File upload error: ' + err.message });
+    }
+    
+    try {
+      // Log received files for debugging
+      console.log('Files received:', req.files ? Object.keys(req.files) : 'None');
+      
+      // Process product images
+      if (req.files && req.files.productImages) {
+        console.log(`Processing ${req.files.productImages.length} product images`);
+        req.productImages = req.files.productImages.map(file => {
+          // Get relative path for URL
+          const relativePath = path.relative(
+            path.join(__dirname, '..'),
+            file.path
+          ).replace(/\\/g, '/');
+          
+          return {
+            filename: file.filename,
+            path: file.path,
+            url: relativePath
+          };
+        });
+      } else {
+        req.productImages = [];
+      }
+      
+      // Process variant images
+      if (req.files && req.files.variantImages) {
+        console.log(`Processing ${req.files.variantImages.length} variant images`);
+        req.variantImages = req.files.variantImages.map(file => {
+          // Get relative path for URL
+          const relativePath = path.relative(
+            path.join(__dirname, '..'),
+            file.path
+          ).replace(/\\/g, '/');
+          
+          return {
+            filename: file.filename,
+            path: file.path,
+            url: relativePath
+          };
+        });
+      } else {
+        req.variantImages = [];
+      }
+      
+      next();
+    } catch (error) {
+      console.error('Error processing uploads:', error);
+      return res.status(500).json({ message: 'Error processing uploads' });
+    }
+  });
+};
 
 // @route   POST api/products
-// @desc    Create a new product with multiple images
+// @desc    Create a new product with optional variants
 // @access  Private/Admin (AUTH REMOVED FOR TESTING)
 // --- REMOVED: auth, admin middleware ---
-router.post('/', [uploadProductImages.array('productImages', 10)], [
+router.post('/', handleCombinedUpload, [
   body('name', 'Name is required').notEmpty(),
-  body('product_code', 'Product code is required').notEmpty(),
-  body('category_id', 'Category ID is required').isNumeric(),
-  body('price', 'Price is required').isNumeric(),
-  body('stock', 'Stock is required').isNumeric()
+  body('description', 'Description is required').notEmpty(),
+  body('price')
+    .custom((value) => {
+      // Accept single numeric price
+      if (!isNaN(value)) {
+        return true;
+      }
+      
+      // Accept price range in format "min-max"
+      if (typeof value === 'string' && value.includes('-')) {
+        const [min, max] = value.split('-');
+        if (!isNaN(min) && !isNaN(max) && Number(min) <= Number(max)) {
+          return true;
+        }
+      }
+      
+      throw new Error('Price must be a number or a valid price range (min-max)');
+    }),
+  body('category_id', 'Category is required').notEmpty(),
 ], async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    // If validation fails, delete any uploaded files
-    if (req.files) {
-      req.files.forEach(file => {
-        fs.unlink(file.path, err => {
-          if (err) console.error("Error deleting uploaded file on validation fail:", file.path, err);
-        });
-      });
-    }
-    return res.status(400).json({ errors: errors.array() });
-  }
-
-  const connection = await db.getConnection(); // Use connection for transaction
+  // Use db.getConnection() instead of pool.connect()
+  const connection = await db.getConnection();
+  
   try {
-    await connection.beginTransaction();
-
-    const { name, product_code, description, category_id } = req.body;
-    const price = parseFloat(req.body.price);
-    const stock = parseInt(req.body.stock);
-
-    // Check if product code already exists
-    const [existingProducts] = await connection.query('SELECT product_id FROM products WHERE product_code = ?', [product_code]);
-    if (existingProducts.length > 0) {
-      await connection.rollback(); // Rollback transaction
-      // Delete uploaded files if product code exists
-      if (req.files) {
-          req.files.forEach(file => fs.unlinkSync(file.path));
-      }
-      return res.status(400).json({ message: 'Product code already exists' });
+    console.log('Creating new product...');
+    console.log('Request body:', req.body);
+    console.log('Product images:', req.productImages?.length || 0);
+    console.log('Variant images:', req.variantImages?.length || 0);
+    
+    // Validate required fields
+    const { name, price, category_id, description } = req.body;
+    
+    if (!name || !category_id) {
+      return res.status(400).json({ message: 'Product name and category ID are required' });
     }
-
-    // Insert new product (including price and stock)
-    const [result] = await connection.query(
-      'INSERT INTO products (name, product_code, description, category_id, price, stock) VALUES (?, ?, ?, ?, ?, ?)',
-      [name, product_code, description || null, category_id, price, stock]
+    
+    // Start transaction using connection
+    await connection.query('BEGIN');
+    
+    // Generate product code if not provided
+    let productCode = req.body.product_code;
+    if (!productCode) {
+      // Use connection for queries with ? placeholders
+      const seqResult = await connection.query(
+        `SELECT MAX(CAST(SUBSTRING(product_code FROM LOCATE('-', product_code) + 1) AS INTEGER)) AS max_seq 
+         FROM products WHERE category_id = ?`,
+        [category_id]
+      );
+      const maxSeq = seqResult[0][0].max_seq || 0; // mysql2 returns nested array
+      const newSeq = maxSeq + 1;
+      
+      // Query for category name instead of trying to use a non-existent 'code' column
+      const catResult = await connection.query(
+        'SELECT name FROM categories WHERE category_id = ?',
+        [category_id]
+      );
+      if (catResult[0].length === 0) { // Check nested array
+        throw new Error('Invalid category ID');
+      }
+      
+      // Create category code from the first 3 letters of category name
+      const categoryName = catResult[0][0].name;
+      const categoryCode = categoryName.substring(0, 3).toUpperCase();
+      productCode = `${categoryCode}-${String(newSeq).padStart(3, '0')}`; // Ensure padding
+      console.log(`Generated product code: ${productCode}`);
+    }
+    
+    // Check for variants
+    const includeVariants = req.body.include_variants === 'true';
+    let variants = [];
+    
+    if (includeVariants && req.body.variants) {
+      try {
+        variants = JSON.parse(req.body.variants);
+        console.log(`Parsed ${variants.length} variants`);
+      } catch (error) {
+        console.error('Error parsing variants JSON:', error);
+        return res.status(400).json({ message: 'Invalid variants format' });
+      }
+    }
+    
+    // Insert product using connection with ? placeholders
+    const [productInsertResult] = await connection.query( // Destructure result for mysql2
+      `INSERT INTO products (
+        product_code, name, description, category_id
+      ) VALUES (?, ?, ?, ?)`, 
+      [productCode, name, description || '', category_id]
     );
-    const productId = result.insertId;
-
-    // Insert product images if files were uploaded
-    if (req.files && req.files.length > 0) {
-      const imageValues = req.files.map((file, index) => [
-        productId,
-        `products/${file.filename}`, // Store relative path
-        file.originalname, // Use original name as alt text placeholder
-        index // Use index as sort order
-      ]);
-      await connection.query(
-        'INSERT INTO product_images (product_id, image_url, alt_text, sort_order) VALUES ?',
-        [imageValues] // Bulk insert
-      );
-    }
-
-    await connection.commit(); // Commit transaction
-
-    // Fetch the newly created product with its images to return (ensure price/stock are selected)
-    const [newProductData] = await connection.query('SELECT p.*, c.name as category_name FROM products p LEFT JOIN categories c ON p.category_id = c.category_id WHERE p.product_id = ?', [productId]);
-    const [newProductImages] = await connection.query('SELECT image_id, image_url, alt_text, sort_order FROM product_images WHERE product_id = ? ORDER BY sort_order', [productId]);
-
-    res.status(201).json({
-      message: 'Product created successfully',
-      product: {
-        ...newProductData[0],
-        images: newProductImages.map(img => ({ 
-             id: img.image_id, 
-             url: `/uploads/${img.image_url}`, 
-             alt: img.alt_text, 
-             order: img.sort_order 
-        })) // Include images in response
-      }
-    });
-  } catch (err) {
-    await connection.rollback(); // Rollback transaction on error
-     // Delete uploaded files on error
-    if (req.files) {
-        req.files.forEach(file => {
-             try { fs.unlinkSync(file.path); } catch (e) { console.error("Error deleting file on rollback:", e);}
-        });
-    }
-    console.error("Error creating product:", err);
-    res.status(500).json({ message: 'Server error during product creation' });
-  } finally {
-      connection.release(); // Always release connection
-  }
-});
-
-// @route   POST api/products/:id/variants
-// @desc    Add a product variant
-// @access  Private/Admin (AUTH REMOVED FOR TESTING)
-// --- REMOVED: auth, admin middleware ---
-router.post('/:id/variants', [uploadVariantImage.single('image')],
-  [
-    body('sku', 'SKU is required').notEmpty(),
-    body('price', 'Price is required and must be a number').isNumeric(),
-    body('stock', 'Stock quantity is required and must be a number').isNumeric(),
-    body('size', 'Size is required').notEmpty(),
-    body('color', 'Color is required').notEmpty(),
-    body('weight', 'Weight is required and must be a number').isNumeric(),
-    body('height', 'Height is required and must be a number').isNumeric(),
-    body('width', 'Width is required and must be a number').isNumeric()
-  ],
-  // ... (rest of variant creation logic remains the same) ...
-  async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-       // Clean up uploaded file if validation fails
-      if (req.file) fs.unlinkSync(req.file.path);
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    const connection = await db.getConnection();
-    try {
-      await connection.beginTransaction();
-      const productId = req.params.id;
-      const { sku, price, stock, size, color, weight, height, width } = req.body;
-
-      // Check if product exists
-      const [products] = await connection.query('SELECT product_id FROM products WHERE product_id = ?', [productId]);
-      if (products.length === 0) {
-         await connection.rollback();
-         if (req.file) fs.unlinkSync(req.file.path);
-        return res.status(404).json({ message: 'Product not found' });
-      }
-
-      // Check if SKU already exists
-      const [existingVariants] = await connection.query('SELECT variant_id FROM product_variants WHERE sku = ?', [sku]);
-      if (existingVariants.length > 0) {
-          await connection.rollback();
-          if (req.file) fs.unlinkSync(req.file.path);
-        return res.status(400).json({ message: 'SKU already exists' });
-      }
-
-      // Get image path
-      let imagePath = null;
-      if (req.file) {
-        imagePath = `variants/${req.file.filename}`; // Relative path
-      }
-
-      // Insert new variant
-      const [result] = await connection.query(
-        'INSERT INTO product_variants (product_id, sku, price, stock, size, color, weight, height, width, image_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [productId, sku, price, stock, size, color, weight, height, width, imagePath]
-      );
-      const variantId = result.insertId;
-
-      // If stock is added, record in inventory
-      if (stock > 0) {
+    const productId = productInsertResult.insertId; // Get insertId from result
+    console.log(`Product created with ID: ${productId}`);
+    
+    // Insert product images using connection with ? placeholders
+    if (req.productImages && req.productImages.length > 0) {
+      for (let i = 0; i < req.productImages.length; i++) {
         await connection.query(
-          'INSERT INTO inventory (variant_id, change_type, quantity, reason) VALUES (?, ?, ?, ?)',
-          [variantId, 'add', stock, 'Initial stock']
+          'INSERT INTO product_images (product_id, image_url, sort_order) VALUES (?, ?, ?)', // Corrected column name to sort_order
+          [productId, req.productImages[i].url, i]
         );
       }
-
-      await connection.commit();
-
-      res.status(201).json({
-        message: 'Product variant added successfully',
-        variant: {
-          variant_id: variantId,
-          product_id: productId,
-          sku, price, stock, size, color, weight, height, width,
-          image_url: imagePath
-        }
-      });
-    } catch (err) {
-      await connection.rollback();
-      if (req.file) {
-           try { fs.unlinkSync(req.file.path); } catch (e) { console.error("Error deleting variant file on rollback:", e);}
-      }
-      console.error("Error adding variant:",err);
-      res.status(500).json({ message: 'Server error while adding variant' });
-    } finally {
-        connection.release();
     }
-  }
-);
+    
+    // Insert variants and their images using connection with ? placeholders
+    if (variants.length > 0) {
+      let imageIndex = 0; // Initialize index for variant images
+      for (let i = 0; i < variants.length; i++) {
+        const variant = variants[i];
+        // Insert variant using connection with ? placeholders
+        const [variantInsertResult] = await connection.query(
+          `INSERT INTO product_variants (
+            product_id, size, color, price, stock, sku, weight, height, width
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
+          [productId, variant.size || '', variant.color || '', variant.price || 0, variant.stock || 0, variant.sku, variant.weight || 0, variant.height || 0, variant.width || 0]
+        );
+        const variantId = variantInsertResult.insertId; // Get insertId
+        console.log(`Created variant with ID: ${variantId}`);
 
+        // Update variant image URL using connection with ? placeholders, using imageIndex
+        if (variant.has_image && req.variantImages && imageIndex < req.variantImages.length) {
+          const variantImage = req.variantImages[imageIndex]; // Get image based on imageIndex
+          await connection.query(
+            'UPDATE product_variants SET image_url = ? WHERE variant_id = ?',
+            [variantImage.url, variantId]
+          );
+          imageIndex++; // Increment index only when an image is used
+        }
+      }
+    }
+    
+    // Commit transaction using connection
+    await connection.query('COMMIT');
+    
+    // Return success
+    res.status(201).json({ 
+      message: 'Product created successfully',
+      product: { 
+        product_id: productId,
+        product_code: productCode,
+        variants_count: variants.length
+      }
+    });
+    
+  } catch (error) {
+    // Rollback using connection
+    await connection.query('ROLLBACK');
+    console.error('Error creating product:', error);
+    res.status(500).json({ message: 'Error creating product: ' + error.message });
+  } finally {
+    // Release the connection
+    connection.release();
+  }
+});
 
 // @route   GET api/products
 // @desc    Get all products with pagination and images
@@ -258,12 +340,19 @@ router.get('/', async (req, res) => {
     const offset = (page - 1) * limit;
     const category = req.query.category;
     
-    // Base query to get products
+    // --- MODIFIED QUERY to fetch MIN variant price --- 
     let productQuery = `
-      SELECT p.*, c.name AS category_name
+      SELECT 
+        p.*, 
+        c.name AS category_name,
+        -- Use MIN variant price if variants exist, otherwise use base product price
+        COALESCE(MIN(pv.price), p.price) as display_price 
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.category_id
+      -- Join to find the minimum variant price
+      LEFT JOIN product_variants pv ON p.product_id = pv.product_id 
     `;
+    // Base count query remains similar but doesn't need variant join
     let countQuery = 'SELECT COUNT(*) AS total FROM products p';
     const queryParams = [];
     let countQueryParams = [];
@@ -271,24 +360,28 @@ router.get('/', async (req, res) => {
     // Add category filter if provided
     if (category) {
       const whereClause = ' WHERE p.category_id = ?';
+      // Add WHERE to productQuery (before GROUP BY)
       productQuery += whereClause;
       countQuery += whereClause;
       queryParams.push(category);
       countQueryParams.push(category);
     }
     
-    // Add sorting and pagination
+    // --- Add GROUP BY for the aggregate function --- 
+    productQuery += ' GROUP BY p.product_id, c.name'; // Group by product id and other non-aggregated selected columns
+
+    // Add sorting and pagination with ? placeholders
     productQuery += ' ORDER BY p.created_at DESC LIMIT ? OFFSET ?';
     queryParams.push(limit, offset);
     
-    // Execute queries
+    // Execute queries using db.query
     const [products] = await db.query(productQuery, queryParams);
     const [countResult] = await db.query(countQuery, countQueryParams);
     
     const totalProducts = countResult[0].total;
     const totalPages = Math.ceil(totalProducts / limit);
 
-    // Get images for the fetched products
+    // Get images for the fetched products using ? placeholder
     if (products.length > 0) {
         const productIds = products.map(p => p.product_id);
         const [images] = await db.query(
@@ -301,23 +394,27 @@ router.get('/', async (req, res) => {
             if (!map[img.product_id]) {
                 map[img.product_id] = [];
             }
-            // Prepend base path for client consumption if needed, or handle on client
-            map[img.product_id].push({ 
-                url: `/uploads/${img.image_url}`, 
-                alt: img.alt_text, 
-                order: img.sort_order 
-            });
+            // Check if image_url exists before processing
+            if (img.image_url) {
+              map[img.product_id].push({
+                  url: img.image_url.startsWith('uploads/') ? `/${img.image_url}` : `/uploads/${img.image_url}`,
+                  alt: img.alt_text,
+                  order: img.sort_order
+              });
+            }
             return map;
         }, {});
 
         products.forEach(product => {
             product.images = imagesMap[product.product_id] || [];
+            // --- IMPORTANT: Use display_price for consistency --- 
+            product.price = product.display_price; // Overwrite base price with calculated display_price
+            delete product.display_price; // Optional: remove temporary column
         });
     }
 
-    
     res.json({
-      products, // Products now include an 'images' array
+      products, 
       pagination: {
         currentPage: page,
         totalPages,
@@ -339,18 +436,11 @@ router.get('/:id', async (req, res) => {
   try {
     const productId = req.params.id;
     
-    // Get product details
+    // Get product details using ? placeholder
     const [productResult] = await db.query(`
       SELECT 
-        p.product_id, 
-        p.name, 
-        p.product_code, 
-        p.description, 
-        p.category_id, 
-        p.price, 
-        p.stock AS stock_quantity,  -- Alias stock as stock_quantity
-        p.created_at, 
-        p.updated_at,
+        p.product_id, p.name, p.product_code, p.description, p.category_id, 
+        p.price, p.stock AS stock_quantity, p.created_at, p.updated_at,
         c.name AS category_name
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.category_id
@@ -362,19 +452,41 @@ router.get('/:id', async (req, res) => {
     }
     const product = productResult[0];
     
-    // Get product variants
+    // Get product variants using ? placeholder
     const [variants] = await db.query('SELECT * FROM product_variants WHERE product_id = ?', [productId]);
     
-    // Get product images
+    // Map variants with additional information
+    const variantsWithDetails = [];
+    for (const variant of variants) {
+      // Get variant image if available
+      let variantImage = null;
+      if (variant.image_url) {
+        variantImage = {
+          id: `variant-img-${variant.variant_id}`,
+          url: `/uploads/${variant.image_url}`,
+          alt: `${product.name} - ${variant.color} ${variant.size}`,
+          order: 0
+        };
+      }
+      
+      variantsWithDetails.push({
+        ...variant,
+        parent_product_id: productId,
+        images: variantImage ? [variantImage] : [],
+        name: `${product.name} - ${variant.color} ${variant.size}`
+      });
+    }
+    
+    // Get product images using ? placeholder
     const [images] = await db.query(
-        'SELECT image_id, image_url, alt_text, sort_order FROM product_images WHERE product_id = ? ORDER BY sort_order',
+        'SELECT image_id, image_url, alt_text, sort_order FROM product_images WHERE product_id = ? ORDER BY sort_order', // Use sort_order
         [productId]
     );
 
     // Return product with variants and images
     res.json({
       ...product,
-      variants,
+      variants: variantsWithDetails,
       // Prepend base path for client consumption if needed, or handle on client
       images: images.map(img => ({ 
           id: img.image_id, 
@@ -394,220 +506,135 @@ router.get('/:id', async (req, res) => {
 // @desc    Update product
 // @access  Private/Admin (AUTH REMOVED FOR TESTING)
 // --- REMOVED: auth, admin middleware ---
-router.put('/:id', [uploadProductImages.array('productImages', 10)], async (req, res) => {
+router.put('/:id', handleCombinedUpload, async (req, res) => {
+  const { id } = req.params;
+  // Use db.getConnection() instead of pool.connect()
   const connection = await db.getConnection();
+  
   try {
-    await connection.beginTransaction();
-    const productId = req.params.id;
-    // Note: When using FormData, boolean/null might come as strings
-    // Extract all potential fields
-    const { 
-      name, 
-      description, 
-      category_id, 
-      product_code, 
-      price, 
-      stock, 
-      is_best_seller, 
-      is_flash_deal, 
-      flash_deal_end, 
-      discount_percentage 
-    } = req.body;
+    console.log(`Updating product ${id}...`);
+    console.log('Request body:', req.body);
+    console.log('Product images:', req.productImages?.length || 0);
+    console.log('Variant images:', req.variantImages?.length || 0);
     
-    // Check if product exists
-    const [products] = await connection.query('SELECT product_id FROM products WHERE product_id = ?', [productId]);
-    if (products.length === 0) {
-      await connection.rollback();
-       // Delete uploaded files if product not found
-      if (req.files) {
-          req.files.forEach(file => {
-              try { fs.unlinkSync(file.path); } catch(e) { console.error("Error deleting file on PUT not found:", e);}
-          });
-      }
-      return res.status(404).json({ message: 'Product not found' });
-    }
-
-    // Check if new product_code conflicts (if provided)
-    if (product_code) {
-        const [existingCode] = await connection.query(
-            'SELECT product_id FROM products WHERE product_code = ? AND product_id != ?',
-            [product_code, productId]
-        );
-        if (existingCode.length > 0) {
-            await connection.rollback();
-            if (req.files) {
-                req.files.forEach(file => {
-                    try { fs.unlinkSync(file.path); } catch(e) { console.error("Error deleting file on PUT conflict:", e);}
-                });
-            }
-            return res.status(400).json({ message: 'Product code already exists for another product' });
-        }
+    // Validate required fields
+    const { name, category_id } = req.body;
+    
+    if (!name || !category_id) {
+      return res.status(400).json({ message: 'Product name and category ID are required' });
     }
     
-    // Create an object with the fields to update
-    const updates = {};
-    if (name !== undefined) updates.name = name;
-    if (description !== undefined) updates.description = description;
-    if (category_id !== undefined) updates.category_id = parseInt(category_id); // Ensure number
-    if (product_code !== undefined) updates.product_code = product_code;
-    if (price !== undefined) updates.price = parseFloat(price); // Parse price
-    if (stock !== undefined) updates.stock = parseInt(stock);   // Parse stock
-    // Handle boolean fields correctly ( FormData sends 'true'/'false' strings)
-    if (is_best_seller !== undefined) updates.is_best_seller = (is_best_seller === 'true');
-    if (is_flash_deal !== undefined) updates.is_flash_deal = (is_flash_deal === 'true');
-    // Handle nullable fields 
-    updates.flash_deal_end = flash_deal_end || null;
-    updates.discount_percentage = discount_percentage ? parseFloat(discount_percentage) : null;
-
-    // Update main product details if any fields were provided
-    if (Object.keys(updates).length > 0) {
-        await connection.query('UPDATE products SET ? WHERE product_id = ?', [updates, productId]);
-    }
-
-    // Add new product images if files were uploaded
-    // Note: This doesn't handle deleting old images easily in the same request.
-    // Consider a separate endpoint or logic for image deletion/reordering.
-    if (req.files && req.files.length > 0) {
-      // Get current max sort order
-      const [[maxSort]] = await connection.query(
-          'SELECT MAX(sort_order) as max_sort FROM product_images WHERE product_id = ?',
-          [productId]
+    // Start transaction using connection
+    await connection.query('BEGIN');
+    
+    // Update product using connection with ? placeholders
+    await connection.query(
+      `UPDATE products SET
+        name = ?, description = ?, price = ?, stock = ?, category_id = ?,
+        weight = ?, height = ?, width = ?, length = ?, is_featured = ?,
+        updated_at = NOW()
+      WHERE product_id = ?`,
+      [name, req.body.description || '', req.body.price || 0, req.body.stock || 0, category_id, req.body.weight || 0, req.body.height || 0, req.body.width || 0, req.body.length || 0, req.body.is_featured === 'true', id]
+    );
+    
+    // Add new product images using connection with ? placeholders
+    if (req.productImages && req.productImages.length > 0) {
+      // Get highest order number using connection with ? placeholders
+      const [orderResult] = await connection.query( // Destructure for mysql2
+        'SELECT MAX(sort_order) AS max_order FROM product_images WHERE product_id = ?', // Use sort_order
+        [id]
       );
-      let currentSortOrder = (maxSort.max_sort === null) ? 0 : maxSort.max_sort + 1;
-
-      const imageValues = req.files.map((file) => [
-        productId,
-        `products/${file.filename}`, // Store relative path
-        file.originalname, // Use original name as alt text placeholder
-        currentSortOrder++ // Increment sort order
-      ]);
-      await connection.query(
-        'INSERT INTO product_images (product_id, image_url, alt_text, sort_order) VALUES ?',
-        [imageValues] // Bulk insert
-      );
-    }
-
-    await connection.commit();
-
-    // Fetch updated product data to return
-    const [updatedProductData] = await connection.query('SELECT p.*, c.name as category_name FROM products p LEFT JOIN categories c ON p.category_id = c.category_id WHERE p.product_id = ?', [productId]);
-    const [updatedProductImages] = await connection.query('SELECT image_id, image_url, alt_text, sort_order FROM product_images WHERE product_id = ? ORDER BY sort_order', [productId]);
-
-    res.json({
-        message: 'Product updated successfully',
-        product: {
-            ...updatedProductData[0],
-             images: updatedProductImages.map(img => ({ 
-                 id: img.image_id, 
-                 url: `/uploads/${img.image_url}`, 
-                 alt: img.alt_text, 
-                 order: img.sort_order 
-             }))
-        }
-    });
-  } catch (err) {
-    await connection.rollback();
-    // Clean up any newly uploaded files on error
-    if (req.files) {
-        req.files.forEach(file => {
-             try { fs.unlinkSync(file.path); } catch (e) { console.error("Error deleting file on update rollback:", e);}
-        });
-    }
-    console.error("Error updating product:", err);
-    res.status(500).json({ message: 'Server error during product update' });
-  } finally {
-      connection.release();
-  }
-});
-
-
-// @route   PUT api/products/variants/:id
-// @desc    Update product variant
-// @access  Private/Admin (AUTH REMOVED FOR TESTING)
-// --- REMOVED: auth, admin middleware ---
-router.put('/variants/:id', [uploadVariantImage.single('image')], async (req, res) => {
-  // ... (rest of variant update logic - check for file deletion on rollback) ...
-  const connection = await db.getConnection();
-   try {
-     await connection.beginTransaction();
-    const variantId = req.params.id;
-    const { price, stock, size, color, weight, height, width } = req.body;
-    
-     // Check if variant exists and get current stock/image
-     const [variants] = await connection.query('SELECT * FROM product_variants WHERE variant_id = ?', [variantId]);
-    if (variants.length === 0) {
-       await connection.rollback();
-       if (req.file) fs.unlinkSync(req.file.path); // Clean up uploaded file
-      return res.status(404).json({ message: 'Variant not found' });
-    }
-    const currentVariant = variants[0];
-    
-    // Create an object with the fields to update
-    const updates = {};
-     if (price !== undefined) updates.price = price;
-     if (size !== undefined) updates.size = size;
-     if (color !== undefined) updates.color = color;
-     if (weight !== undefined) updates.weight = weight;
-     if (height !== undefined) updates.height = height;
-     if (width !== undefined) updates.width = width;
-
-     let oldImagePath = null;
-    // Handle image update if provided
-    if (req.file) {
-      updates.image_url = `variants/${req.file.filename}`;
-       oldImagePath = currentVariant.image_url ? path.join(__dirname, '../uploads', currentVariant.image_url) : null;
-    }
-    
-    // Handle stock changes
-    if (stock !== undefined) {
-      const stockDifference = parseInt(stock) - currentVariant.stock;
-      updates.stock = stock;
+      let nextOrder = orderResult[0].max_order !== null ? orderResult[0].max_order + 1 : 0; // Handle null max_order
       
-      // Record inventory change if stock is modified
-      if (stockDifference !== 0) {
-        const changeType = stockDifference > 0 ? 'add' : 'remove';
-        const quantity = Math.abs(stockDifference);
-        
-         await connection.query(
-          'INSERT INTO inventory (variant_id, change_type, quantity, reason) VALUES (?, ?, ?, ?)',
-          [variantId, changeType, quantity, 'Stock adjustment']
+      for (let i = 0; i < req.productImages.length; i++) {
+        // Insert image using connection with ? placeholders
+        await connection.query(
+          'INSERT INTO product_images (product_id, image_url, sort_order) VALUES (?, ?, ?)', // Corrected column name to sort_order
+          [id, req.productImages[i].url, nextOrder + i]
         );
       }
     }
     
-     // If there's nothing to update (besides potentially an image)
-     if (Object.keys(updates).length === 0 && !req.file) {
-         await connection.rollback(); // No changes, rollback is safe
-      return res.status(400).json({ message: 'No update data provided' });
+    // Check for variants
+    const includeVariants = req.body.include_variants === 'true';
+    let variants = [];
+    
+    if (includeVariants && req.body.variants) {
+      try {
+        variants = JSON.parse(req.body.variants);
+        console.log(`Parsed ${variants.length} variants`);
+      } catch (error) {
+        console.error('Error parsing variants JSON:', error);
+        return res.status(400).json({ message: 'Invalid variants format' });
+      }
     }
     
-     // Execute the update
-     if (Object.keys(updates).length > 0) {
-        await connection.query('UPDATE product_variants SET ? WHERE variant_id = ?', [updates, variantId]);
-     }
-
-     await connection.commit();
-
-     // Delete old image *after* commit succeeds
-     if (oldImagePath && fs.existsSync(oldImagePath)) {
-       fs.unlink(oldImagePath, (err) => {
-          if (err) console.error("Error deleting old variant image:", oldImagePath, err);
-       });
-     }
+    // Insert or update variants using connection with ? placeholders
+    if (variants.length > 0) {
+      let imageIndex = 0; // Initialize index for variant images
+      for (let i = 0; i < variants.length; i++) {
+        const variant = variants[i];
+        // Check if variant exists using connection with ? placeholders
+        const [existingResult] = await connection.query( // Destructure for mysql2
+          'SELECT variant_id FROM product_variants WHERE sku = ? AND product_id = ?',
+          [variant.sku, id]
+        );
+        let variantId;
+        if (existingResult.length > 0) { // Check array length
+          // Update existing variant using connection with ? placeholders
+          variantId = existingResult[0].variant_id;
+          await connection.query(
+            `UPDATE product_variants SET
+              size = ?, color = ?, price = ?, stock = ?, weight = ?, height = ?, width = ?
+            WHERE variant_id = ?`,
+            [variant.size || '', variant.color || '', variant.price || 0, variant.stock || 0, variant.weight || 0, variant.height || 0, variant.width || 0, variantId]
+          );
+        } else {
+          // Insert new variant using connection with ? placeholders
+          const [variantInsertResult] = await connection.query( // Destructure for mysql2
+            `INSERT INTO product_variants (
+              product_id, size, color, price, stock, sku, weight, height, width
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
+            [id, variant.size || '', variant.color || '', variant.price || 0, variant.stock || 0, variant.sku, variant.weight || 0, variant.height || 0, variant.width || 0]
+          );
+          variantId = variantInsertResult.insertId; // Get insertId
+        }
+        
+        // Update variant image URL using connection with ? placeholders, using imageIndex
+        if (variant.has_image && req.variantImages && imageIndex < req.variantImages.length) {
+          const variantImage = req.variantImages[imageIndex]; // Get image based on imageIndex
+          await connection.query(
+            'UPDATE product_variants SET image_url = ? WHERE variant_id = ?',
+            [variantImage.url, variantId]
+          );
+          imageIndex++; // Increment index only when an image is used
+        }
+      }
+    }
     
-    res.json({ message: 'Product variant updated successfully' });
-  } catch (err) {
-     await connection.rollback();
-     // Clean up newly uploaded file if commit failed
-     if (req.file) {
-          try { fs.unlinkSync(req.file.path); } catch (e) { console.error("Error deleting new variant file on update rollback:", e);}
-     }
-     console.error("Error updating variant:", err);
-     res.status(500).json({ message: 'Server error while updating variant' });
-   } finally {
-     connection.release();
+    // Commit transaction using connection
+    await connection.query('COMMIT');
+    
+    // Return success
+    res.status(200).json({ 
+      message: 'Product updated successfully',
+      product: { 
+        product_id: id,
+        variants_count: variants.length
+      }
+    });
+    
+  } catch (error) {
+    // Rollback using connection
+    await connection.query('ROLLBACK');
+    console.error('Error updating product:', error);
+    res.status(500).json({ message: 'Error updating product: ' + error.message });
+  } finally {
+    // Release the connection
+    connection.release();
   }
 });
+
 
 // @route   DELETE api/products/:id
 // @desc    Delete product, its variants, and images
@@ -681,20 +708,16 @@ router.delete('/images/:imageId', async (req, res) => {
         await connection.beginTransaction();
         const imageId = req.params.imageId;
 
-        // 1. Find the image record to get the URL
-        const [images] = await connection.query('SELECT image_url FROM product_images WHERE image_id = ?', [imageId]);
+        // 1. Find the image record to get the URL using ?
+        const [images] = await connection.query('SELECT image_url FROM product_images WHERE image_id = ?', [imageId]); // Use image_url
         if (images.length === 0) {
             await connection.rollback();
             return res.status(404).json({ message: 'Image not found' });
         }
         const imageUrl = images[0].image_url;
 
-        // 2. Delete the image record from the database
+        // 2. Delete the image record from the database using ?
         const [result] = await connection.query('DELETE FROM product_images WHERE image_id = ?', [imageId]);
-        if (result.affectedRows === 0) {
-             await connection.rollback(); // Should not happen if found before, but good practice
-             return res.status(404).json({ message: 'Image not found during delete attempt' });
-        }
 
         await connection.commit();
 

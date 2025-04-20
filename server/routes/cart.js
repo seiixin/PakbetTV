@@ -11,13 +11,25 @@ router.get('/', auth, async (req, res) => {
   try {
     const userId = req.user.user.id;
 
-    // Get cart items with product details
+    // Get cart items with product details and variant info
     const [cartItems] = await db.query(`
-      SELECT c.cart_id, c.user_id, c.product_id, c.quantity, c.created_at, c.updated_at,
+      SELECT c.cart_id, c.user_id, c.product_id, c.variant_id, c.quantity, c.created_at, c.updated_at,
              p.name AS product_name, p.product_code, p.description,
-             (SELECT MIN(price) FROM product_variants WHERE product_id = p.product_id) AS min_price,
-             (SELECT MAX(price) FROM product_variants WHERE product_id = p.product_id) AS max_price,
-             (SELECT image_url FROM product_variants WHERE product_id = p.product_id LIMIT 1) AS image_url
+             COALESCE(
+               (SELECT price FROM product_variants WHERE variant_id = c.variant_id),
+               (SELECT MIN(price) FROM product_variants WHERE product_id = p.product_id)
+             ) AS price,
+             COALESCE(
+               (SELECT stock FROM product_variants WHERE variant_id = c.variant_id),
+               (SELECT SUM(stock) FROM product_variants WHERE product_id = p.product_id)
+             ) AS stock,
+             COALESCE(
+               (SELECT image_url FROM product_variants WHERE variant_id = c.variant_id),
+               (SELECT image_url FROM product_variants WHERE product_id = p.product_id LIMIT 1)
+             ) AS image_url,
+             (SELECT size FROM product_variants WHERE variant_id = c.variant_id) AS size,
+             (SELECT color FROM product_variants WHERE variant_id = c.variant_id) AS color,
+             (SELECT sku FROM product_variants WHERE variant_id = c.variant_id) AS sku
       FROM cart c
       JOIN products p ON c.product_id = p.product_id
       WHERE c.user_id = ?
@@ -48,7 +60,7 @@ router.post(
 
     try {
       const userId = req.user.user.id;
-      const { product_id, quantity } = req.body;
+      const { product_id, quantity, variant_id } = req.body;
 
       // Check if product exists
       const [products] = await db.query('SELECT * FROM products WHERE product_id = ?', [product_id]);
@@ -56,25 +68,52 @@ router.post(
         return res.status(404).json({ message: 'Product not found' });
       }
 
-      // Check if product has at least one variant with stock
-      const [variants] = await db.query('SELECT SUM(stock) AS total_stock FROM product_variants WHERE product_id = ?', [product_id]);
-      if (!variants[0].total_stock || variants[0].total_stock < quantity) {
-        return res.status(400).json({ message: 'Not enough stock available' });
+      // If variant_id is provided, check if it exists and has enough stock
+      if (variant_id) {
+        const [variant] = await db.query('SELECT * FROM product_variants WHERE variant_id = ? AND product_id = ?', [variant_id, product_id]);
+        if (variant.length === 0) {
+          return res.status(404).json({ message: 'Variant not found for this product' });
+        }
+        
+        if (variant[0].stock < quantity) {
+          return res.status(400).json({ message: 'Not enough stock available for the selected variant' });
+        }
+      } else {
+        // If no variant_id, check if product has at least one variant with stock
+        const [variants] = await db.query('SELECT SUM(stock) AS total_stock FROM product_variants WHERE product_id = ?', [product_id]);
+        if (!variants[0].total_stock || variants[0].total_stock < quantity) {
+          return res.status(400).json({ message: 'Not enough stock available' });
+        }
       }
 
-      // Check if item is already in cart
-      const [existingItems] = await db.query(
-        'SELECT * FROM cart WHERE user_id = ? AND product_id = ?',
-        [userId, product_id]
-      );
+      // Check if item (with the same variant) is already in cart
+      let existingQuery = 'SELECT * FROM cart WHERE user_id = ? AND product_id = ?';
+      let queryParams = [userId, product_id];
+      
+      if (variant_id) {
+        existingQuery += ' AND variant_id = ?';
+        queryParams.push(variant_id);
+      } else {
+        existingQuery += ' AND variant_id IS NULL';
+      }
+      
+      const [existingItems] = await db.query(existingQuery, queryParams);
 
       if (existingItems.length > 0) {
         // Update quantity if item already exists
         const newQuantity = existingItems[0].quantity + quantity;
         
         // Ensure new quantity doesn't exceed available stock
-        if (newQuantity > variants[0].total_stock) {
-          return res.status(400).json({ message: 'Not enough stock available for the requested quantity' });
+        if (variant_id) {
+          const [variant] = await db.query('SELECT stock FROM product_variants WHERE variant_id = ?', [variant_id]);
+          if (newQuantity > variant[0].stock) {
+            return res.status(400).json({ message: 'Not enough stock available for the requested quantity' });
+          }
+        } else {
+          const [variants] = await db.query('SELECT SUM(stock) AS total_stock FROM product_variants WHERE product_id = ?', [product_id]);
+          if (newQuantity > variants[0].total_stock) {
+            return res.status(400).json({ message: 'Not enough stock available for the requested quantity' });
+          }
         }
         
         await db.query(
@@ -87,16 +126,22 @@ router.post(
           item: {
             cart_id: existingItems[0].cart_id,
             product_id,
+            variant_id: variant_id || null,
             quantity: newQuantity
           }
         });
       }
 
       // Add new item to cart
-      const [result] = await db.query(
-        'INSERT INTO cart (user_id, product_id, quantity) VALUES (?, ?, ?)',
-        [userId, product_id, quantity]
-      );
+      const insertQuery = variant_id
+        ? 'INSERT INTO cart (user_id, product_id, variant_id, quantity) VALUES (?, ?, ?, ?)'
+        : 'INSERT INTO cart (user_id, product_id, quantity) VALUES (?, ?, ?)';
+        
+      const insertParams = variant_id
+        ? [userId, product_id, variant_id, quantity]
+        : [userId, product_id, quantity];
+        
+      const [result] = await db.query(insertQuery, insertParams);
 
       res.status(201).json({
         message: 'Item added to cart',
@@ -104,6 +149,7 @@ router.post(
           cart_id: result.insertId,
           user_id: userId,
           product_id,
+          variant_id: variant_id || null,
           quantity
         }
       });

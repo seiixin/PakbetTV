@@ -146,6 +146,13 @@ const Cart = () => {
                 <div className="cart-item-details">
                   <h3 className="cart-item-name">{item.name}</h3>
                   <div className="cart-item-code">Product Code: {item.product_code}</div>
+                  {(item.size || item.color) && (
+                    <div className="cart-item-variant">
+                      Variant: {item.size && <span className="variant-size">{item.size}</span>}
+                      {item.size && item.color && <span> / </span>}
+                      {item.color && <span className="variant-color">{item.color}</span>}
+                    </div>
+                  )}
                   {item.is_flash_deal && item.discount_percentage > 0 && (
                     <div className="discount-badge">SALE {item.discount_percentage}% OFF</div>
                   )}
@@ -169,7 +176,7 @@ const Cart = () => {
                 <div className="quantity-input">
                   <button 
                     className="quantity-btn" 
-                    onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                    onClick={() => updateQuantity(item.id, item.quantity - 1, item.variant_id)}
                     disabled={item.quantity <= 1}
                   >
                     -
@@ -177,13 +184,13 @@ const Cart = () => {
                   <input
                     type="number"
                     value={item.quantity}
-                    onChange={(e) => updateQuantity(item.id, parseInt(e.target.value) || 1)}
+                    onChange={(e) => updateQuantity(item.id, parseInt(e.target.value) || 1, item.variant_id)}
                     min="1"
                     max={item.stock || 10}
                   />
                   <button 
                     className="quantity-btn" 
-                    onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                    onClick={() => updateQuantity(item.id, item.quantity + 1, item.variant_id)}
                     disabled={item.quantity >= (item.stock || 10)}
                   >
                     +
@@ -202,7 +209,7 @@ const Cart = () => {
               <div className="cart-item-action">
                 <button 
                   className="remove-button"
-                  onClick={() => removeFromCart(item.id)}
+                  onClick={() => removeFromCart(item.id, item.variant_id)}
                 >
                   Remove
                 </button>

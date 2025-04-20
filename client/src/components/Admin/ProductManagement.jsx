@@ -1,6 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
+import axios from 'axios';
+import { FaEdit, FaTrash, FaPlus, FaTimes } from 'react-icons/fa';
 import './Admin.css';
 import styled from 'styled-components';
+import { toast } from 'react-toastify';
+import { API_URL } from '../../config';
+import './ProductManagement.css';
 
 const ModalContent = styled.div`
   .read-only-field {
@@ -10,97 +15,106 @@ const ModalContent = styled.div`
   }
 `;
 
+// Helper function to format price (moved outside for potential reuse, but kept useCallback for now if used internally)
+const formatPrice = (price) => {
+  if (price === null || price === undefined) return 'N/A';
+  if (typeof price === 'string' && price.includes('-')) {
+    const [min, max] = price.split('-');
+    return `₱${Number(min).toFixed(2)} - ₱${Number(max).toFixed(2)}`;
+  }
+  return `₱${Number(price).toFixed(2)}`;
+};
+
+// Helper function to format date (moved outside for potential reuse)
+const formatDate = (dateString) => {
+  if (!dateString) return '';
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'Invalid Date';
+    return date.toLocaleDateString();
+  } catch (e) {
+    return 'Invalid Date';
+  }
+};
+
+// Moved getPrimaryImageUrl outside the component
+const getPrimaryImageUrl = (product) => {
+  try {
+    // Check product images first
+    if (Array.isArray(product.images) && product.images.length > 0) {
+      const primary = product.images.find(img => img.order === 0) || product.images[0];
+      if (primary && primary.url) {
+        // Ensure URL is properly formatted
+        if (!primary.url.startsWith('http') && !primary.url.startsWith('/')) {
+          return `${API_URL}/${primary.url}`;
+        }
+        return primary.url;
+      }
+    }
+    
+    // If no product image, check variant images
+    if (Array.isArray(product.variants) && product.variants.length > 0) {
+      const firstVariantWithImage = product.variants.find(v => v.image_url);
+      if (firstVariantWithImage && firstVariantWithImage.image_url) {
+        // Ensure URL is properly formatted
+        if (!firstVariantWithImage.image_url.startsWith('http') && !firstVariantWithImage.image_url.startsWith('/')) {
+          return `${API_URL}/${firstVariantWithImage.image_url}`;
+        }
+        return firstVariantWithImage.image_url;
+      }
+    }
+  } catch (error) {
+    console.error('Error getting primary image URL:', error);
+  }
+  
+  // If no images found anywhere
+  return null;
+};
+
 // Define the memoized ProductRow component
-const ProductRow = React.memo(({ product, handleEditClick, handleDelete, deleteInProgress, getPrimaryImageUrl, getCategoryPlaceholder, formatPrice, calculateDiscountedPrice, formatDate }) => {
-  // Construct the full image URL if the primary URL is relative
-  const rawImageUrl = getPrimaryImageUrl(product.images);
-  const fullImageUrl = rawImageUrl && rawImageUrl.startsWith('/') 
-    ? `http://localhost:5000${rawImageUrl}` 
-    : rawImageUrl; // Assume it's already absolute or null
-
-  // Determine the initial source: valid full URL or placeholder
-  const initialImageSrc = fullImageUrl || getCategoryPlaceholder(product.category_name);
-
-  const displayStock = product.stock !== null && product.stock !== undefined ? product.stock : 'N/A';
-
-  // Memoize the onError handler
-  const handleImageError = useCallback((e) => {
-    e.target.onerror = null; // Prevent infinite loop if placeholder also fails
-    const placeholderSrc = getCategoryPlaceholder(product.category_name);
-    console.log(`Image error for ${product.product_id}. Setting placeholder: ${placeholderSrc}`);
-    e.target.src = placeholderSrc;
-  }, [getCategoryPlaceholder, product.category_name, product.product_id]); // Dependencies
-
-  console.log(`Rendering row for product: ${product.product_id}, Initial Image Src: ${initialImageSrc}`);
-
+const ProductRow = memo(({ product, onEdit, onDelete }) => {
+  const [imageError, setImageError] = useState(false);
+  const imageUrl = getPrimaryImageUrl(product);
+  
+  const handleImageError = () => {
+    setImageError(true);
+  };
+  
   return (
-    <tr key={product.product_id}>
+    <tr>
       <td>
-        <img 
-          src={initialImageSrc} // Use the determined initial source
-          alt={product.name}
-          className="product-thumbnail" 
-          onError={handleImageError} // Use the memoized handler
-        />
-      </td>
-      <td>{product.name}</td>
-      <td>{product.category_name}</td>
-      <td>
-        {product.is_flash_deal ? (
-          <div className="product-price-cell">
-            <span className="original-price">{formatPrice(product.price)}</span>
-            <span className="discounted-price">
-              {formatPrice(calculateDiscountedPrice(product.price, product.discount_percentage))}
-            </span>
-          </div>
+        {imageUrl && !imageError ? (
+          <img 
+            src={imageUrl} 
+            alt={product.name}
+            className="product-thumbnail"
+            onError={handleImageError}
+          />
         ) : (
-          formatPrice(product.price)
+          <div className="no-image-placeholder">No Image</div>
         )}
       </td>
-      <td>{displayStock}</td>
       <td>{product.product_code}</td>
-      <td title={product.description || 'No description'}>
-        {product.description ? `${product.description.substring(0, 50)}...` : '-'}
-      </td>
+      <td>{product.name}</td>
+      <td>{product.category_name}</td>
+      <td>{formatPrice(product.price)}</td>
+      <td>{product.stock}</td>
+      <td>{formatDate(product.created_at)}</td>
       <td>
-        <div className="product-tags">
-          {product.is_best_seller && <span className="tag best-seller">Best Seller</span>}
-          {product.is_flash_deal && (
-            <span className="tag flash-deal">
-              Flash Deal 
-              {product.flash_deal_end && ` (Until ${formatDate(product.flash_deal_end)})`}
-            </span>
-          )}
-        </div>
-      </td>
-      <td>
-        <div className="action-buttons">
-          <button 
-            type="button"
-            className="btn btn-edit"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleEditClick(product.product_id);
-            }}
-            onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
-          >
-            Edit
-          </button>
-          <button 
-            type="button"
-            className="btn btn-delete"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDelete(product.product_id);
-            }}
-            onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
-            // Check deleteInProgress specific to *this* product if possible, otherwise use global
-            // For now, using global deleteInProgress passed as prop
-            disabled={deleteInProgress} 
-          >
-            {deleteInProgress ? 'Deleting...' : 'Delete'} 
-          </button>
-        </div>
+        <button 
+          type="button" 
+          className="btn btn-sm btn-primary" 
+          onClick={() => onEdit(product)}
+        >
+          Edit
+        </button>
+        <button 
+          type="button" 
+          className="btn btn-sm btn-danger ms-2" 
+          onClick={onDelete}
+        >
+          Delete
+        </button>
       </td>
     </tr>
   );
@@ -114,7 +128,22 @@ const ProductManagement = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deleteInProgress, setDeleteInProgress] = useState(false);
   const [userInitiatedSubmit, setUserInitiatedSubmit] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
   const [categories, setCategories] = useState([]);
+  const [includeVariants, setIncludeVariants] = useState(false);
+  const [variants, setVariants] = useState([]);
+  const [currentVariant, setCurrentVariant] = useState({
+    sku: '',
+    size: '',
+    color: '',
+    price: '',
+    stock: '',
+    weight: '',
+    height: '',
+    width: '',
+    image: null
+  });
   const [currentProduct, setCurrentProduct] = useState({
     name: '',
     description: '',
@@ -130,6 +159,10 @@ const ProductManagement = () => {
   });
   const [newProductImages, setNewProductImages] = useState([]);
   const [successMessage, setSuccessMessage] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [confirmDeleteProduct, setConfirmDeleteProduct] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [selectedImages, setSelectedImages] = useState([]);
 
   useEffect(() => {
     // Reset all form state when component mounts
@@ -142,7 +175,7 @@ const ProductManagement = () => {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:5000/api/products');
+      const response = await fetch(`${API_URL}/api/products`);
       if (!response.ok) {
         throw new Error('Failed to fetch products');
       }
@@ -160,7 +193,7 @@ const ProductManagement = () => {
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/categories');
+      const response = await fetch(`${API_URL}/api/categories`);
       if (!response.ok) {
         throw new Error('Failed to fetch categories');
       }
@@ -255,7 +288,6 @@ const ProductManagement = () => {
   };
 
   const resetForm = () => {
-    setIsEditing(false);
     setCurrentProduct({
       name: '',
       description: '',
@@ -270,8 +302,24 @@ const ProductManagement = () => {
       product_code: ''
     });
     setNewProductImages([]);
+    setIsEditing(false);
     setIsModalOpen(false);
-    setDeleteInProgress(false);
+    setError(null);
+    setSuccessMessage('');
+    setUserInitiatedSubmit(false);
+    setIncludeVariants(false);
+    setVariants([]);
+    setCurrentVariant({
+      sku: '',
+      size: '',
+      color: '',
+      price: '',
+      stock: '',
+      weight: 0,
+      height: 0,
+      width: 0,
+      image: null
+    });
   };
 
   const handleAddNewClick = () => {
@@ -279,55 +327,70 @@ const ProductManagement = () => {
     setIsModalOpen(true);
   };
 
-  const handleEditClick = useCallback(async (productId) => {
+  const handleEditClick = useCallback(async (product) => {
     try {
-      setLoading(true);
-      const response = await fetch(`http://localhost:5000/api/products/${productId}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch product details for editing');
-      }
-      const productData = await response.json();
-
-      let formattedProduct = { ...productData };
-      
-      // Format date for datetime-local input
-      if (productData.flash_deal_end) {
-        const date = new Date(productData.flash_deal_end);
-        if (!isNaN(date.getTime())) {
-          const year = date.getFullYear();
-          const month = (date.getMonth() + 1).toString().padStart(2, '0');
-          const day = date.getDate().toString().padStart(2, '0');
-          const hours = date.getHours().toString().padStart(2, '0');
-          const minutes = date.getMinutes().toString().padStart(2, '0');
-          formattedProduct.flash_deal_end = `${year}-${month}-${day}T${hours}:${minutes}`;
-        } else {
-          formattedProduct.flash_deal_end = '';
-        }
-      } else {
-        formattedProduct.flash_deal_end = '';
-      }
-      
-      // Ensure images array
-      formattedProduct.images = Array.isArray(productData.images) ? productData.images : [];
-      
-      // Ensure product_code is set
-      formattedProduct.product_code = productData.product_code || '';
-      
-      // Make sure category_id is set properly
-      formattedProduct.category_id = productData.category_id || '';
-
-      setCurrentProduct(formattedProduct);
       setIsEditing(true);
+      setSuccessMessage('');
+      setError('');
+      
+      // Fetch full product details including variants
+      const response = await fetch(`${API_URL}/api/products/${product.product_id}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch product details');
+      }
+      
+      const productDetails = await response.json();
+      console.log('Product details for editing:', productDetails);
+      
+      // Set current product
+      setCurrentProduct({
+        product_id: productDetails.product_id,
+        product_code: productDetails.product_code,
+        name: productDetails.name,
+        description: productDetails.description,
+        price: productDetails.price,
+        stock: productDetails.stock_quantity || productDetails.stock,
+        category_id: productDetails.category_id,
+        weight: productDetails.weight || 0,
+        height: productDetails.height || 0,
+        width: productDetails.width || 0,
+        length: productDetails.length || 0,
+        is_featured: productDetails.is_featured || false,
+        images: productDetails.images || []
+      });
+      
+      // Reset new images
       setNewProductImages([]);
+      
+      // Load variants if available
+      if (Array.isArray(productDetails.variants) && productDetails.variants.length > 0) {
+        // Format variants for the form
+        const formattedVariants = productDetails.variants.map(variant => ({
+          variant_id: variant.variant_id,
+          size: variant.size || '',
+          color: variant.color || '',
+          price: variant.price || 0,
+          stock: variant.stock || 0,
+          weight: variant.weight || 0,
+          height: variant.height || 0,
+          width: variant.width || 0,
+          sku: variant.sku || '',
+          image_url: variant.image_url || (variant.images && variant.images[0]?.url),
+          preview: null
+        }));
+        setVariants(formattedVariants);
+      } else {
+        setVariants([]);
+      }
+      
+      // Open the modal
       setIsModalOpen(true);
-      setError(null);
-    } catch (err) {
-      setError('Error fetching product details: ' + err.message);
-      console.error('Error fetching product details:', err);
-    } finally {
-      setLoading(false);
+      
+    } catch (error) {
+      console.error('Error fetching product details for editing:', error);
+      setError('Failed to load product details for editing. Please try again.');
     }
-  }, [setLoading, setCurrentProduct, setIsEditing, setNewProductImages, setIsModalOpen, setError]);
+  }, [API_URL]);
 
   // Add a direct test function
   const testDirectApiCall = async () => {
@@ -364,109 +427,200 @@ const ProductManagement = () => {
     }
   };
 
+  const handleVariantInputChange = (e) => {
+    const { name, value, type, checked, files } = e.target;
+    
+    if (type === 'file') {
+      if (files && files.length > 0) {
+        setCurrentVariant({
+          ...currentVariant,
+          [name]: files[0]
+        });
+      }
+    } else {
+      setCurrentVariant({
+        ...currentVariant,
+        [name]: type === 'checkbox' ? checked : 
+               (type === 'number' ? (value === '' ? '' : Number(value)) : value)
+      });
+    }
+  };
+
+  const handleAddVariant = () => {
+    const newVariant = {
+      size: '',
+      color: '',
+      price: '',
+      stock: '',
+      weight: 0,
+      height: 0,
+      width: 0,
+      image: null,
+      preview: null
+    };
+    
+    setVariants([...variants, newVariant]);
+  };
+
+  const handleRemoveVariant = (index) => {
+    setVariants(variants.filter((_, i) => i !== index));
+  };
+
+  const handleVariantChange = (index, field, value) => {
+    const updatedVariants = [...variants];
+    updatedVariants[index] = {
+      ...updatedVariants[index],
+      [field]: value
+    };
+    setVariants(updatedVariants);
+  };
+
+  const handleVariantImageChange = (index, e) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      
+      // Create a preview URL for display
+      const preview = URL.createObjectURL(file);
+      
+      const updatedVariants = [...variants];
+      updatedVariants[index] = {
+        ...updatedVariants[index],
+        image: file,
+        preview: preview
+      };
+      
+      setVariants(updatedVariants);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validate required fields
-    if (!currentProduct.name || !currentProduct.price || !currentProduct.category_id) {
-      const missingFields = [];
-      if (!currentProduct.name) missingFields.push('Name');
-      if (!currentProduct.price) missingFields.push('Price');
-      if (!currentProduct.category_id) missingFields.push('Category');
-      setError(`Please fill in all required fields: ${missingFields.join(', ')}`);
-      return;
-    }
-    
     try {
-      const formData = new FormData();
+      setIsSubmitting(true);
+      setError('');
       
-      // Ensure category_id is a number before appending
-      const categoryIdNum = parseInt(currentProduct.category_id);
-      if (isNaN(categoryIdNum)) {
-        console.error("Invalid Category ID before sending:", currentProduct.category_id);
-        setError("Invalid Category ID selected. Please select a valid category.");
+      // Validate required fields
+      const isPriceRequired = !includeVariants;
+      if (!currentProduct.name || (isPriceRequired && !currentProduct.price) || !currentProduct.category_id) {
+        let missingFields = [];
+        if (!currentProduct.name) missingFields.push('Name');
+        if (isPriceRequired && !currentProduct.price) missingFields.push('Price');
+        if (!currentProduct.category_id) missingFields.push('Category');
+        
+        setError(`${missingFields.join(', ')} ${missingFields.length > 1 ? 'are' : 'is'} required.`);
+        setIsSubmitting(false);
         return;
       }
       
-      // Create a temporary product data object to avoid sending the complex 'images' array
-      const productDataToSend = { ...currentProduct };
-      delete productDataToSend.images; // Remove existing images array from payload
-      productDataToSend.category_id = categoryIdNum; // Ensure numeric ID is used
-
-      // Append product data fields to FormData
-      for (const key in productDataToSend) {
-        // Handle boolean values correctly for FormData
-        if (typeof productDataToSend[key] === 'boolean') {
-          formData.append(key, productDataToSend[key] ? 'true' : 'false');
-        } else if (productDataToSend[key] !== null && productDataToSend[key] !== undefined) {
-          formData.append(key, productDataToSend[key]);
-        }
-      }
-
-      // Append NEW product images
-      if (newProductImages && newProductImages.length > 0) {
-        newProductImages.forEach((file) => {
-          formData.append('productImages', file, file.name);
-        });
-        console.log(`Appending ${newProductImages.length} new images.`);
-      }
-
-      // Determine endpoint and method
-      const url = isEditing 
-        ? `http://localhost:5000/api/products/${currentProduct.product_id}` 
-        : 'http://localhost:5000/api/products';
-      const method = isEditing ? 'PUT' : 'POST';
-
-      console.log(`Sending ${method} request to: ${url} with FormData`);
-      // Log FormData entries for debugging (optional, can be verbose)
-      // for (let pair of formData.entries()) {
-      //   console.log(pair[0]+ ': '+ pair[1]); 
-      // }
-
-      const response = await fetch(url, {
-        method,
-        body: formData, // Send FormData object
-        // No 'Content-Type' header needed; browser sets it for FormData
-      });
-
-      const responseText = await response.text();
-      console.log('Response status:', response.status);
-      console.log('Response text:', responseText);
-
-      if (!response.ok) {
-        let errorMessage = `Failed to save product (${response.status})`;
-        try {
-          // Try to parse error message if server sends JSON error
-          if (responseText.trim().startsWith('{')) {
-            const errorData = JSON.parse(responseText);
-            errorMessage = errorData.message || (errorData.errors && errorData.errors[0]?.msg) || errorMessage;
-          }
-        } catch (parseError) {
-          // Keep generic error message if parsing fails
-          console.error('Could not parse error response JSON:', parseError);
-        }
-        throw new Error(errorMessage);
-      }
-
-      // Parse success response
-      let result;
-      try {
-        result = responseText ? JSON.parse(responseText) : {};
-      } catch (parseError) {
-        console.error('Error parsing success response:', parseError);
-        throw new Error(`Product saved, but server response was invalid JSON: ${responseText.slice(0, 100)}...`);
+      // Validate that category_id is a valid integer
+      if (isNaN(parseInt(currentProduct.category_id))) {
+        setError('Invalid category selection.');
+        setIsSubmitting(false);
+        return;
       }
       
-      console.log('Parsed success result:', result);
+      // Create FormData to handle file uploads
+      const formData = new FormData();
+      
+      // Append basic product data
+      formData.append('name', currentProduct.name);
+      formData.append('description', currentProduct.description);
+      formData.append('price', currentProduct.price);
+      formData.append('stock', currentProduct.stock);
+      formData.append('category_id', currentProduct.category_id);
+      formData.append('weight', currentProduct.weight || 0);
+      formData.append('height', currentProduct.height || 0);
+      formData.append('width', currentProduct.width || 0);
+      formData.append('length', currentProduct.length || 0);
+      formData.append('is_featured', currentProduct.is_featured || false);
+      
+      // Handle product images
+      if (Array.isArray(newProductImages) && newProductImages.length > 0) {
+        newProductImages.forEach(image => {
+          if (image instanceof File) {
+            formData.append('productImages', image);
+          }
+        });
+      }
+      
+      // Handle variants with improved image handling
+      if (variants.length > 0) {
+        formData.append('include_variants', 'true');
+        
+        // Generate timestamp to make SKUs more unique
+        const timestamp = Date.now();
+        const randomString = Math.random().toString(36).substring(2, 6); 
+        
+        // Create variants with timestamp-based SKUs
+        const variantsWithSKUs = variants.map((variant, index) => {
+          const variantNumber = index + 1;
+          const sku = currentProduct.product_code ? 
+            `${currentProduct.product_code}-${variantNumber}-${timestamp}-${randomString}` : 
+            `SKU-${variantNumber}-${timestamp}-${randomString}`;
+            
+          // Only include necessary fields (match server expectations)
+          return {
+            size: variant.size,
+            color: variant.color,
+            price: variant.price,
+            stock: variant.stock,
+            weight: variant.weight || 0,
+            height: variant.height || 0,
+            width: variant.width || 0,
+            sku,
+            // Flag to indicate if this variant has an image
+            has_image: !!variant.image
+          };
+        });
+        
+        formData.append('variants', JSON.stringify(variantsWithSKUs));
+        
+        // Append each variant image separately
+        variants.forEach((variant, index) => {
+          if (variant.image && variant.image instanceof File) {
+            formData.append('variantImages', variant.image);
+            console.log(`Added variant image for index ${index}:`, variant.image.name);
+          }
+        });
+      }
+      
+      // Determine endpoint (create or update)
+      const endpoint = isEditing 
+        ? `${API_URL}/api/products/${currentProduct.product_id}`
+        : `${API_URL}/api/products`;
+      
+      const method = isEditing ? 'PUT' : 'POST';
+      
+      // Send request
+      const response = await fetch(endpoint, {
+        method,
+        body: formData
+      });
+      
+      // Check if response is ok
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to save product');
+      }
+      
+      const responseData = await response.json();
+      
+      // Show success message
+      setSuccessMessage(isEditing ? 'Product updated successfully!' : 'Product created successfully!');
+      
+      // Close modal and reset form after delay
+      setTimeout(() => {
+        setIsModalOpen(false);
 
-      setSuccessMessage(result.message || (isEditing ? 'Product updated successfully!' : 'Product created successfully!'));
-      fetchProducts();
-      resetForm();
-      setTimeout(() => setSuccessMessage(''), 3000);
-
-    } catch (err) {
-      setError('Error saving product: ' + err.message);
-      console.error('Error submitting product:', err);
+        // Refresh product list
+        fetchProducts();
+      }, 1500);
+    } catch (error) {
+      console.error('Error saving product:', error);
+      setError(error.message || 'An error occurred while saving the product.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -481,7 +635,7 @@ const ProductManagement = () => {
     }
 
     try {
-      const response = await fetch(`http://localhost:5000/api/products/images/${imageIdToDelete}`, {
+      const response = await fetch(`${API_URL}/api/product-images/${imageIdToDelete}`, {
         method: 'DELETE',
       });
 
@@ -492,14 +646,14 @@ const ProductManagement = () => {
 
       setCurrentProduct(prev => ({
         ...prev,
-        images: prev.images.filter(img => img.id !== imageIdToDelete)
+        images: prev.images.filter(img => img.image_id !== imageIdToDelete)
       }));
 
       setSuccessMessage('Image deleted successfully!');
-       setTimeout(() => {
-          setSuccessMessage('');
+      setTimeout(() => {
+        setSuccessMessage('');
       }, 3000);
-
+      
     } catch (err) {
       setError('Error deleting image: ' + err.message);
       console.error('Error deleting image:', err);
@@ -508,20 +662,20 @@ const ProductManagement = () => {
 
   const handleDelete = useCallback(async (id) => {
     if (!window.confirm('Are you sure you want to delete this product?')) {
-        return;
+      return;
     }
     setError(null);
     setSuccessMessage('');
     setDeleteInProgress(true);
-
+    
     try {
-        const response = await fetch(`http://localhost:5000/api/products/${id}`, {
-            method: 'DELETE'
-        });
+      const response = await fetch(`${API_URL}/api/products/${id}`, {
+        method: 'DELETE'
+      });
 
         console.log('Delete Response Status:', response.status);
-
-        if (!response.ok) {
+      
+      if (!response.ok) {
             let errorMsg = 'Failed to delete product';
             try {
                  const errorData = await response.json();
@@ -540,10 +694,10 @@ const ProductManagement = () => {
             setSuccessMessage(result.message || 'Product deleted successfully!');
         } else {
             console.log('Delete successful (no content in response).');
-            setSuccessMessage('Product deleted successfully!');
+      setSuccessMessage('Product deleted successfully!');
         }
 
-        fetchProducts();
+      fetchProducts();
         
         setIsEditing(false);
         setCurrentProduct({
@@ -562,60 +716,49 @@ const ProductManagement = () => {
         setNewProductImages([]);
         setIsModalOpen(false);
         
-        setTimeout(() => {
-            setSuccessMessage('');
+      setTimeout(() => {
+        setSuccessMessage('');
             setDeleteInProgress(false);
-        }, 3000);
+      }, 3000);
         
         return;
-
+      
     } catch (err) {
-        setError('Error deleting product: ' + err.message);
-        console.error('Error deleting product:', err);
+      setError('Error deleting product: ' + err.message);
+      console.error('Error deleting product:', err);
         setDeleteInProgress(false);
     }
   }, [setError, setSuccessMessage, setDeleteInProgress, fetchProducts, setIsEditing, setCurrentProduct, setNewProductImages, setIsModalOpen]);
 
-  const formatPrice = useCallback((price) => {
-    if (price === null || price === undefined) return 'N/A';
-    return `₱${Number(price).toFixed(2)}`;
-  }, []);
-
-  const formatDate = useCallback((dateString) => {
-    if (!dateString) return '';
-    try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) return 'Invalid Date';
-      return date.toLocaleDateString();
-    } catch (e) {
-      return 'Invalid Date';
-    }
-  }, []);
-
   const calculateDiscountedPrice = useCallback((price, discount) => {
     if (!discount || price === null || price === undefined) return price;
-    return (price - (price * discount / 100)).toFixed(2);
+    
+    // Handle price ranges
+    if (typeof price === 'string' && price.includes('-')) {
+      const [min, max] = price.split('-').map(p => Number(p));
+      const discountedMin = (min - (min * discount / 100)).toFixed(2);
+      const discountedMax = (max - (max * discount / 100)).toFixed(2);
+      return `${discountedMin}-${discountedMax}`;
+    }
+    
+    // Handle single price
+    return (Number(price) - (Number(price) * discount / 100)).toFixed(2);
   }, []);
 
   const getCategoryPlaceholder = useCallback((category) => {
-    switch(category) {
+    // Define base URL for static assets
+    const baseUrl = 'http://localhost:5000/images';
+    
+    switch(category && category.toLowerCase()) {
       case 'books':
-        return '/placeholder-book.jpg';
+        return `${baseUrl}/placeholder-book.jpg`;
       case 'amulets':
-        return '/placeholder-amulet.jpg';
+        return `${baseUrl}/placeholder-amulet.jpg`;
       case 'bracelets':
-        return '/placeholder-bracelet.jpg';
+        return `${baseUrl}/placeholder-bracelet.jpg`;
       default:
-        return '/placeholder-product.jpg';
+        return `${baseUrl}/placeholder-product.jpg`;
     }
-  }, []);
-
-  const getPrimaryImageUrl = useCallback((images) => {
-    if (!Array.isArray(images) || images.length === 0) {
-      return null;
-    }
-    const primary = images.find(img => img.order === 0) || images[0]; 
-    return primary.url; 
   }, []);
 
   return (
@@ -625,7 +768,14 @@ const ProductManagement = () => {
         <div className="success-message">{successMessage}</div>
       )}
       {error && (
-        <div className="error-message">{error}</div>
+        <div className="error-message">
+          {typeof error === 'object' 
+            ? Object.values(error).join(', ')
+            : error}
+        </div>
+      )}
+      {submitError && (
+          <div className="error-message">{submitError}</div>
       )}
       <div className="action-bar">
         <button 
@@ -677,7 +827,13 @@ const ProductManagement = () => {
                   min="0"
                   step="0.01"
                   required
+                  disabled={includeVariants}
+                  title={includeVariants ? "Price is calculated from variants when variants are enabled" : ""}
+                  className={includeVariants ? "read-only-field" : ""}
                 />
+                {includeVariants && (
+                  <small>Price will be calculated from variant prices</small>
+                )}
               </div>
               
               <div className="form-group">
@@ -707,7 +863,24 @@ const ProductManagement = () => {
                   value={currentProduct.stock || ''}
                   onChange={handleInputChange}
                   min="0"
+                  disabled={includeVariants}
+                  title={includeVariants ? "Stock is managed per variant when variants are enabled" : ""}
+                  className={includeVariants ? "read-only-field" : ""}
                 />
+                {includeVariants && (
+                  <small>Stock is managed per variant when variants are enabled</small>
+                )}
+              </div>
+              
+              <div className="form-group checkbox-group">
+                <input
+                  type="checkbox"
+                  id="include_variants"
+                  name="include_variants"
+                  checked={includeVariants}
+                  onChange={() => setIncludeVariants(!includeVariants)}
+                />
+                <label htmlFor="include_variants">Include Variants (Size, Color, etc.)</label>
               </div>
               
               <div className="form-group checkbox-group">
@@ -783,9 +956,11 @@ const ProductManagement = () => {
                 />
                 <small>Automatically generated based on category</small>
               </div>
-
+              
               <div className="form-group full-width">
-                <label htmlFor="productImages">Product Images</label>
+                <label htmlFor="productImages">
+                  {includeVariants ? 'Product Images (Optional)' : 'Product Images'}
+                </label>
                 <input
                   type="file"
                   id="productImages"
@@ -794,24 +969,28 @@ const ProductManagement = () => {
                   accept="image/*"
                   multiple
                 />
-                <small>Upload new images. Existing images will be kept unless deleted below.</small>
+                <small>
+                  {includeVariants 
+                   ? 'You can upload product images here or use variant-specific images.' 
+                   : 'Upload new images. Existing images will be kept unless deleted below.'}
+                </small>
               </div>
-
+              
               {isEditing && currentProduct.images && currentProduct.images.length > 0 && (
                 <div className="existing-images-section full-width">
                   <p>Current Images:</p>
                   <div className="existing-images-grid">
                     {currentProduct.images.map((img) => (
-                      <div key={img.id} className="existing-image-item">
+                      <div key={img.image_id} className="existing-image-item">
                         <img
-                          src={img.url}
+                          src={`${API_URL}/${img.url}`}
                           alt={img.alt || 'Product image'}
                           className="existing-image-thumbnail"
                         />
                         <button
                           type="button"
                           className="btn btn-delete btn-delete-image"
-                          onClick={() => handleDeleteImage(img.id)}
+                          onClick={() => handleDeleteImage(img.image_id)}
                           title="Delete this image"
                         >
                           &times;
@@ -822,10 +1001,120 @@ const ProductManagement = () => {
                 </div>
               )}
 
+              {includeVariants && (
+                <div className="variants-section full-width">
+                  <h3>Product Variants</h3>
+                  <p>Add variants with different sizes, colors, prices, and stock levels</p>
+                  
+                  {variants.map((variant, index) => (
+                    <div key={index} className="variant-form mb-4 p-3 border rounded">
+                      <div className="d-flex justify-content-between mb-2">
+                        <h6>Variant {index + 1}</h6>
+                        <button 
+                          type="button" 
+                          className="btn btn-sm btn-danger"
+                          onClick={() => handleRemoveVariant(index)}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                      
+                      <div className="row">
+                        <div className="col-md-6">
+                          <div className="mb-3">
+                            <label htmlFor={`variant-size-${index}`} className="form-label">Size</label>
+                            <input
+                              type="text"
+                              className="form-control"
+                              id={`variant-size-${index}`}
+                              value={variant.size || ''}
+                              onChange={(e) => handleVariantChange(index, 'size', e.target.value)}
+                            />
+                          </div>
+                        </div>
+                        <div className="col-md-6">
+                          <div className="mb-3">
+                            <label htmlFor={`variant-color-${index}`} className="form-label">Color</label>
+                            <input
+                              type="text"
+                              className="form-control"
+                              id={`variant-color-${index}`}
+                              value={variant.color || ''}
+                              onChange={(e) => handleVariantChange(index, 'color', e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="row">
+                        <div className="col-md-6">
+                          <div className="mb-3">
+                            <label htmlFor={`variant-price-${index}`} className="form-label">Price</label>
+                            <input
+                              type="number"
+                              className="form-control"
+                              id={`variant-price-${index}`}
+                              value={variant.price || ''}
+                              onChange={(e) => handleVariantChange(index, 'price', e.target.value)}
+                            />
+                          </div>
+                        </div>
+                        <div className="col-md-6">
+                          <div className="mb-3">
+                            <label htmlFor={`variant-stock-${index}`} className="form-label">Stock</label>
+                            <input
+                              type="number"
+                              className="form-control"
+                              id={`variant-stock-${index}`}
+                              value={variant.stock || ''}
+                              onChange={(e) => handleVariantChange(index, 'stock', e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="mb-3">
+                        <label htmlFor={`variant-image-${index}`} className="form-label">Variant Image</label>
+                        <input
+                          type="file"
+                          className="form-control"
+                          id={`variant-image-${index}`}
+                          onChange={(e) => handleVariantImageChange(index, e)}
+                        />
+                        
+                        {/* Show preview image if available */}
+                        {(variant.preview || (variant.image_url && !variant.preview)) && (
+                          <div className="mt-2 variant-image-preview">
+                            <img 
+                              src={variant.preview || `${API_URL}/${variant.image_url}`} 
+                              alt={`Variant ${index + 1}`} 
+                              className="img-thumbnail" 
+                              style={{ maxHeight: '100px' }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {/* Add button for new variants */}
+                  <div className="d-flex justify-content-center mt-3 mb-4">
+                    <button 
+                      type="button" 
+                      className="btn btn-primary"
+                      onClick={handleAddVariant}
+                    >
+                      <i className="fas fa-plus me-2"></i> Add Variant
+                    </button>
+                  </div>
+                  
+                </div>
+              )}
+              
               <div className="form-buttons">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
+                <button 
+                  type="button" 
+                  className="btn btn-secondary" 
                   onClick={resetForm}
                   onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
                 >
@@ -834,7 +1123,11 @@ const ProductManagement = () => {
                 <button 
                   type="submit" 
                   className="btn btn-primary"
-                  disabled={!currentProduct.name || !currentProduct.price || !currentProduct.category_id}
+                  disabled={
+                    !currentProduct.name || 
+                    !currentProduct.category_id || 
+                    (includeVariants ? variants.length === 0 : !currentProduct.price)
+                  }
                   onClick={() => setUserInitiatedSubmit(true)}
                 >
                   {isEditing ? 'Update Product' : 'Create Product'}
@@ -858,13 +1151,12 @@ const ProductManagement = () => {
               <thead>
                 <tr>
                   <th>Image</th>
+                  <th>Product Code</th>
                   <th>Name</th>
                   <th>Category</th>
                   <th>Price</th>
                   <th>Stock</th>
-                  <th>Product Code</th>
-                  <th>Description</th>
-                  <th>Tags</th>
+                  <th>Created At</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -873,14 +1165,8 @@ const ProductManagement = () => {
                   <ProductRow
                     key={product.product_id}
                     product={product}
-                    handleEditClick={handleEditClick}
-                    handleDelete={handleDelete}
-                    deleteInProgress={deleteInProgress}
-                    getPrimaryImageUrl={getPrimaryImageUrl}
-                    getCategoryPlaceholder={getCategoryPlaceholder}
-                    formatPrice={formatPrice}
-                    calculateDiscountedPrice={calculateDiscountedPrice}
-                    formatDate={formatDate}
+                    onEdit={handleEditClick}
+                    onDelete={() => handleDelete(product.product_id)}
                   />
                 ))}
               </tbody>

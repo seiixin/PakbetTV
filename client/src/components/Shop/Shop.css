@@ -755,6 +755,18 @@
   color: #888;
 }
 
+.cart-item-variant {
+  font-size: 0.85rem;
+  margin-top: 0.3rem;
+  color: #555;
+}
+
+.variant-size, .variant-color {
+  display: inline-block;
+  font-weight: 600;
+  color: #333;
+}
+
 .cart-item-price, .cart-item-total {
   font-weight: 600;
   color: #333;
@@ -1719,4 +1731,217 @@
 /* Adjust lower section margin */
 .product-detail-lower-section {
   margin-top: 30px; /* Consistent spacing */
+}
+
+/* Variant Selection Styles */
+.variant-selection-container {
+  margin: 1rem 0;
+  padding: 0.5rem 0;
+  border-top: 1px solid #eee;
+  border-bottom: 1px solid #eee;
+}
+
+.variant-options {
+  margin-bottom: 1rem;
+}
+
+.variant-options label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #333;
+}
+
+.variant-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.variant-button {
+  padding: 0.5rem 1rem;
+  border: 1px solid #ddd;
+  background: #fff;
+  cursor: pointer;
+  border-radius: 4px;
+  min-width: 40px;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.variant-button:hover:not(.disabled) {
+  border-color: #333;
+}
+
+.variant-button.selected {
+  border-color: #333;
+  background-color: #f5f5f5;
+  font-weight: bold;
+}
+
+.variant-button.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+
+/* Color variant buttons */
+.color-buttons .variant-button {
+  color: white;
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.8);
+  font-weight: bold;
+}
+
+.color-buttons .variant-button.selected {
+  box-shadow: 0 0 0 2px #333;
+}
+
+.selected-variant-info {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+/* Variant Tag */
+.variant-tag {
+  position: absolute;
+  bottom: 5px;
+  right: 5px;
+  background-color: rgba(0, 0, 0, 0.6);
+  color: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* Variant Options Display */
+.variant-options {
+  margin-top: 4px;
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.color-options {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.color-chip {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid #ddd;
+  display: inline-block;
+}
+
+.more-options {
+  font-size: 0.75rem;
+  color: #666;
+}
+
+/* Product Meta (Items Sold + Add Button) */
+.product-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.add-to-cart-btn {
+  background-color: var(--primary-color, #A2201A);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.add-to-cart-btn:hover {
+  background-color: #8a1c16;
+}
+
+.add-to-cart-btn.added {
+  background-color: #4caf50;
+}
+
+/* Update product card to match Shopee */
+.shop-product-card {
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+  background-color: white;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.shop-product-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.shop-product-image {
+  position: relative;
+  padding-top: 100%; /* Square aspect ratio */
+  background-size: cover;
+  background-position: center;
+}
+
+.shop-product-details {
+  padding: 10px;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.product-info h3 {
+  margin: 0 0 8px 0;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #212121;
+  line-height: 1.3;
+  height: 2.6rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.product-price {
+  margin-top: auto;
+}
+
+.price-amount {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.discounted-price {
+  color: var(--primary-color, #A2201A);
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.original-price {
+  color: #999;
+  text-decoration: line-through;
+  font-size: 0.8rem;
+}
+
+.regular-price {
+  color: var(--primary-color, #A2201A);
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.items-sold {
+  font-size: 0.75rem;
+  color: #757575;
 } 

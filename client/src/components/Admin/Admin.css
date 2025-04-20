@@ -73,15 +73,15 @@
 
 .modal-content {
   background-color: white;
-  width: 80%;
-  max-width: 600px;
+  width: 90%;
+  max-width: 750px;
   border-radius: 8px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   overflow: hidden;
   position: relative;
-  max-height: 85vh;
-  overflow-y: auto;
-  margin: 0 auto;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .modal-header {
@@ -91,6 +91,7 @@
   padding: 1rem;
   background-color: #f8f9fa;
   border-bottom: 1px solid #eee;
+  flex-shrink: 0;
 }
 
 .modal-header h2 {
@@ -131,7 +132,9 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
-  padding: 1rem;
+  padding: 1.5rem;
+  overflow-y: auto;
+  flex-grow: 1;
 }
 
 .form-group {
@@ -197,8 +200,11 @@
   grid-column: 1 / -1;
   display: flex;
   gap: 1rem;
-  margin-top: 1rem;
+  margin-top: auto;
   justify-content: flex-end;
+  flex-shrink: 0;
+  border-top: 1px solid #eee;
+  padding-top: 1rem;
 }
 
 .btn {
@@ -515,4 +521,98 @@
 /* Ensure full-width class applies correctly if needed */
 .form-group.full-width {
     grid-column: 1 / -1; /* Span across all columns in grid layout */
+}
+
+/* Variants Section Styles */
+.variants-section {
+  margin-top: 20px;
+  padding: 20px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+}
+
+.variants-section h3 {
+  margin-top: 0;
+  color: #333;
+  font-size: 1.2rem;
+  margin-bottom: 10px;
+}
+
+.variants-section p {
+  margin-bottom: 20px;
+  color: #666;
+}
+
+.variant-form {
+  margin-bottom: 20px;
+}
+
+.form-row {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 15px;
+  flex-wrap: wrap;
+}
+
+.form-row .form-group {
+  flex: 1;
+  min-width: 150px;
+}
+
+.variants-list {
+  margin-top: 20px;
+}
+
+.variants-list h4 {
+  margin-bottom: 10px;
+  color: #444;
+  font-size: 1.1rem;
+}
+
+.variants-table-container {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.variants-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+.variants-table th, 
+.variants-table td {
+  padding: 8px 10px;
+  text-align: left;
+  border: 1px solid #ddd;
+}
+
+.variants-table th {
+  background-color: #f3f3f3;
+  font-weight: 600;
+}
+
+.variants-table tr:nth-child(even) {
+  background-color: #fafafa;
+}
+
+.variants-table tr:hover {
+  background-color: #f0f0f0;
+}
+
+.image-preview-text {
+  display: inline-block;
+  max-width: 150px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.9em;
+}
+
+/* Add styles for the read-only fields */
+.read-only-field {
+  background-color: #f0f0f0;
+  color: #777;
+  cursor: not-allowed;
 } 

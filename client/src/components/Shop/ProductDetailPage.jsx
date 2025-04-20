@@ -20,6 +20,13 @@ const ProductDetailPage = () => {
   const [selectedImageUrl, setSelectedImageUrl] = useState(null);
   const [reviews, setReviews] = useState([]);
 
+  // New state for variants
+  const [selectedVariant, setSelectedVariant] = useState(null);
+  const [availableSizes, setAvailableSizes] = useState([]);
+  const [availableColors, setAvailableColors] = useState([]);
+  const [selectedSize, setSelectedSize] = useState('');
+  const [selectedColor, setSelectedColor] = useState('');
+
   // State for review functionality
   const [canReview, setCanReview] = useState(false);
   const [hasReviewed, setHasReviewed] = useState(false);
@@ -33,6 +40,125 @@ const ProductDetailPage = () => {
   useEffect(() => {
     fetchProductDetails();
   }, [id]);
+
+  // New useEffect for handling variant selection
+  useEffect(() => {
+    // Log when the effect runs and the state values
+    console.log(`[Variant Effect] Running. Size: ${selectedSize}, Color: ${selectedColor}, Product Loaded: ${!!product}`);
+
+    if (product && product.variants && product.variants.length > 0) {
+      // Extract unique sizes and colors only once when product loads
+      if (availableSizes.length === 0) { 
+        const sizes = [...new Set(product.variants.map(v => v.size))];
+        setAvailableSizes(sizes);
+        // Set default size only if not already selected
+        if (!selectedSize && sizes.length > 0) {
+          setSelectedSize(sizes[0]);
+          // Early return here? Let the state update trigger the effect again.
+          // return; // Let's try without early return first.
+        }
+      }
+      if (availableColors.length === 0) {
+        const colors = [...new Set(product.variants.map(v => v.color))];
+        setAvailableColors(colors);
+        // Set default color only if not already selected
+        if (!selectedColor && colors.length > 0) {
+          setSelectedColor(colors[0]);
+          // Early return here? Let the state update trigger the effect again.
+          // return; // Let's try without early return first.
+        }
+      }
+      
+      // Always attempt to find the variant based on the CURRENT selectedSize and selectedColor
+      // Ensure we have valid selections before trying to update
+      if (selectedSize && selectedColor) {
+          console.log(`[Variant Effect] Attempting updateSelectedVariant with Size: ${selectedSize}, Color: ${selectedColor}`);
+          updateSelectedVariant(selectedSize, selectedColor);
+      } else {
+          // Handle case where selections might be missing after product load but before defaults are set by subsequent renders
+          console.log(`[Variant Effect] Skipping updateSelectedVariant: Size or Color not yet selected.`);
+          // Optionally set selectedVariant to null if needed
+          // setSelectedVariant(null);
+      }
+    }
+  }, [product, selectedSize, selectedColor]);
+
+  // Update selected variant based on size and color
+  const updateSelectedVariant = (size, color) => {
+    if (!product || !product.variants) return;
+    console.log(`[updateSelectedVariant] Trying to find variant for size: ${size}, color: ${color}`); // Log input
+    
+    const variant = product.variants.find(v => 
+      v.size === size && v.color === color
+    );
+    
+    console.log(`[updateSelectedVariant] Found variant:`, variant); // Log the found variant (or undefined)
+    
+    if (variant) {
+      setSelectedVariant(variant);
+      
+      // Reset quantity if it exceeds the variant's stock
+      if (quantity > variant.stock) {
+        setQuantity(1);
+      }
+    } else {
+      // If no variant matches, set selectedVariant to null
+      // This could be the cause of the ₱0.00/Out of Stock display
+      setSelectedVariant(null);
+      console.warn(`[updateSelectedVariant] No variant found for size: ${size}, color: ${color}`);
+    }
+  };
+
+  // Change handler for size selection
+  const handleSizeChange = (size) => {
+    console.log(`[handleSizeChange] Called with size: ${size}`); // Log when size changes
+    setSelectedSize(size);
+
+    // --- NEW: Update color based on new size ---
+    // Find available colors for the newly selected size
+    if (product && product.variants) {
+      const colorsForNewSize = [...new Set(
+        product.variants
+          .filter(v => v.size === size)
+          .map(v => v.color)
+      )];
+      
+      console.log(`[handleSizeChange] Available colors for size ${size}:`, colorsForNewSize);
+
+      // If there are colors for this size and the current color isn't one of them,
+      // or if no color was selected previously, select the first available color.
+      if (colorsForNewSize.length > 0 && !colorsForNewSize.includes(selectedColor)) {
+        const newColor = colorsForNewSize[0];
+        console.log(`[handleSizeChange] Auto-selecting color: ${newColor}`);
+        setSelectedColor(newColor); // This will trigger the useEffect again
+      } else if (colorsForNewSize.length > 0 && selectedColor === '') {
+        // Handle case where initial color wasn't set
+        const newColor = colorsForNewSize[0];
+        console.log(`[handleSizeChange] Setting initial color for size ${size}: ${newColor}`);
+        setSelectedColor(newColor);
+      }
+       // If the current color IS valid for the new size, we don't need to change it.
+    }
+    // --- End NEW ---
+  };
+
+  // Change handler for color selection
+  const handleColorChange = (color) => {
+    setSelectedColor(color);
+  };
+
+  // Check if a variant is available for the given size/color combination
+  const isVariantAvailable = (size, color) => {
+    if (!product || !product.variants) return false;
+    return product.variants.some(v => v.size === size && v.color === color && v.stock > 0);
+  };
+
+  // Get available colors for a selected size
+  const getAvailableColorsForSize = (size) => {
+    if (!product || !product.variants) return [];
+    const variantsWithSize = product.variants.filter(v => v.size === size);
+    return [...new Set(variantsWithSize.map(v => v.color))];
+  };
 
   useEffect(() => {
     const checkPurchaseAndReviewStatus = async () => {
@@ -98,6 +224,7 @@ const ProductDetailPage = () => {
       setLoading(true);
       setError(null);
       setReviews([]); // Reset reviews on new product load
+      setSelectedVariant(null); // Reset selected variant
       
       const response = await fetch(`http://localhost:5000/api/products/${id}`);
       
@@ -111,8 +238,9 @@ const ProductDetailPage = () => {
       const parsedProduct = {
         ...data,
         stock_quantity: data.stock_quantity !== undefined ? Number(data.stock_quantity) : 0,
-        average_rating: data.average_rating !== undefined ? Number(data.average_rating) : null, // Ensure rating is number
-        review_count: data.review_count !== undefined ? Number(data.review_count) : 0
+        average_rating: data.average_rating !== undefined ? Number(data.average_rating) : null,
+        review_count: data.review_count !== undefined ? Number(data.review_count) : 0,
+        variants: Array.isArray(data.variants) ? data.variants : []
       };
       
       if (data.images && !Array.isArray(data.images)) {
@@ -179,55 +307,77 @@ const ProductDetailPage = () => {
   };
 
   const handleAddToCart = () => {
-    if (!product || product.stock_quantity <= 0) return;
+    // Check if we have variants and a selected variant
+    if (product.variants && product.variants.length > 0) {
+      if (!selectedVariant) {
+        toast.error('Please select a size and color');
+        return;
+      }
+      
+      if (selectedVariant.stock <= 0) {
+        toast.error('Selected variant is out of stock');
+        return;
+      }
+    } else if (!product || product.stock_quantity <= 0) {
+      toast.error('Product is out of stock');
+      return;
+    }
     
     const itemToAdd = {
-      product_id: product.product_id, // Use product_id directly
-      id: product.product_id, // Keep id for compatibility
+      product_id: product.product_id,
+      id: product.product_id,
       name: product.name,
-      price: product.price,
-      image_url: getFullImageUrl(product.image_url || (product.images && product.images[0] ? product.images[0].url : null)),
-      stock_quantity: product.stock_quantity,
+      // Use variant price if available, otherwise use product price
+      price: selectedVariant ? selectedVariant.price : product.price,
+      // Use variant image if available
+      image_url: selectedVariant && selectedVariant.image_url 
+        ? getFullImageUrl(selectedVariant.image_url)
+        : getFullImageUrl(product.image_url || (product.images && product.images[0] ? product.images[0].url : null)),
+      stock_quantity: selectedVariant ? selectedVariant.stock : product.stock_quantity,
       category_id: product.category_id,
       category_name: product.category_name,
-      product_code: product.product_code
+      product_code: product.product_code,
+      // Add variant information if available
+      variant_id: selectedVariant ? selectedVariant.variant_id : null,
+      size: selectedVariant ? selectedVariant.size : null,
+      color: selectedVariant ? selectedVariant.color : null,
+      sku: selectedVariant ? selectedVariant.sku : null
     };
     
     try {
       addToCart(itemToAdd, quantity);
-      toast.success(`${quantity} x ${product.name} added to cart successfully!`);
+      toast.success(`${quantity} x ${product.name} ${selectedVariant ? `(${selectedVariant.size}, ${selectedVariant.color})` : ''} added to cart successfully!`);
       setAddedToCart(true);
       setTimeout(() => {
         setAddedToCart(false);
       }, 3000);
-    } catch (error) {
-      console.error("Error adding to cart:", error);
-      toast.error("Failed to add item to cart.");
+    } catch (err) {
+      toast.error('Failed to add item to cart');
+      console.error(err);
     }
   };
 
   const handleBuyNow = () => {
-    if (!product || product.stock_quantity <= 0) return;
-    
-    const itemToAdd = {
-      product_id: product.product_id, // Use product_id directly
-      id: product.product_id, // Keep id for compatibility
-      name: product.name,
-      price: product.price,
-      image_url: getFullImageUrl(product.image_url || (product.images && product.images[0] ? product.images[0].url : null)),
-      stock_quantity: product.stock_quantity,
-      category_id: product.category_id,
-      category_name: product.category_name,
-      product_code: product.product_code
-    };
-
-    try {
-      addToCart(itemToAdd, quantity);
-      navigate('/cart'); // Navigate to cart for review
-    } catch (error) {
-      console.error("Error during Buy Now process:", error);
-      toast.error("Could not proceed. Please try adding to cart first.");
+    if (product.variants && product.variants.length > 0) {
+      if (!selectedVariant) {
+        toast.error('Please select a size and color');
+        return;
+      }
+      
+      if (selectedVariant.stock <= 0) {
+        toast.error('Selected variant is out of stock');
+        return;
+      }
+    } else if (!product || product.stock_quantity <= 0) {
+      toast.error('Product is out of stock');
+      return;
     }
+    
+    // Add to cart first (reusing handleAddToCart logic)
+    handleAddToCart();
+    
+    // Then navigate to checkout
+    navigate('/checkout');
   };
 
   const goBack = () => {
@@ -245,8 +395,21 @@ const ProductDetailPage = () => {
   };
 
   const getFullImageUrl = (url) => {
-    if (!url) return '/placeholder-product.jpg';
-    return url.startsWith('/') ? `http://localhost:5000${url}` : url;
+    if (!url) {
+        console.warn('[getFullImageUrl] URL is missing, returning placeholder.');
+        return '/placeholder-product.jpg';
+    }
+    // If URL already starts with http, it's absolute, return as is
+    if (url.startsWith('http')) {
+        return url;
+    }
+    // If URL starts with /, prepend only the origin
+    if (url.startsWith('/')) {
+        return `http://localhost:5000${url}`;
+    }
+    // Otherwise, it's likely a relative path like 'uploads/...', prepend origin + /
+    console.log(`[getFullImageUrl] Prepending origin to relative path: ${url}`);
+    return `http://localhost:5000/${url}`;
   };
   
   const renderStars = (rating) => {
@@ -273,10 +436,6 @@ const ProductDetailPage = () => {
       month: 'short', 
       day: 'numeric' 
     });
-  };
-
-  const handleThumbnailClick = (imageUrl) => {
-    setSelectedImageUrl(imageUrl);
   };
 
   // --- NEW: Review Submission Handler ---
@@ -357,6 +516,11 @@ const ProductDetailPage = () => {
     );
   }
 
+  // Calculate current price based on selected variant or product
+  const currentPrice = selectedVariant ? selectedVariant.price : product.price;
+  // Calculate current stock based on selected variant or product
+  const currentStock = selectedVariant ? selectedVariant.stock : product.stock_quantity;
+
   // --- Main JSX Return ---
   return (
     <div className="container product-detail-page-container">
@@ -370,32 +534,67 @@ const ProductDetailPage = () => {
         <div className="product-detail-image-gallery">
           <div className="main-image-container">
             <img
-              src={selectedImageUrl || getFullImageUrl(product.image_url) || '/placeholder-product.jpg'} // Add placeholder fallback
+              src={selectedVariant?.image_url ? getFullImageUrl(selectedVariant.image_url) : (product.images?.[0]?.url ? getFullImageUrl(product.images[0].url) : '/placeholder-product.jpg')}
               alt={product.name}
               className="main-product-image"
-              onError={(e) => { e.target.onerror = null; e.target.src='/placeholder-product.jpg'}} // Handle broken image links
+              onError={(e) => { e.target.onerror = null; e.target.src='/placeholder-product.jpg'}}
             />
           </div>
           
           <div className="thumbnail-container">
-            {/* Render thumbnails only from product.images array */}
+            {/* Primary product images */}
             {Array.isArray(product.images) && product.images.length > 0 && product.images.map((image, idx) => {
               if (!image || !image.url) return null;
               const imageUrl = getFullImageUrl(image.url);
+              // Determine if this thumbnail corresponds to the currently displayed image
+              const isCurrentImage = selectedVariant ? false : (idx === 0);
               return (
                 <div
                   key={image.id || `image-${idx}`}
-                  className={`thumbnail-item ${selectedImageUrl === imageUrl ? 'active' : ''}`}
-                  onClick={() => handleThumbnailClick(imageUrl)}
+                  className={`thumbnail-item ${isCurrentImage ? 'active' : ''}`}
+                  // MODIFIED: Clicking a product thumbnail should clear variant selection or select first variant?
+                  // For now, let's just make it select the first variant if available, otherwise do nothing specific to image
+                  onClick={() => { 
+                    if (product.variants && product.variants.length > 0) {
+                        setSelectedSize(product.variants[0].size);
+                        setSelectedColor(product.variants[0].color);
+                    } 
+                  }}
                 >
                   <img
                     src={imageUrl}
                     alt={`${product.name} - view ${idx + 1}`}
-                    onError={(e) => { e.target.style.display='none'; }} // Hide broken thumbnails
+                    onError={(e) => { e.target.style.display='none'; }}
                   />
                 </div>
               );
             })}
+            
+            {/* Variant images */}
+            {Array.isArray(product.variants) && product.variants
+              .filter(variant => variant.image_url)
+              .map((variant, idx) => {
+                const variantImageUrl = getFullImageUrl(variant.image_url);
+                // Determine if this thumbnail corresponds to the currently selected variant
+                const isCurrentVariantImage = selectedVariant?.variant_id === variant.variant_id;
+                return (
+                  <div
+                    key={`variant-${variant.variant_id}`}
+                    className={`thumbnail-item ${isCurrentVariantImage ? 'active' : ''}`}
+                    // MODIFIED: Clicking a variant thumbnail just selects that variant
+                    onClick={() => {
+                      setSelectedSize(variant.size);
+                      setSelectedColor(variant.color);
+                    }}
+                  >
+                    <img
+                      src={variantImageUrl}
+                      alt={`${product.name} - ${variant.size} ${variant.color}`}
+                      onError={(e) => { e.target.style.display='none'; }}
+                    />
+                  </div>
+                );
+              })}
           </div>
         </div>
         
@@ -403,20 +602,20 @@ const ProductDetailPage = () => {
         <div className="product-detail-info-actions">
           <h1 className="product-detail-name">{product.name}</h1>
           
-          {/* Price Section */}
+          {/* Price Section - Use variant price if selected */}
           <div className="product-detail-price-section">
             {product.discount_percentage > 0 ? (
               <>
                 <span className="discounted-price">
-                  {formatPrice(calculateDiscountedPrice(product.price, product.discount_percentage))}
+                  {formatPrice(calculateDiscountedPrice(currentPrice, product.discount_percentage))}
                 </span>
-                <span className="original-price">{formatPrice(product.price)}</span>
+                <span className="original-price">{formatPrice(currentPrice)}</span>
                 <span className="discount-badge">
                   {product.discount_percentage}% OFF
                 </span>
               </>
             ) : (
-              <span className="regular-price">{formatPrice(product.price)}</span>
+              <span className="regular-price">{formatPrice(currentPrice)}</span>
             )}
           </div>
 
@@ -433,21 +632,77 @@ const ProductDetailPage = () => {
             )}
           </div>
 
+          {/* Variant Selection - Only show if product has variants */}
+          {product.variants && product.variants.length > 0 && (
+            <div className="variant-selection-container">
+              {/* Size Selection */}
+              {availableSizes.length > 0 && (
+                <div className="variant-options">
+                  <label>Size:</label>
+                  <div className="variant-buttons size-buttons">
+                    {availableSizes.map((size) => (
+                      <button
+                        key={`size-${size}`}
+                        className={`variant-button ${selectedSize === size ? 'selected' : ''} ${
+                          !getAvailableColorsForSize(size).length ? 'disabled' : ''
+                        }`}
+                        onClick={() => handleSizeChange(size)}
+                        disabled={!getAvailableColorsForSize(size).length}
+                      >
+                        {size}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Color Selection */}
+              {availableColors.length > 0 && (
+                <div className="variant-options">
+                  <label>Color:</label>
+                  <div className="variant-buttons color-buttons">
+                    {availableColors
+                      .filter(color => isVariantAvailable(selectedSize, color))
+                      .map((color) => (
+                        <button
+                          key={`color-${color}`}
+                          className={`variant-button ${selectedColor === color ? 'selected' : ''}`}
+                          onClick={() => handleColorChange(color)}
+                          style={{ backgroundColor: color.toLowerCase() }}
+                        >
+                          {color}
+                        </button>
+                      ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Selected variant info */}
+              {selectedVariant && (
+                <div className="selected-variant-info">
+                  <p>
+                    <strong>SKU:</strong> {selectedVariant.sku}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Shipping Info */}
           <div className="product-detail-shipping">
             <i className="fas fa-truck"></i>
             <span>Free shipping on orders over ₱1000</span>
           </div>
                     
-          {/* Stock Status & Actions */}          
-          {product.stock_quantity > 0 && product.stock_quantity !== undefined ? (
+          {/* Stock Status & Actions - Use variant stock if selected */}          
+          {currentStock > 0 ? (
             <div className="product-detail-actions">
               {/* Stock Display */}          
               <div className="quantity-control-wrapper">
                 <span className="stock-available">
-                  {product.stock_quantity < 10 ? 
-                    <><i className="fas fa-exclamation-circle"></i> Only {product.stock_quantity} left!</> : 
-                    <><i className="fas fa-check-circle"></i> In Stock ({product.stock_quantity} available)</>}
+                  {currentStock < 10 ? 
+                    <><i className="fas fa-exclamation-circle"></i> Only {currentStock} left!</> : 
+                    <><i className="fas fa-check-circle"></i> In Stock ({currentStock} available)</>}
                 </span>
                 {/* Quantity Input */}          
                 <div className="quantity-input">
@@ -464,13 +719,13 @@ const ProductDetailPage = () => {
                     value={quantity}
                     onChange={handleQuantityChange}
                     min="1"
-                    max={product.stock_quantity}
+                    max={currentStock}
                     aria-label="Quantity"
                   />
                   <button 
                     className="quantity-btn" 
                     onClick={incrementQuantity} 
-                    disabled={quantity >= product.stock_quantity}
+                    disabled={quantity >= currentStock}
                     aria-label="Increase quantity"
                   >
                     <i className="fas fa-plus"></i>
@@ -483,14 +738,14 @@ const ProductDetailPage = () => {
                 <button 
                   className={`action-button add-to-cart ${addedToCart ? 'added' : ''}`}
                   onClick={handleAddToCart}
-                  disabled={product.stock_quantity <= 0 || addedToCart}
+                  disabled={currentStock <= 0 || addedToCart}
                 >
                   {addedToCart ? <><i className="fas fa-check"></i> Added</> : <><i className="fas fa-shopping-cart"></i> Add to Cart</>}
                 </button>
                 <button 
                   className="action-button buy-now" 
                   onClick={handleBuyNow}
-                  disabled={product.stock_quantity <= 0}
+                  disabled={currentStock <= 0}
                 >
                   <i className="fas fa-bolt"></i> Buy Now
                 </button>
@@ -514,13 +769,19 @@ const ProductDetailPage = () => {
                 <span className="spec-label">Product Code</span>
                 <span className="spec-value">{product.product_code || 'N/A'}</span>
               </div>
-              {/* Add other specs if available in product data */}
-              {product.dimensions && (
-                <div className="spec-item">
-                  <span className="spec-label">Dimensions</span>
-                  <span className="spec-value">{product.dimensions}</span>
-                </div>
+              {selectedVariant && (
+                <>
+                  <div className="spec-item">
+                    <span className="spec-label">Weight</span>
+                    <span className="spec-value">{selectedVariant.weight} kg</span>
+                  </div>
+                  <div className="spec-item">
+                    <span className="spec-label">Dimensions</span>
+                    <span className="spec-value">{selectedVariant.height} × {selectedVariant.width} cm</span>
+                  </div>
+                </>
               )}
+              {/* Keep other specs if available */}
               {product.material && (
                 <div className="spec-item">
                   <span className="spec-label">Material</span>

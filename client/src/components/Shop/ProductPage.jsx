@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import './Shop.css';
 
@@ -7,7 +7,11 @@ const ProductPage = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [searchParams] = useSearchParams(); // Get search params hook
+  // Initialize selectedCategory from URL param or default to 'all'
+  const [selectedCategory, setSelectedCategory] = useState(
+    searchParams.get('category') || 'all'
+  );
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [addedToCart, setAddedToCart] = useState(null);
@@ -24,38 +28,48 @@ const ProductPage = () => {
     { id: 'new-arrivals', name: 'New Arrivals' }
   ];
 
+  // Effect to update category state if URL param changes
+  useEffect(() => {
+    const categoryParam = searchParams.get('category');
+    if (categoryParam && categories.some(cat => cat.id === categoryParam)) {
+      setSelectedCategory(categoryParam);
+    } else {
+      // If param is invalid or missing, default to 'all'
+      setSelectedCategory('all');
+    }
+  }, [searchParams]); // Re-run when search params change
+
   useEffect(() => {
     fetchProducts();
   }, []);
 
   useEffect(() => {
     filterProducts();
-  }, [selectedCategory, products]);
+  }, [selectedCategory, products]); // filterProducts depends on selectedCategory and products
 
   const fetchProducts = async () => {
     try {
       setLoading(true);
       const response = await fetch('http://localhost:5000/api/products');
       if (!response.ok) {
-        // Attempt to parse error message from backend if possible
         let errorMsg = 'Failed to fetch products';
         try {
           const errorData = await response.json();
           errorMsg = errorData.message || errorMsg;
-        } catch (parseError) {
-          // Ignore if response body isn't valid JSON
-        }
+        } catch (parseError) { /* Ignore */ }
         throw new Error(errorMsg);
       }
       const data = await response.json();
-      // Ensure data is an array, checking for potential nesting under 'products' or directly as an array
-      const productsArray = Array.isArray(data) ? data : (data && Array.isArray(data.products) ? data.products : []);
-      setProducts(productsArray); // Set the main products state
+      const productsArray = Array.isArray(data.products) ? data.products : []; // Get the products array
+      
+      console.log("Raw products from API:", productsArray);
+
+      setProducts(productsArray); // Set the raw products array
       setError(null);
     } catch (err) {
       setError('Error loading products. Please try again later.');
       console.error('Error fetching products:', err);
-      setProducts([]); // Ensure products is an empty array on error
+      setProducts([]);
     } finally {
       setLoading(false);
     }
@@ -120,30 +134,14 @@ const ProductPage = () => {
     }, 2000);
   };
 
-  // Get primary image URL from images array
-  const getPrimaryImageUrl = (images) => {
-    if (!Array.isArray(images) || images.length === 0) {
-      return null;
-    }
-    // Find image with order 0, or default to the first image
-    const primary = images.find(img => img.order === 0) || images[0]; 
-    return primary ? primary.url : null; // Return URL or null if no image found
-  };
-  
   // Format currency (Add robustness)
   const formatPrice = (price) => {
     const numericPrice = Number(price);
     if (isNaN(numericPrice)) {
       console.warn(`Invalid price value received: ${price}`);
-      return '₱NaN'; // Indicate error clearly
+      return '₱NaN';
     }
     return `₱${numericPrice.toFixed(2)}`;
-  };
-
-  // Calculate discounted price
-  const calculateDiscountedPrice = (price, discount) => {
-    if (!discount) return price;
-    return (price - (price * discount / 100)).toFixed(2);
   };
 
   return (
@@ -202,9 +200,12 @@ const ProductPage = () => {
           ) : (
             <div className="shop-products-grid">
               {filteredProducts.map(product => {
-                const imageUrl = getPrimaryImageUrl(product.images);
-                const fullImageUrl = imageUrl ? `http://localhost:5000${imageUrl}` : null;
-                const imageToDisplay = fullImageUrl || '/placeholder-product.jpg'; 
+                const firstImage = product.images?.[0]?.url;
+                const fullImageUrl = firstImage ? 
+                  (firstImage.startsWith('/') ? `http://localhost:5000${firstImage}` : `http://localhost:5000/${firstImage}`) 
+                  : '/placeholder-product.jpg'; 
+                const imageToDisplay = fullImageUrl;
+
                 const itemsSold = product.items_sold || 0; // Placeholder for items sold
                 const displayItemsSold = itemsSold > 1000 ? `${(itemsSold / 1000).toFixed(1)}k sold` : `${itemsSold} sold`;
 
@@ -224,35 +225,43 @@ const ProductPage = () => {
                           -{product.discount_percentage}%
                         </div>
                       )}
-                      {/* Optional: Add other tags like Free Shipping if data exists */}
-                      {/* {product.free_shipping && <span className="product-tag free-shipping-tag">Free Shipping</span>} */}
+                      
+                      {/* Show variant tag if product has variants */}
+                      {product.variants && product.variants.length > 0 && (
+                        <div className="variant-tag">
+                          {product.variants.length} options
+                        </div>
+                      )}
                     </div>
                     <div className="shop-product-details">
                       <div className="product-info">
                         <h3>{product.name}</h3>
-                        {/* Category hidden as per new style */}
-                        {/* <p className="product-category">{product.category_name || 'Uncategorized'}</p> */}
                       </div>
                       
-                      {/* Bottom section: Price and Items Sold */}
-                      <div className="product-card-bottom">
-                        <div className="product-price">
-                          {product.discount_percentage > 0 ? (
-                            <div className="price-amount">
-                              <span className="discounted-price">{formatPrice(calculateDiscountedPrice(product.price, product.discount_percentage))}</span>
-                              {/* Optionally show original price if needed */}
-                              {/* <span className="original-price">{formatPrice(product.price)}</span> */}
-                            </div>
-                          ) : (
-                            <div className="price-amount">
-                              <span className="regular-price">{formatPrice(product.price)}</span>
-                            </div>
-                          )}
-                        </div>
-                        <div className="items-sold">{displayItemsSold}</div>
+                      <div className="product-price">
+                        {product.discount_percentage > 0 ? (
+                          <div className="price-amount">
+                            <span className="discounted-price">
+                              {formatPrice((product.price - (product.price * product.discount_percentage / 100)))}
+                            </span>
+                            <span className="original-price">{formatPrice(product.price)}</span>
+                          </div>
+                        ) : (
+                          <div className="price-amount">
+                            <span className="regular-price">{formatPrice(product.price)}</span>
+                          </div>
+                        )}
                       </div>
                       
-                      {/* Add to Cart Button Removed */}
+                      <div className="product-meta">
+                        <span className="items-sold">{displayItemsSold}</span>
+                        <button 
+                          className={`add-to-cart-btn ${addedToCart === product.product_id ? 'added' : ''}`}
+                          onClick={(e) => handleAddToCart(e, product)}
+                        >
+                          {addedToCart === product.product_id ? 'Added' : 'Add'}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );

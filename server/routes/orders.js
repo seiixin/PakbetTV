@@ -29,10 +29,16 @@ router.post(
       const userId = req.user.user.id;
       const { address, payment_method } = req.body;
 
-      // Get cart items
+      // Get cart items with variant information
       const [cartItems] = await connection.query(`
-        SELECT c.product_id, c.quantity, p.name, 
-               (SELECT MIN(price) FROM product_variants WHERE product_id = c.product_id) AS price
+        SELECT c.product_id, c.quantity, c.variant_id, p.name, 
+               COALESCE(
+                 (SELECT price FROM product_variants WHERE variant_id = c.variant_id),
+                 (SELECT MIN(price) FROM product_variants WHERE product_id = c.product_id)
+               ) AS price,
+               (SELECT size FROM product_variants WHERE variant_id = c.variant_id) AS size,
+               (SELECT color FROM product_variants WHERE variant_id = c.variant_id) AS color,
+               (SELECT sku FROM product_variants WHERE variant_id = c.variant_id) AS sku
         FROM cart c
         JOIN products p ON c.product_id = p.product_id
         WHERE c.user_id = ?
@@ -56,38 +62,80 @@ router.post(
       );
       const orderId = orderResult.insertId;
 
-      // Create order items
+      // Create order items with variant information
       for (const item of cartItems) {
+        // Insert order item with variant_id if available
         await connection.query(
-          'INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)',
-          [orderId, item.product_id, item.quantity, item.price]
+          'INSERT INTO order_items (order_id, product_id, variant_id, quantity, price, size, color, sku) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+          [
+            orderId, 
+            item.product_id, 
+            item.variant_id || null, 
+            item.quantity, 
+            item.price, 
+            item.size || null, 
+            item.color || null, 
+            item.sku || null
+          ]
         );
 
-        // Update product stock
-        const [variants] = await connection.query(
-          'SELECT variant_id, stock FROM product_variants WHERE product_id = ? ORDER BY stock DESC LIMIT 1',
-          [item.product_id]
-        );
-
-        if (variants.length > 0) {
-          const variantId = variants[0].variant_id;
-          const newStock = variants[0].stock - item.quantity;
-
+        // Update product stock based on variant if available
+        if (item.variant_id) {
+          // Get current stock for this variant
+          const [variantStock] = await connection.query(
+            'SELECT stock FROM product_variants WHERE variant_id = ?',
+            [item.variant_id]
+          );
+          
+          if (variantStock.length === 0) {
+            await connection.rollback();
+            return res.status(400).json({ message: `Variant not found for ${item.name}` });
+          }
+          
+          const newStock = variantStock[0].stock - item.quantity;
+          
           if (newStock < 0) {
             await connection.rollback();
-            return res.status(400).json({ message: `Not enough stock for ${item.name}` });
+            return res.status(400).json({ message: `Not enough stock for ${item.name} ${item.size || ''} ${item.color || ''}` });
           }
-
+          
           await connection.query(
             'UPDATE product_variants SET stock = ? WHERE variant_id = ?',
-            [newStock, variantId]
+            [newStock, item.variant_id]
           );
-
+          
           // Record inventory change
           await connection.query(
             'INSERT INTO inventory (variant_id, change_type, quantity, reason) VALUES (?, ?, ?, ?)',
-            [variantId, 'remove', item.quantity, `Order ${orderId}`]
+            [item.variant_id, 'remove', item.quantity, `Order ${orderId}`]
           );
+        } else {
+          // If no variant_id, use the first variant for this product
+          const [variants] = await connection.query(
+            'SELECT variant_id, stock FROM product_variants WHERE product_id = ? ORDER BY stock DESC LIMIT 1',
+            [item.product_id]
+          );
+          
+          if (variants.length > 0) {
+            const variantId = variants[0].variant_id;
+            const newStock = variants[0].stock - item.quantity;
+            
+            if (newStock < 0) {
+              await connection.rollback();
+              return res.status(400).json({ message: `Not enough stock for ${item.name}` });
+            }
+            
+            await connection.query(
+              'UPDATE product_variants SET stock = ? WHERE variant_id = ?',
+              [newStock, variantId]
+            );
+            
+            // Record inventory change
+            await connection.query(
+              'INSERT INTO inventory (variant_id, change_type, quantity, reason) VALUES (?, ?, ?, ?)',
+              [variantId, 'remove', item.quantity, `Order ${orderId}`]
+            );
+          }
         }
       }
 
@@ -199,10 +247,13 @@ router.get('/:id', auth, async (req, res) => {
     
     const order = orders[0];
     
-    // Get order items
+    // Get order items with variant information
     const [items] = await db.query(`
       SELECT oi.*, p.name AS product_name, p.product_code,
-             (SELECT image_url FROM product_variants WHERE product_id = oi.product_id LIMIT 1) AS image_url
+             COALESCE(
+               (SELECT image_url FROM product_variants WHERE variant_id = oi.variant_id),
+               (SELECT image_url FROM product_variants WHERE product_id = oi.product_id LIMIT 1)
+             ) AS image_url
       FROM order_items oi
       JOIN products p ON oi.product_id = p.product_id
       WHERE oi.order_id = ?

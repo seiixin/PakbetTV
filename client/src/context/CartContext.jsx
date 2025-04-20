@@ -48,7 +48,15 @@ export const CartProvider = ({ children }) => {
   const addToCart = (product, quantity = 1) => {
     setCartItems(prevItems => {
       // Check if item already exists in cart
-      const existingItemIndex = prevItems.findIndex(item => item.id === product.id);
+      // For variants, check by variant_id if available, otherwise use product_id
+      const existingItemIndex = prevItems.findIndex(item => {
+        // If both items have variant_id, compare those first
+        if (product.variant_id && item.variant_id) {
+          return item.variant_id === product.variant_id;
+        }
+        // Otherwise compare by product id
+        return item.id === product.id;
+      });
       
       if (existingItemIndex >= 0) {
         // Update quantity if item exists
@@ -66,31 +74,42 @@ export const CartProvider = ({ children }) => {
     });
   };
   
-  // Remove item from cart
-  const removeFromCart = (productId) => {
-    setCartItems(prevItems => prevItems.filter(item => item.id !== productId));
+  // Remove item from cart - also update to consider variant_id
+  const removeFromCart = (productId, variantId = null) => {
+    setCartItems(prevItems => prevItems.filter(item => {
+      if (variantId && item.variant_id) {
+        return item.variant_id !== variantId;
+      }
+      return item.id !== productId;
+    }));
   };
   
-  // Update item quantity
-  const updateQuantity = (productId, quantity) => {
+  // Update item quantity - also update to consider variant_id
+  const updateQuantity = (productId, quantity, variantId = null) => {
     if (quantity <= 0) {
-      removeFromCart(productId);
+      removeFromCart(productId, variantId);
       return;
     }
     
     setCartItems(prevItems => 
-      prevItems.map(item => 
-        item.id === productId ? { ...item, quantity } : item
-      )
+      prevItems.map(item => {
+        if (variantId && item.variant_id) {
+          return item.variant_id === variantId ? { ...item, quantity } : item;
+        }
+        return item.id === productId ? { ...item, quantity } : item;
+      })
     );
   };
   
-  // Toggle item selection
-  const toggleItemSelection = (productId) => {
+  // Toggle item selection - also update to consider variant_id
+  const toggleItemSelection = (productId, variantId = null) => {
     setCartItems(prevItems => 
-      prevItems.map(item => 
-        item.id === productId ? { ...item, selected: !item.selected } : item
-      )
+      prevItems.map(item => {
+        if (variantId && item.variant_id) {
+          return item.variant_id === variantId ? { ...item, selected: !item.selected } : item;
+        }
+        return item.id === productId ? { ...item, selected: !item.selected } : item;
+      })
     );
   };
   
@@ -151,7 +170,7 @@ export const CartProvider = ({ children }) => {
     return cartItems.reduce((count, item) => count + item.quantity, 0);
   };
   
-  // Create order from selected items
+  // Create order from selected items - updated to include variant data
   const createOrder = async (userId) => {
     const selectedItems = cartItems.filter(item => item.selected);
     
@@ -165,11 +184,16 @@ export const CartProvider = ({ children }) => {
         user_id: userId,
         total_amount: getTotalPrice(),
         items: selectedItems.map(item => ({
-          product_id: item.product_id || item.id, // Use product_id if available, otherwise fall back to id
+          product_id: item.product_id || item.id,
           quantity: item.quantity,
           price: item.is_flash_deal && item.discount_percentage
             ? (item.price - (item.price * item.discount_percentage / 100))
-            : item.price
+            : item.price,
+          // Add variant information if available
+          variant_id: item.variant_id || null,
+          size: item.size || null,
+          color: item.color || null,
+          sku: item.sku || null
         }))
       };
       
