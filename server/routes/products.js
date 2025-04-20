@@ -551,10 +551,18 @@ router.put('/:id', handleCombinedUpload, async (req, res) => {
     await connection.query(
       `UPDATE products SET
         name = ?, description = ?, price = ?, stock = ?, category_id = ?,
-        weight = ?, height = ?, width = ?, length = ?, is_featured = ?,
+        is_featured = ?,
         updated_at = NOW()
       WHERE product_id = ?`,
-      [name, req.body.description || '', req.body.price || 0, req.body.stock || 0, category_id, req.body.weight || 0, req.body.height || 0, req.body.width || 0, req.body.length || 0, req.body.is_featured === 'true', id]
+      [
+        name, 
+        req.body.description || '', 
+        req.body.price || 0, 
+        req.body.stock || 0, 
+        category_id, 
+        req.body.is_featured === 'true', 
+        id
+      ]
     );
     
     // Add new product images using connection with ? placeholders

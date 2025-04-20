@@ -329,10 +329,13 @@ const ProductManagement = () => {
 
   const handleEditClick = useCallback(async (product) => {
     try {
-      setIsEditing(true);
+      // Reset form state first
+      resetForm(); 
+
+      // NOW set editing to true
+      setIsEditing(true); 
       setSuccessMessage('');
       setError('');
-      resetForm(); // Reset form state first, including attributes
       
       // Fetch full product details including variants
       const response = await fetch(`${API_URL}/api/products/${product.product_id}`);
@@ -409,9 +412,9 @@ const ProductManagement = () => {
       setError('Failed to load product details for editing. Please try again.');
       // Ensure modal doesn't open on error
       setIsModalOpen(false); 
-      setIsEditing(false);
+      setIsEditing(false); // Also reset isEditing on error
     }
-  }, [API_URL]); // Dependencies remain the same
+  }, [API_URL, resetForm]); // Added resetForm to dependency array
 
   // Add a direct test function
   const testDirectApiCall = async () => {
@@ -562,10 +565,11 @@ const ProductManagement = () => {
       formData.append('price', currentProduct.price);
       formData.append('stock', currentProduct.stock);
       formData.append('category_id', currentProduct.category_id);
-      formData.append('weight', currentProduct.weight || 0);
-      formData.append('height', currentProduct.height || 0);
-      formData.append('width', currentProduct.width || 0);
-      formData.append('length', currentProduct.length || 0);
+      // REMOVED weight, height, width, length - handle via attributes if needed
+      // formData.append('weight', currentProduct.weight || 0);
+      // formData.append('height', currentProduct.height || 0);
+      // formData.append('width', currentProduct.width || 0);
+      // formData.append('length', currentProduct.length || 0);
       formData.append('is_featured', currentProduct.is_featured || false);
       
       // Handle product images
@@ -1082,23 +1086,39 @@ const ProductManagement = () => {
                 <div className="existing-images-section full-width">
                   <p>Current Images:</p>
                   <div className="existing-images-grid">
-                    {currentProduct.images.map((img) => (
-                      <div key={img.image_id} className="existing-image-item">
-                        <img
-                          src={`${API_URL}/${img.url}`}
-                          alt={img.alt || 'Product image'}
-                          className="existing-image-thumbnail"
-                        />
-                        <button
-                          type="button"
-                          className="btn btn-delete btn-delete-image"
-                          onClick={() => handleDeleteImage(img.image_id)}
-                          title="Delete this image"
-                        >
-                          &times;
-                        </button>
-                      </div>
-                    ))}
+                    {currentProduct.images.map((img) => {
+                      // Smarter URL construction
+                      let imageUrl = img.url;
+                      if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('/')) {
+                        // If it's just a path like 'uploads/products/...', prepend API_URL
+                        imageUrl = `${API_URL}/${imageUrl}`;
+                      } else if (imageUrl && imageUrl.startsWith('/')){
+                        // If it starts with '/', just prepend the origin part of API_URL
+                        const origin = new URL(API_URL).origin;
+                        imageUrl = `${origin}${imageUrl}`;
+                      }
+                      // If it starts with 'http', use it as is.
+                      // If img.url is null/empty, handle potential errors
+                      
+                      return (
+                        <div key={img.image_id || img.id} className="existing-image-item">
+                          <img
+                            src={imageUrl || '/placeholder-product.jpg'} // Fallback placeholder
+                            alt={img.alt || 'Product image'}
+                            className="existing-image-thumbnail"
+                            onError={(e) => { e.target.onerror = null; e.target.src='/placeholder-product.jpg'}}
+                          />
+                          <button
+                            type="button"
+                            className="btn btn-delete btn-delete-image"
+                            onClick={() => handleDeleteImage(img.image_id || img.id)} // Use image_id or id
+                            title="Delete this image"
+                          >
+                            &times;
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
