@@ -24,11 +24,11 @@ const productImageStorage = multer.diskStorage({
 
 // --- NEW: Multer instance for PRODUCT images ---
 const imageFileFilter = (req, file, cb) => {
-  // Accept only images
+    // Accept only images
   if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/i)) { // Case-insensitive match
-    return cb(new Error('Only image files are allowed!'), false);
-  }
-  cb(null, true);
+      return cb(new Error('Only image files are allowed!'), false);
+    }
+    cb(null, true);
 };
 
 const uploadProductImages = multer({
@@ -191,7 +191,7 @@ router.post('/:id/variants', [uploadVariantImage.single('image')],
       if (products.length === 0) {
          await connection.rollback();
          if (req.file) fs.unlinkSync(req.file.path);
-         return res.status(404).json({ message: 'Product not found' });
+        return res.status(404).json({ message: 'Product not found' });
       }
 
       // Check if SKU already exists
@@ -199,7 +199,7 @@ router.post('/:id/variants', [uploadVariantImage.single('image')],
       if (existingVariants.length > 0) {
           await connection.rollback();
           if (req.file) fs.unlinkSync(req.file.path);
-          return res.status(400).json({ message: 'SKU already exists' });
+        return res.status(400).json({ message: 'SKU already exists' });
       }
 
       // Get image path
@@ -257,7 +257,7 @@ router.get('/', async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
     const category = req.query.category;
-
+    
     // Base query to get products
     let productQuery = `
       SELECT p.*, c.name AS category_name
@@ -267,7 +267,7 @@ router.get('/', async (req, res) => {
     let countQuery = 'SELECT COUNT(*) AS total FROM products p';
     const queryParams = [];
     let countQueryParams = [];
-
+    
     // Add category filter if provided
     if (category) {
       const whereClause = ' WHERE p.category_id = ?';
@@ -276,15 +276,15 @@ router.get('/', async (req, res) => {
       queryParams.push(category);
       countQueryParams.push(category);
     }
-
+    
     // Add sorting and pagination
     productQuery += ' ORDER BY p.created_at DESC LIMIT ? OFFSET ?';
     queryParams.push(limit, offset);
-
+    
     // Execute queries
     const [products] = await db.query(productQuery, queryParams);
     const [countResult] = await db.query(countQuery, countQueryParams);
-
+    
     const totalProducts = countResult[0].total;
     const totalPages = Math.ceil(totalProducts / limit);
 
@@ -315,7 +315,7 @@ router.get('/', async (req, res) => {
         });
     }
 
-
+    
     res.json({
       products, // Products now include an 'images' array
       pagination: {
@@ -338,7 +338,7 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const productId = req.params.id;
-
+    
     // Get product details
     const [productResult] = await db.query(`
       SELECT 
@@ -356,15 +356,15 @@ router.get('/:id', async (req, res) => {
       LEFT JOIN categories c ON p.category_id = c.category_id
       WHERE p.product_id = ?
     `, [productId]);
-
+    
     if (productResult.length === 0) {
       return res.status(404).json({ message: 'Product not found' });
     }
     const product = productResult[0];
-
+    
     // Get product variants
     const [variants] = await db.query('SELECT * FROM product_variants WHERE product_id = ?', [productId]);
-
+    
     // Get product images
     const [images] = await db.query(
         'SELECT image_id, image_url, alt_text, sort_order FROM product_images WHERE product_id = ? ORDER BY sort_order',
@@ -413,7 +413,7 @@ router.put('/:id', [uploadProductImages.array('productImages', 10)], async (req,
       flash_deal_end, 
       discount_percentage 
     } = req.body;
-
+    
     // Check if product exists
     const [products] = await connection.query('SELECT product_id FROM products WHERE product_id = ?', [productId]);
     if (products.length === 0) {
@@ -443,7 +443,7 @@ router.put('/:id', [uploadProductImages.array('productImages', 10)], async (req,
             return res.status(400).json({ message: 'Product code already exists for another product' });
         }
     }
-
+    
     // Create an object with the fields to update
     const updates = {};
     if (name !== undefined) updates.name = name;
@@ -530,20 +530,20 @@ router.put('/variants/:id', [uploadVariantImage.single('image')], async (req, re
   const connection = await db.getConnection();
    try {
      await connection.beginTransaction();
-     const variantId = req.params.id;
-     const { price, stock, size, color, weight, height, width } = req.body;
-
+    const variantId = req.params.id;
+    const { price, stock, size, color, weight, height, width } = req.body;
+    
      // Check if variant exists and get current stock/image
      const [variants] = await connection.query('SELECT * FROM product_variants WHERE variant_id = ?', [variantId]);
-     if (variants.length === 0) {
+    if (variants.length === 0) {
        await connection.rollback();
        if (req.file) fs.unlinkSync(req.file.path); // Clean up uploaded file
-       return res.status(404).json({ message: 'Variant not found' });
-     }
-     const currentVariant = variants[0];
-
-     // Create an object with the fields to update
-     const updates = {};
+      return res.status(404).json({ message: 'Variant not found' });
+    }
+    const currentVariant = variants[0];
+    
+    // Create an object with the fields to update
+    const updates = {};
      if (price !== undefined) updates.price = price;
      if (size !== undefined) updates.size = size;
      if (color !== undefined) updates.color = color;
@@ -552,35 +552,35 @@ router.put('/variants/:id', [uploadVariantImage.single('image')], async (req, re
      if (width !== undefined) updates.width = width;
 
      let oldImagePath = null;
-     // Handle image update if provided
-     if (req.file) {
-       updates.image_url = `variants/${req.file.filename}`;
+    // Handle image update if provided
+    if (req.file) {
+      updates.image_url = `variants/${req.file.filename}`;
        oldImagePath = currentVariant.image_url ? path.join(__dirname, '../uploads', currentVariant.image_url) : null;
-     }
-
-     // Handle stock changes
-     if (stock !== undefined) {
-       const stockDifference = parseInt(stock) - currentVariant.stock;
-       updates.stock = stock;
-
-       // Record inventory change if stock is modified
-       if (stockDifference !== 0) {
-         const changeType = stockDifference > 0 ? 'add' : 'remove';
-         const quantity = Math.abs(stockDifference);
-
+    }
+    
+    // Handle stock changes
+    if (stock !== undefined) {
+      const stockDifference = parseInt(stock) - currentVariant.stock;
+      updates.stock = stock;
+      
+      // Record inventory change if stock is modified
+      if (stockDifference !== 0) {
+        const changeType = stockDifference > 0 ? 'add' : 'remove';
+        const quantity = Math.abs(stockDifference);
+        
          await connection.query(
-           'INSERT INTO inventory (variant_id, change_type, quantity, reason) VALUES (?, ?, ?, ?)',
-           [variantId, changeType, quantity, 'Stock adjustment']
-         );
-       }
-     }
-
+          'INSERT INTO inventory (variant_id, change_type, quantity, reason) VALUES (?, ?, ?, ?)',
+          [variantId, changeType, quantity, 'Stock adjustment']
+        );
+      }
+    }
+    
      // If there's nothing to update (besides potentially an image)
      if (Object.keys(updates).length === 0 && !req.file) {
          await connection.rollback(); // No changes, rollback is safe
-         return res.status(400).json({ message: 'No update data provided' });
-     }
-
+      return res.status(400).json({ message: 'No update data provided' });
+    }
+    
      // Execute the update
      if (Object.keys(updates).length > 0) {
         await connection.query('UPDATE product_variants SET ? WHERE variant_id = ?', [updates, variantId]);
@@ -594,9 +594,9 @@ router.put('/variants/:id', [uploadVariantImage.single('image')], async (req, re
           if (err) console.error("Error deleting old variant image:", oldImagePath, err);
        });
      }
-
-     res.json({ message: 'Product variant updated successfully' });
-   } catch (err) {
+    
+    res.json({ message: 'Product variant updated successfully' });
+  } catch (err) {
      await connection.rollback();
      // Clean up newly uploaded file if commit failed
      if (req.file) {
@@ -606,7 +606,7 @@ router.put('/variants/:id', [uploadVariantImage.single('image')], async (req, re
      res.status(500).json({ message: 'Server error while updating variant' });
    } finally {
      connection.release();
-   }
+  }
 });
 
 // @route   DELETE api/products/:id
@@ -618,7 +618,7 @@ router.delete('/:id', async (req, res) => {
   try {
     await connection.beginTransaction();
     const productId = req.params.id;
-
+    
     // 1. Get product variants to delete their images
     const [variants] = await connection.query('SELECT image_url FROM product_variants WHERE product_id = ?', [productId]);
 
@@ -627,12 +627,12 @@ router.delete('/:id', async (req, res) => {
 
     // 3. Delete product from database (cascades should delete variants, product_images, reviews)
     const [result] = await connection.query('DELETE FROM products WHERE product_id = ?', [productId]);
-
+    
     if (result.affectedRows === 0) {
       await connection.rollback();
       return res.status(404).json({ message: 'Product not found' });
     }
-
+    
     await connection.commit();
 
     // 4. Delete variant image files *after* successful commit

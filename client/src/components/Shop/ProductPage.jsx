@@ -202,94 +202,57 @@ const ProductPage = () => {
           ) : (
             <div className="shop-products-grid">
               {filteredProducts.map(product => {
-                // Get image URL using the new function
                 const imageUrl = getPrimaryImageUrl(product.images);
                 const fullImageUrl = imageUrl ? `http://localhost:5000${imageUrl}` : null;
-                // Use a placeholder if no image URL
-                const imageToDisplay = fullImageUrl || '/placeholder-product.jpg'; // Default placeholder
+                const imageToDisplay = fullImageUrl || '/placeholder-product.jpg'; 
+                const itemsSold = product.items_sold || 0; // Placeholder for items sold
+                const displayItemsSold = itemsSold > 1000 ? `${(itemsSold / 1000).toFixed(1)}k sold` : `${itemsSold} sold`;
 
                 return (
                   <div 
                     className="shop-product-card" 
                     key={product.product_id}
+                    onClick={() => handleProductClick(product.product_id)} // Click whole card
                   >
                     <div 
                       className="shop-product-image"
-                      onClick={() => handleProductClick(product.product_id)} 
                       style={{ backgroundImage: `url(${imageToDisplay})` }}
                     >
-                      {product.is_best_seller && (
-                        <span className="product-tag best-seller-tag">Best Seller</span>
+                      {/* Discount Percentage Tag */}
+                      {product.discount_percentage > 0 && (
+                        <div className="discount-percentage-tag">
+                          -{product.discount_percentage}%
+                        </div>
                       )}
-                      {product.is_flash_deal && (
-                        <span className="product-tag flash-deal-tag">
-                          {product.discount_percentage}% OFF
-                        </span>
-                      )}
+                      {/* Optional: Add other tags like Free Shipping if data exists */}
+                      {/* {product.free_shipping && <span className="product-tag free-shipping-tag">Free Shipping</span>} */}
                     </div>
                     <div className="shop-product-details">
                       <div className="product-info">
-                        <h3 onClick={() => handleProductClick(product.product_id)}>{product.name}</h3>
-                        <p className="product-category">{product.category_name || 'Uncategorized'}</p>
-                        
-                        {product.is_flash_deal ? (
-                          <div className="product-price">
-                            <span className="original-price">{formatPrice(product.price)}</span>
-                            <span className="discounted-price">
-                              {formatPrice(calculateDiscountedPrice(product.price, product.discount_percentage))}
-                            </span>
-                          </div>
-                        ) : (
-                          <div className="product-price">
-                            <span className="regular-price">{formatPrice(product.price)}</span>
-                          </div>
-                        )}
+                        <h3>{product.name}</h3>
+                        {/* Category hidden as per new style */}
+                        {/* <p className="product-category">{product.category_name || 'Uncategorized'}</p> */}
                       </div>
                       
-                      <button 
-                        className={`add-to-cart-button ${addedToCart === product.product_id ? 'added' : ''}`}
-                        onClick={(e) => handleAddToCart(e, product)}
-                      >
-                        {addedToCart === product.product_id ? (
-                          <>
-                            <svg 
-                              xmlns="http://www.w3.org/2000/svg" 
-                              width="16" 
-                              height="16" 
-                              viewBox="0 0 24 24" 
-                              fill="none" 
-                              stroke="currentColor" 
-                              strokeWidth="2" 
-                              strokeLinecap="round" 
-                              strokeLinejoin="round"
-                              className="check-icon"
-                            >
-                              <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
-                            <span>Added</span>
-                          </>
-                        ) : (
-                          <>
-                            <svg 
-                              xmlns="http://www.w3.org/2000/svg" 
-                              width="16" 
-                              height="16" 
-                              viewBox="0 0 24 24" 
-                              fill="none" 
-                              stroke="currentColor" 
-                              strokeWidth="2" 
-                              strokeLinecap="round" 
-                              strokeLinejoin="round"
-                              className="cart-icon"
-                            >
-                              <circle cx="9" cy="21" r="1"></circle>
-                              <circle cx="20" cy="21" r="1"></circle>
-                              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
-                            </svg>
-                            <span>Add</span>
-                          </>
-                        )}
-                      </button>
+                      {/* Bottom section: Price and Items Sold */}
+                      <div className="product-card-bottom">
+                        <div className="product-price">
+                          {product.discount_percentage > 0 ? (
+                            <div className="price-amount">
+                              <span className="discounted-price">{formatPrice(calculateDiscountedPrice(product.price, product.discount_percentage))}</span>
+                              {/* Optionally show original price if needed */}
+                              {/* <span className="original-price">{formatPrice(product.price)}</span> */}
+                            </div>
+                          ) : (
+                            <div className="price-amount">
+                              <span className="regular-price">{formatPrice(product.price)}</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="items-sold">{displayItemsSold}</div>
+                      </div>
+                      
+                      {/* Add to Cart Button Removed */}
                     </div>
                   </div>
                 );

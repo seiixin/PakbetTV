@@ -548,12 +548,12 @@ const ProductDetailPage = () => {
           {/* NEW: Add Review Section (Conditional) */}
           {user && canReview && !hasReviewed && (
             <div className="add-review-section">
-              <button 
-                className="toggle-review-form-btn" 
-                onClick={() => setShowReviewForm(!showReviewForm)}
-              >
-                {showReviewForm ? 'Cancel Review' : 'Write a Review'}
-              </button>
+                <button 
+                  className="toggle-review-form-btn" 
+                  onClick={() => setShowReviewForm(!showReviewForm) /* Simple toggle */}
+                >
+                  {showReviewForm ? 'Cancel' : 'Write a Review'}
+                </button>
               {showReviewForm && (
                 <form onSubmit={handleReviewSubmit} className="review-form">
                   <div className="form-group rating-input">
@@ -573,7 +573,7 @@ const ProductDetailPage = () => {
                   </div>
                   {reviewError && <p className="error-message">{reviewError}</p>}
                   <button type="submit" disabled={reviewLoading} className="submit-review-btn">
-                    {reviewLoading ? 'Submitting...' : 'Submit Review'}
+                    {reviewLoading ? 'Submitting...' : 'Submit Review' /* Always Submit */}
                   </button>
                 </form>
               )}
@@ -581,9 +581,6 @@ const ProductDetailPage = () => {
           )}
           {user && !canReview && !hasReviewed && !purchaseCheckLoading && (
               <p className="info-message">Purchase this item to leave a review.</p>
-          )}
-          {user && hasReviewed && (
-              <p className="info-message">You've already reviewed this product.</p>
           )}
           {!user && (
               <p className="info-message">Login to leave a review.</p>
@@ -593,13 +590,13 @@ const ProductDetailPage = () => {
           <div className="reviews-container">
             {reviews && reviews.length > 0 ? (
               reviews.map((review, idx) => (
-                <div key={review.id || idx} className="review-item">
+                <div key={review.review_id || idx} className="review-item">
                   <div className="review-header">
-                    <span className="reviewer-name">{review.user_name || 'Anonymous'}</span>
+                    <span className="reviewer-name">{review.username || 'Anonymous'}</span>
                     <span className="review-date">{formatDate(review.created_at)}</span>
                   </div>
                   <div className="rating-stars">{renderStars(review.rating)}</div>
-                  <div className="review-content">{review.comment || 'No comment provided.'}</div>
+                  <div className="review-content">{review.review_text || 'No comment provided.'}</div>
                 </div>
               ))
             ) : (

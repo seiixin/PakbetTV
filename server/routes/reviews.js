@@ -42,38 +42,45 @@ router.post('/product/:productId',
     }
 
     const productId = req.params.productId;
-    const userId = req.user.user_id; // Assuming auth middleware sets req.user
+    const userId = req.user?.user?.id;
     const { rating, review_text } = req.body;
 
+    if (!userId) {
+        console.error('Auth Error: User ID not found in token payload', req.user);
+        return res.status(401).json({ message: 'Could not identify user from token' });
+    }
+
     try {
-      // Check if product exists
       const [products] = await db.query('SELECT product_id FROM products WHERE product_id = ?', [productId]);
       if (products.length === 0) {
         return res.status(404).json({ message: 'Product not found' });
       }
 
-      // Check if user has already reviewed this product (optional: allow updates?)
+      // Check if user has already reviewed this product
       const [existingReviews] = await db.query(
         'SELECT review_id FROM reviews WHERE product_id = ? AND user_id = ?',
         [productId, userId]
       );
+      
       if (existingReviews.length > 0) {
+        // Prevent submitting another review
         return res.status(400).json({ message: 'You have already reviewed this product' });
+      } else {
+        // Insert new review
+        const [result] = await db.query(
+          'INSERT INTO reviews (product_id, user_id, rating, review_text) VALUES (?, ?, ?, ?)',
+          [productId, userId, rating, review_text || null]
+        );
+        
+        // Update product's average rating and review count
+        await updateProductRating(productId);
+
+        res.status(201).json({ 
+            message: 'Review created successfully', 
+            review_id: result.insertId 
+        });
       }
 
-      // Insert new review
-      const [result] = await db.query(
-        'INSERT INTO reviews (product_id, user_id, rating, review_text) VALUES (?, ?, ?, ?)',
-        [productId, userId, rating, review_text || null]
-      );
-
-      // Update product's average rating and review count
-      await updateProductRating(productId);
-
-      res.status(201).json({ 
-        message: 'Review created successfully', 
-        review_id: result.insertId 
-      });
     } catch (err) {
       console.error('Error creating review:', err);
       res.status(500).json({ message: 'Server error' });

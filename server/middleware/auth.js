@@ -5,22 +5,28 @@ dotenv.config();
 
 // Middleware to authenticate JWT tokens
 const auth = (req, res, next) => {
-  // Get token from header
-  const token = req.header('x-auth-token');
+  // Get token from Authorization header
+  const authHeader = req.header('Authorization');
 
-  // Check if no token
-  if (!token) {
+  // Check if Authorization header exists and starts with Bearer
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    console.log('Auth Error: No Bearer token found in Authorization header');
     return res.status(401).json({ message: 'No token, authorization denied' });
   }
 
   try {
+    // Extract token (remove 'Bearer ')
+    const token = authHeader.split(' ')[1];
+    
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     // Add user from payload
-    req.user = decoded;
+    req.user = decoded; // This contains { user: { id: ..., username: ..., userType: ... } }
+    console.log('Token verified, user attached:', req.user);
     next();
   } catch (err) {
+    console.error('Token verification error:', err.message);
     res.status(401).json({ message: 'Token is not valid' });
   }
 };

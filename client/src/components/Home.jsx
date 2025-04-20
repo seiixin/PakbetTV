@@ -6,19 +6,16 @@ import placeholderImages from '../assets/placeholder.js';
 import Logo from '/Logo.png';
 import Michael from '/Michael.png';
 import NavBar from './NavBar';
+import LoadingSpinner from './common/LoadingSpinner';
 
 // Component imports will go here
 
 const Home = () => {
   const [newArrivals, setNewArrivals] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
   const { addToCart } = useCart();
-  const [isDragging, setIsDragging] = useState(false);
-  const [startX, setStartX] = useState(0);
-  const [scrollLeft, setScrollLeft] = useState(0);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const carouselRef = React.useRef(null);
 
   const zodiacSigns = [
     { name: 'RAT', image: '/Prosper-1.png' },
@@ -47,17 +44,33 @@ const Home = () => {
   ];
 
   useEffect(() => {
-    // Fetch new arrivals from API
     const fetchNewArrivals = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/products/new-arrivals');
+        setLoading(true);
+        const response = await fetch('http://localhost:5000/api/products?limit=1000'); 
         if (!response.ok) {
-          throw new Error('Failed to fetch new arrivals');
+          throw new Error('Failed to fetch products for new arrivals');
         }
         const data = await response.json();
-        setNewArrivals(data);
+        const allProducts = Array.isArray(data?.products) ? data.products : [];
+
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+        const filteredArrivals = allProducts.filter(product => {
+            const createdDate = new Date(product.created_at);
+            return createdDate > thirtyDaysAgo;
+        });
+        
+        const limitedArrivals = filteredArrivals.slice(0, 10);
+        
+        console.log(`Found ${limitedArrivals.length} new arrivals (limited to 10).`);
+        setNewArrivals(limitedArrivals);
+        
       } catch (error) {
         console.error('Error fetching new arrivals:', error);
+        setError('Error fetching new arrivals');
+        setNewArrivals([]); 
       } finally {
         setLoading(false);
       }
@@ -77,18 +90,12 @@ const Home = () => {
     return `₱${Number(price).toFixed(2)}`;
   };
 
-  // Scroll the carousel left or right
-  const scrollCarousel = (direction) => {
-    if (!carouselRef.current) return;
-    
-    const scrollWidth = carouselRef.current.scrollWidth;
-    const clientWidth = carouselRef.current.clientWidth;
-    const scrollAmount = direction * (clientWidth * 0.75);
-    
-    carouselRef.current.scrollBy({
-      left: scrollAmount,
-      behavior: 'smooth'
-    });
+  // Function to format items sold (adding k for thousands)
+  const formatItemsSold = (count) => {
+    if (count >= 1000) {
+      return `${(count / 1000).toFixed(1)}k sold`;
+    }
+    return `${count} sold`;
   };
 
   const navigateToProduct = (id) => {
@@ -99,95 +106,77 @@ const Home = () => {
     addToCart(product, 1);
   };
 
-  // Carousel touch/drag functionality
-  const handleMouseDown = (e) => {
-    setIsDragging(true);
-    setStartX(e.pageX - carouselRef.current.offsetLeft);
-    setScrollLeft(carouselRef.current.scrollLeft);
-  };
+  // New Arrivals Section
+  const renderNewArrivals = () => {
+    if (loading) return <LoadingSpinner />;
+    if (error) return <div className="error-message">{error}</div>;
 
-  const handleTouchStart = (e) => {
-    setIsDragging(true);
-    setStartX(e.touches[0].pageX - carouselRef.current.offsetLeft);
-    setScrollLeft(carouselRef.current.scrollLeft);
+    return (
+      <section className="new-arrivals">
+        <div className="section-header">
+          <h2>New Arrivals</h2>
+          <p>Discover our latest products</p>
+        </div>
+        <div className="new-arrivals-grid">
+          {newArrivals.map(product => {
+            // Correctly determine the primary image URL
+            let primaryImageUrl = null;
+            if (Array.isArray(product.images) && product.images.length > 0) {
+              const primaryImage = product.images.find(img => img.order === 0) || product.images[0];
+              if (primaryImage && primaryImage.url) {
+                // Prepend the base URL to the relative path from the API
+                primaryImageUrl = primaryImage.url.startsWith('/') 
+                  ? `http://localhost:5000${primaryImage.url}` 
+                  : primaryImage.url;
+              }
+            }
+            // Use the determined URL or a placeholder
+            const imageToDisplay = primaryImageUrl || '/placeholder-product.jpg';
+            
+            return (
+              <div 
+                key={product.product_id}
+                className="shop-product-card"
+                onClick={() => navigateToProduct(product.product_id)}
+              >
+                <div 
+                  className="shop-product-image" 
+                  style={{ backgroundImage: `url(${imageToDisplay})` }}
+                >
+                  {/* Discount Percentage Tag */}
+                  {product.discount_percentage > 0 && (
+                    <div className="discount-percentage-tag">
+                      -{product.discount_percentage}%
+                    </div>
+                  )}
+                </div>
+                <div className="shop-product-details">
+                  <div className="product-info">
+                    <h3>{product.name}</h3>
+                  </div>
+                  <div className="product-card-bottom">
+                    <div className="product-price">
+                      {product.discount_percentage > 0 ? (
+                        <div className="price-amount">
+                          <span className="discounted-price">{formatPrice(calculateDiscountedPrice(product.price, product.discount_percentage))}</span>
+                        </div>
+                      ) : (
+                        <div className="price-amount">
+                          <span className="regular-price">{formatPrice(product.price)}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="items-sold">{formatItemsSold(product.items_sold || 0)}</div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <Link to="/shop" className="view-all-btn">View All Products</Link>
+      </section>
+    );
   };
-
-  const handleMouseLeave = () => {
-    setIsDragging(false);
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
-
-  const handleTouchEnd = () => {
-    setIsDragging(false);
-  };
-
-  const handleMouseMove = (e) => {
-    if (!isDragging) return;
-    e.preventDefault();
-    const x = e.pageX - carouselRef.current.offsetLeft;
-    const walk = (x - startX) * 2; // Scroll speed
-    carouselRef.current.scrollLeft = scrollLeft - walk;
-  };
-
-  const handleTouchMove = (e) => {
-    if (!isDragging) return;
-    const x = e.touches[0].pageX - carouselRef.current.offsetLeft;
-    const walk = (x - startX) * 2; // Scroll speed
-    carouselRef.current.scrollLeft = scrollLeft - walk;
-  };
-
-  // Update active index when scrolling
-  const handleScroll = () => {
-    if (!carouselRef.current) return;
-    
-    const scrollPosition = carouselRef.current.scrollLeft;
-    const scrollWidth = carouselRef.current.scrollWidth;
-    const clientWidth = carouselRef.current.clientWidth;
-    
-    // Calculate how many indicator dots to show based on viewport capacity
-    const maxScroll = scrollWidth - clientWidth;
-    const scrollRatio = maxScroll > 0 ? scrollPosition / maxScroll : 0;
-    
-    // Fixed number of dots for better visual consistency
-    const totalDots = 3;
-    const newIndex = Math.min(Math.floor(scrollRatio * totalDots), totalDots - 1);
-    
-    if (newIndex !== activeIndex) {
-      setActiveIndex(newIndex);
-    }
-  };
-
-  // Scroll to dot index
-  const scrollToDot = (index) => {
-    if (!carouselRef.current) return;
-    
-    const scrollWidth = carouselRef.current.scrollWidth;
-    const clientWidth = carouselRef.current.clientWidth;
-    const maxScroll = scrollWidth - clientWidth;
-    
-    // Fixed number of dots
-    const totalDots = 3;
-    const scrollPosition = index * (maxScroll / (totalDots - 1));
-    
-    carouselRef.current.scrollTo({
-      left: scrollPosition,
-      behavior: 'smooth'
-    });
-    
-    setActiveIndex(index);
-  };
-
-  // Register scroll event listener
-  useEffect(() => {
-    const carousel = carouselRef.current;
-    if (carousel) {
-      carousel.addEventListener('scroll', handleScroll);
-      return () => carousel.removeEventListener('scroll', handleScroll);
-    }
-  }, []);
 
   return (
     <div className="home">
@@ -242,89 +231,7 @@ const Home = () => {
           </div>
         </div>
       </section>
-      <section className="new-arrivals">
-        <div className="section-header">
-          <h2>NEW ARRIVALS</h2>
-          <p>Our latest additions to bring balance and harmony</p>
-        </div>
-        
-        {loading ? (
-          <div className="loading-indicator">Loading new arrivals...</div>
-        ) : newArrivals.length === 0 ? (
-          <div className="no-products">No new arrivals found</div>
-        ) : (
-          <div className="carousel-wrapper">
-            <div className="carousel-container">
-              <div 
-                className="carousel-products" 
-                id="new-arrivals-carousel"
-                ref={carouselRef}
-                onMouseDown={handleMouseDown}
-                onMouseLeave={handleMouseLeave}
-                onMouseUp={handleMouseUp}
-                onMouseMove={handleMouseMove}
-                onTouchStart={handleTouchStart}
-                onTouchEnd={handleTouchEnd}
-                onTouchMove={handleTouchMove}
-                onScroll={handleScroll}
-              >
-                {newArrivals.map(product => (
-                  <div 
-                    key={product.id} 
-                    className="carousel-product-card"
-                    onClick={() => navigateToProduct(product.id)}
-                  >
-                    <div 
-                      className="product-image" 
-                      style={{ backgroundImage: `url(http://localhost:5000${product.image_url})` }}
-                    ></div>
-                    <h3>{product.name}</h3>
-                    {product.is_flash_deal ? (
-                      <div className="product-price">
-                        <span className="original-price">{formatPrice(product.price)}</span>
-                        <span className="discounted-price">
-                          {formatPrice(calculateDiscountedPrice(product.price, product.discount_percentage))}
-                        </span>
-                        <span className="discount-tag">-{product.discount_percentage}%</span>
-                      </div>
-                    ) : (
-                      <p>{formatPrice(product.price)}</p>
-                    )}
-                    <button 
-                      className="primary-button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleAddToCart(product);
-                      }}
-                    >
-                      Add to Cart
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="carousel-controls">
-              <button 
-                className="carousel-nav-button prev"
-                onClick={() => scrollCarousel(-1)}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="15 18 9 12 15 6"></polyline>
-                </svg>
-              </button>
-              
-              <button 
-                className="carousel-nav-button next"
-                onClick={() => scrollCarousel(1)}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="9 18 15 12 9 6"></polyline>
-                </svg>
-              </button>
-            </div>
-          </div>
-        )}
-      </section>
+      {renderNewArrivals()}
       <section className="categories">
         <div className="section-header">
           <h2>CATEGORIES</h2>
