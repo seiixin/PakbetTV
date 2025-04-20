@@ -5,6 +5,58 @@ import LoadingSpinner from '../common/LoadingSpinner';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import './Shop.css';
+import { createGlobalStyle } from 'styled-components';
+
+const GlobalStyle = createGlobalStyle`
+  .inactive-variant {
+    border: 1px solid #ccc !important;
+    background-color: #f8f8f8 !important;
+    color: #555 !important;
+    min-width: 40px; /* Ensure minimum width */
+    padding: 5px 10px;
+  }
+  .color-button.inactive-variant {
+  }
+  .quantity-input input {
+      border: 1px solid #ccc !important;
+      text-align: center;
+  }
+  /* --- NEW: Active variant button style --- */
+  .variant-button.selected {
+      background-color: #800000 !important; /* Maroon */
+      color: #ffffff !important; /* White */
+      border: 1px solid #800000 !important; /* Explicitly set border */
+      min-width: 40px; /* Ensure minimum width */
+      padding: 5px 10px;
+  }
+  /* --- NEW: Layout Styles --- */
+  .variant-options {
+      display: flex; 
+      align-items: center; /* Vertically align label and buttons */
+      margin-bottom: 15px; /* Space between Size/Color sections */
+  }
+  .variant-options label {
+      margin-right: 10px; /* Space between label and buttons */
+      min-width: 50px; /* Give label some space */
+      font-weight: bold;
+  }
+  .variant-buttons {
+      display: flex; /* Align buttons horizontally */
+      flex-wrap: wrap; /* Allow wrapping if many options */
+      gap: 5px; /* Space between buttons */
+  }
+  /* --- REMOVE or adjust color-button specific size overrides if text is shown --- */
+  /* 
+  .color-button {
+    min-width: 30px !important; 
+    min-height: 30px;
+    padding: 0;
+    text-align: center;
+    line-height: 30px; 
+    font-size: 0.8em; 
+  }
+  */
+`;
 
 const ProductDetailPage = () => {
   const { id } = useParams();
@@ -523,6 +575,8 @@ const ProductDetailPage = () => {
 
   // --- Main JSX Return ---
   return (
+    <>
+    <GlobalStyle />
     <div className="container product-detail-page-container">
       <button className="back-button" onClick={goBack}>
         <i className="fas fa-arrow-left"></i> Back to Shop
@@ -643,7 +697,7 @@ const ProductDetailPage = () => {
                     {availableSizes.map((size) => (
                       <button
                         key={`size-${size}`}
-                        className={`variant-button ${selectedSize === size ? 'selected' : ''} ${
+                        className={`variant-button ${selectedSize === size ? 'selected' : 'inactive-variant'} ${
                           !getAvailableColorsForSize(size).length ? 'disabled' : ''
                         }`}
                         onClick={() => handleSizeChange(size)}
@@ -666,23 +720,15 @@ const ProductDetailPage = () => {
                       .map((color) => (
                         <button
                           key={`color-${color}`}
-                          className={`variant-button ${selectedColor === color ? 'selected' : ''}`}
+                          className={`variant-button color-button ${selectedColor === color ? 'selected' : 'inactive-variant'}`}
                           onClick={() => handleColorChange(color)}
-                          style={{ backgroundColor: color.toLowerCase() }}
+                          title={color} // Keep title for hover
                         >
-                          {color}
+                           {/* Show color text */}
+                           {color} 
                         </button>
                       ))}
                   </div>
-                </div>
-              )}
-              
-              {/* Selected variant info */}
-              {selectedVariant && (
-                <div className="selected-variant-info">
-                  <p>
-                    <strong>SKU:</strong> {selectedVariant.sku}
-                  </p>
                 </div>
               )}
             </div>
@@ -704,7 +750,7 @@ const ProductDetailPage = () => {
                     <><i className="fas fa-exclamation-circle"></i> Only {currentStock} left!</> : 
                     <><i className="fas fa-check-circle"></i> In Stock ({currentStock} available)</>}
                 </span>
-                {/* Quantity Input */}          
+                {/* Quantity Input - Ensure borders via CSS */}          
                 <div className="quantity-input">
                   <button 
                     className="quantity-btn" 
@@ -756,48 +802,27 @@ const ProductDetailPage = () => {
               <i className="fas fa-exclamation-circle"></i> Out of Stock
             </div>
           )}
-          
-          {/* Specifications */}
-          <div className="specifications-section">
-            <h3>Specifications</h3>
-            <div className="spec-items">
-              <div className="spec-item">
-                <span className="spec-label">Category</span>
-                <span className="spec-value">{product.category_name || 'N/A'}</span>
-              </div>
-              <div className="spec-item">
-                <span className="spec-label">Product Code</span>
-                <span className="spec-value">{product.product_code || 'N/A'}</span>
-              </div>
-              {selectedVariant && (
-                <>
-                  <div className="spec-item">
-                    <span className="spec-label">Weight</span>
-                    <span className="spec-value">{selectedVariant.weight} kg</span>
-                  </div>
-                  <div className="spec-item">
-                    <span className="spec-label">Dimensions</span>
-                    <span className="spec-value">{selectedVariant.height} × {selectedVariant.width} cm</span>
-                  </div>
-                </>
-              )}
-              {/* Keep other specs if available */}
-              {product.material && (
-                <div className="spec-item">
-                  <span className="spec-label">Material</span>
-                  <span className="spec-value">{product.material}</span>
-                </div>
-              )}
-            </div>
-          </div>
         </div>
       </div>
       
-      {/* Description Container */}
+      {/* Description Container - MODIFIED */}
       <div className="product-description-container">
         <h3>Product Description</h3>
         <div className="product-detail-description">
           {product.description || 'No description available.'}
+          
+          {/* --- ADDED Specifications Info Here --- */}
+          <div className="spec-items-inline mt-4"> {/* Added mt-4 for spacing */}
+            <h5>Specifications:</h5> {/* Optional subheading */}
+             <p><strong>Category:</strong> {product.category_name || 'N/A'}</p>
+             <p><strong>Product Code:</strong> {product.product_code || 'N/A'}</p>
+              {/* Add other specs here if they return, e.g., Material */}
+             {product.material && (
+                 <p><strong>Material:</strong> {product.material}</p>
+             )}
+          </div>
+          {/* --- END Specifications Info --- */}
+
         </div>
       </div>
 
@@ -870,6 +895,7 @@ const ProductDetailPage = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 
