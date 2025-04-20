@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom'
 import './App.css'
 import Home from './components/Home'
 import Login from './components/Auth/Login'
@@ -8,6 +8,7 @@ import { AuthProvider } from './context/AuthContext'
 import { CartProvider } from './context/CartContext'
 import Account from './components/Account/Account'
 import Purchases from './components/Account/Purchases'
+import OrderConfirmation from './components/Account/OrderConfirmation'
 import ProductManagement from './components/Admin/ProductManagement'
 import ProductPage from './components/Shop/ProductPage'
 import ProductDetailPage from './components/Shop/ProductDetailPage'
@@ -29,7 +30,9 @@ function AppContent() {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/account" element={<Account />} />
-        <Route path="/purchases" element={<Purchases />} />
+        <Route path="/account/purchases" element={<Purchases />} />
+        <Route path="/account/orders/:orderId" element={<OrderConfirmation />} />
+        <Route path="/purchases" element={<Navigate to="/account/purchases" replace />} />
         <Route path="/admin/products" element={<ProductManagement />} />
         <Route path="/shop" element={<ProductPage />} />
         <Route path="/product/:id" element={<ProductDetailPage />} />

@@ -386,4 +386,57 @@ router.delete('/:id', auth, async (req, res) => {
   }
 });
 
+// @route   PUT api/orders/:id/payment
+// @desc    Update payment status
+// @access  Private/Admin
+router.put('/:id/payment', [auth, admin], async (req, res) => {
+  // ... (existing payment update logic) ...
+});
+
+// @route   PUT api/orders/:id/shipping
+// @desc    Update shipping status and tracking number
+// @access  Private/Admin
+router.put('/:id/shipping', [auth, admin], async (req, res) => {
+  // ... (existing shipping update logic) ...
+});
+
+// --- NEW ROUTE --- 
+// @route   GET api/orders/check/:productId
+// @desc    Check if the authenticated user has purchased a specific product
+// @access  Private
+router.get('/check/:productId', auth, async (req, res) => {
+  try {
+    const userId = req.user.user.id; // Get user ID from auth middleware
+    const productId = req.params.productId;
+
+    if (!userId) {
+        return res.status(401).json({ message: 'User not authenticated' });
+    }
+    if (!productId || isNaN(parseInt(productId))) { // Basic validation for productId
+        return res.status(400).json({ message: 'Invalid product ID' });
+    }
+
+    // Query to find if there's a completed order by this user containing this product
+    const query = `
+      SELECT COUNT(*) AS purchase_count
+      FROM orders o
+      JOIN order_items oi ON o.order_id = oi.order_id
+      WHERE o.user_id = ? 
+        AND oi.product_id = ?
+        AND o.order_status = 'processing' -- Check for 'processing' status set by postback on success
+    `;
+    
+    const [results] = await db.query(query, [userId, parseInt(productId)]);
+    
+    const hasPurchased = results[0].purchase_count > 0;
+    
+    res.json({ hasPurchased });
+
+  } catch (err) {
+    console.error("Error checking purchase status:", err);
+    // Avoid sending detailed error messages to the client in production
+    res.status(500).json({ message: 'Server error checking purchase status' });
+  }
+});
+
 module.exports = router; 

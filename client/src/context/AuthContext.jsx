@@ -8,6 +8,7 @@ export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
   const navigate = useNavigate();
@@ -15,11 +16,15 @@ export const AuthProvider = ({ children }) => {
   // Initialize user state from localStorage on app load
   useEffect(() => {
     const checkUserAuth = () => {
-      const token = localStorage.getItem('token');
+      const storedToken = localStorage.getItem('token');
       const userData = localStorage.getItem('user');
       
-      if (token && userData) {
+      if (storedToken && userData) {
+        setToken(storedToken);
         setUser(JSON.parse(userData));
+      } else {
+        setToken(null);
+        setUser(null);
       }
       
       setLoading(false);
@@ -37,6 +42,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
       
+      setToken(response.data.token);
       setUser(response.data.user);
       return { success: true };
     } catch (error) {
@@ -76,6 +82,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       setUser(null);
+      setToken(null);
       setLoggingOut(false);
       navigate('/');
     }, 2000);
@@ -83,6 +90,7 @@ export const AuthProvider = ({ children }) => {
 
   const value = {
     user,
+    token,
     loading,
     loggingOut,
     login,

@@ -165,7 +165,7 @@ export const CartProvider = ({ children }) => {
         user_id: userId,
         total_amount: getTotalPrice(),
         items: selectedItems.map(item => ({
-          product_id: item.id,
+          product_id: item.product_id || item.id, // Use product_id if available, otherwise fall back to id
           quantity: item.quantity,
           price: item.is_flash_deal && item.discount_percentage
             ? (item.price - (item.price * item.discount_percentage / 100))

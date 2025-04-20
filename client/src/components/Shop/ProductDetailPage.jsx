@@ -2,11 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import LoadingSpinner from '../common/LoadingSpinner';
+import { useCart } from '../../context/CartContext';
+import { useAuth } from '../../context/AuthContext';
 import './Shop.css';
 
 const ProductDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { addToCart } = useCart();
+  const { user, token, loading: authLoading } = useAuth();
   
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -16,14 +20,84 @@ const ProductDetailPage = () => {
   const [selectedImageUrl, setSelectedImageUrl] = useState(null);
   const [reviews, setReviews] = useState([]);
 
+  // State for review functionality
+  const [canReview, setCanReview] = useState(false);
+  const [hasReviewed, setHasReviewed] = useState(false);
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [newRating, setNewRating] = useState(0);
+  const [newComment, setNewComment] = useState('');
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewError, setReviewError] = useState(null);
+  const [purchaseCheckLoading, setPurchaseCheckLoading] = useState(false);
+
   useEffect(() => {
     fetchProductDetails();
   }, [id]);
+
+  useEffect(() => {
+    const checkPurchaseAndReviewStatus = async () => {
+      if (authLoading || !user || !token || !product?.product_id) {
+        console.log('[Review Check] Skipping: Auth loading, no user, no token, or no product ID');
+        setCanReview(false);
+        setHasReviewed(false);
+        return;
+      }
+      console.log(`[Review Check] User: ${user.id}, Product: ${product.product_id}, Token: Present`);
+
+      setPurchaseCheckLoading(true);
+      try {
+        // 1. Check if user purchased this product
+        console.log(`[Review Check] Fetching purchase status for product ${product.product_id}...`);
+        const purchaseCheckRes = await fetch(`http://localhost:5000/api/orders/check/${product.product_id}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        console.log(`[Review Check] Purchase check response status: ${purchaseCheckRes.status}`);
+        if (purchaseCheckRes.ok) {
+          const purchaseData = await purchaseCheckRes.json();
+          console.log('[Review Check] Purchase check data:', purchaseData);
+          setCanReview(purchaseData.hasPurchased);
+        } else {
+          console.error('[Review Check] Failed purchase check response:', await purchaseCheckRes.text());
+          setCanReview(false); // Assume cannot review if check fails
+        }
+
+        // 2. Check if user has already submitted a review for this product
+        const userReview = reviews.find(review => review.user_id === user.id);
+        console.log('[Review Check] User review found:', userReview);
+        setHasReviewed(!!userReview);
+        
+      } catch (err) {
+        console.error('[Review Check] Error during purchase/review status check:', err);
+        setCanReview(false);
+        setHasReviewed(false);
+      } finally {
+        setPurchaseCheckLoading(false);
+         // Log final state values after checks
+        console.log(`[Review Check] Final states -> canReview: ${canReview}, hasReviewed: ${hasReviewed}`);
+      }
+    };
+
+    // Only run the check if product and reviews are loaded (and user exists)
+    if (product && reviews.length >= 0) { 
+      console.log('[Review Check] Product/Reviews loaded, attempting purchase check...');
+      checkPurchaseAndReviewStatus();
+    } else if (!user && !authLoading) {
+      // Reset status if user logs out (and auth isn't loading)
+      console.log('[Review Check] User logged out, resetting status.');
+      setCanReview(false);
+      setHasReviewed(false);
+    }
+
+  }, [user, product, reviews, token, authLoading]);
 
   const fetchProductDetails = async () => {
     try {
       setLoading(true);
       setError(null);
+      setReviews([]); // Reset reviews on new product load
       
       const response = await fetch(`http://localhost:5000/api/products/${id}`);
       
@@ -33,53 +107,52 @@ const ProductDetailPage = () => {
       
       const data = await response.json();
       console.log('Product data from API:', data);
-      console.log('Stock quantity type:', typeof data.stock_quantity);
       
-      // Ensure stock_quantity is properly parsed as a number
       const parsedProduct = {
         ...data,
-        stock_quantity: data.stock_quantity !== undefined ? Number(data.stock_quantity) : 0
+        stock_quantity: data.stock_quantity !== undefined ? Number(data.stock_quantity) : 0,
+        average_rating: data.average_rating !== undefined ? Number(data.average_rating) : null, // Ensure rating is number
+        review_count: data.review_count !== undefined ? Number(data.review_count) : 0
       };
       
-      // Ensure images array is properly handled
-      if (data.images) {
-        console.log('Original images:', data.images);
-        // Ensure images is an array
-        if (!Array.isArray(data.images)) {
-          try {
-            // If images is a string, try to parse it as JSON
-            parsedProduct.images = typeof data.images === 'string' ? JSON.parse(data.images) : [];
-          } catch (e) {
-            console.error('Error parsing images:', e);
-            parsedProduct.images = [];
-          }
-        }
-      } else {
-        parsedProduct.images = [];
+      if (data.images && !Array.isArray(data.images)) {
+        try {
+          parsedProduct.images = typeof data.images === 'string' ? JSON.parse(data.images) : [];
+        } catch (e) { parsedProduct.images = []; }
+      } else if (!data.images) {
+          parsedProduct.images = [];
       }
       
-      console.log('Parsed product data:', parsedProduct);
       setProduct(parsedProduct);
       
       // Set default image
-      if (data.image_url) {
-        setSelectedImageUrl(getFullImageUrl(data.image_url));
+      if (parsedProduct.images && parsedProduct.images.length > 0 && parsedProduct.images[0].url) {
+          setSelectedImageUrl(getFullImageUrl(parsedProduct.images[0].url));
+      } else if (parsedProduct.image_url) { // Fallback to primary image_url if exists
+          setSelectedImageUrl(getFullImageUrl(parsedProduct.image_url));
       }
       
-      // Fetch reviews if product has them
-      if (data.id) {
+      // Fetch reviews
+      const productIdForReviews = parsedProduct.product_id || parsedProduct.id; 
+      if (productIdForReviews) {
         try {
-          const reviewsResponse = await fetch(`http://localhost:5000/api/products/${data.id}/reviews`);
+          // Use the correct endpoint from reviews.js
+          const reviewsResponse = await fetch(`http://localhost:5000/api/reviews/product/${productIdForReviews}`);
           if (reviewsResponse.ok) {
             const reviewsData = await reviewsResponse.json();
             setReviews(reviewsData);
+             console.log('Reviews fetched:', reviewsData);
+          } else {
+            console.error('Failed to fetch reviews:', reviewsResponse.status);
+            setReviews([]); // Set empty if fetch fails
           }
         } catch (err) {
           console.error('Error fetching reviews:', err);
+          setReviews([]);
         }
       }
     } catch (err) {
-      console.error('Error:', err);
+      console.error('Error in fetchProductDetails:', err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -108,25 +181,53 @@ const ProductDetailPage = () => {
   const handleAddToCart = () => {
     if (!product || product.stock_quantity <= 0) return;
     
-    // Add to cart logic
-    // For now, just show toast notification
-    toast.success(`${quantity} x ${product.name} added to cart successfully!`);
-    setAddedToCart(true);
+    const itemToAdd = {
+      product_id: product.product_id, // Use product_id directly
+      id: product.product_id, // Keep id for compatibility
+      name: product.name,
+      price: product.price,
+      image_url: getFullImageUrl(product.image_url || (product.images && product.images[0] ? product.images[0].url : null)),
+      stock_quantity: product.stock_quantity,
+      category_id: product.category_id,
+      category_name: product.category_name,
+      product_code: product.product_code
+    };
     
-    // Reset after 3 seconds to allow adding again
-    setTimeout(() => {
-      setAddedToCart(false);
-    }, 3000);
+    try {
+      addToCart(itemToAdd, quantity);
+      toast.success(`${quantity} x ${product.name} added to cart successfully!`);
+      setAddedToCart(true);
+      setTimeout(() => {
+        setAddedToCart(false);
+      }, 3000);
+    } catch (error) {
+      console.error("Error adding to cart:", error);
+      toast.error("Failed to add item to cart.");
+    }
   };
 
   const handleBuyNow = () => {
     if (!product || product.stock_quantity <= 0) return;
     
-    // Logic to handle buy now
-    // Add to cart first
-    handleAddToCart();
-    // Then navigate to checkout
-    navigate('/checkout');
+    const itemToAdd = {
+      product_id: product.product_id, // Use product_id directly
+      id: product.product_id, // Keep id for compatibility
+      name: product.name,
+      price: product.price,
+      image_url: getFullImageUrl(product.image_url || (product.images && product.images[0] ? product.images[0].url : null)),
+      stock_quantity: product.stock_quantity,
+      category_id: product.category_id,
+      category_name: product.category_name,
+      product_code: product.product_code
+    };
+
+    try {
+      addToCart(itemToAdd, quantity);
+      navigate('/cart'); // Navigate to cart for review
+    } catch (error) {
+      console.error("Error during Buy Now process:", error);
+      toast.error("Could not proceed. Please try adding to cart first.");
+    }
   };
 
   const goBack = () => {
@@ -138,34 +239,32 @@ const ProductDetailPage = () => {
     return `₱${Number(price).toFixed(2)}`;
   };
 
-  // Calculate discounted price
   const calculateDiscountedPrice = (price, discount) => {
     if (!discount) return price;
     return (price - (price * discount / 100)).toFixed(2);
   };
 
-  // Helper to construct full image URL
   const getFullImageUrl = (url) => {
-    if (!url) return '/placeholder-product.jpg'; // Default placeholder
+    if (!url) return '/placeholder-product.jpg';
     return url.startsWith('/') ? `http://localhost:5000${url}` : url;
   };
   
-  // Function to render star rating
   const renderStars = (rating) => {
     const stars = [];
+    const numRating = Number(rating) || 0;
     for (let i = 1; i <= 5; i++) {
       stars.push(
         <i 
           key={i} 
-          className={`fas fa-star ${i <= rating ? 'filled' : 'empty'}`}
-          style={{ color: i <= rating ? '#ffc107' : '#e0e0e0' }}
+          className={`fas fa-star ${i <= numRating ? 'filled' : 'empty'}`}
+          style={{ color: i <= numRating ? '#ffc107' : '#e0e0e0', cursor: 'pointer' }} // Add cursor for rating form
+          onClick={() => showReviewForm && setNewRating(i)} // Allow setting rating in form
         ></i>
       );
     }
     return stars;
   };
   
-  // Format date
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
@@ -176,6 +275,58 @@ const ProductDetailPage = () => {
     });
   };
 
+  const handleThumbnailClick = (imageUrl) => {
+    setSelectedImageUrl(imageUrl);
+  };
+
+  // --- NEW: Review Submission Handler ---
+  const handleReviewSubmit = async (e) => {
+    e.preventDefault();
+    if (newRating === 0) {
+      setReviewError('Please select a rating.');
+      return;
+    }
+    if (!newComment.trim()) {
+        setReviewError('Please enter a comment.');
+        return;
+    }
+
+    setReviewLoading(true);
+    setReviewError(null);
+
+    try {
+      const response = await fetch(`http://localhost:5000/api/reviews/product/${product.product_id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ rating: newRating, review_text: newComment })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to submit review');
+      }
+
+      toast.success('Review submitted successfully!');
+      setShowReviewForm(false);
+      setNewRating(0);
+      setNewComment('');
+      // Re-fetch product details to get updated average rating and reviews
+      fetchProductDetails(); 
+      setHasReviewed(true); // Mark as reviewed
+
+    } catch (err) {
+      console.error('Error submitting review:', err);
+      setReviewError(err.message || 'An error occurred. Please try again.');
+      toast.error(err.message || 'Failed to submit review.');
+    } finally {
+      setReviewLoading(false);
+    }
+  };
+
+  // --- Render Logic ---
   if (loading) {
     return (
       <div className="container product-detail-page-container">
@@ -206,39 +357,31 @@ const ProductDetailPage = () => {
     );
   }
 
-  const handleThumbnailClick = (imageUrl) => {
-    setSelectedImageUrl(imageUrl);
-  };
-
+  // --- Main JSX Return ---
   return (
     <div className="container product-detail-page-container">
       <button className="back-button" onClick={goBack}>
         <i className="fas fa-arrow-left"></i> Back to Shop
       </button>
       
+      {/* Main Product Layout (Image + Info/Actions) */}
       <div className="product-detail-main-layout">
+        {/* Image Gallery */}
         <div className="product-detail-image-gallery">
           <div className="main-image-container">
             <img
-              src={selectedImageUrl || getFullImageUrl(product.image_url)}
+              src={selectedImageUrl || getFullImageUrl(product.image_url) || '/placeholder-product.jpg'} // Add placeholder fallback
               alt={product.name}
               className="main-product-image"
+              onError={(e) => { e.target.onerror = null; e.target.src='/placeholder-product.jpg'}} // Handle broken image links
             />
           </div>
           
           <div className="thumbnail-container">
+            {/* Render thumbnails only from product.images array */}
             {Array.isArray(product.images) && product.images.length > 0 && product.images.map((image, idx) => {
-              // Make sure image has a url property
               if (!image || !image.url) return null;
-              
               const imageUrl = getFullImageUrl(image.url);
-              // Update selected image logic if the default wasn't set or needs refresh
-              // This ensures the main image display updates if the underlying array changes
-              // or if the initially selected image was based on a potentially removed explicit thumb
-              if (!selectedImageUrl && idx === 0) {
-                  setSelectedImageUrl(imageUrl); 
-              }
-              
               return (
                 <div
                   key={image.id || `image-${idx}`}
@@ -248,6 +391,7 @@ const ProductDetailPage = () => {
                   <img
                     src={imageUrl}
                     alt={`${product.name} - view ${idx + 1}`}
+                    onError={(e) => { e.target.style.display='none'; }} // Hide broken thumbnails
                   />
                 </div>
               );
@@ -255,9 +399,11 @@ const ProductDetailPage = () => {
           </div>
         </div>
         
+        {/* Info and Actions Section */}
         <div className="product-detail-info-actions">
           <h1 className="product-detail-name">{product.name}</h1>
           
+          {/* Price Section */}
           <div className="product-detail-price-section">
             {product.discount_percentage > 0 ? (
               <>
@@ -274,34 +420,36 @@ const ProductDetailPage = () => {
             )}
           </div>
 
-          {/* NEW: Rating and Review Count Section */}
+          {/* Rating Summary */}
           <div className="product-rating-summary">
-            {product.average_rating !== null && product.average_rating > 0 ? (
+            {product.average_rating !== null && Number(product.average_rating) > 0 ? (
               <>
                 <span className="rating-value">{Number(product.average_rating).toFixed(1)}</span>
                 <span className="rating-stars">{renderStars(product.average_rating)}</span>
                 <span className="review-count">({product.review_count || 0} reviews)</span>
               </>
             ) : (
-              <span className="rating-stars no-rating">{renderStars(0)}</span>
+              <span className="rating-stars no-rating">{renderStars(0)}</span> 
             )}
           </div>
 
+          {/* Shipping Info */}
           <div className="product-detail-shipping">
             <i className="fas fa-truck"></i>
             <span>Free shipping on orders over ₱1000</span>
           </div>
-          
-          {/* Description moved to its own container later */}
-          
+                    
+          {/* Stock Status & Actions */}          
           {product.stock_quantity > 0 && product.stock_quantity !== undefined ? (
             <div className="product-detail-actions">
+              {/* Stock Display */}          
               <div className="quantity-control-wrapper">
                 <span className="stock-available">
                   {product.stock_quantity < 10 ? 
                     <><i className="fas fa-exclamation-circle"></i> Only {product.stock_quantity} left!</> : 
                     <><i className="fas fa-check-circle"></i> In Stock ({product.stock_quantity} available)</>}
                 </span>
+                {/* Quantity Input */}          
                 <div className="quantity-input">
                   <button 
                     className="quantity-btn" 
@@ -330,13 +478,14 @@ const ProductDetailPage = () => {
                 </div>
               </div>
               
+              {/* Action Buttons */}          
               <div className="product-detail-action-buttons">
                 <button 
                   className={`action-button add-to-cart ${addedToCart ? 'added' : ''}`}
                   onClick={handleAddToCart}
                   disabled={product.stock_quantity <= 0 || addedToCart}
                 >
-                  {addedToCart ? <><i className="fas fa-check"></i> Added to Cart</> : <><i className="fas fa-shopping-cart"></i> Add to Cart</>}
+                  {addedToCart ? <><i className="fas fa-check"></i> Added</> : <><i className="fas fa-shopping-cart"></i> Add to Cart</>}
                 </button>
                 <button 
                   className="action-button buy-now" 
@@ -353,7 +502,7 @@ const ProductDetailPage = () => {
             </div>
           )}
           
-          {/* Product Specifications */}
+          {/* Specifications */}
           <div className="specifications-section">
             <h3>Specifications</h3>
             <div className="spec-items">
@@ -365,6 +514,7 @@ const ProductDetailPage = () => {
                 <span className="spec-label">Product Code</span>
                 <span className="spec-value">{product.product_code || 'N/A'}</span>
               </div>
+              {/* Add other specs if available in product data */}
               {product.dimensions && (
                 <div className="spec-item">
                   <span className="spec-label">Dimensions</span>
@@ -382,7 +532,7 @@ const ProductDetailPage = () => {
         </div>
       </div>
       
-      {/* NEW: Description Container */}
+      {/* Description Container */}
       <div className="product-description-container">
         <h3>Product Description</h3>
         <div className="product-detail-description">
@@ -390,10 +540,56 @@ const ProductDetailPage = () => {
         </div>
       </div>
 
-      {/* Reviews Section (already in its own container) */}
+      {/* Reviews Container */}
       <div className="product-detail-lower-section">
         <div className="reviews-section">
           <h3>Customer Reviews</h3>
+
+          {/* NEW: Add Review Section (Conditional) */}
+          {user && canReview && !hasReviewed && (
+            <div className="add-review-section">
+              <button 
+                className="toggle-review-form-btn" 
+                onClick={() => setShowReviewForm(!showReviewForm)}
+              >
+                {showReviewForm ? 'Cancel Review' : 'Write a Review'}
+              </button>
+              {showReviewForm && (
+                <form onSubmit={handleReviewSubmit} className="review-form">
+                  <div className="form-group rating-input">
+                    <label>Your Rating:</label>
+                    <div className="stars">{renderStars(newRating)}</div> 
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="reviewComment">Your Comment:</label>
+                    <textarea
+                      id="reviewComment"
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      placeholder="Share your thoughts..."
+                      rows={4}
+                      required
+                    />
+                  </div>
+                  {reviewError && <p className="error-message">{reviewError}</p>}
+                  <button type="submit" disabled={reviewLoading} className="submit-review-btn">
+                    {reviewLoading ? 'Submitting...' : 'Submit Review'}
+                  </button>
+                </form>
+              )}
+            </div>
+          )}
+          {user && !canReview && !hasReviewed && !purchaseCheckLoading && (
+              <p className="info-message">Purchase this item to leave a review.</p>
+          )}
+          {user && hasReviewed && (
+              <p className="info-message">You've already reviewed this product.</p>
+          )}
+          {!user && (
+              <p className="info-message">Login to leave a review.</p>
+          )}
+
+          {/* Existing Reviews List */}         
           <div className="reviews-container">
             {reviews && reviews.length > 0 ? (
               reviews.map((review, idx) => (
@@ -419,4 +615,4 @@ const ProductDetailPage = () => {
   );
 };
 
-export default ProductDetailPage; 
+export default ProductDetailPage;

@@ -34,12 +34,49 @@ router.post('/orders',async (req, res) => {
     
     const orderId = orderResult.insertId;
     
-    // Insert order items
+    // Insert order items and deduct stock
     for (const item of items) {
       await connection.query(
         'INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)',
         [orderId, item.product_id, item.quantity, item.price]
       );
+
+      // --- BEGIN STOCK DEDUCTION --- 
+      // Check stock in the base products table first
+      const [[product]] = await connection.query(
+        'SELECT stock FROM products WHERE product_id = ?',
+        [item.product_id]
+      );
+
+      if (!product) {
+         await connection.rollback();
+         console.error(`Product not found during stock check: ID ${item.product_id}`);
+         // Use a generic message for the client
+         return res.status(400).json({ message: `Product details not found for one of the items.` });
+      }
+      
+      const currentStock = product.stock;
+      const requestedQuantity = item.quantity;
+
+      if (currentStock < requestedQuantity) {
+          await connection.rollback();
+          // Provide product name if possible, or just ID
+          return res.status(400).json({ message: `Not enough stock for product ID ${item.product_id}. Available: ${currentStock}` });
+      }
+
+      // Deduct stock from the products table
+      const newStock = currentStock - requestedQuantity;
+      await connection.query(
+        'UPDATE products SET stock = ? WHERE product_id = ?',
+        [newStock, item.product_id]
+      );
+
+      // Optionally: Record inventory change for base product (if applicable)
+      // await connection.query(
+      //   'INSERT INTO inventory (product_id, change_type, quantity, reason) VALUES (?, ?, ?, ?)',
+      //   [item.product_id, 'remove', requestedQuantity, `Order ${orderId}`]
+      // );
+      // --- END STOCK DEDUCTION ---
     }
     
     await connection.commit();
