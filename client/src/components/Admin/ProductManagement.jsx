@@ -882,7 +882,9 @@ const ProductManagement = () => {
                   id="productImages"
                   name="productImages"
                   onChange={handleImageChange}
-                  accept="image}
+                  accept="image/*"
+                />
+              </div>
               {includeVariants && (
                 <div className="variants-section full-width">
                   <h3>Product Variants</h3>
@@ -965,7 +967,8 @@ const ProductManagement = () => {
                           className="form-control"
                           id={`variant-image-${index}`}
                           onChange={(e) => handleVariantImageChange(index, e)}
-                          accept="image}
+                          accept="image/*"
+                        />
                         {(variant.preview || (variant.image_url && !variant.preview)) && (
                           <div className="mt-2 variant-image-preview">
                             <img 
