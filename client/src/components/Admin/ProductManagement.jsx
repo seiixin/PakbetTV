@@ -4,9 +4,8 @@ import { FaEdit, FaTrash, FaPlus, FaTimes } from 'react-icons/fa';
 import './Admin.css';
 import styled from 'styled-components';
 import { toast } from 'react-toastify';
-import { API_URL } from '../../config';
 import './ProductManagement.css';
-
+import API_BASE_URL from '../../config';
 const ModalContent = styled.div`
   .read-only-field {
     background-color: #f0f0f0;
@@ -14,8 +13,6 @@ const ModalContent = styled.div`
     cursor: not-allowed;
   }
 `;
-
-// Helper function to format price (moved outside for potential reuse, but kept useCallback for now if used internally)
 const formatPrice = (price) => {
   if (price === null || price === undefined) return 'N/A';
   if (typeof price === 'string' && price.includes('-')) {
@@ -24,8 +21,6 @@ const formatPrice = (price) => {
   }
   return `₱${Number(price).toFixed(2)}`;
 };
-
-// Helper function to format date (moved outside for potential reuse)
 const formatDate = (dateString) => {
   if (!dateString) return '';
   try {
@@ -36,27 +31,20 @@ const formatDate = (dateString) => {
     return 'Invalid Date';
   }
 };
-
-// Moved getPrimaryImageUrl outside the component
 const getPrimaryImageUrl = (product) => {
   try {
-    // Check product images first
     if (Array.isArray(product.images) && product.images.length > 0) {
       const primary = product.images.find(img => img.order === 0) || product.images[0];
       if (primary && primary.url) {
-        // Ensure URL is properly formatted
         if (!primary.url.startsWith('http') && !primary.url.startsWith('/')) {
           return `${API_URL}/${primary.url}`;
         }
         return primary.url;
       }
     }
-    
-    // If no product image, check variant images
     if (Array.isArray(product.variants) && product.variants.length > 0) {
       const firstVariantWithImage = product.variants.find(v => v.image_url);
       if (firstVariantWithImage && firstVariantWithImage.image_url) {
-        // Ensure URL is properly formatted
         if (!firstVariantWithImage.image_url.startsWith('http') && !firstVariantWithImage.image_url.startsWith('/')) {
           return `${API_URL}/${firstVariantWithImage.image_url}`;
         }
@@ -66,20 +54,14 @@ const getPrimaryImageUrl = (product) => {
   } catch (error) {
     console.error('Error getting primary image URL:', error);
   }
-  
-  // If no images found anywhere
   return null;
 };
-
-// Define the memoized ProductRow component
 const ProductRow = memo(({ product, onEdit, onDelete }) => {
   const [imageError, setImageError] = useState(false);
   const imageUrl = getPrimaryImageUrl(product);
-  
   const handleImageError = () => {
     setImageError(true);
   };
-  
   return (
     <tr>
       <td>
@@ -119,7 +101,6 @@ const ProductRow = memo(({ product, onEdit, onDelete }) => {
     </tr>
   );
 });
-
 const ProductManagement = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -133,18 +114,14 @@ const ProductManagement = () => {
   const [categories, setCategories] = useState([]);
   const [includeVariants, setIncludeVariants] = useState(false);
   const [variants, setVariants] = useState([]);
-  
-  // --- NEW State for Dynamic Attributes ---
-  const [variantAttributes, setVariantAttributes] = useState([]); // Stores attribute names ['Size', 'Color']
-  const [newAttributeName, setNewAttributeName] = useState(''); // Input for adding new attribute
-  // --- END NEW State ---
-  
-  const [currentVariant, setCurrentVariant] = useState({ // Base structure for adding new variant row
+  const [variantAttributes, setVariantAttributes] = useState([]); 
+  const [newAttributeName, setNewAttributeName] = useState(''); 
+  const [currentVariant, setCurrentVariant] = useState({ 
     price: '',
     stock: '',
     image: null,
     preview: null,
-    attributes: {} // Initialize with empty attributes object
+    attributes: {} 
   });
   const [currentProduct, setCurrentProduct] = useState({
     name: '',
@@ -165,15 +142,11 @@ const ProductManagement = () => {
   const [confirmDeleteProduct, setConfirmDeleteProduct] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [selectedImages, setSelectedImages] = useState([]);
-
   useEffect(() => {
-    // Reset all form state when component mounts
     resetForm();
-    // Then fetch products and categories
     fetchProducts();
     fetchCategories();
   }, []);
-
   const fetchProducts = async () => {
     try {
       setLoading(true);
@@ -192,7 +165,6 @@ const ProductManagement = () => {
       setLoading(false);
     }
   };
-
   const fetchCategories = async () => {
     try {
       const response = await fetch(`${API_URL}/api/categories`);
@@ -212,41 +184,32 @@ const ProductManagement = () => {
       ]);
     }
   };
-
   const generateProductCode = (categoryId) => {
     console.log('[generateProductCode] Received categoryId:', categoryId, typeof categoryId);
-    if (!categoryId || isNaN(categoryId)) { // Ensure it's a valid number
+    if (!categoryId || isNaN(categoryId)) { 
       console.log('[generateProductCode] Invalid or missing categoryId.');
       return '';
     } 
-    
     console.log('[generateProductCode] Categories available:', categories);
-    const category = categories.find(cat => cat.category_id === categoryId); // Use category_id
+    const category = categories.find(cat => cat.category_id === categoryId); 
     console.log('[generateProductCode] Found category:', category);
     if (!category) {
       console.log('[generateProductCode] Category object not found.');
       return '';
     } 
-    
-    const prefix = category.code || category.name.substring(0, 3).toUpperCase(); // Use 3 chars for prefix
+    const prefix = category.code || category.name.substring(0, 3).toUpperCase(); 
     console.log('[generateProductCode] Calculated prefix:', prefix);
-    
     console.log('[generateProductCode] Existing products state:', products);
-    // Ensure category_id comparison is correct (both should be numbers)
     const existingProducts = products.filter(p => parseInt(p.category_id) === categoryId);
     console.log('[generateProductCode] Filtered existing products in category:', existingProducts);
-    
     const nextNumber = (existingProducts.length + 1).toString().padStart(3, '0');
     console.log('[generateProductCode] Calculated next number:', nextNumber);
-    
     const finalCode = `${prefix}${nextNumber}`;
     console.log('[generateProductCode] Returning final code:', finalCode);
     return finalCode;
   };
-
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
-    
     if (type === 'checkbox') {
       setCurrentProduct({
         ...currentProduct,
@@ -254,41 +217,33 @@ const ProductManagement = () => {
       });
       return;
     }
-    
     if (type === 'number' || name === 'category_id') {
       setCurrentProduct(prev => {
         const numericValue = value === '' ? '' : Number(value);
-        console.log(`Input change - Name: ${name}, Raw Value: ${value}, Parsed Value: ${numericValue}, Type: ${typeof numericValue}`); // Log price/stock changes
-        
+        console.log(`Input change - Name: ${name}, Raw Value: ${value}, Parsed Value: ${numericValue}, Type: ${typeof numericValue}`); 
         const updated = {
           ...prev,
           [name]: numericValue
         };
-        
-        // Generate product code if category changes
         if (name === 'category_id' && !isEditing && !isNaN(numericValue)) {
           const newProductCode = generateProductCode(numericValue);
           updated.product_code = newProductCode;
         }
-        
         console.log('Updated product state:', updated);
         return updated;
       });
       return;
     }
-    
     setCurrentProduct({
       ...currentProduct,
       [name]: value
     });
   };
-
   const handleImageChange = (e) => {
     if (e.target.files) {
       setNewProductImages(Array.from(e.target.files));
     }
   };
-
   const resetForm = () => {
     setCurrentProduct({
       name: '',
@@ -311,9 +266,9 @@ const ProductManagement = () => {
     setUserInitiatedSubmit(false);
     setIncludeVariants(false);
     setVariants([]);
-    setVariantAttributes([]); // Reset defined attributes
-    setNewAttributeName(''); // Reset attribute input
-    setCurrentVariant({ // Reset template for adding variants
+    setVariantAttributes([]); 
+    setNewAttributeName(''); 
+    setCurrentVariant({ 
         price: '',
         stock: '',
         image: null,
@@ -321,57 +276,36 @@ const ProductManagement = () => {
         attributes: {}
     });
   };
-
   const handleAddNewClick = () => {
     resetForm();
     setIsModalOpen(true);
   };
-
   const handleEditClick = useCallback(async (product) => {
     try {
-      // Reset form state first
       resetForm(); 
-
-      // NOW set editing to true
       setIsEditing(true); 
       setSuccessMessage('');
       setError('');
-      
-      // Fetch full product details including variants
       const response = await fetch(`${API_URL}/api/products/${product.product_id}`);
       if (!response.ok) {
         throw new Error('Failed to fetch product details');
       }
-      
       const productDetails = await response.json();
       console.log('Product details for editing:', productDetails);
-      
-      // --- MODIFIED: Set product state (remove legacy fields if they existed) ---
       setCurrentProduct({
         product_id: productDetails.product_id,
         product_code: productDetails.product_code,
         name: productDetails.name,
         description: productDetails.description,
-        // Base price/stock are less relevant when editing variants, keep for consistency?
         price: productDetails.price, 
         stock: productDetails.stock_quantity, 
         category_id: productDetails.category_id,
-        // Remove weight, height, width, length if they are now in attributes
-        // weight: productDetails.weight || 0, 
-        // height: productDetails.height || 0,
-        // width: productDetails.width || 0,
-        // length: productDetails.length || 0, 
         is_featured: productDetails.is_featured || false,
         images: productDetails.images || []
       });
-      
-      setNewProductImages([]); // Reset new image uploads
-      
-      // --- NEW: Load variants and determine attributes ---
+      setNewProductImages([]); 
       if (Array.isArray(productDetails.variants) && productDetails.variants.length > 0) {
         setIncludeVariants(true);
-
-        // Extract unique attribute keys from all variants
         const attributeKeys = new Set();
         productDetails.variants.forEach(variant => {
           if (variant.attributes) {
@@ -379,44 +313,33 @@ const ProductManagement = () => {
           }
         });
         const definedAttributes = Array.from(attributeKeys);
-        setVariantAttributes(definedAttributes); // Set the defined attribute names
+        setVariantAttributes(definedAttributes); 
         console.log('Determined variant attributes for editing:', definedAttributes);
-
-        // Format variants for the state, ensuring attributes object exists
         const formattedVariants = productDetails.variants.map(variant => ({
           variant_id: variant.variant_id,
           price: variant.price || 0,
           stock: variant.stock || 0,
-          sku: variant.sku || '', // Keep SKU if needed for updates
-          image_url: variant.image_url || null, // Existing image URL
-          attributes: variant.attributes || {}, // Use parsed attributes from API
-          image: null, // For potential new image upload
-          preview: null // For new image preview
+          sku: variant.sku || '', 
+          image_url: variant.image_url || null, 
+          attributes: variant.attributes || {}, 
+          image: null, 
+          preview: null 
         }));
         setVariants(formattedVariants);
         console.log('Formatted variants for editing:', formattedVariants);
-
       } else {
-        // No variants from API
         setIncludeVariants(false);
         setVariants([]);
         setVariantAttributes([]);
       }
-      // --- END NEW --- 
-      
-      // Open the modal
       setIsModalOpen(true);
-      
     } catch (error) {
       console.error('Error fetching product details for editing:', error);
       setError('Failed to load product details for editing. Please try again.');
-      // Ensure modal doesn't open on error
       setIsModalOpen(false); 
-      setIsEditing(false); // Also reset isEditing on error
+      setIsEditing(false); 
     }
-  }, [API_URL, resetForm]); // Added resetForm to dependency array
-
-  // Add a direct test function
+  }, [API_URL, resetForm]); 
   const testDirectApiCall = async () => {
     try {
       const testData = {
@@ -429,31 +352,25 @@ const ProductManagement = () => {
         is_flash_deal: false,
         product_code: "TEST001"
       };
-      
       console.log("Making direct test API call with:", testData);
-      
-      const response = await fetch('http://localhost:5000/api/products', {
+      const response = await fetch(`${API_BASE_URL}/api/products`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(testData)
       });
-      
       console.log("Test API Response Status:", response.status);
       const responseText = await response.text();
       console.log("Test API Response:", responseText);
-      
       return responseText;
     } catch (error) {
       console.error("Test API call failed:", error);
       return null;
     }
   };
-
   const handleVariantInputChange = (e) => {
     const { name, value, type, checked, files } = e.target;
-    
     if (type === 'file') {
       if (files && files.length > 0) {
         setCurrentVariant({
@@ -469,110 +386,76 @@ const ProductManagement = () => {
       });
     }
   };
-
   const handleAddVariant = () => {
-    // Initialize new variant with keys based on currently defined attributes
     const initialAttributes = variantAttributes.reduce((acc, attr) => {
-        acc[attr] = ''; // Start with empty string for each defined attribute
+        acc[attr] = ''; 
         return acc;
     }, {});
-
     const newVariant = {
       price: '',
       stock: '',
       image: null,
       preview: null,
-      attributes: initialAttributes // Use generated initial attributes
+      attributes: initialAttributes 
     };
-    
     setVariants([...variants, newVariant]);
   };
-
   const handleRemoveVariant = (index) => {
     setVariants(variants.filter((_, i) => i !== index));
   };
-
   const handleVariantChange = (index, field, value) => {
     const updatedVariants = [...variants];
     const currentVariant = updatedVariants[index];
-
-    // Check if the field is a standard one or a dynamic attribute
     if (field === 'price' || field === 'stock') {
-      // Handle standard fields (convert to number if appropriate)
       currentVariant[field] = (field === 'price' || field === 'stock') ? (value === '' ? '' : Number(value)) : value;
     } else {
-      // Assume it's a dynamic attribute
       currentVariant.attributes = {
         ...currentVariant.attributes,
-        [field]: value // Use field name as the key in the attributes object
+        [field]: value 
       };
     }
-
     setVariants(updatedVariants);
   };
-
   const handleVariantImageChange = (index, e) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      
-      // Create a preview URL for display
       const preview = URL.createObjectURL(file);
-      
       const updatedVariants = [...variants];
       updatedVariants[index] = {
         ...updatedVariants[index],
         image: file,
         preview: preview
       };
-      
       setVariants(updatedVariants);
     }
   };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
     try {
       setIsSubmitting(true);
       setError('');
-      
-      // Validate required fields
       const isPriceRequired = !includeVariants;
       if (!currentProduct.name || (isPriceRequired && !currentProduct.price) || !currentProduct.category_id) {
         let missingFields = [];
         if (!currentProduct.name) missingFields.push('Name');
         if (isPriceRequired && !currentProduct.price) missingFields.push('Price');
         if (!currentProduct.category_id) missingFields.push('Category');
-        
         setError(`${missingFields.join(', ')} ${missingFields.length > 1 ? 'are' : 'is'} required.`);
         setIsSubmitting(false);
         return;
       }
-      
-      // Validate that category_id is a valid integer
       if (isNaN(parseInt(currentProduct.category_id))) {
         setError('Invalid category selection.');
         setIsSubmitting(false);
         return;
       }
-      
-      // Create FormData to handle file uploads
       const formData = new FormData();
-      
-      // Append basic product data
       formData.append('name', currentProduct.name);
       formData.append('description', currentProduct.description);
       formData.append('price', currentProduct.price);
       formData.append('stock', currentProduct.stock);
       formData.append('category_id', currentProduct.category_id);
-      // REMOVED weight, height, width, length - handle via attributes if needed
-      // formData.append('weight', currentProduct.weight || 0);
-      // formData.append('height', currentProduct.height || 0);
-      // formData.append('width', currentProduct.width || 0);
-      // formData.append('length', currentProduct.length || 0);
       formData.append('is_featured', currentProduct.is_featured || false);
-      
-      // Handle product images
       if (Array.isArray(newProductImages) && newProductImages.length > 0) {
         newProductImages.forEach(image => {
           if (image instanceof File) {
@@ -580,71 +463,45 @@ const ProductManagement = () => {
           }
         });
       }
-      
-      // Handle variants with dynamic attributes and image handling
       if (variants.length > 0) {
         formData.append('include_variants', 'true');
-        
         const timestamp = Date.now(); 
         const randomString = Math.random().toString(36).substring(2, 6);
-        
-        // --- MODIFIED: Map variants to include attributes object --- 
         const variantsToSend = variants.map((variant, index) => {
           const variantNumber = index + 1;
-          // Generate SKU (ensure product_code exists or fallback)
           const baseCode = currentProduct.product_code || `TEMP-${timestamp}`;
           const sku = `${baseCode}-${variantNumber}-${randomString}`;
-            
-          // Return the structure expected by the backend
           return {
-            price: variant.price || 0, // Ensure price has a default
-            stock: variant.stock || 0, // Ensure stock has a default
+            price: variant.price || 0, 
+            stock: variant.stock || 0, 
             sku,
-            attributes: variant.attributes || {}, // Send the dynamic attributes object
-            has_image: !!variant.image // Flag if a new image file is present
+            attributes: variant.attributes || {}, 
+            has_image: !!variant.image 
           };
         });
-        
-        formData.append('variants', JSON.stringify(variantsToSend)); // Send the structured data
-        // --- END MODIFICATION --- 
-        
-        // Append each variant image file separately (logic remains the same)
+        formData.append('variants', JSON.stringify(variantsToSend)); 
         variants.forEach((variant) => {
           if (variant.image && variant.image instanceof File) {
             formData.append('variantImages', variant.image);
           }
         });
       }
-      
-      // Determine endpoint (create or update)
       const endpoint = isEditing 
         ? `${API_URL}/api/products/${currentProduct.product_id}`
         : `${API_URL}/api/products`;
-      
       const method = isEditing ? 'PUT' : 'POST';
-      
-      // Send request
       const response = await fetch(endpoint, {
         method,
         body: formData
       });
-      
-      // Check if response is ok
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to save product');
       }
-      
       const responseData = await response.json();
-      
-      // Show success message
       setSuccessMessage(isEditing ? 'Product updated successfully!' : 'Product created successfully!');
-      
-      // Close modal and reset form after delay
       setTimeout(() => {
         setIsModalOpen(false);
-
-        // Refresh product list
         fetchProducts();
       }, 1500);
     } catch (error) {
@@ -654,7 +511,6 @@ const ProductManagement = () => {
       setIsSubmitting(false);
     }
   };
-
   const handleDeleteImage = async (imageIdToDelete) => {
     if (!currentProduct.product_id || !imageIdToDelete) {
       console.error("Missing product ID or image ID for deletion.");
@@ -664,33 +520,27 @@ const ProductManagement = () => {
     if (!window.confirm('Are you sure you want to delete this image permanently?')) {
       return;
     }
-
     try {
       const response = await fetch(`${API_URL}/api/product-images/${imageIdToDelete}`, {
         method: 'DELETE',
       });
-
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: 'Failed to delete image' }));
         throw new Error(errorData.message || 'Server failed to delete image');
       }
-
       setCurrentProduct(prev => ({
         ...prev,
         images: prev.images.filter(img => img.image_id !== imageIdToDelete)
       }));
-
       setSuccessMessage('Image deleted successfully!');
       setTimeout(() => {
         setSuccessMessage('');
       }, 3000);
-      
     } catch (err) {
       setError('Error deleting image: ' + err.message);
       console.error('Error deleting image:', err);
     }
   };
-
   const handleDelete = useCallback(async (id) => {
     if (!window.confirm('Are you sure you want to delete this product?')) {
       return;
@@ -698,14 +548,11 @@ const ProductManagement = () => {
     setError(null);
     setSuccessMessage('');
     setDeleteInProgress(true);
-    
     try {
       const response = await fetch(`${API_URL}/api/products/${id}`, {
         method: 'DELETE'
       });
-
         console.log('Delete Response Status:', response.status);
-      
       if (!response.ok) {
             let errorMsg = 'Failed to delete product';
             try {
@@ -717,7 +564,6 @@ const ProductManagement = () => {
             }
             throw new Error(errorMsg);
         }
-
         const contentType = response.headers.get("content-type");
         if (contentType && contentType.indexOf("application/json") !== -1) {
             const result = await response.json();
@@ -727,9 +573,7 @@ const ProductManagement = () => {
             console.log('Delete successful (no content in response).');
       setSuccessMessage('Product deleted successfully!');
         }
-
       fetchProducts();
-        
         setIsEditing(false);
         setCurrentProduct({
           name: '',
@@ -746,40 +590,29 @@ const ProductManagement = () => {
         });
         setNewProductImages([]);
         setIsModalOpen(false);
-        
       setTimeout(() => {
         setSuccessMessage('');
             setDeleteInProgress(false);
       }, 3000);
-        
         return;
-      
     } catch (err) {
       setError('Error deleting product: ' + err.message);
       console.error('Error deleting product:', err);
         setDeleteInProgress(false);
     }
   }, [setError, setSuccessMessage, setDeleteInProgress, fetchProducts, setIsEditing, setCurrentProduct, setNewProductImages, setIsModalOpen]);
-
   const calculateDiscountedPrice = useCallback((price, discount) => {
     if (!discount || price === null || price === undefined) return price;
-    
-    // Handle price ranges
     if (typeof price === 'string' && price.includes('-')) {
       const [min, max] = price.split('-').map(p => Number(p));
       const discountedMin = (min - (min * discount / 100)).toFixed(2);
       const discountedMax = (max - (max * discount / 100)).toFixed(2);
       return `${discountedMin}-${discountedMax}`;
     }
-    
-    // Handle single price
     return (Number(price) - (Number(price) * discount / 100)).toFixed(2);
   }, []);
-
   const getCategoryPlaceholder = useCallback((category) => {
-    // Define base URL for static assets
-    const baseUrl = 'http://localhost:5000/images';
-    
+    const baseUrl = `${API_BASE_URL}/images`;
     switch(category && category.toLowerCase()) {
       case 'books':
         return `${baseUrl}/placeholder-book.jpg`;
@@ -791,33 +624,25 @@ const ProductManagement = () => {
         return `${baseUrl}/placeholder-product.jpg`;
     }
   }, []);
-
-  // --- NEW: Handler to Add a Variant Attribute Definition ---
   const handleAddAttribute = () => {
     const trimmedName = newAttributeName.trim();
-    // Prevent adding empty or duplicate attributes
     if (trimmedName && !variantAttributes.includes(trimmedName)) {
       setVariantAttributes([...variantAttributes, trimmedName]);
-      // Also update existing variants to include this new attribute key
       setVariants(prevVariants => prevVariants.map(v => ({
         ...v,
-        attributes: { ...v.attributes, [trimmedName]: '' } // Initialize with empty string
+        attributes: { ...v.attributes, [trimmedName]: '' } 
       })));
     }
-    setNewAttributeName(''); // Clear input field
+    setNewAttributeName(''); 
   };
-
-  // --- NEW: Handler to Remove a Variant Attribute Definition ---
   const handleRemoveAttribute = (attributeToRemove) => {
     setVariantAttributes(variantAttributes.filter(attr => attr !== attributeToRemove));
-    // Also remove the attribute key from all existing variants
     setVariants(prevVariants => prevVariants.map(v => {
       const newAttributes = { ...v.attributes };
       delete newAttributes[attributeToRemove];
       return { ...v, attributes: newAttributes };
     }));
   };
-
   return (
     <div className="admin-container">
       <h1>Product Management</h1>
@@ -854,7 +679,6 @@ const ProductManagement = () => {
                 &times;
               </button>
             </div>
-            
             <form 
               onSubmit={handleSubmit} 
               className="product-form" 
@@ -872,7 +696,6 @@ const ProductManagement = () => {
                   required
                 />
               </div>
-              
               <div className="form-group">
                 <label htmlFor="price">Price*</label>
                 <input
@@ -892,7 +715,6 @@ const ProductManagement = () => {
                   <small>Price will be calculated from variant prices</small>
                 )}
               </div>
-              
               <div className="form-group">
                 <label htmlFor="category">Category*</label>
                 <select
@@ -910,7 +732,6 @@ const ProductManagement = () => {
                   ))}
                 </select>
               </div>
-              
               <div className="form-group">
                 <label htmlFor="stock">Stock</label>
                 <input
@@ -928,7 +749,6 @@ const ProductManagement = () => {
                   <small>Stock is managed per variant when variants are enabled</small>
                 )}
               </div>
-              
               <div className="form-group checkbox-group">
                 <input
                   type="checkbox"
@@ -939,14 +759,12 @@ const ProductManagement = () => {
                 />
                 <label htmlFor="include_variants">Include Variants (e.g., Size, Color, Material)</label>
               </div>
-              
-              {/* --- MODIFIED/NEW: Variant Attribute Definition Section --- */}
+              {}
               {includeVariants && (
                 <div className="attribute-definition-section full-width">
                   <h5>Define Variant Attributes</h5>
                   <p className="text-muted small">Define the properties that differ between variants (e.g., Size, Color, Material).</p>
-                  
-                  {/* Display existing attributes with remove buttons */}
+                  {}
                   {variantAttributes.length > 0 && (
                     <div className="defined-attributes-list">
                       <strong>Defined:</strong>
@@ -965,8 +783,7 @@ const ProductManagement = () => {
                       ))}
                     </div>
                   )}
-
-                  {/* Input to add new attribute */}                  
+                  {}                  
                   <div className="add-attribute-input-group">
                     <input
                       type="text"
@@ -987,8 +804,7 @@ const ProductManagement = () => {
                   </div>
                 </div>
               )}
-              {/* --- END Attribute Definition Section --- */}
-              
+              {}
               <div className="form-group checkbox-group">
                 <input
                   type="checkbox"
@@ -999,7 +815,6 @@ const ProductManagement = () => {
                 />
                 <label htmlFor="is_best_seller">Best Seller</label>
               </div>
-              
               <div className="form-group checkbox-group">
                 <input
                   type="checkbox"
@@ -1010,7 +825,6 @@ const ProductManagement = () => {
                 />
                 <label htmlFor="is_flash_deal">Flash Deal</label>
               </div>
-              
               <div className="form-group full-width">
                 <label htmlFor="description">Description</label>
                 <textarea
@@ -1021,7 +835,6 @@ const ProductManagement = () => {
                   rows="4"
                 />
               </div>
-              
               {currentProduct.is_flash_deal && (
                 <>
                   <div className="form-group">
@@ -1034,7 +847,6 @@ const ProductManagement = () => {
                       onChange={handleInputChange}
                     />
                   </div>
-                  
                   <div className="form-group">
                     <label htmlFor="discount_percentage">Discount Percentage (%)</label>
                     <input
@@ -1049,7 +861,6 @@ const ProductManagement = () => {
                   </div>
                 </>
               )}
-
               <div className="form-group">
                 <label htmlFor="product_code">Product Code</label>
                 <input
@@ -1062,7 +873,6 @@ const ProductManagement = () => {
                 />
                 <small>Automatically generated based on category</small>
               </div>
-              
               <div className="form-group full-width">
                 <label htmlFor="productImages">
                   {includeVariants ? 'Product Images (Optional)' : 'Product Images'}
@@ -1072,62 +882,10 @@ const ProductManagement = () => {
                   id="productImages"
                   name="productImages"
                   onChange={handleImageChange}
-                  accept="image/*"
-                  multiple
-                />
-                <small>
-                  {includeVariants 
-                   ? 'You can upload product images here or use variant-specific images.' 
-                   : 'Upload new images. Existing images will be kept unless deleted below.'}
-                </small>
-              </div>
-              
-              {isEditing && currentProduct.images && currentProduct.images.length > 0 && (
-                <div className="existing-images-section full-width">
-                  <p>Current Images:</p>
-                  <div className="existing-images-grid">
-                    {currentProduct.images.map((img) => {
-                      // Smarter URL construction
-                      let imageUrl = img.url;
-                      if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('/')) {
-                        // If it's just a path like 'uploads/products/...', prepend API_URL
-                        imageUrl = `${API_URL}/${imageUrl}`;
-                      } else if (imageUrl && imageUrl.startsWith('/')){
-                        // If it starts with '/', just prepend the origin part of API_URL
-                        const origin = new URL(API_URL).origin;
-                        imageUrl = `${origin}${imageUrl}`;
-                      }
-                      // If it starts with 'http', use it as is.
-                      // If img.url is null/empty, handle potential errors
-                      
-                      return (
-                        <div key={img.image_id || img.id} className="existing-image-item">
-                          <img
-                            src={imageUrl || '/placeholder-product.jpg'} // Fallback placeholder
-                            alt={img.alt || 'Product image'}
-                            className="existing-image-thumbnail"
-                            onError={(e) => { e.target.onerror = null; e.target.src='/placeholder-product.jpg'}}
-                          />
-                          <button
-                            type="button"
-                            className="btn btn-delete btn-delete-image"
-                            onClick={() => handleDeleteImage(img.image_id || img.id)} // Use image_id or id
-                            title="Delete this image"
-                          >
-                            &times;
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* --- MODIFIED: Variant Input Section --- */}
+                  accept="image}
               {includeVariants && (
                 <div className="variants-section full-width">
                   <h3>Product Variants</h3>
-                  
                   {variantAttributes.length > 0 ? (
                     <p className="text-muted small">Add variants with specific values for each attribute defined above.</p>
                   ) : (
@@ -1136,7 +894,6 @@ const ProductManagement = () => {
                       Please define at least one variant attribute above before adding variants.
                     </div>
                   )}
-                  
                   {variants.map((variant, index) => (
                     <div key={index} className="variant-form">
                       <div className="d-flex justify-content-between align-items-center mb-3">
@@ -1149,8 +906,7 @@ const ProductManagement = () => {
                           <i className="fas fa-times me-1"></i> Remove
                         </button>
                       </div>
-                      
-                      {/* Dynamically render inputs for defined attributes */}                      
+                      {}                      
                       <div className="row">
                         {variantAttributes.map(attrName => (
                           <div key={`${index}-${attrName}`} className="col-md-6">
@@ -1160,16 +916,15 @@ const ProductManagement = () => {
                                 type="text"
                                 className="form-control"
                                 id={`variant-${index}-${attrName}`}
-                                value={variant.attributes[attrName] || ''} // Access nested attribute value
-                                onChange={(e) => handleVariantChange(index, attrName, e.target.value)} // Pass attrName as field
+                                value={variant.attributes[attrName] || ''} 
+                                onChange={(e) => handleVariantChange(index, attrName, e.target.value)} 
                                 placeholder={`Enter ${attrName}`}
                               />
                             </div>
                           </div>
                         ))}
                       </div> 
-                      
-                      {/* Price and Stock for the variant */}                      
+                      {}                      
                       <div className="row">
                         <div className="col-md-6">
                           <div className="mb-3">
@@ -1183,7 +938,7 @@ const ProductManagement = () => {
                                 value={variant.price || ''}
                                 onChange={(e) => handleVariantChange(index, 'price', e.target.value)}
                                 placeholder="0.00"
-                                required // Price per variant is required
+                                required 
                               />
                             </div>
                           </div>
@@ -1202,8 +957,7 @@ const ProductManagement = () => {
                           </div>
                         </div>
                       </div>
-                      
-                      {/* Variant Image */}                      
+                      {}                      
                       <div className="mb-3">
                         <label htmlFor={`variant-image-${index}`} className="form-label">Variant Image (Optional)</label>
                         <input
@@ -1211,9 +965,7 @@ const ProductManagement = () => {
                           className="form-control"
                           id={`variant-image-${index}`}
                           onChange={(e) => handleVariantImageChange(index, e)}
-                          accept="image/*"
-                        />
-                        {/* Show preview image if available */}
+                          accept="image}
                         {(variant.preview || (variant.image_url && !variant.preview)) && (
                           <div className="mt-2 variant-image-preview">
                             <img 
@@ -1232,8 +984,7 @@ const ProductManagement = () => {
                       </div>
                     </div>
                   ))}
-                  
-                  {/* Add Variant Button - Disable if no attributes are defined */}                  
+                  {}                  
                   {variantAttributes.length > 0 && (
                     <div className="d-flex justify-content-center my-4">
                       <button 
@@ -1245,12 +996,10 @@ const ProductManagement = () => {
                       </button>
                     </div>
                   )}
-                  
                 </div>
               )}
-              {/* --- END Variant Input Section --- */}
-              
-              {/* Form Buttons */}
+              {}
+              {}
               <div className="form-buttons">
                 <button 
                   type="button" 
@@ -1280,10 +1029,8 @@ const ProductManagement = () => {
           </div>
         </div>
       )}
-      
       <div className="products-list-container">
         <h2>Products List</h2>
-        
         {loading ? (
           <div className="loading">Loading products...</div>
         ) : products.length === 0 ? (
@@ -1320,5 +1067,4 @@ const ProductManagement = () => {
     </div>
   );
 };
-
 export default ProductManagement; 

@@ -3,7 +3,6 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import './NavBar.css';
-
 const NavBar = () => {
   const [scrolled, setScrolled] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -12,10 +11,7 @@ const NavBar = () => {
   const dropdownRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
-  
-  // Check if current page is shop
   const isShopPage = location.pathname === '/shop';
-  
   useEffect(() => {
     const handleScroll = () => {
       if (window.scrollY > 50) {
@@ -24,46 +20,35 @@ const NavBar = () => {
         setScrolled(false);
       }
     };
-    
     window.addEventListener('scroll', handleScroll);
-    
-    // Close dropdown when clicking outside
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setDropdownOpen(false);
       }
     };
-    
     document.addEventListener('mousedown', handleClickOutside);
-    
     return () => {
       window.removeEventListener('scroll', handleScroll);
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
-
   const toggleDropdown = () => {
     setDropdownOpen(!dropdownOpen);
   };
-
   const handleLogout = () => {
-    setDropdownOpen(false); // Close dropdown
-    logout(); // Call the logout function
+    setDropdownOpen(false); 
+    logout(); 
   };
-
-  // Determine navbar classes based on route and scroll state
   const isHomePage = location.pathname === '/';
   const navClassName = `navbar ${
-    !isHomePage || scrolled ? 'red' : 'transparent' // red unless homepage and not scrolled
+    !isHomePage || scrolled ? 'red' : 'transparent' 
   } ${scrolled ? 'scrolled' : ''}`;
-
   return (
     <>
       {loggingOut && <div className="logout-overlay">
         <div className="logout-spinner"></div>
         <p>Logging out...</p>
       </div>}
-      
       <nav className={navClassName}>
         <div className="navbar-container">
           <div className="navbar-logo">
@@ -74,7 +59,6 @@ const NavBar = () => {
               </div>
             </Link>
           </div>
-          
           <ul className="navbar-menu">
             <li className="navbar-item">
               <Link to="/" className="navbar-link">Home</Link>
@@ -95,7 +79,6 @@ const NavBar = () => {
               <Link to="#" className="navbar-link">Free Tools</Link>
             </li>
           </ul>
-          
           <div className="navbar-actions">
             <div className="search-bar">
               <input type="text" placeholder="Search for a product" />
@@ -106,7 +89,6 @@ const NavBar = () => {
                 </svg>
               </button>
             </div>
-            
             <div className="navbar-buttons">
               {user ? (
                 <div className="user-menu" ref={dropdownRef}>
@@ -120,7 +102,6 @@ const NavBar = () => {
                       <polyline points="6 9 12 15 18 9"></polyline>
                     </svg>
                   </button>
-                  
                   {dropdownOpen && (
                     <div className="dropdown-menu">
                       <Link to="/account" className="dropdown-item" onClick={() => setDropdownOpen(false)}>
@@ -174,5 +155,4 @@ const NavBar = () => {
     </>
   );
 };
-
 export default NavBar; 

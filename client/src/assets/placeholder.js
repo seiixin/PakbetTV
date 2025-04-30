@@ -1,39 +1,1 @@
-// Placeholder image URLs for the landing page
-// These URLs generate solid colored placeholders with the provided sizes
-// Using placehold.co instead of via.placeholder.com for more reliability
-
-export const placeholderImages = {
-  // Hero background - Red with logo text overlay
-  heroBackground: 'https://placehold.co/1920x1080/A2201A/FFFFFF?text=Feng+Shui+Harmony',
-  
-  // Product Images - Using secondary color
-  prosperityBuddha: 'https://placehold.co/300x300/FEC16E/A2201A?text=Prosperity+Buddha',
-  crystalWealthBowl: 'https://placehold.co/300x300/FEC16E/A2201A?text=Crystal+Wealth+Bowl',
-  bambooFlute: 'https://placehold.co/300x300/FEC16E/A2201A?text=Bamboo+Flute',
-  redAgateBracelet: 'https://placehold.co/300x300/FEC16E/A2201A?text=Red+Agate+Bracelet',
-  
-  // Category Images
-  waterElements: 'https://placehold.co/400x300/0066cc/FFFFFF?text=Water+Elements',
-  woodElements: 'https://placehold.co/400x300/006633/FFFFFF?text=Wood+Elements',
-  fireElements: 'https://placehold.co/400x300/A2201A/FFFFFF?text=Fire+Elements',
-  earthElements: 'https://placehold.co/400x300/996633/FFFFFF?text=Earth+Elements',
-  metalElements: 'https://placehold.co/400x300/cccccc/000000?text=Metal+Elements',
-  
-  // Prosper Guide Image
-  prosperGuide: 'https://placehold.co/600x600/A2201A/FFFFFF?text=2025+Prosper+Guide',
-  
-  // Aspiration Icons
-  wealthIcon: 'https://placehold.co/80x80/FEC16E/A2201A?text=$',
-  loveIcon: 'https://placehold.co/80x80/FEC16E/A2201A?text=♥',
-  careerIcon: 'https://placehold.co/80x80/FEC16E/A2201A?text=↗',
-  healthIcon: 'https://placehold.co/80x80/FEC16E/A2201A?text=+',
-  familyIcon: 'https://placehold.co/80x80/FEC16E/A2201A?text=⌂',
-  knowledgeIcon: 'https://placehold.co/80x80/FEC16E/A2201A?text=✓',
-  
-  // Blog Images
-  blogOffice: 'https://placehold.co/400x300/A2201A/FFFFFF?text=Home+Office',
-  blogWater: 'https://placehold.co/400x300/0066cc/FFFFFF?text=Water+Features',
-  blogBedroom: 'https://placehold.co/400x300/FEC16E/A2201A?text=Bedroom+Feng+Shui',
-};
-
-export default placeholderImages; 
+export const placeholderImages = {  heroBackground: 'https://placehold.co/1920x1080/A2201A/FFFFFF?text=Feng+Shui+Harmony',  prosperityBuddha: 'https://placehold.co/300x300/FEC16E/A2201A?text=Prosperity+Buddha',  crystalWealthBowl: 'https://placehold.co/300x300/FEC16E/A2201A?text=Crystal+Wealth+Bowl',  bambooFlute: 'https://placehold.co/300x300/FEC16E/A2201A?text=Bamboo+Flute',  redAgateBracelet: 'https://placehold.co/300x300/FEC16E/A2201A?text=Red+Agate+Bracelet',  waterElements: 'https://placehold.co/400x300/0066cc/FFFFFF?text=Water+Elements',  woodElements: 'https://placehold.co/400x300/006633/FFFFFF?text=Wood+Elements',  fireElements: 'https://placehold.co/400x300/A2201A/FFFFFF?text=Fire+Elements',  earthElements: 'https://placehold.co/400x300/996633/FFFFFF?text=Earth+Elements',  metalElements: 'https://placehold.co/400x300/cccccc/000000?text=Metal+Elements',  prosperGuide: 'https://placehold.co/600x600/A2201A/FFFFFF?text=2025+Prosper+Guide',  wealthIcon: 'https://placehold.co/80x80/FEC16E/A2201A?text=$',  loveIcon: 'https://placehold.co/80x80/FEC16E/A2201A?text=♥',  careerIcon: 'https://placehold.co/80x80/FEC16E/A2201A?text=↗',  healthIcon: 'https://placehold.co/80x80/FEC16E/A2201A?text=+',  familyIcon: 'https://placehold.co/80x80/FEC16E/A2201A?text=⌂',  knowledgeIcon: 'https://placehold.co/80x80/FEC16E/A2201A?text=✓',  blogOffice: 'https://placehold.co/400x300/A2201A/FFFFFF?text=Home+Office',  blogWater: 'https://placehold.co/400x300/0066cc/FFFFFF?text=Water+Features',  blogBedroom: 'https://placehold.co/400x300/FEC16E/A2201A?text=Bedroom+Feng+Shui',};export default placeholderImages; 

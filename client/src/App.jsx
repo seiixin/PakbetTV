@@ -15,13 +15,10 @@ import ProductDetailPage from './components/Shop/ProductDetailPage'
 import Cart from './components/Shop/Cart'
 import TransactionComplete from './components/Shop/TransactionComplete'
 import ProsperGuide from './components/Guides/ProsperGuide'
-
 function AppContent() {
   const location = useLocation();
   const isAuthPage = location.pathname === '/login' || location.pathname === '/signup';
-  
   console.log('Current location:', location.pathname);
-  
   return (
     <>
       {!isAuthPage && <NavBar />}
@@ -43,10 +40,8 @@ function AppContent() {
     </>
   );
 }
-
 function App() {
   console.log('App component rendering');
-  
   return (
     <Router>
       <AuthProvider>
@@ -57,5 +52,4 @@ function App() {
     </Router>
   )
 }
-
 export default App

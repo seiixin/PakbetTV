@@ -8,7 +8,7 @@ const readFile = promisify(fs.readFile);
 const writeFile = promisify(fs.writeFile);
 
 // Directories to process
-const targetDirs = ['server', path.join('client', 'src')];
+const targetDirs = ['server', path.join('client', 'src')]; // Ensure client src is included
 // File extensions to process
 const fileExtensions = ['.js', '.jsx', '.css'];
 // Directories to skip
@@ -17,7 +17,6 @@ const skipDirs = ['node_modules', 'dist', 'build', '.git'];
 // Regex to remove multi-line comments (works for JS, JSX, CSS)
 const multiLineCommentRegex = /\/\*[\s\S]*?\*\//g;
 // Regex to remove single-line comments (JS/JSX only)
-// This is slightly more complex to avoid matching URLs like http://...
 const jsSingleLineCommentRegex = /(?<!https?:)\/\/.*$/gm;
 
 async function processFile(filePath) {
@@ -35,7 +34,6 @@ async function processFile(filePath) {
         }
 
         // Remove empty lines that might be left after comment removal
-        // This removes lines that are completely empty or contain only whitespace
         newContent = newContent.replace(/^\s*$[\r\n]/gm, '');
 
         if (newContent !== originalContent) {
@@ -58,7 +56,6 @@ async function walkDir(dir) {
             if (entry.isDirectory()) {
                 // Skip specified directories
                 if (skipDirs.includes(entry.name)) {
-                    // console.log(`Skipping directory: ${fullPath}`);
                     continue;
                 }
                 await walkDir(fullPath);
@@ -70,7 +67,7 @@ async function walkDir(dir) {
         if (error.code === 'EPERM' || error.code === 'EACCES') {
             // console.warn(`Permission denied, skipping directory: ${dir}`);
         } else {
-             console.error(`Error reading directory ${dir}:`, error);
+            console.error(`Error reading directory ${dir}:`, error);
         }
     }
 }
@@ -83,13 +80,13 @@ async function purgeComments() {
     for (const dir of targetDirs) {
         const absoluteDir = path.join(workspaceRoot, dir);
         if (fs.existsSync(absoluteDir)) {
-             console.log(`Processing directory: ${absoluteDir}`);
-             await walkDir(absoluteDir);
+            console.log(`Processing directory: ${absoluteDir}`);
+            await walkDir(absoluteDir);
         } else {
-             console.warn(`Directory not found, skipping: ${absoluteDir}`);
+            console.warn(`Directory not found, skipping: ${absoluteDir}`);
         }
     }
     console.log('\nComment purge finished.');
 }
 
-purgeComments(); 
+purgeComments();

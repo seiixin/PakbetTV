@@ -1,260 +1,1 @@
-const express = require('express');
-const router = express.Router();
-const { body, validationResult } = require('express-validator');
-const db = require('../config/db');
-const { auth } = require('../middleware/auth');
-
-// @route   GET api/cart
-// @desc    Get user's cart items
-// @access  Private
-router.get('/', auth, async (req, res) => {
-  try {
-    const userId = req.user.user.id;
-
-    // Get cart items with product details and variant info
-    const [cartItems] = await db.query(`
-      SELECT c.cart_id, c.user_id, c.product_id, c.variant_id, c.quantity, c.created_at, c.updated_at,
-             p.name AS product_name, p.product_code, p.description,
-             COALESCE(
-               (SELECT price FROM product_variants WHERE variant_id = c.variant_id),
-               (SELECT MIN(price) FROM product_variants WHERE product_id = p.product_id)
-             ) AS price,
-             COALESCE(
-               (SELECT stock FROM product_variants WHERE variant_id = c.variant_id),
-               (SELECT SUM(stock) FROM product_variants WHERE product_id = p.product_id)
-             ) AS stock,
-             COALESCE(
-               (SELECT image_url FROM product_variants WHERE variant_id = c.variant_id),
-               (SELECT image_url FROM product_variants WHERE product_id = p.product_id LIMIT 1)
-             ) AS image_url,
-             (SELECT size FROM product_variants WHERE variant_id = c.variant_id) AS size,
-             (SELECT color FROM product_variants WHERE variant_id = c.variant_id) AS color,
-             (SELECT sku FROM product_variants WHERE variant_id = c.variant_id) AS sku
-      FROM cart c
-      JOIN products p ON c.product_id = p.product_id
-      WHERE c.user_id = ?
-    `, [userId]);
-
-    res.json(cartItems);
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// @route   POST api/cart
-// @desc    Add item to cart
-// @access  Private
-router.post(
-  '/',
-  [
-    auth,
-    body('product_id', 'Product ID is required').isNumeric(),
-    body('quantity', 'Quantity must be a positive number').isInt({ min: 1 })
-  ],
-  async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    try {
-      const userId = req.user.user.id;
-      const { product_id, quantity, variant_id } = req.body;
-
-      // Check if product exists
-      const [products] = await db.query('SELECT * FROM products WHERE product_id = ?', [product_id]);
-      if (products.length === 0) {
-        return res.status(404).json({ message: 'Product not found' });
-      }
-
-      // If variant_id is provided, check if it exists and has enough stock
-      if (variant_id) {
-        const [variant] = await db.query('SELECT * FROM product_variants WHERE variant_id = ? AND product_id = ?', [variant_id, product_id]);
-        if (variant.length === 0) {
-          return res.status(404).json({ message: 'Variant not found for this product' });
-        }
-        
-        if (variant[0].stock < quantity) {
-          return res.status(400).json({ message: 'Not enough stock available for the selected variant' });
-        }
-      } else {
-        // If no variant_id, check if product has at least one variant with stock
-        const [variants] = await db.query('SELECT SUM(stock) AS total_stock FROM product_variants WHERE product_id = ?', [product_id]);
-        if (!variants[0].total_stock || variants[0].total_stock < quantity) {
-          return res.status(400).json({ message: 'Not enough stock available' });
-        }
-      }
-
-      // Check if item (with the same variant) is already in cart
-      let existingQuery = 'SELECT * FROM cart WHERE user_id = ? AND product_id = ?';
-      let queryParams = [userId, product_id];
-      
-      if (variant_id) {
-        existingQuery += ' AND variant_id = ?';
-        queryParams.push(variant_id);
-      } else {
-        existingQuery += ' AND variant_id IS NULL';
-      }
-      
-      const [existingItems] = await db.query(existingQuery, queryParams);
-
-      if (existingItems.length > 0) {
-        // Update quantity if item already exists
-        const newQuantity = existingItems[0].quantity + quantity;
-        
-        // Ensure new quantity doesn't exceed available stock
-        if (variant_id) {
-          const [variant] = await db.query('SELECT stock FROM product_variants WHERE variant_id = ?', [variant_id]);
-          if (newQuantity > variant[0].stock) {
-            return res.status(400).json({ message: 'Not enough stock available for the requested quantity' });
-          }
-        } else {
-          const [variants] = await db.query('SELECT SUM(stock) AS total_stock FROM product_variants WHERE product_id = ?', [product_id]);
-          if (newQuantity > variants[0].total_stock) {
-            return res.status(400).json({ message: 'Not enough stock available for the requested quantity' });
-          }
-        }
-        
-        await db.query(
-          'UPDATE cart SET quantity = ?, updated_at = NOW() WHERE cart_id = ?',
-          [newQuantity, existingItems[0].cart_id]
-        );
-
-        return res.json({
-          message: 'Cart updated successfully',
-          item: {
-            cart_id: existingItems[0].cart_id,
-            product_id,
-            variant_id: variant_id || null,
-            quantity: newQuantity
-          }
-        });
-      }
-
-      // Add new item to cart
-      const insertQuery = variant_id
-        ? 'INSERT INTO cart (user_id, product_id, variant_id, quantity) VALUES (?, ?, ?, ?)'
-        : 'INSERT INTO cart (user_id, product_id, quantity) VALUES (?, ?, ?)';
-        
-      const insertParams = variant_id
-        ? [userId, product_id, variant_id, quantity]
-        : [userId, product_id, quantity];
-        
-      const [result] = await db.query(insertQuery, insertParams);
-
-      res.status(201).json({
-        message: 'Item added to cart',
-        item: {
-          cart_id: result.insertId,
-          user_id: userId,
-          product_id,
-          variant_id: variant_id || null,
-          quantity
-        }
-      });
-    } catch (err) {
-      console.error(err.message);
-      res.status(500).json({ message: 'Server error' });
-    }
-  }
-);
-
-// @route   PUT api/cart/:id
-// @desc    Update cart item quantity
-// @access  Private
-router.put(
-  '/:id',
-  [
-    auth,
-    body('quantity', 'Quantity must be a positive number').isInt({ min: 1 })
-  ],
-  async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    try {
-      const cartId = req.params.id;
-      const userId = req.user.user.id;
-      const { quantity } = req.body;
-
-      // Check if cart item exists and belongs to user
-      const [cartItems] = await db.query(
-        'SELECT c.*, (SELECT SUM(stock) FROM product_variants WHERE product_id = c.product_id) AS available_stock FROM cart c WHERE c.cart_id = ? AND c.user_id = ?',
-        [cartId, userId]
-      );
-
-      if (cartItems.length === 0) {
-        return res.status(404).json({ message: 'Cart item not found' });
-      }
-
-      // Check stock availability
-      if (quantity > cartItems[0].available_stock) {
-        return res.status(400).json({ message: 'Not enough stock available' });
-      }
-
-      // Update cart item
-      await db.query(
-        'UPDATE cart SET quantity = ?, updated_at = NOW() WHERE cart_id = ?',
-        [quantity, cartId]
-      );
-
-      res.json({
-        message: 'Cart updated successfully',
-        item: {
-          cart_id: cartId,
-          quantity
-        }
-      });
-    } catch (err) {
-      console.error(err.message);
-      res.status(500).json({ message: 'Server error' });
-    }
-  }
-);
-
-// @route   DELETE api/cart/:id
-// @desc    Remove item from cart
-// @access  Private
-router.delete('/:id', auth, async (req, res) => {
-  try {
-    const cartId = req.params.id;
-    const userId = req.user.user.id;
-
-    // Delete cart item if it belongs to user
-    const [result] = await db.query(
-      'DELETE FROM cart WHERE cart_id = ? AND user_id = ?',
-      [cartId, userId]
-    );
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: 'Cart item not found' });
-    }
-
-    res.json({ message: 'Item removed from cart' });
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// @route   DELETE api/cart
-// @desc    Clear user's cart
-// @access  Private
-router.delete('/', auth, async (req, res) => {
-  try {
-    const userId = req.user.user.id;
-
-    // Delete all cart items for user
-    await db.query('DELETE FROM cart WHERE user_id = ?', [userId]);
-
-    res.json({ message: 'Cart cleared successfully' });
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-module.exports = router; 
+const express = require('express');const router = express.Router();const { body, validationResult } = require('express-validator');const db = require('../config/db');const { auth } = require('../middleware/auth');router.get('/', auth, async (req, res) => {  try {    const userId = req.user.user.id;    const [cartItems] = await db.query(`      SELECT c.cart_id, c.user_id, c.product_id, c.variant_id, c.quantity, c.created_at, c.updated_at,             p.name AS product_name, p.product_code, p.description,             COALESCE(               (SELECT price FROM product_variants WHERE variant_id = c.variant_id),               (SELECT MIN(price) FROM product_variants WHERE product_id = p.product_id)             ) AS price,             COALESCE(               (SELECT stock FROM product_variants WHERE variant_id = c.variant_id),               (SELECT SUM(stock) FROM product_variants WHERE product_id = p.product_id)             ) AS stock,             COALESCE(               (SELECT image_url FROM product_variants WHERE variant_id = c.variant_id),               (SELECT image_url FROM product_variants WHERE product_id = p.product_id LIMIT 1)             ) AS image_url,             (SELECT size FROM product_variants WHERE variant_id = c.variant_id) AS size,             (SELECT color FROM product_variants WHERE variant_id = c.variant_id) AS color,             (SELECT sku FROM product_variants WHERE variant_id = c.variant_id) AS sku      FROM cart c      JOIN products p ON c.product_id = p.product_id      WHERE c.user_id = ?    `, [userId]);    res.json(cartItems);  } catch (err) {    console.error(err.message);    res.status(500).json({ message: 'Server error' });  }});router.post(  '/',  [    auth,    body('product_id', 'Product ID is required').isNumeric(),    body('quantity', 'Quantity must be a positive number').isInt({ min: 1 })  ],  async (req, res) => {    const errors = validationResult(req);    if (!errors.isEmpty()) {      return res.status(400).json({ errors: errors.array() });    }    try {      const userId = req.user.user.id;      const { product_id, quantity, variant_id } = req.body;      const [products] = await db.query('SELECT * FROM products WHERE product_id = ?', [product_id]);      if (products.length === 0) {        return res.status(404).json({ message: 'Product not found' });      }      if (variant_id) {        const [variant] = await db.query('SELECT * FROM product_variants WHERE variant_id = ? AND product_id = ?', [variant_id, product_id]);        if (variant.length === 0) {          return res.status(404).json({ message: 'Variant not found for this product' });        }        if (variant[0].stock < quantity) {          return res.status(400).json({ message: 'Not enough stock available for the selected variant' });        }      } else {        const [variants] = await db.query('SELECT SUM(stock) AS total_stock FROM product_variants WHERE product_id = ?', [product_id]);        if (!variants[0].total_stock || variants[0].total_stock < quantity) {          return res.status(400).json({ message: 'Not enough stock available' });        }      }      let existingQuery = 'SELECT * FROM cart WHERE user_id = ? AND product_id = ?';      let queryParams = [userId, product_id];      if (variant_id) {        existingQuery += ' AND variant_id = ?';        queryParams.push(variant_id);      } else {        existingQuery += ' AND variant_id IS NULL';      }      const [existingItems] = await db.query(existingQuery, queryParams);      if (existingItems.length > 0) {        const newQuantity = existingItems[0].quantity + quantity;        if (variant_id) {          const [variant] = await db.query('SELECT stock FROM product_variants WHERE variant_id = ?', [variant_id]);          if (newQuantity > variant[0].stock) {            return res.status(400).json({ message: 'Not enough stock available for the requested quantity' });          }        } else {          const [variants] = await db.query('SELECT SUM(stock) AS total_stock FROM product_variants WHERE product_id = ?', [product_id]);          if (newQuantity > variants[0].total_stock) {            return res.status(400).json({ message: 'Not enough stock available for the requested quantity' });          }        }        await db.query(          'UPDATE cart SET quantity = ?, updated_at = NOW() WHERE cart_id = ?',          [newQuantity, existingItems[0].cart_id]        );        return res.json({          message: 'Cart updated successfully',          item: {            cart_id: existingItems[0].cart_id,            product_id,            variant_id: variant_id || null,            quantity: newQuantity          }        });      }      const insertQuery = variant_id        ? 'INSERT INTO cart (user_id, product_id, variant_id, quantity) VALUES (?, ?, ?, ?)'        : 'INSERT INTO cart (user_id, product_id, quantity) VALUES (?, ?, ?)';      const insertParams = variant_id        ? [userId, product_id, variant_id, quantity]        : [userId, product_id, quantity];      const [result] = await db.query(insertQuery, insertParams);      res.status(201).json({        message: 'Item added to cart',        item: {          cart_id: result.insertId,          user_id: userId,          product_id,          variant_id: variant_id || null,          quantity        }      });    } catch (err) {      console.error(err.message);      res.status(500).json({ message: 'Server error' });    }  });router.put(  '/:id',  [    auth,    body('quantity', 'Quantity must be a positive number').isInt({ min: 1 })  ],  async (req, res) => {    const errors = validationResult(req);    if (!errors.isEmpty()) {      return res.status(400).json({ errors: errors.array() });    }    try {      const cartId = req.params.id;      const userId = req.user.user.id;      const { quantity } = req.body;      const [cartItems] = await db.query(        'SELECT c.*, (SELECT SUM(stock) FROM product_variants WHERE product_id = c.product_id) AS available_stock FROM cart c WHERE c.cart_id = ? AND c.user_id = ?',        [cartId, userId]      );      if (cartItems.length === 0) {        return res.status(404).json({ message: 'Cart item not found' });      }      if (quantity > cartItems[0].available_stock) {        return res.status(400).json({ message: 'Not enough stock available' });      }      await db.query(        'UPDATE cart SET quantity = ?, updated_at = NOW() WHERE cart_id = ?',        [quantity, cartId]      );      res.json({        message: 'Cart updated successfully',        item: {          cart_id: cartId,          quantity        }      });    } catch (err) {      console.error(err.message);      res.status(500).json({ message: 'Server error' });    }  });router.delete('/:id', auth, async (req, res) => {  try {    const cartId = req.params.id;    const userId = req.user.user.id;    const [result] = await db.query(      'DELETE FROM cart WHERE cart_id = ? AND user_id = ?',      [cartId, userId]    );    if (result.affectedRows === 0) {      return res.status(404).json({ message: 'Cart item not found' });    }    res.json({ message: 'Item removed from cart' });  } catch (err) {    console.error(err.message);    res.status(500).json({ message: 'Server error' });  }});router.delete('/', auth, async (req, res) => {  try {    const userId = req.user.user.id;    await db.query('DELETE FROM cart WHERE user_id = ?', [userId]);    res.json({ message: 'Cart cleared successfully' });  } catch (err) {    console.error(err.message);    res.status(500).json({ message: 'Server error' });  }});module.exports = router; 

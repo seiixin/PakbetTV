@@ -11,7 +11,6 @@
   display: flex;
   align-items: center;
 }
-
 .navbar-container {
   display: flex;
   justify-content: flex-start;
@@ -19,18 +18,15 @@
   width: 100%;
   padding: 0 20px;
 }
-
 .navbar-logo {
   display: flex;
   align-items: center;
   margin-right: 40px;
 }
-
 .logo-text {
   display: flex;
   flex-direction: column;
 }
-
 .logo-text h3 {
   color: var(--primary-color);
   font-size: 16px;
@@ -38,14 +34,12 @@
   margin: 0;
   text-transform: uppercase;
 }
-
 .logo-text p {
   color: var(--primary-color);
   font-size: 10px;
   margin: 0;
   text-transform: uppercase;
 }
-
 .navbar-menu {
   display: flex;
   list-style: none;
@@ -53,11 +47,9 @@
   padding: 0;
   flex-grow: 1;
 }
-
 .navbar-item {
   margin: 0 20px 0 0;
 }
-
 .navbar-link {
   color: var(--secondary-color);
   text-decoration: none;
@@ -66,23 +58,19 @@
   transition: color 0.3s ease;
   position: relative;
 }
-
 .navbar-link:hover {
   color: white;
 }
-
 .navbar-actions {
   display: flex;
   align-items: center;
   margin-left: auto;
 }
-
 .search-bar {
   display: flex;
   position: relative;
   margin-right: 15px;
 }
-
 .search-bar input {
   padding: 8px 15px;
   padding-right: 35px;
@@ -94,11 +82,9 @@
   font-size: 14px;
   height: 36px;
 }
-
 .search-bar input::placeholder {
   color: rgba(162, 32, 26, 0.7);
 }
-
 .search-button {
   position: absolute;
   right: 12px;
@@ -113,17 +99,14 @@
   justify-content: center;
   padding: 0;
 }
-
 .search-button svg {
   width: 16px;
   height: 16px;
 }
-
 .navbar-buttons {
   display: flex;
   align-items: center;
 }
-
 .profile-button, .cart-button {
   background-color: #2b2b2b;
   border: none;
@@ -134,239 +117,187 @@
   align-items: center;
   padding: 8px 12px;
   border-radius: 20px;
-  height: 36px; /* Set fixed height for consistency */
+  height: 36px; 
 }
-
 .profile-button {
   margin-right: 15px;
 }
-
 .profile-button svg, .cart-button svg {
   width: 16px;
   height: 16px;
   stroke: var(--secondary-color);
 }
-
 .profile-button span, .cart-button span {
   margin: 0 5px;
 }
-
 .cart-icon {
   margin-left: 5px;
 }
-
-/* Red navbar variant */
 .navbar.red {
   background-color: var(--primary-color, #A2201A);
 }
-
 .navbar.red .logo-text h3,
 .navbar.red .logo-text p {
   color: var(--secondary-color);
 }
-
 .navbar.red .navbar-link {
   color: var(--secondary-color);
 }
-
 .navbar.red .navbar-link:hover {
   color: white;
 }
-
 .navbar.red .search-bar input {
   border: none;
   background-color: white;
   color: var(--primary-color);
 }
-
 .navbar.red .search-bar input::placeholder {
   color: rgba(162, 32, 26, 0.7);
 }
-
 .navbar.red .search-button {
   color: var(--primary-color);
 }
-
 .navbar.red .profile-button {
   background-color: #2b2b2b;
   color: var(--secondary-color);
   border: none;
 }
-
 .navbar.red .cart-button {
   background-color: #2b2b2b;
   color: var(--secondary-color);
   border: none;
 }
-
 .navbar.red .search-button svg {
   stroke: var(--primary-color);
 }
-
 .navbar.red .profile-button svg {
   stroke: var(--secondary-color);
 }
-
 .navbar.red .cart-icon {
   stroke: var(--secondary-color);
 }
-
-/* Add a semi-transparent background when scrolled */
 .navbar.scrolled {
   background-color: var(--primary-color, #A2201A);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
-
 .navbar.scrolled .navbar-link {
   color: var(--secondary-color);
 }
-
 .navbar.scrolled .navbar-link:hover {
   color: white;
 }
-
 .navbar.scrolled .search-bar input {
   border: none;
   background-color: white;
   color: var(--primary-color);
 }
-
 .navbar.scrolled .search-bar input::placeholder {
   color: rgba(162, 32, 26, 0.7);
 }
-
 .navbar.scrolled .search-button {
   color: var(--primary-color);
 }
-
 .navbar.scrolled .profile-button {
   background-color: #2b2b2b;
   color: var(--secondary-color);
   border: none;
 }
-
 .navbar.scrolled .cart-button {
   background-color: #2b2b2b;
   color: var(--secondary-color);
   border: none;
 }
-
 .navbar.scrolled .search-button svg {
   stroke: var(--primary-color);
 }
-
 .navbar.scrolled .profile-button svg {
   stroke: var(--secondary-color);
 }
-
 .navbar.scrolled .cart-icon {
   stroke: var(--secondary-color);
 }
-
-/* Responsive */
 @media screen and (max-width: 1024px) {
   .navbar-menu {
     display: none;
   }
-  
   .search-bar input {
     width: 150px;
   }
 }
-
 @media screen and (max-width: 768px) {
   .navbar-container {
     padding: 0 15px;
   }
-  
   .navbar-menu {
     display: none;
   }
-  
   .search-bar {
     display: none;
   }
-  
   .navbar-logo {
     margin-right: 0;
   }
-  
   .logo-text h3 {
     font-size: 14px;
   }
-  
   .logo-text p {
     font-size: 8px;
   }
-  
   .cart-button span {
     display: none;
   }
-  
   .cart-button {
     padding: 8px;
   }
-  
   .profile-button span {
     display: none;
   }
-  
   .auth-buttons {
     display: flex;
   }
-  
   .login-button, .signup-button {
     padding: 6px 10px;
     font-size: 12px;
   }
 }
-
 .logo-link {
   text-decoration: none;
   color: inherit;
 }
-
 .auth-buttons {
   display: flex;
   gap: 1rem;
   align-items: center;
   margin-right: 1rem;
 }
-
 .login-button, .signup-button {
   text-decoration: none;
   font-weight: 500;
   font-size: 14px;
   transition: all 0.3s ease;
 }
-
 .login-button {
   color: #e8b25d;
 }
-
 .signup-button {
   background-color: #e8b25d;
   color: white;
   padding: 0.5rem 1rem;
   border-radius: 4px;
 }
-
 .login-button:hover {
   color: #b48c4b;
 }
-
 .signup-button:hover {
   background-color: #b48c4b;
 }
-
 .user-menu {
   display: flex;
   gap: 1rem;
   align-items: center;
   position: relative;
 }
-
 .profile-button, .logout-button {
   display: flex;
   align-items: center;
@@ -379,23 +310,19 @@
   padding: 0.5rem;
   transition: all 0.3s ease;
 }
-
 .profile-button {
   background-color: #2b2b2b;
   border-radius: 20px;
   padding: 8px 12px;
   height: 36px;
 }
-
 .dropdown-arrow {
   margin-left: 4px;
   transition: transform 0.3s ease;
 }
-
 .profile-button:hover .dropdown-arrow {
   transform: rotate(180deg);
 }
-
 .dropdown-menu {
   position: absolute;
   top: 45px;
@@ -409,7 +336,6 @@
   display: flex;
   flex-direction: column;
 }
-
 .dropdown-item {
   display: flex;
   align-items: center;
@@ -421,21 +347,17 @@
   transition: background-color 0.3s;
   border-bottom: 1px solid #eee;
 }
-
 .dropdown-item:last-child {
   border-bottom: none;
 }
-
 .dropdown-item svg {
   width: 18px;
   height: 18px;
   stroke: #555;
 }
-
 .dropdown-item:hover {
   background-color: #f8f8f8;
 }
-
 .logout-item {
   background: none;
   width: 100%;
@@ -444,16 +366,12 @@
   cursor: pointer;
   color: #e74c3c;
 }
-
 .logout-item svg {
   stroke: #e74c3c;
 }
-
 .logout-item:hover {
   background-color: #fff5f5;
 }
-
-/* Logout Overlay Styles */
 .logout-overlay {
   position: fixed;
   top: 0;
@@ -469,14 +387,12 @@
   backdrop-filter: blur(5px);
   animation: fadeIn 0.3s ease;
 }
-
 .logout-overlay p {
   color: white;
   font-size: 1.2rem;
   margin-top: 1.5rem;
   font-weight: 600;
 }
-
 .logout-spinner {
   width: 50px;
   height: 50px;
@@ -485,13 +401,11 @@
   border-top-color: white;
   animation: spin 1s ease-in-out infinite;
 }
-
 @keyframes spin {
   to {
     transform: rotate(360deg);
   }
 }
-
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -500,22 +414,14 @@
     opacity: 1;
   }
 }
-
-/* Disabled button styles */
 button:disabled {
   opacity: 0.6;
   cursor: not-allowed !important;
 }
-
-/* Add shop page specific navbar styling */
 .navbar.shop-page {
-  /* background-color: rgba(162, 32, 26, 1); */
 }
-
 .navbar.shop-page.scrolled {
-  /* background-color: rgba(162, 32, 26, 0.95); */
 }
-
 .navbar.transparent {
   background-color: transparent;
   box-shadow: none;

@@ -1,14 +1,11 @@
 @import url('https://fonts.googleapis.com/css2?family=ZCOOL+XiaoWei&display=swap');
-
-/* General Styles */
 body {
-  font-family: 'ZCOOL XiaoWei', serif; /* Apply ZCOOL XiaoWei globally */
+  font-family: 'ZCOOL XiaoWei', serif; 
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  background-color: #f8f8f8; /* Example background */
+  background-color: #f8f8f8; 
 }
-
 .home {
   width: 100vw;
   max-width: 100vw;
@@ -17,25 +14,21 @@ body {
   padding: 0;
   position: relative;
 }
-
 .section-header {
   text-align: center;
   margin-bottom: 3rem;
   padding: 0 2rem;
 }
-
 .section-header h2 {
   font-size: 2.5rem;
   color: black;
   margin-bottom: 0.5rem;
-  font-family: 'ZCOOL XiaoWei', serif; /* Apply ZCOOL XiaoWei */
+  font-family: 'ZCOOL XiaoWei', serif; 
 }
-
 .section-header p {
   font-size: 1.1rem;
   color: var(--black-color);
 }
-
 .primary-button {
   background-color: #A2201A !important;
   color: white !important;
@@ -49,12 +42,10 @@ body {
   margin-top: -20px;
   margin-right: 20px;
 }
-
 .primary-button:hover {
   background-color: #6f1712 !important;
   transform: translateY(-2px);
 }
-
 .secondary-button {
   background-color: var(--secondary-color);
   color: var(--black-color);
@@ -66,19 +57,15 @@ body {
   cursor: pointer;
   transition: all 0.3s ease;
 }
-
 .secondary-button:hover {
   background-color: #e8b25d;
   transform: translateY(-2px);
 }
-
 section {
   padding: 5rem 0;
   width: 100%;
   margin: 0;
 }
-
-/* Hero Section */
 .hero-section {
   background-color: var(--primary-color);
   color: var(--white-color);
@@ -90,7 +77,6 @@ section {
   position: relative;
   overflow: hidden;
 }
-
 .hero-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -101,7 +87,6 @@ section {
   height: 100%;
   width: 100%;
 }
-
 .hero-top-left {
   grid-area: top-left;
   display: flex;
@@ -112,7 +97,6 @@ section {
   padding-right: 2rem;
   margin-top: -200px;
 }
-
 .hero-top-right {
   grid-area: top-right;
   display: flex;
@@ -120,11 +104,9 @@ section {
   align-items: center;
   justify-content: center;
 }
-
 .hero-bottom-left {
   grid-area: bottom-left;
 }
-
 .hero-bottom-right {
   grid-area: bottom-right;
   display: flex;
@@ -135,16 +117,14 @@ section {
   right: 0;
   margin-left: 80px;
 }
-
 .hero-top-right img {
-  margin-top: -50px; /* Reverted to original value */
+  margin-top: -50px; 
   margin-left: 120px;
   max-width: 200%;
   max-height: 100%;
   object-fit: contain;
   width: 100%;
 }
-
 .hero-why-consult {
   width: 110%;
   display: flex;
@@ -154,7 +134,6 @@ section {
   text-align: center;
   margin-left: 150px;
 }
-
 .hero-why-consult h3 {
   font-size: 1.3rem;
   margin-bottom: 1.1rem;
@@ -162,7 +141,6 @@ section {
   text-transform: uppercase;
   font-weight: bold;
 }
-
 .why-consult-icons {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -172,7 +150,6 @@ section {
   max-width: 400px;
   margin-bottom: 22px;
 }
-
 .why-consult-icon {
   display: flex;
   justify-content: center;
@@ -182,13 +159,11 @@ section {
   height: 55px;
   margin: 0 auto;
 }
-
 .why-consult-icon img {
   width: 80px;
   height: 80px;
   object-fit: contain;
 }
-
 .hero-content {
   width: 100%;
   display: flex;
@@ -196,7 +171,6 @@ section {
   align-items: center;
   margin-top: 200px;
 }
-
 .hero-content .hero-logo {
   max-width: 400px;
   height: auto;
@@ -209,7 +183,6 @@ section {
   object-fit: contain;
   z-index: 1;
 }
-
 .hero-content h1 {
   font-size: 4rem;
   margin-bottom: 0.5rem;
@@ -218,7 +191,7 @@ section {
   font-weight: bold;
   text-align: center;
   width: 100%;
-  font-family: sans-serif; /* Explicitly set fallback sans-serif */
+  font-family: sans-serif; 
 }
 .hero-content h2 {
   font-size: 2rem;
@@ -228,7 +201,7 @@ section {
   font-weight: bold;
   text-align: center;
   width: 100%;
-  font-family: sans-serif; /* Explicitly set fallback sans-serif */
+  font-family: sans-serif; 
 }
 .hero-content p {
   font-size: 1.2rem;
@@ -247,14 +220,11 @@ section {
   border-width: 1px;
   border-style: solid;
 }
-
-/* New Arrivals Section */
 .new-arrivals {
   padding: 60px 20px;
   background-color: #fff;
   text-align: center;
 }
-
 .new-arrivals-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
@@ -264,7 +234,6 @@ section {
   margin-top: -40px;
   max-width: 1200px;
 }
-
 .carousel-product-card {
   display: flex;
   flex-direction: column;
@@ -277,12 +246,10 @@ section {
   height: 320px;
   position: relative;
 }
-
 .carousel-product-card:hover {
   transform: translateY(-5px);
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
 }
-
 .product-image {
   height: 180px;
   width: 100%;
@@ -291,7 +258,6 @@ section {
   background-repeat: no-repeat;
   position: relative;
 }
-
 .discount-percentage-tag {
   position: absolute;
   top: 10px;
@@ -303,7 +269,6 @@ section {
   font-size: 12px;
   font-weight: bold;
 }
-
 .shop-product-details {
   padding: 12px;
   flex-grow: 1;
@@ -311,11 +276,9 @@ section {
   flex-direction: column;
   justify-content: space-between;
 }
-
 .product-info {
   margin-bottom: 10px;
 }
-
 .product-info h3 {
   font-size: 0.9rem;
   margin: 0 0 5px 0;
@@ -329,58 +292,48 @@ section {
   line-height: 1.4;
   text-align: left;
 }
-
 .product-card-bottom {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-top: auto;
 }
-
 .product-price {
   font-weight: bold;
   font-size: 1rem;
   color: #a2201a;
   text-align: left;
 }
-
 .price-amount {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
 }
-
 .discounted-price {
   font-weight: bold;
   color: #a2201a;
 }
-
 .original-price {
   text-decoration: line-through;
   color: #999;
   font-size: 0.8rem;
   margin-top: 2px;
 }
-
 .regular-price {
   font-weight: bold;
   color: #a2201a;
 }
-
 .items-sold {
   font-size: 0.8rem;
   color: #888;
   text-align: right;
 }
-
-/* Categories Section */
 .categories {
   background-color: #f9f9f9;
   width: 100%;
   margin: 0;
   padding: 5rem 0;
 }
-
 .categories-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -391,7 +344,6 @@ section {
   height: 100%;
   width: 100%;
 }
-
 .category-card {
   background-color: var(--white-color);
   border-radius: 12px;
@@ -404,75 +356,61 @@ section {
   height: 100%;
   width: 100%;
 }
-
 .category-card:hover {
   transform: translateY(-5px);
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
 }
-
 .category-image {
-  height: 100%; /* Adjust height as needed */
-  background-image: linear-gradient(to bottom, #A2201A, #800000); /* Maroon Gradient */
+  height: 100%; 
+  background-image: linear-gradient(to bottom, #A2201A, #800000); 
   width: 100%;
-  display: flex; /* Use flexbox for centering the img */
-  align-items: center; /* Center vertically */
-  justify-content: center; /* Center horizontally */
-  padding: 1rem; /* Add some padding around the image */
-  box-sizing: border-box; /* Include padding in height/width */
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  padding: 1rem; 
+  box-sizing: border-box; 
 }
-
 .category-image img {
-  max-width: 100%; /* Ensure image doesn't overflow */
-  max-height: 100%; /* Ensure image doesn't overflow */
-  height: 80%; /* Adjust size relative to container, e.g., 80% */
-  object-fit: contain; /* Maintain aspect ratio */
+  max-width: 100%; 
+  max-height: 100%; 
+  height: 80%; 
+  object-fit: contain; 
 }
-
 .category-card h3 {
   padding: 1rem;
   font-size: 1.1rem;
-  color: var(--primary-color); /* Use primary color for text */
+  color: var(--primary-color); 
   margin: 0;
-  background-color: var(--white-color); /* Ensure text background is white */
-  border-top: 1px solid #eee; /* Optional separator line */
+  background-color: var(--white-color); 
+  border-top: 1px solid #eee; 
 }
-
-/* New Prosper Guide Section Styles */
 .prosper-guide-section {
-  background-color: white; /* Or your desired background */
+  background-color: white; 
   width: 100%;
   margin: 0;
   padding: 4rem 0;
   text-align: center;
 }
-
 .prosper-header h2 {
-  font-size: 2.8rem; /* Adjust as needed */
+  font-size: 2.8rem; 
   color: black; 
   margin-bottom: 0.5rem;
-  /* font-family: serif; */ /* Removed serif font to inherit ZCOOL */
 }
-
 .prosper-header p {
-  font-size: 1.2rem; /* Adjust as needed */
-  color: #555; /* Adjust color */
+  font-size: 1.2rem; 
+  color: #555; 
   margin-bottom: 3rem;
-  font-family: sans-serif; /* Example: Use a sans-serif font */
+  font-family: sans-serif; 
 }
-
 .zodiac-icons-container {
   display: flex;
-  flex-wrap: wrap; /* Allow wrapping, but we'll try to fit them */
-  justify-content: center; /* Center items horizontally */
-  gap: 1rem; /* Reduce the gap between items */
-  max-width: 2000px; /* Or adjust as needed */
+  flex-wrap: wrap; 
+  justify-content: center; 
+  gap: 1rem; 
+  max-width: 2000px; 
   margin: 0 auto;
   padding: 0 1rem; 
-  /* Remove overflow-x and scrollbar styles */
 }
-
-/* Remove scrollbar styles */
-
 .zodiac-item {
   display: flex;
   flex-direction: column;
@@ -487,21 +425,18 @@ section {
   flex-shrink: 1; 
   flex-basis: calc(100% / 12 - 1rem);
 }
-
 .zodiac-item:hover {
-  transform: translateY(-4px); /* Adjust hover effect */
+  transform: translateY(-4px); 
 }
-
 .zodiac-icon {
-  height: 200px; /* Increase icon height */
+  height: 200px; 
   width: auto;
   object-fit: contain;
-  margin-bottom: 0.75rem; /* Increase margin */
+  margin-bottom: 0.75rem; 
   margin-top: -50px;
 }
-
 .zodiac-name {
-  font-size: 0.9rem; /* Slightly increase name font size */
+  font-size: 0.9rem; 
   color: #444;
   font-weight: 600;
   text-transform: uppercase;
@@ -509,15 +444,12 @@ section {
   margin-top: -50px;
   text-align: center;
 }
-
-/* Shop by Aspiration */
 .shop-aspirations {
   background-color: var(--white-color);
   width: 100%;
   margin: 0;
   padding: 5rem 0;
 }
-
 .aspirations-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -526,7 +458,6 @@ section {
   max-width: 1600px;
   padding: 0 2rem;
 }
-
 .aspiration-card {
   background-color: var(--white-color);
   border-radius: 12px;
@@ -537,12 +468,10 @@ section {
   flex-direction: column;
   text-align: center;
 }
-
 .aspiration-card:hover {
   transform: translateY(-5px);
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
 }
-
 .aspiration-icon {
   height: 160px;
   background-image: linear-gradient(to bottom, #A2201A, #800000);
@@ -555,14 +484,12 @@ section {
   border-radius: 0;
   margin: 0;
 }
-
 .aspiration-icon img {
   max-width: 100%;
   max-height: 100%;
   height: 100%;
   object-fit: contain;
 }
-
 .aspiration-card h3 {
   padding: 1rem;
   font-size: 1.1rem;
@@ -571,15 +498,12 @@ section {
   background-color: var(--white-color);
   border-top: 1px solid #eee;
 }
-
-/* Blog Section */
 .blog-section {
   background-color: #f9f9f9;
   width: 100%;
   margin: 0;
   padding: 5rem 0;
 }
-
 .blog-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
@@ -588,7 +512,6 @@ section {
   max-width: 1200px;
   padding: 0 2rem;
 }
-
 .blog-card {
   background-color: var(--white-color);
   border-radius: 8px;
@@ -596,33 +519,27 @@ section {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   transition: transform 0.3s ease;
 }
-
 .blog-card:hover {
   transform: translateY(-8px);
 }
-
 .blog-image {
   height: 200px;
   background-color: #f0f0f0;
   background-size: cover;
   background-position: center;
 }
-
 .blog-content {
   padding: 1.5rem;
 }
-
 .blog-content h3 {
   font-size: 1.3rem;
   margin-bottom: 0.8rem;
   color: var(--black-color);
 }
-
 .blog-content p {
   margin-bottom: 1rem;
   color: #555;
 }
-
 .blog-content a {
   color: var(--primary-color);
   font-weight: 600;
@@ -630,12 +547,9 @@ section {
   display: inline-block;
   transition: color 0.3s ease;
 }
-
 .blog-content a:hover {
   color: #8a1c16;
 }
-
-/* Footer */
 .footer {
   background-color: #222;
   color: var(--white-color);
@@ -643,7 +557,6 @@ section {
   width: 100%;
   margin: 0;
 }
-
 .footer-content {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -652,54 +565,44 @@ section {
   margin: 0 auto;
   padding: 0 2rem 3rem;
 }
-
 .footer-section h3 {
   color: var(--secondary-color);
   margin-bottom: 1.5rem;
   font-size: 1.3rem;
 }
-
 .footer-section p {
   margin-bottom: 1.5rem;
   line-height: 1.6;
 }
-
 .footer-section ul {
   list-style: none;
   padding: 0;
   margin: 0;
 }
-
 .footer-section ul li {
   margin-bottom: 0.8rem;
 }
-
 .footer-section ul li a {
   color: #ccc;
   text-decoration: none;
   transition: color 0.3s ease;
 }
-
 .footer-section ul li a:hover {
   color: var(--secondary-color);
 }
-
 .newsletter-form {
   display: flex;
   flex-direction: column;
 }
-
 .newsletter-form input {
   padding: 0.8rem;
   margin-bottom: 1rem;
   border: none;
   border-radius: 4px;
 }
-
 .newsletter-form button {
   align-self: flex-start;
 }
-
 .footer-bottom {
   background-color: #111;
   padding: 1.5rem 2rem;
@@ -711,17 +614,13 @@ section {
   align-items: center;
   box-sizing: border-box;
 }
-
 .footer-bottom > div:last-child {
   display: flex;
   gap: 1.5rem;
 }
-
 .footer-bottom p {
   margin: 0;
 }
-
-/* Responsive Styles */
 @media (max-width: 768px) {
   .hero-section {
     flex-direction: column;
@@ -729,82 +628,64 @@ section {
     padding-bottom: 2rem;
     height: auto;
   }
-  
   .hero-left, .hero-right {
     width: 100%;
     padding: 0;
   }
-  
   .hero-left {
     margin-bottom: 2rem;
     align-items: center;
     text-align: center;
   }
-  
   .hero-content {
     align-items: center;
   }
-  
   .guide-content {
     grid-template-columns: 1fr;
   }
-  
   .guide-image {
     height: 300px;
   }
-  
   .new-arrivals-grid {
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     gap: 15px;
   }
-  
   .carousel-product-card {
     height: 290px;
   }
-  
   .product-image {
     height: 160px;
   }
 }
-
 @media (max-width: 480px) {
   section {
     padding: 3rem 1rem;
   }
-  
   .hero-content h1 {
     font-size: 2rem;
   }
-  
   .section-header h2 {
     font-size: 2rem;
   }
-  
   .new-arrivals-grid {
     grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
     gap: 10px;
   }
-  
   .carousel-product-card {
     height: 260px;
   }
-  
   .product-image {
     height: 140px;
   }
-  
   .product-info h3 {
     font-size: 0.8rem;
   }
 }
-
-/* New Arrivals Carousel */
 .carousel-wrapper {
   position: relative;
   margin: 0 auto;
   max-width: 90%;
 }
-
 .carousel-container {
   position: relative;
   width: 100%;
@@ -813,7 +694,6 @@ section {
   flex-direction: column;
   align-items: center;
 }
-
 .carousel-controls {
   display: none;
   position: absolute;
@@ -827,11 +707,9 @@ section {
   pointer-events: none;
   z-index: 10;
 }
-
 .carousel-wrapper.show-controls .carousel-controls {
   display: flex;
 }
-
 .carousel-nav-button {
   background-color: rgba(255, 255, 255, 0.8);
   border: 1px solid #ddd;
@@ -847,29 +725,24 @@ section {
   pointer-events: auto;
   color: #333;
 }
-
 .carousel-nav-button:hover {
   background-color: white;
   box-shadow: 0 3px 7px rgba(0, 0, 0, 0.15);
   color: #000;
 }
-
 .carousel-nav-button:active {
   transform: scale(0.95);
 }
-
 .carousel-nav-button svg {
   width: 20px;
   height: 20px;
 }
-
 .carousel-indicators {
   display: flex;
   justify-content: center;
   gap: 10px;
   margin-top: 20px;
 }
-
 .carousel-indicator {
   width: 12px;
   height: 12px;
@@ -879,12 +752,10 @@ section {
   transition: all 0.3s ease;
   border: none;
 }
-
 .carousel-indicator.active {
   background-color: var(--primary-color, #A2201A);
   transform: scale(1.2);
 }
-
 .carousel-products {
   display: flex;
   overflow-x: scroll;
@@ -897,27 +768,22 @@ section {
   cursor: grab;
   width: 100%;
 }
-
 .carousel-products:active {
   cursor: grabbing;
 }
-
 .carousel-container:hover .carousel-button {
   opacity: 1;
   visibility: visible;
 }
-
 .carousel-products::-webkit-scrollbar {
   display: none;
 }
-
 .carousel-products .carousel-product-card {
   flex: 0 0 220px;
   min-width: 220px;
   height: 320px;
   margin-bottom: 10px;
 }
-
 .carousel-product-card .product-image {
   height: 180px;
   background-size: cover;
@@ -925,11 +791,9 @@ section {
   background-repeat: no-repeat;
   transition: transform 0.3s ease;
 }
-
 .carousel-product-card:hover .product-image {
   transform: scale(1.05);
 }
-
 .carousel-product-card h3 {
   padding: 15px 15px 5px;
   font-size: 16px;
@@ -943,7 +807,6 @@ section {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
 .carousel-product-card p, 
 .carousel-product-card .product-price {
   padding: 0 15px 10px;
@@ -952,20 +815,17 @@ section {
   font-weight: 600;
   font-size: 16px;
 }
-
 .carousel-product-card .product-price {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
-
 .carousel-product-card .original-price {
   text-decoration: line-through;
   color: #999;
   font-size: 14px;
   font-weight: normal;
 }
-
 .carousel-product-card .primary-button {
   margin: auto 15px 15px;
   padding: 10px;
@@ -977,11 +837,9 @@ section {
   cursor: pointer;
   transition: background-color 0.3s ease;
 }
-
 .carousel-product-card .primary-button:hover {
   background-color: #8a1c16;
 }
-
 .carousel-button {
   position: absolute;
   top: 50%;
@@ -1001,20 +859,16 @@ section {
   opacity: 0.7;
   visibility: hidden;
 }
-
 .carousel-button:hover {
   background-color: var(--primary-color, #A2201A);
   color: white;
 }
-
 .carousel-button.prev {
   left: 10px;
 }
-
 .carousel-button.next {
   right: 10px;
 }
-
 .carousel-product-card .discount-tag {
   background-color: var(--primary-color, #A2201A);
   color: white;
@@ -1025,7 +879,6 @@ section {
   display: inline-block;
   margin-top: 5px;
 }
-
 .carousel-indicator {
   display: flex;
   justify-content: center;
@@ -1035,50 +888,41 @@ section {
   position: relative;
   z-index: 10;
 }
-
 @media (max-width: 768px) {
   .carousel-container {
     padding: 0 40px;
   }
-  
   .carousel-nav-button {
     width: 35px;
     height: 35px;
   }
-  
   .carousel-nav-button svg {
     width: 18px;
     height: 18px;
   }
-  
   .carousel-product-card {
     flex: 0 0 200px;
     min-width: 200px;
     height: 300px;
   }
 }
-
 @media (max-width: 480px) {
   .carousel-container {
     padding: 0 30px;
   }
-  
   .carousel-nav-button {
     width: 36px;
     height: 36px;
   }
-  
   .carousel-nav-button svg {
     width: 16px;
     height: 16px;
   }
-  
   .carousel-product-card {
     flex: 0 0 160px;
     min-width: 160px;
     height: 280px;
   }
-  
   .carousel-button {
     width: 30px;
     height: 30px;

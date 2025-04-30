@@ -1,17 +1,15 @@
 :root {
-  /* Theme Colors */
-  --primary-color: #A2201A; /* Maroon */
-  --primary-color-dark: #8a1c16; /* Darker maroon for hover */
-  --secondary-color: #FEC16E; /* Gold/yellow */
+  --primary-color: #A2201A; 
+  --primary-color-dark: #8a1c16; 
+  --secondary-color: #FEC16E; 
   --text-color: #333333;
   --light-text-color: #666666;
   --background-color: #FFFFFF;
   --light-background: #F8F9FA;
-  --accent-color: #006633; /* Wood element color */
+  --accent-color: #006633; 
   --border-color: #EEEEEE;
   --shadow-color: rgba(0, 0, 0, 0.1);
 }
-
 #root {
   width: 100vw;
   height: 100vh;
@@ -20,7 +18,6 @@
   overflow-x: hidden;
   color: var(--text-color);
 }
-
 .logo {
   height: 6em;
   padding: 1.5em;
@@ -33,7 +30,6 @@
 .logo.react:hover {
   filter: drop-shadow(0 0 2em #61dafbaa);
 }
-
 @keyframes logo-spin {
   from {
     transform: rotate(0deg);
@@ -42,17 +38,14 @@
     transform: rotate(360deg);
   }
 }
-
 @media (prefers-reduced-motion: no-preference) {
   a:nth-of-type(2) .logo {
     animation: logo-spin infinite 20s linear;
   }
 }
-
 .card {
   padding: 2em;
 }
-
 .read-the-docs {
   color: #888;
 }

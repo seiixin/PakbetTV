@@ -5,10 +5,6 @@ const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
 const db = require('../config/db');
 const { auth } = require('../middleware/auth');
-
-// @route   POST api/auth/signup
-// @desc    Register user
-// @access  Public
 router.post(
   '/signup',
   [
@@ -23,43 +19,28 @@ router.post(
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
-
     const { username, firstname, middlename, lastname, email, password } = req.body;
-
     try {
-      // Check if user already exists (by email or username)
       const [existingUsers] = await db.query(
         'SELECT user_id FROM users WHERE email = ? OR username = ?',
         [email, username]
       );
-
       if (existingUsers.length > 0) {
         return res.status(400).json({ message: 'User already exists with this email or username' });
       }
-
-      // Hash password
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(password, salt);
-
-      // Insert user into database
       const [result] = await db.query(
         'INSERT INTO users (username, first_name, last_name, email, password, user_type, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
         [username, firstname, lastname, email, hashedPassword, 'Customer', 'Active']
       );
-
-      // Basic success response (could also generate and return a token immediately if desired)
       res.status(201).json({ message: 'User registered successfully' });
-
     } catch (err) {
       console.error('Signup Error:', err.message);
       res.status(500).json({ message: 'Server error during registration' });
     }
   }
 );
-
-// @route   POST api/auth/login
-// @desc    Authenticate user & get token
-// @access  Public
 router.post(
   '/login',
   [
@@ -67,46 +48,33 @@ router.post(
     body('password', 'Password is required').exists()
   ],
   async (req, res) => {
-    // Check for validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
-
     const { email, password } = req.body;
-
     try {
-      // Check if user exists
       const [users] = await db.query(
         'SELECT user_id, first_name, last_name, email, password, user_type, status FROM users WHERE email = ?',
         [email]
       );
-
       if (users.length === 0) {
         return res.status(400).json({ message: 'Invalid credentials' });
       }
-
       const user = users[0];
-
-      // Check if account is active
       if (user.status !== 'Active') {
         return res.status(400).json({ message: 'Account is inactive. Please contact support.' });
       }
-
-      // Check password
       const isMatch = await bcrypt.compare(password, user.password);
       if (!isMatch) {
         return res.status(400).json({ message: 'Invalid credentials' });
       }
-
-      // Create and sign JWT token
       const payload = {
         user: {
           id: user.user_id,
           userType: user.user_type
         }
       };
-
       jwt.sign(
         payload,
         process.env.JWT_SECRET,
@@ -131,21 +99,15 @@ router.post(
     }
   }
 );
-
-// @route   GET api/auth/me
-// @desc    Get current user's data
-// @access  Private
 router.get('/me', auth, async (req, res) => {
   try {
     const [users] = await db.query(
       'SELECT user_id, first_name, last_name, email, phone, address, user_type, status FROM users WHERE user_id = ?',
       [req.user.user.id]
     );
-
     if (users.length === 0) {
       return res.status(404).json({ message: 'User not found' });
     }
-
     const user = users[0];
     res.json({
       id: user.user_id,
@@ -162,5 +124,4 @@ router.get('/me', auth, async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
-
 module.exports = router; 
