@@ -15,6 +15,8 @@ import ProductDetailPage from './components/Shop/ProductDetailPage'
 import Cart from './components/Shop/Cart'
 import TransactionComplete from './components/Shop/TransactionComplete'
 import ProsperGuide from './components/Guides/ProsperGuide'
+import OrderTracking from './pages/OrderTracking'
+
 function AppContent() {
   const location = useLocation();
   const isAuthPage = location.pathname === '/login' || location.pathname === '/signup';
@@ -29,6 +31,7 @@ function AppContent() {
         <Route path="/account" element={<Account />} />
         <Route path="/account/purchases" element={<Purchases />} />
         <Route path="/account/orders/:orderId" element={<OrderConfirmation />} />
+        <Route path="/account/tracking/:orderId" element={<OrderTracking />} />
         <Route path="/purchases" element={<Navigate to="/account/purchases" replace />} />
         <Route path="/admin/products" element={<ProductManagement />} />
         <Route path="/shop" element={<ProductPage />} />

@@ -22,6 +22,7 @@ const authRoutes = require('./routes/auth');
 const transactionRoutes = require('./routes/transactions');
 const reviewRoutes = require('./routes/reviews');
 const paymentRoutes = require('./routes/payments');
+const deliveryRoutes = require('./routes/delivery');
 app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/categories', categoryRoutes);
@@ -31,6 +32,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/delivery', deliveryRoutes);
 app.get('/transaction-complete', (req, res) => {
   console.log('Received Dragonpay return request:', req.query);
   const { txnid, refno, status, message } = req.query;
