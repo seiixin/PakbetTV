@@ -104,9 +104,16 @@ router.post('/payment', async (req, res) => {
     const order = orders[0];
     const txnId = `order_${order_id}_${Date.now()}`;
     const [paymentResult] = await db.query(
-      'INSERT INTO payments (order_id, user_id, amount, payment_method, status) VALUES (?, ?, ?, ?, ?)',
+      'INSERT INTO payments (order_id, user_id, amount, payment_method, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NOW(), NOW())',
       [order_id, order.user_id, order.total_price, payment_method, 'pending']
     );
+    
+    // Make sure order timestamps are set
+    await db.query(
+      'UPDATE orders SET created_at = IF(created_at IS NULL, NOW(), created_at), updated_at = NOW() WHERE order_id = ?',
+      [order_id]
+    );
+    
     const paymentId = paymentResult.insertId;
     if (payment_method === 'dragonpay') {
       const MERCHANT_ID = process.env.DRAGONPAY_MERCHANT_ID || 'TEST';
@@ -188,49 +195,125 @@ router.get('/verify', async (req, res) => {
   }
 });
 router.post('/postback', async (req, res) => {
+  const connection = await db.getConnection();
   try {
+    await connection.beginTransaction();
+    
     const { txnid, refno, status, message, amount, digest, signature } = req.body;
     console.log('Received postback:', { txnid, refno, status, message, amount });
+    
     const dataToSign = `${txnid}:${refno}:${status}:${message}:${amount}`;
     const expectedSignature = crypto
       .createHmac('sha256', SECRET_KEY_SHA256)
       .update(dataToSign)
       .digest('hex')
       .toUpperCase();
+      
     if (signature !== expectedSignature) {
       console.error('Invalid signature', { received: signature, expected: expectedSignature });
       return res.status(400).send('result=INVALID_SIGNATURE');
     }
+    
     const orderIdMatch = txnid.match(/order_(\d+)_/);
     if (!orderIdMatch) {
       console.error('Invalid transaction ID format:', txnid);
       return res.status(400).send('result=INVALID_TXNID');
     }
+    
     const orderId = orderIdMatch[1];
-    await db.query(
-      'UPDATE payments SET status = ?, reference_number = ? WHERE order_id = ?',
-      [mapDragonpayStatus(status), refno, orderId]
+    
+    // Update payment reference number regardless of status
+    await connection.query(
+      'UPDATE payments SET reference_number = ?, created_at = IF(created_at IS NULL, NOW(), created_at), updated_at = NOW() WHERE order_id = ?',
+      [refno, orderId]
     );
+    
+    // Update order status based on Dragonpay status
     if (status === 'S') {
-      await db.query(
-        'UPDATE orders SET order_status = ? WHERE order_id = ?',
-        ['processing', orderId]
+      // Update payment status to waiting_for_confirmation
+      await connection.query(
+        'UPDATE payments SET status = ?, created_at = IF(created_at IS NULL, NOW(), created_at), updated_at = NOW() WHERE order_id = ?',
+        ['waiting_for_confirmation', orderId]
       );
+
+      // Update order status to processing
+      await connection.query(
+        'UPDATE orders SET order_status = ?, payment_status = ?, created_at = IF(created_at IS NULL, NOW(), created_at), updated_at = NOW() WHERE order_id = ?',
+        ['processing', 'paid', orderId]
+      );
+      
+      // Get order info for NinjaVan integration
+      const [[orderInfo]] = await connection.query(
+        `SELECT o.*, u.first_name, u.last_name, u.email, u.phone,
+         s.address as shipping_address
+         FROM orders o
+         JOIN users u ON o.user_id = u.user_id
+         JOIN shipping s ON o.order_id = s.order_id
+         WHERE o.order_id = ?`,
+        [orderId]
+      );
+      
+      if (orderInfo) {
+        // Get order items
+        const [orderItems] = await connection.query(
+          'SELECT * FROM order_items WHERE order_id = ?',
+          [orderId]
+        );
+        
+        try {
+          // Create delivery via NinjaVan API
+          const deliveryData = await createNinjaVanDelivery(
+            { order_id: orderId, items: orderItems },
+            orderInfo.shipping_address,
+            orderInfo
+          );
+          
+          if (deliveryData && deliveryData.tracking_number) {
+            await connection.query(
+              'UPDATE shipping SET tracking_number = ?, carrier = ? WHERE order_id = ?',
+              [deliveryData.tracking_number, 'NinjaVan', orderId]
+            );
+          }
+        } catch (deliveryError) {
+          console.error('Failed to create NinjaVan delivery:', deliveryError);
+          // Don't fail the transaction, just log the error
+        }
+      }
     } else if (status === 'F') {
-      await db.query(
-        'UPDATE orders SET order_status = ? WHERE order_id = ?',
-        ['cancelled', orderId]
+      // Payment failed
+      await connection.query(
+        'UPDATE orders SET order_status = ?, payment_status = ?, created_at = IF(created_at IS NULL, NOW(), created_at), updated_at = NOW() WHERE order_id = ?',
+        ['cancelled', 'failed', orderId]
+      );
+      
+      // Also update the payment status in payments table
+      await connection.query(
+        'UPDATE payments SET status = ?, created_at = IF(created_at IS NULL, NOW(), created_at), updated_at = NOW() WHERE order_id = ?',
+        ['failed', orderId]
       );
     } else if (status === 'P') {
-      await db.query(
-        'UPDATE orders SET order_status = ? WHERE order_id = ?',
+      // Payment pending
+      await connection.query(
+        'UPDATE orders SET order_status = ?, payment_status = ?, created_at = IF(created_at IS NULL, NOW(), created_at), updated_at = NOW() WHERE order_id = ?',
+        ['pending', 'pending', orderId]
+      );
+      
+      // Also update the payment status in payments table
+      await connection.query(
+        'UPDATE payments SET status = ?, created_at = IF(created_at IS NULL, NOW(), created_at), updated_at = NOW() WHERE order_id = ?',
         ['pending', orderId]
       );
     }
+    
+    await connection.commit();
+    
     res.send('result=OK');
   } catch (error) {
-    console.error('Postback processing error:', error);
-    res.status(500).send('result=SERVER_ERROR');
+    await connection.rollback();
+    console.error('Dragonpay postback error:', error);
+    res.status(500).send('Error processing payment callback');
+  } finally {
+    connection.release();
   }
 });
 function mapDragonpayStatus(dpStatus) {
@@ -246,4 +329,94 @@ function mapDragonpayStatus(dpStatus) {
     default: return 'unknown';
   }
 }
+
+// Development-only endpoint for manually setting order status (disabled in production)
+if (process.env.NODE_ENV !== 'production') {
+  router.post('/dev/update-status', async (req, res) => {
+    const connection = await db.getConnection();
+    try {
+      await connection.beginTransaction();
+      
+      const { order_id, status } = req.body;
+      
+      if (!order_id || !status) {
+        return res.status(400).json({ message: 'Order ID and status are required' });
+      }
+      
+      console.log(`[DEV] Manually updating order ${order_id} to status: ${status}`);
+      
+      if (status === 'S' || status === 'success') {
+        // Update payment status to waiting_for_confirmation
+        await connection.query(
+          'UPDATE payments SET status = ?, created_at = IF(created_at IS NULL, NOW(), created_at), updated_at = NOW() WHERE order_id = ?',
+          ['waiting_for_confirmation', order_id]
+        );
+
+        // Update order status to processing and payment status to awaiting_for_confirmation
+        await connection.query(
+          'UPDATE orders SET order_status = ?, payment_status = ?, created_at = IF(created_at IS NULL, NOW(), created_at), updated_at = NOW() WHERE order_id = ?',
+          ['processing', 'awaiting_for_confirmation', order_id]
+        );
+        
+        await connection.commit();
+        return res.json({ 
+          message: 'Success: Order status updated to "processing" and payment status to "awaiting_for_confirmation"',
+          order_id,
+          order_status: 'processing',
+          payment_status: 'awaiting_for_confirmation' 
+        });
+      } else if (status === 'F' || status === 'failed') {
+        // Payment failed
+        await connection.query(
+          'UPDATE orders SET order_status = ?, payment_status = ?, created_at = IF(created_at IS NULL, NOW(), created_at), updated_at = NOW() WHERE order_id = ?',
+          ['cancelled', 'failed', order_id]
+        );
+        
+        // Also update the payment status in payments table
+        await connection.query(
+          'UPDATE payments SET status = ?, created_at = IF(created_at IS NULL, NOW(), created_at), updated_at = NOW() WHERE order_id = ?',
+          ['failed', order_id]
+        );
+        
+        await connection.commit();
+        return res.json({ 
+          message: 'Success: Order status updated to "cancelled" and payment status to "failed"',
+          order_id,
+          order_status: 'cancelled',
+          payment_status: 'failed'
+        });
+      } else if (status === 'P' || status === 'pending') {
+        // Payment pending
+        await connection.query(
+          'UPDATE orders SET order_status = ?, payment_status = ?, created_at = IF(created_at IS NULL, NOW(), created_at), updated_at = NOW() WHERE order_id = ?',
+          ['pending', 'pending', order_id]
+        );
+        
+        // Also update the payment status in payments table
+        await connection.query(
+          'UPDATE payments SET status = ?, created_at = IF(created_at IS NULL, NOW(), created_at), updated_at = NOW() WHERE order_id = ?',
+          ['pending', order_id]
+        );
+        
+        await connection.commit();
+        return res.json({ 
+          message: 'Success: Order status updated to "pending" and payment status to "pending"',
+          order_id,
+          order_status: 'pending',
+          payment_status: 'pending'
+        });
+      } else {
+        await connection.rollback();
+        return res.status(400).json({ message: `Invalid status: ${status}. Valid values are "S"/"success", "F"/"failed", or "P"/"pending"` });
+      }
+    } catch (error) {
+      await connection.rollback();
+      console.error('Development status update error:', error);
+      res.status(500).json({ message: 'Failed to update order status', error: error.message });
+    } finally {
+      connection.release();
+    }
+  });
+}
+
 module.exports = router; 

@@ -7,6 +7,15 @@ import { useAuth } from '../../context/AuthContext';
 import './Shop.css';
 import { createGlobalStyle } from 'styled-components';
 import API_BASE_URL from '../../config';
+
+const GlobalStyle = createGlobalStyle`
+  body {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+`;
+
 const ProductDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -106,8 +115,10 @@ const ProductDetailPage = () => {
         setHasReviewed(false);
         return;
       }
+
       console.log(`[Review Check] User: ${user.id}, Product: ${product.product_id}, Token: Present`);
       setPurchaseCheckLoading(true);
+
       try {
         console.log(`[Review Check] Fetching purchase status for product ${product.product_id}...`);
         const purchaseCheckRes = await fetch(`${API_BASE_URL}/api/orders/check/${product.product_id}`, {
@@ -115,20 +126,31 @@ const ProductDetailPage = () => {
             'Authorization': `Bearer ${token}`
           }
         });
+
         console.log(`[Review Check] Purchase check response status: ${purchaseCheckRes.status}`);
+        
         if (purchaseCheckRes.ok) {
           const purchaseData = await purchaseCheckRes.json();
           console.log('[Review Check] Purchase check data:', purchaseData);
           setCanReview(purchaseData.hasPurchased);
         } else {
-          console.error('[Review Check] Failed purchase check response:', await purchaseCheckRes.text());
-          setCanReview(false); 
+          const errorData = await purchaseCheckRes.json().catch(() => ({ message: 'Failed to parse error response' }));
+          console.error('[Review Check] Failed purchase check response:', errorData);
+          // Don't show error toast for 401/403 as these are expected for non-authenticated users
+          if (purchaseCheckRes.status !== 401 && purchaseCheckRes.status !== 403) {
+            toast.error('Unable to check purchase status. Please try again later.');
+          }
+          setCanReview(false);
         }
+
+        // Check for existing review regardless of purchase status
         const userReview = reviews.find(review => review.user_id === user.id);
         console.log('[Review Check] User review found:', userReview);
         setHasReviewed(!!userReview);
+
       } catch (err) {
         console.error('[Review Check] Error during purchase/review status check:', err);
+        toast.error('Unable to check purchase status. Please try again later.');
         setCanReview(false);
         setHasReviewed(false);
       } finally {

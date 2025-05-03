@@ -9,8 +9,12 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use((req, res, next) => {
-  console.log(`Incoming Request: ${req.method} ${req.path}`); 
-  next(); 
+  console.log('Incoming request:', {
+    method: req.method,
+    path: req.path,
+    headers: req.headers
+  });
+  next();
 });
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 const userRoutes = require('./routes/users');
@@ -23,6 +27,10 @@ const transactionRoutes = require('./routes/transactions');
 const reviewRoutes = require('./routes/reviews');
 const paymentRoutes = require('./routes/payments');
 const deliveryRoutes = require('./routes/delivery');
+
+// Import cron job
+const { scheduleOrderConfirmation } = require('./cron/orderConfirmation');
+
 app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/categories', categoryRoutes);
@@ -128,6 +136,10 @@ app.use((err, req, res, next) => {
     error: process.env.NODE_ENV === 'production' ? {} : err
   });
 });
+
+// Start cron jobs
+scheduleOrderConfirmation();
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, async () => {
   console.log(`Server is running on port ${PORT}`);
