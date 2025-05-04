@@ -27,6 +27,7 @@ const transactionRoutes = require('./routes/transactions');
 const reviewRoutes = require('./routes/reviews');
 const paymentRoutes = require('./routes/payments');
 const deliveryRoutes = require('./routes/delivery');
+const webhookRoutes = require('./routes/webhook');
 
 // Import cron job
 const { scheduleOrderConfirmation } = require('./cron/orderConfirmation');
@@ -41,6 +42,8 @@ app.use('/api/transactions', transactionRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/delivery', deliveryRoutes);
+app.use('/api/webhooks', webhookRoutes);
+
 app.get('/transaction-complete', (req, res) => {
   console.log('Received Dragonpay return request:', req.query);
   const { txnid, refno, status, message } = req.query;

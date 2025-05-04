@@ -5,6 +5,7 @@ const db = require('../config/db');
 const { auth, admin } = require('../middleware/auth');
 const axios = require('axios');
 const config = require('../config/keys');
+const ninjaVanService = require('../services/ninjaVanService');
 const API_BASE_URL = config.NINJAVAN_API_URL || 'https://api.ninjavan.co';
 const COUNTRY_CODE = config.NINJAVAN_COUNTRY_CODE || 'SG';
 const CLIENT_ID = config.NINJAVAN_CLIENT_ID;
@@ -31,94 +32,10 @@ async function getNinjaVanToken() {
   }
 }
 
+// Deprecated: Use ninjaVanService.createDeliveryOrder instead
 async function createNinjaVanDelivery(orderData, shippingAddress, customerInfo) {
-  try {
-    if (!shippingAddress) {
-      console.error('Missing shipping address for NinjaVan delivery');
-      throw new Error('Missing shipping address');
-    }
-    
-    if (!customerInfo || !customerInfo.first_name) {
-      console.error('Missing customer info for NinjaVan delivery');
-      throw new Error('Missing customer info');
-    }
-    
-    const token = await getNinjaVanToken();
-    const totalWeight = orderData.items.reduce((sum, item) => sum + (item.quantity * 0.5), 0);
-    
-    // Extract postcode from shipping address if possible
-    let postcode = '';
-    const postcodeMatch = shippingAddress.match(/\d{6}/);
-    if (postcodeMatch) {
-      postcode = postcodeMatch[0];
-    }
-    
-    const deliveryRequest = {
-      service_type: "Parcel",
-      service_level: "Standard",
-      requested_tracking_number: `ORD-${orderData.order_id}`,
-      reference: {
-        merchant_order_number: `ORD-${orderData.order_id}`
-      },
-      from: {
-        name: "FengShui E-Commerce Store",
-        phone_number: "+6563337193", 
-        email: "store@fengshui-ecommerce.com", 
-        address: {
-          address1: "30 Jln Kilang Barat", 
-          address2: "",
-          country: COUNTRY_CODE,
-          postcode: "159363" 
-        }
-      },
-      to: {
-        name: `${customerInfo.first_name} ${customerInfo.last_name}`,
-        phone_number: customerInfo.phone || "+6502700553", 
-        email: customerInfo.email,
-        address: {
-          address1: shippingAddress.split(',')[0] || shippingAddress, 
-          address2: "",
-          country: COUNTRY_CODE,
-          postcode: postcode || "000000" 
-        }
-      },
-      parcel_job: {
-        is_pickup_required: false, 
-        delivery_start_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0], 
-        delivery_timeslot: {
-          start_time: "09:00",
-          end_time: "18:00",
-          timezone: "Asia/Singapore" 
-        },
-        delivery_instructions: "Please handle with care.",
-        dimensions: {
-          weight: totalWeight > 0 ? totalWeight : 0.5, 
-          size: totalWeight > 5 ? "L" : totalWeight > 2 ? "M" : "S" 
-        }
-      }
-    };
-    
-    console.log('Creating NinjaVan delivery with request:', {
-      order_id: orderData.order_id,
-      customer: `${customerInfo.first_name} ${customerInfo.last_name}`,
-      shipping_address: shippingAddress
-    });
-    
-    const response = await axios.post(
-      `${API_BASE_URL}/${COUNTRY_CODE}/4.2/orders`, 
-      deliveryRequest,
-      { 
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        } 
-      }
-    );
-    return response.data;
-  } catch (error) {
-    console.error('Error creating NinjaVan delivery:', error.response?.data || error.message);
-    throw error;
-  }
+  console.warn('createNinjaVanDelivery is deprecated, use ninjaVanService.createDeliveryOrder instead');
+  return ninjaVanService.createDeliveryOrder(orderData, shippingAddress, customerInfo);
 }
 
 router.post(
@@ -138,6 +55,33 @@ router.post(
       await connection.beginTransaction();
       const userId = req.user.user.id;
       const { address, payment_method } = req.body;
+      
+      // Extract address components if provided in structured format
+      let shippingAddressObj = {};
+      if (typeof address === 'object') {
+        shippingAddressObj = address;
+      } else {
+        // Try to parse from string
+        const addressParts = address.split(',').map(part => part.trim());
+        shippingAddressObj = {
+          address1: addressParts[0] || '',
+          city: (addressParts.length > 2) ? addressParts[addressParts.length - 2] : '',
+          state: (addressParts.length > 1) ? addressParts[addressParts.length - 1] : '',
+          country: COUNTRY_CODE
+        };
+        
+        // Extract postcode
+        const postcodeMatch = address.match(/\d{5,6}/);
+        if (postcodeMatch) {
+          shippingAddressObj.postcode = postcodeMatch[0];
+        }
+      }
+      
+      // Convert shipping address object to string for storage
+      const shippingAddressString = typeof address === 'string' ? 
+        address : 
+        `${shippingAddressObj.address1}, ${shippingAddressObj.address2 || ''}, ${shippingAddressObj.area || ''}, ${shippingAddressObj.city || ''}, ${shippingAddressObj.state || ''}, ${shippingAddressObj.postcode || ''}`;
+      
       const [userInfo] = await connection.query('SELECT first_name, last_name, email, phone FROM users WHERE user_id = ?', [userId]);
       const [cartItems] = await connection.query(`
         SELECT c.product_id, c.quantity, c.variant_id, p.name, 
@@ -226,8 +170,27 @@ router.post(
       }
       await connection.query(
         'INSERT INTO shipping (order_id, user_id, address, status) VALUES (?, ?, ?, ?)',
-        [orderId, userId, address, 'pending']
+        [orderId, userId, shippingAddressString, 'pending']
       );
+      
+      // If address is provided as an object, store the structured data in shipping_details
+      if (typeof address === 'object') {
+        await connection.query(
+          'INSERT INTO shipping_details (order_id, address1, address2, area, city, state, postcode, country, address_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [
+            orderId,
+            shippingAddressObj.address1 || '',
+            shippingAddressObj.address2 || '',
+            shippingAddressObj.area || '',
+            shippingAddressObj.city || '',
+            shippingAddressObj.state || '',
+            shippingAddressObj.postcode || '',
+            shippingAddressObj.country || COUNTRY_CODE,
+            shippingAddressObj.address_type || 'home'
+          ]
+        );
+      }
+      
       await connection.query(
         'INSERT INTO payments (order_id, user_id, amount, payment_method, status) VALUES (?, ?, ?, ?, ?)',
         [orderId, userId, totalPrice, payment_method, 'pending']
@@ -237,11 +200,21 @@ router.post(
       let deliveryInfo = null;
       if (payment_method === 'cod' || payment_method === 'credit_card') {
         try {
-          deliveryInfo = await createNinjaVanDelivery(
-            { order_id: orderId, items: cartItems },
-            address,
+          const orderItems = cartItems.map(item => ({
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price
+          }));
+          
+          deliveryInfo = await ninjaVanService.createDeliveryOrder(
+            { 
+              order_id: orderId, 
+              items: orderItems
+            },
+            typeof address === 'object' ? address : shippingAddressObj,
             userInfo[0]
           );
+          
           if (deliveryInfo && deliveryInfo.tracking_number) {
             await db.query(
               'UPDATE shipping SET tracking_number = ?, carrier = ? WHERE order_id = ?',
