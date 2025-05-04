@@ -1,1 +1,83 @@
-import React, { useState, useEffect } from 'react';import { useParams } from 'react-router-dom';import ninjaVanService from '../../services/ninjaVanService';import './TrackingDisplay.css';const TrackingDisplay = () => {  const [trackingInfo, setTrackingInfo] = useState(null);  const [loading, setLoading] = useState(true);  const [error, setError] = useState(null);  const { trackingId } = useParams();  useEffect(() => {    const fetchTrackingInfo = async () => {      try {        setLoading(true);        const data = await ninjaVanService.getTrackingInfo(trackingId);        setTrackingInfo(data);        setError(null);      } catch (err) {        console.error('Error fetching tracking info:', err);        setError('Failed to fetch tracking information. Please try again later.');      } finally {        setLoading(false);      }    };    if (trackingId) {      fetchTrackingInfo();    }  }, [trackingId]);  const renderStatusIcon = (status) => {    if (status === 'Delivered') {      return <div className="status-icon delivered"><i className="fas fa-check-circle"></i></div>;    } else if (status === 'Delivery Exception') {      return <div className="status-icon exception"><i className="fas fa-exclamation-circle"></i></div>;    } else if (status === 'On Vehicle for Delivery') {      return <div className="status-icon in-transit"><i className="fas fa-truck"></i></div>;    } else if (status === 'Picked Up') {      return <div className="status-icon picked-up"><i className="fas fa-box"></i></div>;    } else {      return <div className="status-icon pending"><i className="fas fa-clock"></i></div>;    }  };  const handleDownloadWaybill = async () => {    try {      const blob = await ninjaVanService.generateWaybill(trackingId);      const url = window.URL.createObjectURL(blob);      const a = document.createElement('a');      a.href = url;      a.download = `waybill-${trackingId}.pdf`;      document.body.appendChild(a);      a.click();      window.URL.revokeObjectURL(url);    } catch (err) {      console.error('Error downloading waybill:', err);      setError('Failed to download waybill. Please try again later.');    }  };  if (loading) {    return (      <div className="tracking-loading">        <div className="loading-spinner"></div>        <p>Loading tracking information...</p>      </div>    );  }  if (error) {    return (      <div className="tracking-error">        <i className="fas fa-exclamation-triangle"></i>        <p>{error}</p>      </div>    );  }  if (!trackingInfo) {    return (      <div className="tracking-empty">        <i className="fas fa-search"></i>        <p>No tracking information found for ID: {trackingId}</p>      </div>    );  }  return (    <div className="tracking-container">      <div className="tracking-header">        <h2>Shipment Tracking</h2>        <div className="tracking-id">          <span>Tracking ID:</span> {trackingInfo.trackingId}        </div>      </div>      <div className="tracking-status-container">        <div className="current-status">          {renderStatusIcon(trackingInfo.status)}          <div className="status-details">            <h3>{trackingInfo.status}</h3>            <p>Last Updated: {new Date(trackingInfo.lastUpdate).toLocaleString()}</p>          </div>        </div>        <button           className="waybill-button"           onClick={handleDownloadWaybill}        >          <i className="fas fa-file-pdf"></i> Download Waybill        </button>      </div>      {trackingInfo.statusHistory && trackingInfo.statusHistory.length > 0 && (        <div className="tracking-history">          <h3>Tracking History</h3>          <div className="timeline">            {trackingInfo.statusHistory.map((entry, index) => (              <div className="timeline-item" key={index}>                <div className="timeline-point"></div>                <div className="timeline-content">                  <div className="timeline-date">                    {new Date(entry.timestamp).toLocaleString()}                  </div>                  <div className="timeline-event">{entry.event}</div>                  {entry.details && (                    <div className="timeline-details">                      {entry.details.delivery_information && (                        <p>Delivery by: {entry.details.delivery_information.state}</p>                      )}                    </div>                  )}                </div>              </div>            ))}          </div>        </div>      )}    </div>  );};export default TrackingDisplay; 
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import './TrackingDisplay.css';
+
+const TrackingDisplay = ({ trackingId }) => {
+  const [trackingData, setTrackingData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchTrackingData = async () => {
+      try {
+        setLoading(true);
+        const response = await axios.get(`/api/delivery/tracking/${trackingId}`);
+        setTrackingData(response.data);
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching tracking data:', err);
+        setError('Unable to load tracking information at this time.');
+        setLoading(false);
+      }
+    };
+
+    if (trackingId) {
+      fetchTrackingData();
+    }
+  }, [trackingId]);
+
+  if (loading) return <div className="tracking-loading">Loading tracking information...</div>;
+  if (error) return <div className="tracking-error">{error}</div>;
+  if (!trackingData) return <div className="tracking-unavailable">Tracking information not available yet.</div>;
+
+  const getStatusLabel = (status) => {
+    switch (status) {
+      case 'Picked Up, In Transit To Origin Hub':
+        return 'Picked up';
+      case 'Delivered, Collected by Customer':
+      case 'Delivered, Left at Doorstep':
+      case 'Delivered, Received by Customer':
+        return 'Delivered';
+      case 'Returned to Sender':
+        return 'Returned';
+      case 'Cancelled':
+        return 'Cancelled';
+      default:
+        return 'In Transit';
+    }
+  };
+
+  return (
+    <div className="tracking-container">
+      <h3>Tracking Information</h3>
+      <div className="tracking-number">
+        <span className="label">Tracking Number:</span>
+        <span className="value">{trackingId}</span>
+      </div>
+      
+      <div className="tracking-status">
+        <span className="label">Current Status:</span>
+        <span className={`status-badge ${trackingData.currentStatus?.toLowerCase().replace(/\s/g, '-')}`}>
+          {getStatusLabel(trackingData.currentStatus)}
+        </span>
+      </div>
+      
+      <div className="tracking-timeline">
+        {trackingData.events && trackingData.events.map((event, index) => (
+          <div key={index} className="timeline-item">
+            <div className="timeline-date">
+              {new Date(event.created_at).toLocaleDateString()} 
+              {new Date(event.created_at).toLocaleTimeString()}
+            </div>
+            <div className="timeline-content">
+              <div className="timeline-title">{getStatusLabel(event.status)}</div>
+              <div className="timeline-description">{event.description}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default TrackingDisplay; 
