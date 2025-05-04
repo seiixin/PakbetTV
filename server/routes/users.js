@@ -1,1 +1,373 @@
-const express = require('express');const router = express.Router();const bcrypt = require('bcryptjs');const { body, validationResult } = require('express-validator');const db = require('../config/db');const { auth, admin } = require('../middleware/auth');router.post(  '/',  [    body('firstName', 'First name is required').notEmpty(),    body('lastName', 'Last name is required').notEmpty(),    body('username', 'Username is required').notEmpty(),    body('email', 'Please include a valid email').isEmail(),    body('password', 'Please enter a password with 6 or more characters').isLength({ min: 6 })  ],  async (req, res) => {    const errors = validationResult(req);    if (!errors.isEmpty()) {      return res.status(400).json({ errors: errors.array() });    }    const { firstName, lastName, username, email, password, phone, address } = req.body;    try {      const [existingUsers] = await db.query('SELECT * FROM users WHERE email = ?', [email]);      if (existingUsers.length > 0) {        return res.status(400).json({ message: 'User already exists' });      }      const salt = await bcrypt.genSalt(12);      const hashedPassword = await bcrypt.hash(password, salt);      const [result] = await db.query(        'INSERT INTO users (first_name, last_name, username, email, password, phone, address, user_type, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',        [firstName, lastName, username, email, hashedPassword, phone || null, address || null, 'customer', 'Active']      );      res.status(201).json({        message: 'User registered successfully',        user: {          id: result.insertId,          firstName,          lastName,          email        }      });    } catch (err) {      console.error(err.message);      res.status(500).json({ message: 'Server error' });    }  });router.get('/', [auth, admin], async (req, res) => {  try {    const [users] = await db.query(      'SELECT user_id, first_name, last_name, username, email, phone, address, user_type, status, created_at, updated_at FROM users'    );    res.json(users);  } catch (err) {    console.error(err.message);    res.status(500).json({ message: 'Server error' });  }});router.get('/:id', auth, async (req, res) => {  try {    const userId = req.params.id;    if (req.user.user.userType !== 'admin' && req.user.user.id !== parseInt(userId)) {      return res.status(403).json({ message: 'Not authorized to view this user' });    }    const [users] = await db.query(      'SELECT user_id, first_name, last_name, username, email, phone, address, user_type, status, created_at, updated_at FROM users WHERE user_id = ?',      [userId]    );    if (users.length === 0) {      return res.status(404).json({ message: 'User not found' });    }    res.json(users[0]);  } catch (err) {    console.error(err.message);    res.status(500).json({ message: 'Server error' });  }});router.put('/:id', auth, async (req, res) => {  try {    const userId = req.params.id;    if (req.user.user.userType !== 'admin' && req.user.user.id !== parseInt(userId)) {      return res.status(403).json({ message: 'Not authorized to update this user' });    }    const { firstName, lastName, phone, address } = req.body;    const updates = {};    if (firstName) updates.first_name = firstName;    if (lastName) updates.last_name = lastName;    if (phone) updates.phone = phone;    if (address) updates.address = address;    if (req.user.user.userType === 'admin') {      if (req.body.status) updates.status = req.body.status;      if (req.body.userType) updates.user_type = req.body.userType;    }    if (Object.keys(updates).length === 0) {      return res.status(400).json({ message: 'No update data provided' });    }    let sql = 'UPDATE users SET ';    const values = [];    Object.keys(updates).forEach((key, index) => {      sql += `${key} = ?`;      if (index < Object.keys(updates).length - 1) {        sql += ', ';      }      values.push(updates[key]);    });    sql += ' WHERE user_id = ?';    values.push(userId);    const [result] = await db.query(sql, values);    if (result.affectedRows === 0) {      return res.status(404).json({ message: 'User not found' });    }    res.json({ message: 'User updated successfully' });  } catch (err) {    console.error(err.message);    res.status(500).json({ message: 'Server error' });  }});router.delete('/:id', [auth, admin], async (req, res) => {  try {    const userId = req.params.id;    const [result] = await db.query('DELETE FROM users WHERE user_id = ?', [userId]);    if (result.affectedRows === 0) {      return res.status(404).json({ message: 'User not found' });    }    res.json({ message: 'User deleted successfully' });  } catch (err) {    console.error(err.message);    res.status(500).json({ message: 'Server error' });  }});module.exports = router; 
+const express = require('express');
+const router = express.Router();
+const bcrypt = require('bcryptjs');
+const { body, validationResult } = require('express-validator');
+const db = require('../config/db');
+const { auth, admin } = require('../middleware/auth');
+
+router.post(
+  '/',
+  [
+    body('firstName', 'First name is required').notEmpty(),
+    body('lastName', 'Last name is required').notEmpty(),
+    body('username', 'Username is required').notEmpty(),
+    body('email', 'Please include a valid email').isEmail(),
+    body('password', 'Please enter a password with 6 or more characters').isLength({ min: 6 })
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+    const { firstName, lastName, username, email, password, phone, address } = req.body;
+    try {
+      const [existingUsers] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
+      if (existingUsers.length > 0) {
+        return res.status(400).json({ message: 'User already exists' });
+      }
+      const salt = await bcrypt.genSalt(12);
+      const hashedPassword = await bcrypt.hash(password, salt);
+      const [result] = await db.query(
+        'INSERT INTO users (first_name, last_name, username, email, password, phone, address, user_type, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [firstName, lastName, username, email, hashedPassword, phone || null, address || null, 'customer', 'Active']
+      );
+      res.status(201).json({
+        message: 'User registered successfully',
+        user: {
+          id: result.insertId,
+          firstName,
+          lastName,
+          email
+        }
+      });
+    } catch (err) {
+      console.error(err.message);
+      res.status(500).json({ message: 'Server error' });
+    }
+  }
+);
+
+router.get('/', [auth, admin], async (req, res) => {
+  try {
+    const [users] = await db.query(
+      'SELECT user_id, first_name, last_name, username, email, phone, address, user_type, status, created_at, updated_at FROM users'
+    );
+    res.json(users);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+router.get('/:id', auth, async (req, res) => {
+  try {
+    const userId = req.params.id;
+    if (req.user.user.userType !== 'admin' && req.user.user.id !== parseInt(userId)) {
+      return res.status(403).json({ message: 'Not authorized to view this user' });
+    }
+    const [users] = await db.query(
+      'SELECT user_id, first_name, last_name, username, email, phone, address, user_type, status, created_at, updated_at FROM users WHERE user_id = ?',
+      [userId]
+    );
+    if (users.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.json(users[0]);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+router.put('/:id', auth, async (req, res) => {
+  try {
+    const userId = req.params.id;
+    if (req.user.user.userType !== 'admin' && req.user.user.id !== parseInt(userId)) {
+      return res.status(403).json({ message: 'Not authorized to update this user' });
+    }
+    const { firstName, lastName, phone, address } = req.body;
+    const updates = {};
+    if (firstName) updates.first_name = firstName;
+    if (lastName) updates.last_name = lastName;
+    if (phone) updates.phone = phone;
+    if (address) updates.address = address;
+    if (req.user.user.userType === 'admin') {
+      if (req.body.status) updates.status = req.body.status;
+      if (req.body.userType) updates.user_type = req.body.userType;
+    }
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ message: 'No update data provided' });
+    }
+    let sql = 'UPDATE users SET ';
+    const values = [];
+    Object.keys(updates).forEach((key, index) => {
+      sql += `${key} = ?`;
+      if (index < Object.keys(updates).length - 1) {
+        sql += ', ';
+      }
+      values.push(updates[key]);
+    });
+    sql += ' WHERE user_id = ?';
+    values.push(userId);
+    const [result] = await db.query(sql, values);
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.json({ message: 'User updated successfully' });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+router.delete('/:id', [auth, admin], async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const [result] = await db.query('DELETE FROM users WHERE user_id = ?', [userId]);
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.json({ message: 'User deleted successfully' });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get user profile
+router.get('/profile', auth, async (req, res) => {
+  try {
+    const [users] = await db.query(
+      'SELECT user_id, first_name, last_name, email, phone, address, user_type, status FROM users WHERE user_id = ?',
+      [req.user.user.id]
+    );
+    
+    if (users.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    const user = users[0];
+    res.json({
+      id: user.user_id,
+      firstName: user.first_name,
+      lastName: user.last_name,
+      email: user.email,
+      phone: user.phone,
+      address: user.address,
+      userType: user.user_type,
+      status: user.status
+    });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get all users (admin only)
+router.get('/', [auth, admin], async (req, res) => {
+  try {
+    const [users] = await db.query(
+      'SELECT user_id, first_name, last_name, email, phone, address, user_type, status, created_at FROM users'
+    );
+    
+    res.json(users);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Add or update user shipping address
+router.post('/shipping-address', auth, [
+  body('address1').notEmpty().withMessage('Address line 1 is required'),
+  body('city').notEmpty().withMessage('City is required'),
+  body('state').notEmpty().withMessage('State is required'),
+  body('postcode').notEmpty().withMessage('Postal code is required')
+], async (req, res) => {
+  // Validate request
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+  
+  const userId = req.user.user.id;
+  const {
+    address1,
+    address2,
+    area,
+    city,
+    state,
+    postcode,
+    country = 'MY',
+    address_type = 'home',
+    is_default = true
+  } = req.body;
+  
+  const connection = await db.getConnection();
+  
+  try {
+    await connection.beginTransaction();
+    
+    // If this is the default address, reset all other addresses to non-default
+    if (is_default) {
+      await connection.query(
+        'UPDATE user_shipping_details SET is_default = 0 WHERE user_id = ?',
+        [userId]
+      );
+    }
+    
+    // Check if user already has shipping details
+    const [details] = await connection.query(
+      'SELECT id FROM user_shipping_details WHERE user_id = ? AND is_default = 1',
+      [userId]
+    );
+    
+    if (details.length > 0) {
+      // Update existing shipping details
+      await connection.query(
+        `UPDATE user_shipping_details 
+        SET 
+          address1 = ?,
+          address2 = ?,
+          area = ?,
+          city = ?,
+          state = ?,
+          postcode = ?,
+          country = ?,
+          address_type = ?,
+          is_default = ?,
+          updated_at = NOW()
+        WHERE id = ?`,
+        [
+          address1,
+          address2 || '',
+          area || '',
+          city,
+          state,
+          postcode,
+          country,
+          address_type,
+          is_default ? 1 : 0,
+          details[0].id
+        ]
+      );
+      
+      await connection.commit();
+      
+      res.status(200).json({ 
+        message: 'Shipping address updated successfully',
+        address_id: details[0].id
+      });
+    } else {
+      // Insert new shipping details
+      const [result] = await connection.query(
+        `INSERT INTO user_shipping_details 
+        (user_id, address1, address2, area, city, state, postcode, country, address_type, is_default)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          userId,
+          address1,
+          address2 || '',
+          area || '',
+          city,
+          state,
+          postcode,
+          country,
+          address_type,
+          is_default ? 1 : 0
+        ]
+      );
+      
+      await connection.commit();
+      
+      res.status(201).json({ 
+        message: 'Shipping address added successfully',
+        address_id: result.insertId
+      });
+    }
+  } catch (err) {
+    await connection.rollback();
+    console.error('Error saving shipping address:', err);
+    res.status(500).json({ message: 'Server error' });
+  } finally {
+    connection.release();
+  }
+});
+
+// Get all shipping addresses for a user
+router.get('/shipping-addresses', auth, async (req, res) => {
+  try {
+    const userId = req.user.user.id;
+    
+    const [addresses] = await db.query(
+      'SELECT * FROM user_shipping_details WHERE user_id = ? ORDER BY is_default DESC, id DESC',
+      [userId]
+    );
+    
+    res.status(200).json(addresses);
+  } catch (err) {
+    console.error('Error fetching shipping addresses:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Delete shipping address
+router.delete('/shipping-address/:id', auth, async (req, res) => {
+  try {
+    const userId = req.user.user.id;
+    const addressId = req.params.id;
+    
+    // Verify the address belongs to the user
+    const [address] = await db.query(
+      'SELECT is_default FROM user_shipping_details WHERE id = ? AND user_id = ?',
+      [addressId, userId]
+    );
+    
+    if (address.length === 0) {
+      return res.status(404).json({ message: 'Address not found or not authorized' });
+    }
+    
+    // If deleting default address, find another address to make default
+    const connection = await db.getConnection();
+    
+    try {
+      await connection.beginTransaction();
+      
+      // Delete the address
+      await connection.query(
+        'DELETE FROM user_shipping_details WHERE id = ?',
+        [addressId]
+      );
+      
+      // If it was the default address, make another address default if exists
+      if (address[0].is_default) {
+        const [otherAddresses] = await connection.query(
+          'SELECT id FROM user_shipping_details WHERE user_id = ? LIMIT 1',
+          [userId]
+        );
+        
+        if (otherAddresses.length > 0) {
+          await connection.query(
+            'UPDATE user_shipping_details SET is_default = 1 WHERE id = ?',
+            [otherAddresses[0].id]
+          );
+        }
+      }
+      
+      await connection.commit();
+      
+      res.status(200).json({ message: 'Shipping address deleted successfully' });
+    } catch (err) {
+      await connection.rollback();
+      console.error('Error deleting shipping address:', err);
+      res.status(500).json({ message: 'Server error' });
+    } finally {
+      connection.release();
+    }
+  } catch (err) {
+    console.error('Error processing shipping address deletion:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+module.exports = router; 
