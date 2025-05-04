@@ -59,6 +59,28 @@ router.get('/', [auth, admin], async (req, res) => {
   }
 });
 
+// Get all shipping addresses for a user
+router.get('/shipping-addresses', auth, async (req, res) => {
+  try {
+    // Support both user object structures
+    const userId = req.user.id || req.user.user.id;
+    console.log('Fetching shipping addresses for user:', userId);
+    
+    const [addresses] = await db.query(
+      'SELECT * FROM user_shipping_details WHERE user_id = ? ORDER BY is_default DESC, id DESC',
+      [userId]
+    );
+    
+    console.log('Found addresses:', addresses);
+    // Always return an array, even if empty
+    res.status(200).json(addresses || []);
+  } catch (err) {
+    console.error('Error fetching shipping addresses:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get user by ID
 router.get('/:id', auth, async (req, res) => {
   try {
     const userId = req.params.id;
@@ -134,45 +156,43 @@ router.delete('/:id', [auth, admin], async (req, res) => {
   }
 });
 
-// Get user profile
+// Get user profile with shipping addresses
 router.get('/profile', auth, async (req, res) => {
   try {
+    const userId = req.user.id || req.user.user.id;
+    console.log('Fetching profile for user:', userId);
+    
+    // Get user profile
     const [users] = await db.query(
-      'SELECT user_id, first_name, last_name, email, phone, address, user_type, status FROM users WHERE user_id = ?',
-      [req.user.user.id]
+      'SELECT user_id, username, first_name, last_name, email, phone, address, user_type, status FROM users WHERE user_id = ?',
+      [userId]
     );
     
     if (users.length === 0) {
       return res.status(404).json({ message: 'User not found' });
     }
     
+    // Get shipping addresses
+    const [shippingAddresses] = await db.query(
+      'SELECT * FROM user_shipping_details WHERE user_id = ? ORDER BY is_default DESC, id DESC',
+      [userId]
+    );
+    
     const user = users[0];
     res.json({
       id: user.user_id,
+      username: user.username,
       firstName: user.first_name,
       lastName: user.last_name,
       email: user.email,
-      phone: user.phone,
-      address: user.address,
+      phone: user.phone || '',
+      address: user.address || '',
       userType: user.user_type,
-      status: user.status
+      status: user.status,
+      shippingAddresses: shippingAddresses || []
     });
   } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// Get all users (admin only)
-router.get('/', [auth, admin], async (req, res) => {
-  try {
-    const [users] = await db.query(
-      'SELECT user_id, first_name, last_name, email, phone, address, user_type, status, created_at FROM users'
-    );
-    
-    res.json(users);
-  } catch (err) {
-    console.error(err.message);
+    console.error('Error fetching user profile:', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -190,7 +210,9 @@ router.post('/shipping-address', auth, [
     return res.status(400).json({ errors: errors.array() });
   }
   
-  const userId = req.user.user.id;
+  const userId = req.user.id || req.user.user.id;
+  console.log('Adding/updating shipping address for user:', userId);
+  
   const {
     address1,
     address2,
@@ -200,13 +222,25 @@ router.post('/shipping-address', auth, [
     postcode,
     country = 'MY',
     address_type = 'home',
-    is_default = true
+    is_default = true,
+    phone
   } = req.body;
+
+  // Format the full address for the users table
+  const fullAddress = `${address1}${address2 ? ', ' + address2 : ''}, ${area}, ${city}, ${state} ${postcode}`;
   
   const connection = await db.getConnection();
   
   try {
     await connection.beginTransaction();
+    console.log('Started transaction');
+
+    // First update the main user profile with address and phone
+    await connection.query(
+      'UPDATE users SET address = ?, phone = ?, updated_at = NOW() WHERE user_id = ?',
+      [fullAddress, phone, userId]
+    );
+    console.log('Updated main user profile');
     
     // If this is the default address, reset all other addresses to non-default
     if (is_default) {
@@ -214,15 +248,17 @@ router.post('/shipping-address', auth, [
         'UPDATE user_shipping_details SET is_default = 0 WHERE user_id = ?',
         [userId]
       );
+      console.log('Reset default status for other addresses');
     }
     
     // Check if user already has shipping details
     const [details] = await connection.query(
-      'SELECT id FROM user_shipping_details WHERE user_id = ? AND is_default = 1',
+      'SELECT id FROM user_shipping_details WHERE user_id = ?',
       [userId]
     );
     
     if (details.length > 0) {
+      console.log('Updating existing shipping details:', details[0].id);
       // Update existing shipping details
       await connection.query(
         `UPDATE user_shipping_details 
@@ -251,16 +287,10 @@ router.post('/shipping-address', auth, [
           details[0].id
         ]
       );
-      
-      await connection.commit();
-      
-      res.status(200).json({ 
-        message: 'Shipping address updated successfully',
-        address_id: details[0].id
-      });
     } else {
+      console.log('Creating new shipping details');
       // Insert new shipping details
-      const [result] = await connection.query(
+      await connection.query(
         `INSERT INTO user_shipping_details 
         (user_id, address1, address2, area, city, state, postcode, country, address_type, is_default)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -277,45 +307,33 @@ router.post('/shipping-address', auth, [
           is_default ? 1 : 0
         ]
       );
-      
-      await connection.commit();
-      
-      res.status(201).json({ 
-        message: 'Shipping address added successfully',
-        address_id: result.insertId
-      });
     }
+    
+    await connection.commit();
+    console.log('Transaction committed successfully');
+    res.status(200).json({ 
+      message: 'Address and contact information updated successfully',
+      address: fullAddress,
+      phone: phone
+    });
+    
   } catch (err) {
     await connection.rollback();
-    console.error('Error saving shipping address:', err);
+    console.error('Error saving address information:', err);
     res.status(500).json({ message: 'Server error' });
   } finally {
     connection.release();
   }
 });
 
-// Get all shipping addresses for a user
-router.get('/shipping-addresses', auth, async (req, res) => {
-  try {
-    const userId = req.user.user.id;
-    
-    const [addresses] = await db.query(
-      'SELECT * FROM user_shipping_details WHERE user_id = ? ORDER BY is_default DESC, id DESC',
-      [userId]
-    );
-    
-    res.status(200).json(addresses);
-  } catch (err) {
-    console.error('Error fetching shipping addresses:', err);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
 // Delete shipping address
 router.delete('/shipping-address/:id', auth, async (req, res) => {
   try {
-    const userId = req.user.user.id;
+    // Support both user object structures
+    const userId = req.user.id || req.user.user.id;
     const addressId = req.params.id;
+    
+    console.log(`Attempting to delete shipping address ${addressId} for user ${userId}`);
     
     // Verify the address belongs to the user
     const [address] = await db.query(
@@ -355,6 +373,7 @@ router.delete('/shipping-address/:id', auth, async (req, res) => {
       }
       
       await connection.commit();
+      console.log('Successfully deleted shipping address');
       
       res.status(200).json({ message: 'Shipping address deleted successfully' });
     } catch (err) {
@@ -366,6 +385,19 @@ router.delete('/shipping-address/:id', auth, async (req, res) => {
     }
   } catch (err) {
     console.error('Error processing shipping address deletion:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get all users (admin only)
+router.get('/', [auth, admin], async (req, res) => {
+  try {
+    const [users] = await db.query(
+      'SELECT user_id, first_name, last_name, email, phone, address, user_type, status, created_at FROM users'
+    );
+    res.json(users);
+  } catch (err) {
+    console.error(err.message);
     res.status(500).json({ message: 'Server error' });
   }
 });

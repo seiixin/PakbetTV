@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import axios from 'axios';
+import api, { authService } from '../../services/api';
 import './Account.css';
 
 function Account() {
@@ -10,9 +10,10 @@ function Account() {
   const [userData, setUserData] = useState({
     username: '',
     firstname: '',
-    middlename: '',
     lastname: '',
-    email: ''
+    email: '',
+    phone: '',
+    address: ''
   });
   
   const [shippingAddress, setShippingAddress] = useState({
@@ -24,7 +25,8 @@ function Account() {
     postcode: '',
     country: 'MY',
     address_type: 'home',
-    is_default: true
+    is_default: true,
+    phone: ''
   });
   
   const [isEditingAddress, setIsEditingAddress] = useState(false);
@@ -39,33 +41,33 @@ function Account() {
     }
     
     if (user) {
-      setUserData({
-        username: user.username || '',
-        firstname: user.first_name || user.firstname || '',
-        middlename: user.middle_name || user.middlename || '',
-        lastname: user.last_name || user.lastname || '',
-        email: user.email || ''
-      });
-      
-      // Fetch user's shipping address
-      fetchShippingAddress();
+      fetchUserProfile();
     }
   }, [user, isAuthenticated, navigate]);
   
-  const fetchShippingAddress = async () => {
+  const fetchUserProfile = async () => {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) return;
+      console.log('Fetching user profile...');
+      const response = await authService.getProfile();
+      const profileData = response.data;
+      console.log('Profile data received:', profileData);
       
-      const response = await axios.get('/api/users/shipping-addresses', {
-        headers: {
-          'x-auth-token': token
-        }
+      setUserData({
+        username: profileData.username || '',
+        firstname: profileData.firstName || '',
+        lastname: profileData.lastName || '',
+        email: profileData.email || '',
+        phone: profileData.phone || '',
+        address: profileData.address || ''
       });
       
-      if (response.data && response.data.length > 0) {
-        // Get the default address or the first one
-        const defaultAddress = response.data.find(addr => addr.is_default) || response.data[0];
+      // Get shipping addresses
+      const shippingResponse = await authService.getShippingAddresses();
+      const addresses = shippingResponse.data;
+      
+      // If there are shipping addresses, set the default or first one
+      if (addresses && addresses.length > 0) {
+        const defaultAddress = addresses.find(addr => addr.is_default) || addresses[0];
         setShippingAddress({
           address1: defaultAddress.address1 || '',
           address2: defaultAddress.address2 || '',
@@ -75,11 +77,13 @@ function Account() {
           postcode: defaultAddress.postcode || '',
           country: defaultAddress.country || 'MY',
           address_type: defaultAddress.address_type || 'home',
-          is_default: defaultAddress.is_default || true
+          is_default: defaultAddress.is_default || true,
+          phone: profileData.phone || ''
         });
       }
     } catch (error) {
-      console.error('Error fetching shipping address:', error);
+      console.error('Error fetching user profile:', error);
+      setAddressError(error.response?.data?.message || 'Failed to fetch user profile. Please try again later.');
     }
   };
   
@@ -98,37 +102,24 @@ function Account() {
     setAddressSuccess('');
     
     // Validate required fields
-    if (!shippingAddress.address1 || !shippingAddress.city || !shippingAddress.state || !shippingAddress.postcode) {
-      setAddressError('Address, city, state, and postcode are required');
+    if (!shippingAddress.address1 || !shippingAddress.city || !shippingAddress.state || !shippingAddress.postcode || !shippingAddress.phone) {
+      setAddressError('Address, city, state, postal code, and phone number are required');
       setAddressLoading(false);
       return;
     }
     
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        setAddressError('You must be logged in');
-        setAddressLoading(false);
-        return;
-      }
+      await authService.addShippingAddress(shippingAddress);
       
-      await axios.post('/api/users/shipping-address', shippingAddress, {
-        headers: {
-          'x-auth-token': token,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      setAddressSuccess('Shipping address updated successfully');
+      setAddressSuccess('Address and contact information updated successfully');
       setIsEditingAddress(false);
-      setAddressLoading(false);
       
-      // Refresh shipping address data
-      fetchShippingAddress();
-      
+      // Refresh user profile to get updated data
+      await fetchUserProfile();
     } catch (error) {
-      console.error('Error saving shipping address:', error);
-      setAddressError(error.response?.data?.message || 'Failed to update shipping address');
+      console.error('Error saving address:', error);
+      setAddressError(error.response?.data?.message || 'Failed to update address');
+    } finally {
       setAddressLoading(false);
     }
   };
@@ -175,12 +166,6 @@ function Account() {
               <p className="info-label">First Name:</p>
               <p className="info-value">{userData.firstname}</p>
             </div>
-            {userData.middlename && (
-              <div className="info-row">
-                <p className="info-label">Middle Name:</p>
-                <p className="info-value">{userData.middlename}</p>
-              </div>
-            )}
             <div className="info-row">
               <p className="info-label">Last Name:</p>
               <p className="info-value">{userData.lastname}</p>
@@ -188,6 +173,14 @@ function Account() {
             <div className="info-row">
               <p className="info-label">Email:</p>
               <p className="info-value">{userData.email}</p>
+            </div>
+            <div className="info-row">
+              <p className="info-label">Phone:</p>
+              <p className="info-value">{userData.phone || 'Not set'}</p>
+            </div>
+            <div className="info-row">
+              <p className="info-label">Address:</p>
+              <p className="info-value">{userData.address || 'Not set'}</p>
             </div>
           </div>
           
@@ -214,6 +207,20 @@ function Account() {
             
             {isEditingAddress ? (
               <form className="address-form" onSubmit={handleAddressSubmit}>
+                <div className="form-group">
+                  <label htmlFor="phone">Phone Number*</label>
+                  <input
+                    type="tel"
+                    id="phone"
+                    name="phone"
+                    value={shippingAddress.phone}
+                    onChange={handleAddressChange}
+                    placeholder="Enter your phone number"
+                    required
+                    disabled={addressLoading}
+                  />
+                </div>
+                
                 <div className="form-group">
                   <label htmlFor="address1">Address Line 1*</label>
                   <input
@@ -355,7 +362,7 @@ function Account() {
                     className="cancel-button"
                     onClick={() => {
                       setIsEditingAddress(false);
-                      fetchShippingAddress(); // Reset to original values
+                      fetchUserProfile(); // Reset to original values
                     }}
                     disabled={addressLoading}
                   >
@@ -374,6 +381,10 @@ function Account() {
               <div className="address-display">
                 {shippingAddress.address1 ? (
                   <>
+                    <div className="info-row">
+                      <p className="info-label">Phone:</p>
+                      <p className="info-value">{shippingAddress.phone}</p>
+                    </div>
                     <div className="info-row">
                       <p className="info-label">Address:</p>
                       <p className="info-value">

@@ -7,6 +7,13 @@ import { useAuth } from '../../context/AuthContext';
 import './Shop.css';
 import { createGlobalStyle } from 'styled-components';
 import API_BASE_URL from '../../config';
+
+const GlobalStyle = createGlobalStyle`
+  body {
+    overflow-x: hidden;
+  }
+`;
+
 const ProductDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();

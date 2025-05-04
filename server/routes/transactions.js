@@ -9,46 +9,67 @@ const BASE_URL = process.env.NODE_ENV === 'production'
   ? 'https://gw.dragonpay.ph/api/collect/v1' 
   : 'https://test.dragonpay.ph/api/collect/v1';
 const SECRET_KEY_SHA256 = process.env.DRAGONPAY_SECRET_KEY_SHA256 || 'test_sha256_key';
-router.post('/orders',async (req, res) => {
+router.post('/orders', async (req, res) => {
   const connection = await db.getConnection();
+  console.log('Starting order creation process...');
+  
   try {
     await connection.beginTransaction();
-    const { user_id, total_amount: totalPrice, items } = req.body;
+    
+    // Log the incoming order data
+    console.log('Order data:', req.body);
+    
+    const { user_id, total_amount, items } = req.body;
+    
+    // Create the order record first
     const [orderResult] = await connection.query(
-      'INSERT INTO orders (user_id, total_price, order_status) VALUES (?, ?, ?)',
-      [user_id, totalPrice, 'pending']
+      'INSERT INTO orders (user_id, total_price, order_status, payment_status) VALUES (?, ?, ?, ?)',
+      [user_id, total_amount, 'processing', 'pending']
     );
+    
     const orderId = orderResult.insertId;
+    console.log(`Order record created with ID: ${orderId}`);
+
+    // Process order items
     for (const item of items) {
       const [orderItemResult] = await connection.query(
         'INSERT INTO order_items (order_id, product_id, quantity, price, variant_id) VALUES (?, ?, ?, ?, ?)',
         [orderId, item.product_id, item.quantity, item.price, item.variant_id || null]
       );
+      
       const orderItemId = orderItemResult.insertId;
+      
+      // Handle variant attributes if present
       if (item.variant_attributes && Object.keys(item.variant_attributes).length > 0) {
         await connection.query(
           'UPDATE order_items SET variant_data = ? WHERE order_item_id = ?',
           [JSON.stringify(item.variant_attributes), orderItemId]
         );
       }
+
+      // Update stock levels
       if (item.variant_id) {
         const [[variant]] = await connection.query(
           'SELECT stock FROM product_variants WHERE variant_id = ?',
           [item.variant_id]
         );
+        
         if (!variant) {
           await connection.rollback();
           console.error(`Variant not found during stock check: ID ${item.variant_id}`);
           return res.status(400).json({ message: `Variant details not found for one of the items.` });
         }
+        
         const currentStock = variant.stock;
         const requestedQuantity = item.quantity;
+        
         if (currentStock < requestedQuantity) {
           await connection.rollback();
           return res.status(400).json({ 
             message: `Not enough stock for product variant. Available: ${currentStock}` 
           });
         }
+        
         const newStock = currentStock - requestedQuantity;
         await connection.query(
           'UPDATE product_variants SET stock = ? WHERE variant_id = ?',
@@ -59,17 +80,23 @@ router.post('/orders',async (req, res) => {
           'SELECT stock FROM products WHERE product_id = ?',
           [item.product_id]
         );
+        
         if (!product) {
-           await connection.rollback();
-           console.error(`Product not found during stock check: ID ${item.product_id}`);
-           return res.status(400).json({ message: `Product details not found for one of the items.` });
+          await connection.rollback();
+          console.error(`Product not found during stock check: ID ${item.product_id}`);
+          return res.status(400).json({ message: `Product details not found for one of the items.` });
         }
+        
         const currentStock = product.stock;
         const requestedQuantity = item.quantity;
+        
         if (currentStock < requestedQuantity) {
-            await connection.rollback();
-            return res.status(400).json({ message: `Not enough stock for product ID ${item.product_id}. Available: ${currentStock}` });
+          await connection.rollback();
+          return res.status(400).json({ 
+            message: `Not enough stock for product ID ${item.product_id}. Available: ${currentStock}` 
+          });
         }
+        
         const newStock = currentStock - requestedQuantity;
         await connection.query(
           'UPDATE products SET stock = ? WHERE product_id = ?',
@@ -77,7 +104,10 @@ router.post('/orders',async (req, res) => {
         );
       }
     }
+    
     await connection.commit();
+    console.log(`Order ${orderId} committed successfully`);
+    
     res.status(201).json({ 
       message: 'Order created successfully', 
       order_id: orderId,
@@ -86,7 +116,11 @@ router.post('/orders',async (req, res) => {
   } catch (error) {
     await connection.rollback();
     console.error('Error creating order:', error);
-    res.status(500).json({ message: 'Failed to create order' });
+    console.error('Stack trace:', error.stack);
+    res.status(500).json({ 
+      message: 'Failed to create order',
+      error: error.message 
+    });
   } finally {
     connection.release();
   }

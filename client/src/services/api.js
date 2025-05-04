@@ -1,12 +1,14 @@
 import axios from 'axios';
 import API_BASE_URL from '../config'; 
-const API_URL = `${API_BASE_URL}/api`; 
+
 const api = axios.create({
   baseURL: API_BASE_URL, 
   headers: {
     'Content-Type': 'application/json'
   }
 });
+
+// Add request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
@@ -14,13 +16,40 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
     if (config.url && !config.url.startsWith('/api')) {
-        config.url = `/api${config.url.startsWith('/') ? '' : '/'}${config.url}`;
+      config.url = `/api${config.url.startsWith('/') ? '' : '/'}${config.url}`;
     }
-    console.log('[Axios Interceptor] Requesting:', config.baseURL + config.url);
+    console.log('[Axios Interceptor] Requesting:', {
+      url: config.baseURL + config.url,
+      method: config.method,
+      headers: config.headers
+    });
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => {
+    console.error('[Axios Interceptor] Request Error:', error);
+    return Promise.reject(error);
+  }
 );
+
+// Add response interceptor for better error handling
+api.interceptors.response.use(
+  (response) => {
+    console.log('[Axios Interceptor] Response:', {
+      status: response.status,
+      url: response.config.url
+    });
+    return response;
+  },
+  (error) => {
+    console.error('[Axios Interceptor] Response Error:', {
+      status: error.response?.status,
+      url: error.config?.url,
+      message: error.response?.data?.message || error.message
+    });
+    return Promise.reject(error);
+  }
+);
+
 export const authService = {
   signup: (userData) => {
     const url = '/auth/signup'; 
@@ -28,6 +57,12 @@ export const authService = {
     return api.post(url, userData); 
   },
   login: (credentials) => api.post('/auth/login', credentials),
-  getProfile: () => api.get('/auth/profile')
+  getProfile: () => api.get('/auth/me'),
+  updateProfile: (userData) => api.put('/users/profile', userData),
+  getShippingAddresses: () => api.get('/users/shipping-addresses'),
+  addShippingAddress: (addressData) => api.post('/users/shipping-address', addressData),
+  updateShippingAddress: (addressId, addressData) => api.put(`/users/shipping-address/${addressId}`, addressData),
+  deleteShippingAddress: (addressId) => api.delete(`/users/shipping-address/${addressId}`)
 };
-export default API_URL; 
+
+export default api; 
