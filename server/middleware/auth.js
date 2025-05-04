@@ -34,14 +34,10 @@ const auth = (req, res, next) => {
       return res.status(401).json({ message: 'Invalid token structure' });
     }
     
-    // Maintain both structures for backward compatibility
+    // Set a consistent user object structure
     req.user = {
       id: decoded.user.id,
-      userType: decoded.user.userType,
-      user: {
-        id: decoded.user.id,
-        userType: decoded.user.userType
-      }
+      userType: decoded.user.userType
     };
     
     console.log('Token verified successfully:', {
@@ -79,7 +75,7 @@ const admin = (req, res, next) => {
     return res.status(401).json({ message: 'Authentication required' });
   }
 
-  if (req.user.userType === 'admin' || req.user.user?.userType === 'admin') {
+  if (req.user.userType === 'admin') {
     console.log('Admin access granted');
     next();
   } else {

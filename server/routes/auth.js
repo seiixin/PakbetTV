@@ -101,13 +101,18 @@ router.post(
 );
 router.get('/me', auth, async (req, res) => {
   try {
+    const userId = req.user.id || req.user.user.id;
+    console.log('Fetching user profile for /me endpoint:', userId);
+    
     const [users] = await db.query(
       'SELECT user_id, first_name, last_name, email, phone, address, user_type, status FROM users WHERE user_id = ?',
-      [req.user.user.id]
+      [userId]
     );
+    
     if (users.length === 0) {
       return res.status(404).json({ message: 'User not found' });
     }
+    
     const user = users[0];
     res.json({
       id: user.user_id,
@@ -120,7 +125,7 @@ router.get('/me', auth, async (req, res) => {
       status: user.status
     });
   } catch (err) {
-    console.error(err.message);
+    console.error('Error in /me endpoint:', err);
     res.status(500).json({ message: 'Server error' });
   }
 });

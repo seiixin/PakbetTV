@@ -199,9 +199,10 @@ router.get('/profile', auth, async (req, res) => {
 
 // Add or update user shipping address
 router.post('/shipping-address', auth, [
-  body('address1').notEmpty().withMessage('Address line 1 is required'),
-  body('city').notEmpty().withMessage('City is required'),
-  body('state').notEmpty().withMessage('State is required'),
+  body('region').notEmpty().withMessage('Region is required'),
+  body('province').notEmpty().withMessage('Province is required'),
+  body('city_municipality').notEmpty().withMessage('City/Municipality is required'),
+  body('barangay').notEmpty().withMessage('Barangay is required'),
   body('postcode').notEmpty().withMessage('Postal code is required')
 ], async (req, res) => {
   // Validate request
@@ -214,20 +215,28 @@ router.post('/shipping-address', auth, [
   console.log('Adding/updating shipping address for user:', userId);
   
   const {
-    address1,
+    region,
+    province,
+    city_municipality,
+    barangay,
+    street_name,
+    building,
+    house_number,
     address2,
-    area,
-    city,
-    state,
     postcode,
-    country = 'MY',
+    country = 'PH',
     address_type = 'home',
     is_default = true,
     phone
   } = req.body;
 
-  // Format the full address for the users table
-  const fullAddress = `${address1}${address2 ? ', ' + address2 : ''}, ${area}, ${city}, ${state} ${postcode}`;
+  // Construct address1 from the components
+  const address1Components = [barangay];
+  if (street_name) address1Components.push(street_name);
+  if (house_number) address1Components.push(house_number);
+  if (building) address1Components.push(building);
+  
+  const address1 = address1Components.join(', ');
   
   const connection = await db.getConnection();
   
@@ -235,12 +244,19 @@ router.post('/shipping-address', auth, [
     await connection.beginTransaction();
     console.log('Started transaction');
 
-    // First update the main user profile with address and phone
+    // First update the main user profile with phone
     await connection.query(
-      'UPDATE users SET address = ?, phone = ?, updated_at = NOW() WHERE user_id = ?',
-      [fullAddress, phone, userId]
+      'UPDATE users SET phone = ?, updated_at = NOW() WHERE user_id = ?',
+      [phone, userId]
     );
     console.log('Updated main user profile');
+    
+    // Delete any empty shipping addresses
+    await connection.query(
+      'DELETE FROM user_shipping_details WHERE user_id = ? AND (address1 = \'\' OR address1 IS NULL)',
+      [userId]
+    );
+    console.log('Cleaned up empty shipping addresses');
     
     // If this is the default address, reset all other addresses to non-default
     if (is_default) {
@@ -253,7 +269,7 @@ router.post('/shipping-address', auth, [
     
     // Check if user already has shipping details
     const [details] = await connection.query(
-      'SELECT id FROM user_shipping_details WHERE user_id = ?',
+      'SELECT id FROM user_shipping_details WHERE user_id = ? AND address1 IS NOT NULL AND address1 != \'\'',
       [userId]
     );
     
@@ -265,25 +281,39 @@ router.post('/shipping-address', auth, [
         SET 
           address1 = ?,
           address2 = ?,
-          area = ?,
           city = ?,
           state = ?,
           postcode = ?,
           country = ?,
           address_type = ?,
           is_default = ?,
+          region = ?,
+          province = ?,
+          city_municipality = ?,
+          barangay = ?,
+          street_name = ?,
+          building = ?,
+          house_number = ?,
+          address_format = ?,
           updated_at = NOW()
         WHERE id = ?`,
         [
           address1,
           address2 || '',
-          area || '',
-          city,
-          state,
+          city_municipality,
+          province,
           postcode,
           country,
           address_type,
           is_default ? 1 : 0,
+          region,
+          province,
+          city_municipality,
+          barangay,
+          street_name || null,
+          building || null,
+          house_number || null,
+          'philippines',
           details[0].id
         ]
       );
@@ -292,19 +322,27 @@ router.post('/shipping-address', auth, [
       // Insert new shipping details
       await connection.query(
         `INSERT INTO user_shipping_details 
-        (user_id, address1, address2, area, city, state, postcode, country, address_type, is_default)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (user_id, address1, address2, city, state, postcode, country, address_type, is_default,
+         region, province, city_municipality, barangay, street_name, building, house_number, address_format)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           userId,
           address1,
           address2 || '',
-          area || '',
-          city,
-          state,
+          city_municipality,
+          province,
           postcode,
           country,
           address_type,
-          is_default ? 1 : 0
+          is_default ? 1 : 0,
+          region,
+          province,
+          city_municipality,
+          barangay,
+          street_name || null,
+          building || null,
+          house_number || null,
+          'philippines'
         ]
       );
     }
@@ -313,7 +351,7 @@ router.post('/shipping-address', auth, [
     console.log('Transaction committed successfully');
     res.status(200).json({ 
       message: 'Address and contact information updated successfully',
-      address: fullAddress,
+      address: address1,
       phone: phone
     });
     

@@ -5,7 +5,7 @@ import api, { authService } from '../../services/api';
 import './Account.css';
 
 function Account() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [userData, setUserData] = useState({
     username: '',
@@ -23,30 +23,46 @@ function Account() {
     city: '',
     state: '',
     postcode: '',
-    country: 'MY',
+    country: 'PH',
     address_type: 'home',
     is_default: true,
-    phone: ''
+    region: '',
+    province: '',
+    city_municipality: '',
+    barangay: '',
+    street_name: '',
+    building: '',
+    house_number: '',
+    address_format: 'philippines'
   });
   
   const [isEditingAddress, setIsEditingAddress] = useState(false);
   const [addressLoading, setAddressLoading] = useState(false);
   const [addressError, setAddressError] = useState('');
   const [addressSuccess, setAddressSuccess] = useState('');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Wait for auth to be checked
+    if (authLoading) {
+      return;
+    }
+
+    // Redirect if not authenticated
     if (!isAuthenticated) {
       navigate('/login');
       return;
     }
     
-    if (user) {
+    // Only fetch profile if we're authenticated
+    if (isAuthenticated && user) {
       fetchUserProfile();
     }
-  }, [user, isAuthenticated, navigate]);
+  }, [user, isAuthenticated, authLoading, navigate]);
   
   const fetchUserProfile = async () => {
     try {
+      setLoading(true);
       console.log('Fetching user profile...');
       const response = await authService.getProfile();
       const profileData = response.data;
@@ -75,15 +91,29 @@ function Account() {
           city: defaultAddress.city || '',
           state: defaultAddress.state || '',
           postcode: defaultAddress.postcode || '',
-          country: defaultAddress.country || 'MY',
+          country: defaultAddress.country || 'PH',
           address_type: defaultAddress.address_type || 'home',
           is_default: defaultAddress.is_default || true,
+          region: defaultAddress.region || '',
+          province: defaultAddress.province || '',
+          city_municipality: defaultAddress.city_municipality || '',
+          barangay: defaultAddress.barangay || '',
+          street_name: defaultAddress.street_name || '',
+          building: defaultAddress.building || '',
+          house_number: defaultAddress.house_number || '',
+          address_format: defaultAddress.address_format || 'philippines',
           phone: profileData.phone || ''
         });
       }
     } catch (error) {
       console.error('Error fetching user profile:', error);
-      setAddressError(error.response?.data?.message || 'Failed to fetch user profile. Please try again later.');
+      if (error.response?.status === 401) {
+        navigate('/login');
+      } else {
+        setAddressError(error.response?.data?.message || 'Failed to fetch user profile. Please try again later.');
+      }
+    } finally {
+      setLoading(false);
     }
   };
   
@@ -110,7 +140,6 @@ function Account() {
     
     try {
       await authService.addShippingAddress(shippingAddress);
-      
       setAddressSuccess('Address and contact information updated successfully');
       setIsEditingAddress(false);
       
@@ -118,11 +147,23 @@ function Account() {
       await fetchUserProfile();
     } catch (error) {
       console.error('Error saving address:', error);
-      setAddressError(error.response?.data?.message || 'Failed to update address');
+      if (error.response?.status === 401) {
+        navigate('/login');
+      } else {
+        setAddressError(error.response?.data?.message || 'Failed to update address');
+      }
     } finally {
       setAddressLoading(false);
     }
   };
+
+  if (authLoading || loading) {
+    return <div className="loading">Loading...</div>;
+  }
+
+  if (!isAuthenticated) {
+    return null; // The useEffect will handle redirect
+  }
 
   return (
     <div className="account-container">
@@ -222,41 +263,56 @@ function Account() {
                 </div>
                 
                 <div className="form-group">
-                  <label htmlFor="address1">Address Line 1*</label>
+                  <label htmlFor="region">Region*</label>
                   <input
                     type="text"
-                    id="address1"
-                    name="address1"
-                    value={shippingAddress.address1}
+                    id="region"
+                    name="region"
+                    value={shippingAddress.region}
                     onChange={handleAddressChange}
-                    placeholder="Street address, house number"
+                    placeholder="e.g. Region IX"
                     required
                     disabled={addressLoading}
                   />
                 </div>
                 
                 <div className="form-group">
-                  <label htmlFor="address2">Address Line 2</label>
+                  <label htmlFor="province">Province*</label>
                   <input
                     type="text"
-                    id="address2"
-                    name="address2"
-                    value={shippingAddress.address2}
+                    id="province"
+                    name="province"
+                    value={shippingAddress.province}
                     onChange={handleAddressChange}
-                    placeholder="Apartment, suite, unit, building (optional)"
+                    placeholder="e.g. Zamboanga del Sur"
+                    required
                     disabled={addressLoading}
                   />
                 </div>
                 
                 <div className="form-group">
-                  <label htmlFor="area">Area/District/Barangay*</label>
+                  <label htmlFor="city_municipality">City/Municipality*</label>
                   <input
                     type="text"
-                    id="area"
-                    name="area"
-                    value={shippingAddress.area}
+                    id="city_municipality"
+                    name="city_municipality"
+                    value={shippingAddress.city_municipality}
                     onChange={handleAddressChange}
-                    placeholder="Area, district, or barangay"
+                    placeholder="e.g. Zamboanga City"
+                    required
+                    disabled={addressLoading}
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label htmlFor="barangay">Barangay*</label>
+                  <input
+                    type="text"
+                    id="barangay"
+                    name="barangay"
+                    value={shippingAddress.barangay}
+                    onChange={handleAddressChange}
+                    placeholder="e.g. Punta Dulo"
                     required
                     disabled={addressLoading}
                   />
@@ -264,32 +320,56 @@ function Account() {
                 
                 <div className="form-row">
                   <div className="form-group half">
-                    <label htmlFor="city">City*</label>
+                    <label htmlFor="street_name">Street Name</label>
                     <input
                       type="text"
-                      id="city"
-                      name="city"
-                      value={shippingAddress.city}
+                      id="street_name"
+                      name="street_name"
+                      value={shippingAddress.street_name}
                       onChange={handleAddressChange}
-                      placeholder="City"
-                      required
+                      placeholder="Street name (optional)"
                       disabled={addressLoading}
                     />
                   </div>
                   
                   <div className="form-group half">
-                    <label htmlFor="state">State/Province*</label>
+                    <label htmlFor="house_number">House Number</label>
                     <input
                       type="text"
-                      id="state"
-                      name="state"
-                      value={shippingAddress.state}
+                      id="house_number"
+                      name="house_number"
+                      value={shippingAddress.house_number}
                       onChange={handleAddressChange}
-                      placeholder="State or province"
-                      required
+                      placeholder="House number (optional)"
                       disabled={addressLoading}
                     />
                   </div>
+                </div>
+                
+                <div className="form-group">
+                  <label htmlFor="building">Building</label>
+                  <input
+                    type="text"
+                    id="building"
+                    name="building"
+                    value={shippingAddress.building}
+                    onChange={handleAddressChange}
+                    placeholder="Building name (optional)"
+                    disabled={addressLoading}
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label htmlFor="address2">Additional Address Details</label>
+                  <input
+                    type="text"
+                    id="address2"
+                    name="address2"
+                    value={shippingAddress.address2}
+                    onChange={handleAddressChange}
+                    placeholder="Additional address details (optional)"
+                    disabled={addressLoading}
+                  />
                 </div>
                 
                 <div className="form-row">
@@ -301,7 +381,7 @@ function Account() {
                       name="postcode"
                       value={shippingAddress.postcode}
                       onChange={handleAddressChange}
-                      placeholder="Postal code"
+                      placeholder="e.g. 7000"
                       required
                       disabled={addressLoading}
                     />
@@ -316,8 +396,8 @@ function Account() {
                       onChange={handleAddressChange}
                       disabled={addressLoading}
                     >
-                      <option value="MY">Malaysia</option>
                       <option value="PH">Philippines</option>
+                      <option value="MY">Malaysia</option>
                       <option value="SG">Singapore</option>
                     </select>
                   </div>
@@ -411,8 +491,8 @@ function Account() {
                     <div className="info-row">
                       <p className="info-label">Country:</p>
                       <p className="info-value">
-                        {shippingAddress.country === 'MY' ? 'Malaysia' : 
-                         shippingAddress.country === 'PH' ? 'Philippines' : 
+                        {shippingAddress.country === 'PH' ? 'Philippines' : 
+                         shippingAddress.country === 'MY' ? 'Malaysia' : 
                          shippingAddress.country === 'SG' ? 'Singapore' : 
                          shippingAddress.country}
                       </p>

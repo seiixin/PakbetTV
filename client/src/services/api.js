@@ -31,21 +31,32 @@ api.interceptors.request.use(
   }
 );
 
-// Add response interceptor for better error handling
+// Add response interceptor to handle token expiration
 api.interceptors.response.use(
-  (response) => {
-    console.log('[Axios Interceptor] Response:', {
-      status: response.status,
-      url: response.config.url
-    });
-    return response;
-  },
-  (error) => {
-    console.error('[Axios Interceptor] Response Error:', {
-      status: error.response?.status,
-      url: error.config?.url,
-      message: error.response?.data?.message || error.message
-    });
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    // If the error is 401 and we haven't already tried to refresh
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      // Clear stored auth data
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+
+      // Only redirect to login if we're not already there and not trying to login
+      const currentPath = window.location.pathname;
+      const isAuthEndpoint = originalRequest.url.includes('/auth/login') || 
+                            originalRequest.url.includes('/auth/signup');
+      
+      if (!currentPath.includes('/login') && 
+          !currentPath.includes('/signup') && 
+          !isAuthEndpoint) {
+        window.location.href = '/login';
+      }
+    }
+
     return Promise.reject(error);
   }
 );
