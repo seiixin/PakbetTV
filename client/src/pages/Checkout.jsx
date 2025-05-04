@@ -58,9 +58,18 @@ const Checkout = () => {
           'x-auth-token': token
         }
       });
-      setCartItems(response.data);
+      
+      // Check if response.data is an array, if not, look for items property
+      const items = Array.isArray(response.data) ? response.data : response.data.items;
+      
+      // Validate that we have an array of items
+      if (!Array.isArray(items)) {
+        throw new Error('Invalid response format from server');
+      }
+      
+      setCartItems(items);
       // Select all items by default
-      setSelectedItems(response.data.map(item => item.id));
+      setSelectedItems(items.map(item => item.id));
       setLoading(false);
     } catch (err) {
       console.error('Failed to fetch cart items:', err);
