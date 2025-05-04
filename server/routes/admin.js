@@ -312,13 +312,13 @@ router.post('/create-shipping/:orderId', async (req, res) => {
         merchant_order_number: `SHIP${orderId}${Date.now().toString().substring(7)}`
       },
       from: {
-        name: "FengShui E-Commerce",
+        name: "Feng Shui by Pakbet TV",
         phone_number: "+6591234567",
         email: "store@fengshui-ecommerce.com",
         address: {
-          address1: "1 Changi Business Park",
-          address2: "#01-01",
-          area: "Changi Business Park",
+          address1: "Unit 1004 Cityland Shaw Tower Corner St. Francis, Shaw Blvd.",
+          address2: "",
+          area: "Mandaluyong City, Philippines",
           city: "Singapore",
           state: "Singapore",
           address_type: "office",
