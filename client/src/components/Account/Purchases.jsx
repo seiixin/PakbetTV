@@ -7,11 +7,23 @@ import NavBar from '../NavBar';
 import Footer from '../Footer';
 
 function Purchases() {
-  const { isAuthenticated, token, refreshing } = useAuth();
+  const { isAuthenticated, token } = useAuth();
   const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [activeFilter, setActiveFilter] = useState('all');
+  const [filteredOrders, setFilteredOrders] = useState([]);
+
+  // Order status options for filter
+  const orderStatusFilters = [
+    { key: 'all', label: 'All Orders' },
+    { key: 'processing', label: 'Processing' },
+    { key: 'for_packing', label: 'Packing' },
+    { key: 'shipped', label: 'Shipped' },
+    { key: 'delivered', label: 'Delivered' },
+    { key: 'completed', label: 'Completed' }
+  ];
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -30,6 +42,7 @@ function Purchases() {
         const response = await api.get('/orders');
         console.log('Orders fetched successfully:', response.data);
         setOrders(response.data);
+        setFilteredOrders(response.data);
         setLoading(false);
       } catch (err) {
         console.error('Error fetching orders:', err);
@@ -40,6 +53,23 @@ function Purchases() {
 
     fetchOrders();
   }, [isAuthenticated, navigate, token]);
+
+  // Apply filter when activeFilter changes or orders change
+  useEffect(() => {
+    if (activeFilter === 'all') {
+      setFilteredOrders(orders);
+    } else {
+      const filtered = orders.filter(order => {
+        // Special case for "Packing" which includes multiple statuses
+        if (activeFilter === 'for_packing') {
+          return ['for_packing', 'packed'].includes(order.order_status.toLowerCase());
+        }
+        // Otherwise just match the status
+        return order.order_status.toLowerCase() === activeFilter;
+      });
+      setFilteredOrders(filtered);
+    }
+  }, [activeFilter, orders]);
 
   const formatDate = (dateString) => {
     const options = { 
@@ -101,7 +131,7 @@ function Purchases() {
       return <div className="purchase-error-message">{error}</div>;
     }
 
-    if (orders.length === 0) {
+    if (filteredOrders.length === 0) {
       return (
         <div className="purchase-empty-state">
           <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#800000" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -109,8 +139,8 @@ function Purchases() {
             <line x1="3" y1="6" x2="21" y2="6"></line>
             <path d="M16 10a4 4 0 0 1-8 0"></path>
           </svg>
-          <h3>No purchases yet</h3>
-          <p>You haven't made any purchases yet. Browse our shop to find something you like!</p>
+          <h3>No orders found</h3>
+          <p>{activeFilter === 'all' ? "You haven't made any purchases yet." : `No orders with status "${orderStatusFilters.find(f => f.key === activeFilter)?.label}" found.`}</p>
           <button className="purchase-shop-now-btn" onClick={() => navigate('/shop')}>
             Shop Now
           </button>
@@ -120,7 +150,7 @@ function Purchases() {
 
     return (
       <div className="purchase-orders-list">
-        {orders.map(order => {
+        {filteredOrders.map(order => {
           // Get waybill information
           let trackingInfo = null;
           
@@ -149,7 +179,11 @@ function Purchases() {
                     style={{ 
                       color: getStatusColor(order.order_status),
                       backgroundColor: getStatusBgColor(order.order_status),
-                      borderColor: getStatusColor(order.order_status)
+                      borderColor: getStatusColor(order.order_status),
+                      width: '120px', // Fixed width for uniform appearance
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center'
                     }}
                   >
                     {order.order_status.charAt(0).toUpperCase() + order.order_status.slice(1).replace(/_/g, ' ')}
@@ -159,9 +193,9 @@ function Purchases() {
                       Payment: {order.payment_status.charAt(0).toUpperCase() + order.payment_status.slice(1)}
                     </div>
                   )}
-                  {trackingInfo && (
+                  {order.tracking_number && (
                     <div className="purchase-tracking-info">
-                      <span className="purchase-tracking-label">Waybill No.:</span> {trackingInfo.number}
+                      <span className="purchase-tracking-label">Waybill No.:</span> {order.tracking_number}
                     </div>
                   )}
                 </div>
@@ -174,11 +208,6 @@ function Purchases() {
                 <Link to={`/account/orders/${order.order_id}`} className="purchase-view-details-btn">
                   View Details
                 </Link>
-                {order.tracking_number && (
-                  <Link to={`/account/tracking/${order.order_id}`} className="purchase-track-order-btn">
-                    Track Order
-                  </Link>
-                )}
               </div>
             </div>
           );
@@ -187,39 +216,25 @@ function Purchases() {
     );
   };
 
-  // Subtle loading spinner for auth refreshing
-  const refreshSpinnerStyle = {
-    position: 'fixed',
-    top: '10px',
-    right: '10px',
-    width: '20px',
-    height: '20px',
-    border: '2px solid rgba(128, 0, 0, 0.1)',
-    borderTop: '2px solid #800000',
-    borderRadius: '50%',
-    animation: 'spin 1s linear infinite',
-    zIndex: 9999
-  };
-
   return (
     <div className="purchase-account-page">
-      {refreshing && (
-        <>
-          <div style={refreshSpinnerStyle}></div>
-          <style>
-            {`
-              @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-              }
-            `}
-          </style>
-        </>
-      )}
       <NavBar />
       <div className="purchase-account-container">
         <div className="purchase-account-wrapper">
-          <h1 className="purchase-account-title">My Purchases</h1>
+          <div className="purchase-filter-navbar">
+            <h2 className="purchase-orders-title">Order History</h2>
+            <div className="purchase-filter-tabs">
+              {orderStatusFilters.map(filter => (
+                <button
+                  key={filter.key}
+                  className={`purchase-filter-tab ${activeFilter === filter.key ? 'active' : ''}`}
+                  onClick={() => setActiveFilter(filter.key)}
+                >
+                  {filter.label}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="purchases-section">
             {renderOrders()}
           </div>

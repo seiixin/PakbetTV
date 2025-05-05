@@ -220,7 +220,11 @@ function OrderConfirmation() {
               style={{ 
                 color: getStatusColor(order.order_status),
                 backgroundColor: getStatusBgColor(order.order_status),
-                borderColor: getStatusColor(order.order_status)
+                borderColor: getStatusColor(order.order_status),
+                width: '120px', // Fixed width for uniform appearance
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center'
               }}
             >
               {order.order_status.charAt(0).toUpperCase() + order.order_status.slice(1).replace(/_/g, ' ')}
