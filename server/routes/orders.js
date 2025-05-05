@@ -286,7 +286,8 @@ router.get('/:id', auth, async (req, res) => {
     }
 
     let query = `
-      SELECT o.*, u.first_name, u.last_name, u.email, u.phone
+      SELECT o.*, u.first_name, u.last_name, u.email, u.phone,
+             (SELECT tracking_number FROM shipping WHERE order_id = o.order_id LIMIT 1) AS shipping_tracking_number
       FROM orders o
       JOIN users u ON o.user_id = u.user_id
       WHERE o.order_id = ?
@@ -303,6 +304,15 @@ router.get('/:id', auth, async (req, res) => {
       return res.status(404).json({ message: 'Order not found' });
     }
     const order = orders[0];
+    
+    // Use tracking number from either orders table or shipping table
+    if (order.shipping_tracking_number && !order.tracking_number) {
+      order.tracking_number = order.shipping_tracking_number;
+    }
+    
+    // Remove temporary field
+    delete order.shipping_tracking_number;
+    
     const [items] = await db.query(`
       SELECT oi.*, p.name AS product_name, p.product_code,
              COALESCE(
@@ -313,8 +323,15 @@ router.get('/:id', auth, async (req, res) => {
       JOIN products p ON oi.product_id = p.product_id
       WHERE oi.order_id = ?
     `, [orderId]);
+    
     const [shipping] = await db.query('SELECT * FROM shipping WHERE order_id = ?', [orderId]);
     const [payments] = await db.query('SELECT * FROM payments WHERE order_id = ?', [orderId]);
+    
+    // If shipping table has tracking number but order doesn't, prioritize shipping table
+    if (shipping.length > 0 && shipping[0].tracking_number && !order.tracking_number) {
+      order.tracking_number = shipping[0].tracking_number;
+    }
+    
     res.json({
       ...order,
       items,
@@ -322,7 +339,7 @@ router.get('/:id', auth, async (req, res) => {
       payment: payments.length > 0 ? payments[0] : null
     });
   } catch (err) {
-    console.error('GET order by ID error:', err.message);
+    console.error('GET order by ID error:', err);
     res.status(500).json({ message: 'Server error' });
   }
 });

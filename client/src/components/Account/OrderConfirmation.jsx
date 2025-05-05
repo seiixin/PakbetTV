@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
-import './Account.css';
+import './OrderConfirmation.css';
 import NavBar from '../NavBar';
 import Footer from '../Footer';
 
@@ -78,6 +78,40 @@ function OrderConfirmation() {
     return statusBgColors[status.toLowerCase()] || 'rgba(117, 117, 117, 0.1)';
   };
 
+  // Helper function to determine step status
+  const getStepStatus = (currentStatus, stepName) => {
+    const orderSteps = {
+      'pending_payment': 0,
+      'processing': 1,
+      'for_packing': 2,
+      'packed': 2,
+      'for_shipping': 3,
+      'shipped': 3,
+      'picked_up': 3,
+      'delivered': 4,
+      'completed': 5
+    };
+    
+    const stepOrder = {
+      'processing': 1,
+      'packing': 2,
+      'shipping': 3,
+      'delivery': 4,
+      'completed': 5
+    };
+    
+    const currentStepValue = orderSteps[currentStatus?.toLowerCase()] || 0;
+    const thisStepValue = stepOrder[stepName];
+    
+    if (currentStepValue > thisStepValue) {
+      return 'completed';
+    } else if (currentStepValue === thisStepValue) {
+      return 'active';
+    } else {
+      return '';
+    }
+  };
+
   if (loading) {
     return (
       <div className="account-container">
@@ -124,9 +158,9 @@ function OrderConfirmation() {
   }
 
   return (
-    <div className="account-container">
+    <div className="order-confirmation-page">
       <NavBar />
-      <div className="account-wrapper">
+      <div className="order-confirmation-wrapper">
         <h1 className="account-title">Order Details</h1>
         
         <div className="order-confirmation-container">
@@ -138,6 +172,21 @@ function OrderConfirmation() {
               <div className="order-date">
                 <span>Order Date:</span> {formatDate(order.created_at)}
               </div>
+              {order.tracking_number && (
+                <div className="tracking-number-display">
+                  <span className="tracking-label">Tracking Number:</span>
+                  <span className="tracking-value">{order.tracking_number}</span>
+                  <button 
+                    className="copy-tracking-btn"
+                    onClick={() => {
+                      navigator.clipboard.writeText(order.tracking_number);
+                      alert('Tracking number copied to clipboard!');
+                    }}
+                  >
+                    <i className="fas fa-copy"></i>
+                  </button>
+                </div>
+              )}
             </div>
             <div 
               className="order-status"
@@ -148,6 +197,71 @@ function OrderConfirmation() {
               }}
             >
               {order.order_status.charAt(0).toUpperCase() + order.order_status.slice(1).replace(/_/g, ' ')}
+            </div>
+          </div>
+
+          {/* Order Progress Tracker */}
+          <div className="order-progress-tracker">
+            <div className="progress-line">
+              <div 
+                className="progress-line-filled" 
+                style={{ 
+                  width: (() => {
+                    const statusMap = {
+                      'pending_payment': '0%',
+                      'processing': '20%',
+                      'for_packing': '40%',
+                      'packed': '40%',
+                      'for_shipping': '60%',
+                      'shipped': '60%',
+                      'picked_up': '60%',
+                      'delivered': '80%',
+                      'completed': '100%'
+                    };
+                    return statusMap[order.order_status.toLowerCase()] || '0%';
+                  })()
+                }}
+              />
+            </div>
+            
+            {/* Processing Step */}
+            <div className={`progress-step ${getStepStatus(order.order_status, 'processing')}`}>
+              <div className="step-icon">
+                <i className="fas fa-dollar-sign"></i>
+              </div>
+              <div className="step-label">Processing</div>
+            </div>
+            
+            {/* Packing Step */}
+            <div className={`progress-step ${getStepStatus(order.order_status, 'packing')}`}>
+              <div className="step-icon">
+                <i className="fas fa-box"></i>
+              </div>
+              <div className="step-label">Packing</div>
+            </div>
+            
+            {/* Shipping Step */}
+            <div className={`progress-step ${getStepStatus(order.order_status, 'shipping')}`}>
+              <div className="step-icon">
+                <i className="fas fa-truck"></i>
+              </div>
+              <div className="step-label">Shipping</div>
+            </div>
+            
+            {/* Delivery Step */}
+            <div className={`progress-step ${getStepStatus(order.order_status, 'delivery')}`}>
+              <div className="step-icon">
+                <i className="fas fa-home"></i>
+              </div>
+              <div className="step-label">Delivery</div>
+            </div>
+            
+            {/* Completed Step */}
+            <div className={`progress-step ${getStepStatus(order.order_status, 'completed')}`}>
+              <div className="step-icon">
+                <i className="fas fa-check"></i>
+              </div>
+              <div className="step-label">Completed</div>
             </div>
           </div>
 
@@ -162,10 +276,18 @@ function OrderConfirmation() {
                     <p><strong>City:</strong> {order.shipping.city}</p>
                     <p><strong>State/Province:</strong> {order.shipping.state}</p>
                     <p><strong>Postal Code:</strong> {order.shipping.postal_code}</p>
+                    {order.shipping.shipping_method && <p><strong>Method:</strong> {order.shipping.shipping_method}</p>}
+                    {order.shipping.estimated_delivery && <p><strong>Est. Delivery:</strong> {order.shipping.estimated_delivery}</p>}
                   </>
                 )}
                 <p><strong>Phone:</strong> {order.phone || 'Not provided'}</p>
                 <p><strong>Email:</strong> {order.email}</p>
+                {order.tracking_number && (
+                  <p>
+                    <strong>Tracking Number:</strong>
+                    <span className="tracking-value-inline">{order.tracking_number}</span>
+                  </p>
+                )}
               </div>
             </div>
 
@@ -192,13 +314,6 @@ function OrderConfirmation() {
               <div className="items-list">
                 {order.items && order.items.map((item, index) => (
                   <div key={index} className="order-item">
-                    <div className="item-image">
-                      <img 
-                        src={item.image_url || '/placeholder-product.jpg'} 
-                        alt={item.product_name}
-                        onError={(e) => e.target.src = '/placeholder-product.jpg'}
-                      />
-                    </div>
                     <div className="item-details">
                       <h4>{item.product_name}</h4>
                       <p className="item-code">Product Code: {item.product_code}</p>

@@ -55,7 +55,7 @@ router.post('/confirm-payment/:orderId', async (req, res) => {
     
     // Get order details
     const [orders] = await connection.query(
-      'SELECT o.*, u.first_name, u.last_name, u.email, u.phone FROM orders o ' +
+      'SELECT o.*, u.first_name, u.last_name, u.email, u.phone, u.user_id FROM orders o ' +
       'JOIN users u ON o.user_id = u.user_id ' +
       'WHERE o.order_id = ?',
       [orderId]
@@ -75,6 +75,9 @@ router.post('/confirm-payment/:orderId', async (req, res) => {
         message: 'Order cannot be confirmed. It must be in processing status with payment awaiting confirmation.' 
       });
     }
+
+    // Generate transaction ID
+    const transactionId = `order_${orderId}_${Date.now()}`;
     
     // Update order status
     await connection.query(
@@ -82,10 +85,10 @@ router.post('/confirm-payment/:orderId', async (req, res) => {
       ['paid', 'for_packing', orderId]
     );
     
-    // Update payment status
+    // Update payment status and transaction ID
     await connection.query(
-      'UPDATE payments SET status = ?, updated_at = NOW() WHERE order_id = ? AND status = ?',
-      ['completed', orderId, 'waiting_for_confirmation']
+      'UPDATE payments SET status = ?, transaction_id = ?, updated_at = NOW() WHERE order_id = ? AND status = ?',
+      ['completed', transactionId, orderId, 'waiting_for_confirmation']
     );
 
     // Get user's shipping details
@@ -100,6 +103,50 @@ router.post('/confirm-payment/:orderId', async (req, res) => {
     }
 
     const userShipping = shippingDetails[0];
+    
+    // Create shipping address string for shipping table
+    const shippingAddressString = `${userShipping.address1}, ${userShipping.address2 || ''}, ${userShipping.city}, ${userShipping.state}, ${userShipping.postcode}, ${userShipping.country}`.trim().replace(/, ,/g, ',').replace(/,$/g, '');
+
+    // Check if shipping record exists
+    const [existingShipping] = await connection.query(
+      'SELECT * FROM shipping WHERE order_id = ?',
+      [orderId]
+    );
+
+    // Create or update shipping record
+    if (existingShipping.length === 0) {
+      await connection.query(
+        'INSERT INTO shipping (order_id, user_id, address, status, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())',
+        [orderId, order.user_id, shippingAddressString, 'pending']
+      );
+    } else {
+      await connection.query(
+        'UPDATE shipping SET status = ?, updated_at = NOW() WHERE order_id = ?',
+        ['pending', orderId]
+      );
+    }
+
+    // Check if shipping_details record exists
+    const [existingShippingDetails] = await connection.query(
+      'SELECT * FROM shipping_details WHERE order_id = ?',
+      [orderId]
+    );
+
+    // Create or update shipping_details record
+    if (existingShippingDetails.length === 0) {
+      await connection.query(
+        `INSERT INTO shipping_details (
+          order_id, address1, address2, area, city, state, postcode, country, 
+          region, province, city_municipality, barangay, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+        [
+          orderId, userShipping.address1, userShipping.address2 || '', userShipping.area || '',
+          userShipping.city, userShipping.state, userShipping.postcode, userShipping.country || 'SG',
+          userShipping.region || '', userShipping.province || '', userShipping.city_municipality || '',
+          userShipping.barangay || ''
+        ]
+      );
+    }
 
     // Get order items
     const [orderItems] = await connection.query(
@@ -202,12 +249,48 @@ router.post('/confirm-payment/:orderId', async (req, res) => {
         }
       );
 
-      // Store tracking information
+      // Store tracking information with retry mechanism
       if (response.data && response.data.tracking_number) {
-        await connection.query(
-          'UPDATE shipping SET tracking_number = ?, carrier = ?, status = ? WHERE order_id = ?',
-          [response.data.tracking_number, 'NinjaVan', 'pending', orderId]
-        );
+        let retryCount = 0;
+        const maxRetries = 3;
+        
+        while (retryCount < maxRetries) {
+          try {
+            await connection.query(
+              'UPDATE shipping SET tracking_number = ?, carrier = ?, status = ?, updated_at = NOW() WHERE order_id = ?',
+              [response.data.tracking_number, 'NinjaVan', 'pending', orderId]
+            );
+            
+            // Also save tracking info to orders table for easier retrieval
+            await connection.query(
+              'UPDATE orders SET tracking_number = ? WHERE order_id = ?',
+              [response.data.tracking_number, orderId]
+            );
+            
+            // Also store in tracking_events table
+            await connection.query(
+              'INSERT INTO tracking_events (tracking_number, order_id, status, description, created_at) VALUES (?, ?, ?, ?, NOW())',
+              [response.data.tracking_number, orderId, 'pending', 'Shipping order created']
+            );
+            
+            // Update shipping_details with NinjaVan information
+            // Store the entire shipping response as JSON in a metadata field if exists
+            if (existingShippingDetails.length > 0) {
+              await connection.query(
+                'UPDATE shipping_details SET updated_at = NOW() WHERE order_id = ?',
+                [orderId]
+              );
+            }
+            
+            break; // Success, exit retry loop
+          } catch (updateError) {
+            retryCount++;
+            if (retryCount === maxRetries) {
+              throw updateError;
+            }
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+          }
+        }
       }
 
       await connection.commit();
@@ -216,6 +299,7 @@ router.post('/confirm-payment/:orderId', async (req, res) => {
         message: 'Payment confirmed and shipping order created successfully',
         order_status: 'for_packing',
         payment_status: 'paid',
+        transaction_id: transactionId,
         shipping: response.data
       });
 
@@ -229,6 +313,7 @@ router.post('/confirm-payment/:orderId', async (req, res) => {
         message: 'Payment confirmed but failed to create shipping order. Please create shipping manually.',
         order_status: 'for_packing',
         payment_status: 'paid',
+        transaction_id: transactionId,
         error: shippingError.response?.data || shippingError.message
       });
     }

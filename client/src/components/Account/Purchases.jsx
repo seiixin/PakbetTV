@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
-import './Account.css';
+import './Purchases.css';
 import NavBar from '../NavBar';
 import Footer from '../Footer';
 
@@ -90,20 +90,20 @@ function Purchases() {
   const renderOrders = () => {
     if (loading) {
       return (
-        <div className="loading">
-          <div className="loading-spinner"></div>
+        <div className="purchase-loading-state">
+          <div className="purchase-loading-spinner"></div>
           <p>Loading your purchase history...</p>
         </div>
       );
     }
 
     if (error) {
-      return <div className="error-message">{error}</div>;
+      return <div className="purchase-error-message">{error}</div>;
     }
 
     if (orders.length === 0) {
       return (
-        <div className="empty-purchases">
+        <div className="purchase-empty-state">
           <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#800000" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
             <line x1="3" y1="6" x2="21" y2="6"></line>
@@ -111,7 +111,7 @@ function Purchases() {
           </svg>
           <h3>No purchases yet</h3>
           <p>You haven't made any purchases yet. Browse our shop to find something you like!</p>
-          <button className="shop-now-btn" onClick={() => navigate('/shop')}>
+          <button className="purchase-shop-now-btn" onClick={() => navigate('/shop')}>
             Shop Now
           </button>
         </div>
@@ -119,7 +119,7 @@ function Purchases() {
     }
 
     return (
-      <div className="orders-list">
+      <div className="purchase-orders-list">
         {orders.map(order => {
           // Get waybill information
           let trackingInfo = null;
@@ -133,19 +133,19 @@ function Purchases() {
           }
           
           return (
-            <div className="order-item-card" key={order.order_id}>
-              <div className="order-header">
-                <div className="order-date">
+            <div className="purchase-order-item-card" key={order.order_id}>
+              <div className="purchase-order-header">
+                <div className="purchase-order-date">
                   <span>Order Placed:</span> {formatDate(order.created_at)}
                 </div>
-                <div className="order-id">
+                <div className="purchase-order-id">
                   <span>Order ID:</span> {order.order_id}
                 </div>
               </div>
-              <div className="order-details">
-                <div className="order-status-container">
+              <div className="purchase-order-details">
+                <div className="purchase-order-status-container">
                   <div 
-                    className="order-status" 
+                    className="purchase-order-status" 
                     style={{ 
                       color: getStatusColor(order.order_status),
                       backgroundColor: getStatusBgColor(order.order_status),
@@ -155,27 +155,27 @@ function Purchases() {
                     {order.order_status.charAt(0).toUpperCase() + order.order_status.slice(1).replace(/_/g, ' ')}
                   </div>
                   {order.payment_status && (
-                    <div className="payment-status">
+                    <div className="purchase-payment-status">
                       Payment: {order.payment_status.charAt(0).toUpperCase() + order.payment_status.slice(1)}
                     </div>
                   )}
                   {trackingInfo && (
-                    <div className="tracking-info">
-                      <span className="tracking-label">Tracking:</span> {trackingInfo.number}
+                    <div className="purchase-tracking-info">
+                      <span className="purchase-tracking-label">Waybill No.:</span> {trackingInfo.number}
                     </div>
                   )}
                 </div>
-                <div className="order-summary">
-                  <div className="order-count">{order.item_count} item{order.item_count !== 1 ? 's' : ''}</div>
-                  <div className="order-total">₱{parseFloat(order.total_price).toFixed(2)}</div>
+                <div className="purchase-order-summary">
+                  <div className="purchase-order-count">{order.item_count} item{order.item_count !== 1 ? 's' : ''}</div>
+                  <div className="purchase-order-total">₱{parseFloat(order.total_price).toFixed(2)}</div>
                 </div>
               </div>
-              <div className="order-actions">
-                <Link to={`/account/orders/${order.order_id}`} className="view-details-btn">
+              <div className="purchase-order-actions">
+                <Link to={`/account/orders/${order.order_id}`} className="purchase-view-details-btn">
                   View Details
                 </Link>
                 {order.tracking_number && (
-                  <Link to={`/account/tracking/${order.order_id}`} className="track-order-btn">
+                  <Link to={`/account/tracking/${order.order_id}`} className="purchase-track-order-btn">
                     Track Order
                   </Link>
                 )}
@@ -188,36 +188,11 @@ function Purchases() {
   };
 
   return (
-    <div className="account-page">
+    <div className="purchase-account-page">
       <NavBar />
-      <div className="account-container">
-        <div className="account-wrapper">
-          <h1 className="account-title">My Purchases</h1>
-          <div className="account-navigation">
-            <Link to="/account" className="account-nav-item">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                <circle cx="12" cy="7" r="4"></circle>
-              </svg>
-              Profile
-            </Link>
-            <Link to="/account/purchases" className="account-nav-item active">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
-                <line x1="3" y1="6" x2="21" y2="6"></line>
-                <path d="M16 10a4 4 0 0 1-8 0"></path>
-              </svg>
-              Purchases
-            </Link>
-            <Link to="/cart" className="account-nav-item">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="9" cy="21" r="1"></circle>
-                <circle cx="20" cy="21" r="1"></circle>
-                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
-              </svg>
-              Cart
-            </Link>
-          </div>
+      <div className="purchase-account-container">
+        <div className="purchase-account-wrapper">
+          <h1 className="purchase-account-title">My Purchases</h1>
           <div className="purchases-section">
             {renderOrders()}
           </div>
