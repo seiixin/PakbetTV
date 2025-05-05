@@ -240,14 +240,22 @@ router.post(
 );
 router.get('/', auth, async (req, res) => {
   try {
-    const userId = req.user.user.id;
-    const isAdmin = req.user.user.userType === 'admin';
+    const userId = req.user?.id || req.user?.user?.id;
+    const isAdmin = (req.user?.userType || req.user?.user?.userType) === 'admin';
+    
+    console.log('GET orders - User:', { userId, isAdmin });
+    
+    if (!userId) {
+      return res.status(401).json({ message: 'Invalid user token structure' });
+    }
+
     let query = `
       SELECT o.order_id, o.user_id, o.total_price, o.order_status, o.created_at, o.updated_at,
              u.first_name, u.last_name, u.email,
              (SELECT COUNT(*) FROM order_items WHERE order_id = o.order_id) AS item_count,
              (SELECT status FROM payments WHERE order_id = o.order_id LIMIT 1) AS payment_status,
-             (SELECT status FROM shipping WHERE order_id = o.order_id LIMIT 1) AS shipping_status
+             (SELECT status FROM shipping WHERE order_id = o.order_id LIMIT 1) AS shipping_status,
+             (SELECT tracking_number FROM shipping WHERE order_id = o.order_id LIMIT 1) AS tracking_number
       FROM orders o
       JOIN users u ON o.user_id = u.user_id
     `;
@@ -257,18 +265,26 @@ router.get('/', auth, async (req, res) => {
       params.push(userId);
     }
     query += ' ORDER BY o.created_at DESC';
+    
     const [orders] = await db.query(query, params);
     res.json(orders);
   } catch (err) {
-    console.error(err.message);
+    console.error('GET orders error:', err.message);
     res.status(500).json({ message: 'Server error' });
   }
 });
 router.get('/:id', auth, async (req, res) => {
   try {
     const orderId = req.params.id;
-    const userId = req.user.user.id;
-    const isAdmin = req.user.user.userType === 'admin';
+    const userId = req.user?.id || req.user?.user?.id;
+    const isAdmin = (req.user?.userType || req.user?.user?.userType) === 'admin';
+    
+    console.log('GET order by ID - User:', { userId, isAdmin, orderId });
+    
+    if (!userId) {
+      return res.status(401).json({ message: 'Invalid user token structure' });
+    }
+
     let query = `
       SELECT o.*, u.first_name, u.last_name, u.email, u.phone
       FROM orders o
@@ -306,7 +322,7 @@ router.get('/:id', auth, async (req, res) => {
       payment: payments.length > 0 ? payments[0] : null
     });
   } catch (err) {
-    console.error(err.message);
+    console.error('GET order by ID error:', err.message);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -365,8 +381,16 @@ router.delete('/:id', auth, async (req, res) => {
   try {
     await connection.beginTransaction();
     const orderId = req.params.id;
-    const userId = req.user.user.id;
-    const isAdmin = req.user.user.userType === 'admin';
+    const userId = req.user?.id || req.user?.user?.id;
+    const isAdmin = (req.user?.userType || req.user?.user?.userType) === 'admin';
+    
+    console.log('DELETE order - User:', { userId, isAdmin, orderId });
+    
+    if (!userId) {
+      await connection.rollback();
+      return res.status(401).json({ message: 'Invalid user token structure' });
+    }
+
     let query = 'SELECT * FROM orders WHERE order_id = ?';
     const params = [orderId];
     if (!isAdmin) {

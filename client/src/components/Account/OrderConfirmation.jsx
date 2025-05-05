@@ -1,1 +1,264 @@
-import React, { useState, useEffect } from 'react';import { useParams, useNavigate } from 'react-router-dom';import { useAuth } from '../../context/AuthContext';import './Account.css';import './OrderConfirmation.css';function OrderConfirmation() {  const { orderId } = useParams();  const { user, getToken } = useAuth();  const navigate = useNavigate();  const [order, setOrder] = useState(null);  const [loading, setLoading] = useState(true);  const [error, setError] = useState(null);  useEffect(() => {    const fetchOrderDetails = async () => {      try {        const token = getToken();        if (!token) {          navigate('/login');          return;        }        const response = await fetch(`/api/orders/${orderId}`, {          headers: {            'Authorization': `Bearer ${token}`          }        });        if (!response.ok) {          throw new Error('Failed to fetch order details');        }        const data = await response.json();        setOrder(data);      } catch (err) {        console.error('Error fetching order:', err);        setError('Unable to load order details. Please try again later.');      } finally {        setLoading(false);      }    };    fetchOrderDetails();  }, [orderId, navigate, getToken]);  const formatDate = (dateString) => {    const options = {       month: '2-digit',       day: '2-digit',       year: 'numeric',      hour: '2-digit',       minute: '2-digit',      hour12: false    };    return new Date(dateString).toLocaleString('en-US', options);  };  const getStatusStep = () => {    if (!order) return 0;    const statusMap = {      'pending': 1,      'processing': 2,      'shipped': 3,      'delivered': 4,      'completed': 5    };    return statusMap[order.order_status] || 0;  };  if (loading) {    return <div className="loading-container"><div className="loading-spinner"></div></div>;  }  if (error) {    return <div className="error-message">{error}</div>;  }  if (!order) {    return <div className="not-found">Order not found</div>;  }  return (    <div className="order-confirmation-container">      <div className="order-header">        <button className="back-button" onClick={() => navigate('/account/purchases')}>          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">            <path d="M19 12H5M12 19l-7-7 7-7"/>          </svg>          BACK        </button>        <div className="order-id">          ORDER ID: {order.order_id} | <span className="order-status">{            order.order_status === 'processing' ? 'SELLER IS PREPARING YOUR ORDER' :            order.order_status === 'shipped' ? 'YOUR ORDER IS ON THE WAY' :            order.order_status === 'delivered' ? 'YOUR ORDER HAS BEEN DELIVERED' :            order.order_status.toUpperCase()          }</span>        </div>      </div>      <div className="order-progress">        <div className={`progress-step ${getStatusStep() >= 1 ? 'active' : ''}`}>          <div className="step-icon">            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>              <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>            </svg>          </div>          <div className="step-label">Order Placed</div>          <div className="step-date">{formatDate(order.created_at)}</div>        </div>        <div className="progress-line"></div>        <div className={`progress-step ${getStatusStep() >= 2 ? 'active' : ''}`}>          <div className="step-icon">            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">              <rect x="2" y="4" width="20" height="16" rx="2"></rect>              <path d="M12 9v4M8 9v.01M16 9v.01M12 13v.01"></path>            </svg>          </div>          <div className="step-label">Order Paid</div>          <div className="step-date">{order.payment && order.payment.updated_at && order.payment.status === 'completed' ? formatDate(order.payment.updated_at) : '-'}</div>        </div>        <div className="progress-line"></div>        <div className={`progress-step ${getStatusStep() >= 3 ? 'active' : ''}`}>          <div className="step-icon">            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">              <rect x="1" y="3" width="15" height="13"></rect>              <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>              <circle cx="5.5" cy="18.5" r="2.5"></circle>              <circle cx="18.5" cy="18.5" r="2.5"></circle>            </svg>          </div>          <div className="step-label">To Ship</div>          <div className="step-date">{order.order_status === 'shipped' ? formatDate(order.updated_at) : '-'}</div>        </div>        <div className="progress-line"></div>        <div className={`progress-step ${getStatusStep() >= 4 ? 'active' : ''}`}>          <div className="step-icon">            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">              <path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l2-1.14"></path>              <path d="M16.5 9.4L7.55 4.24"></path>              <polyline points="3.29 7 12 12 20.71 7"></polyline>              <line x1="12" y1="22" x2="12" y2="12"></line>              <circle cx="18.5" cy="15.5" r="2.5"></circle>              <path d="M20.27 17.27L22 19"></path>            </svg>          </div>          <div className="step-label">To Receive</div>          <div className="step-date">{order.order_status === 'delivered' ? formatDate(order.updated_at) : '-'}</div>        </div>        <div className="progress-line"></div>        <div className={`progress-step ${getStatusStep() >= 5 ? 'active' : ''}`}>          <div className="step-icon">            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>            </svg>          </div>          <div className="step-label">To Rate</div>          <div className="step-date">-</div>        </div>      </div>      {order.shipping && order.shipping.status === 'shipped' && (        <div className="delivery-estimate">          <p>Delivery attempt should be made between {formatDate(new Date())} and {formatDate(new Date(Date.now() + 3*24*60*60*1000))}</p>          <p className="guarantee">✓ Guaranteed On-Time Delivery. Get a ₱50 voucher if no delivery was attempted by {formatDate(new Date(Date.now() + 7*24*60*60*1000))}</p>        </div>      )}      <div className="order-actions">        <button className="contact-seller">Contact Seller</button>        {order.order_status === 'pending' || order.order_status === 'processing' ? (          <button className="cancel-order">Cancel Order</button>        ) : null}      </div>      <div className="delivery-address">        <h3>Delivery Address</h3>        <div className="address-details">          <p className="recipient-name">{user.first_name} {user.last_name}</p>          <p className="phone">{user.phone}</p>          <p className="address-line">{order.shipping && order.shipping.address}</p>        </div>        <div className="delivery-service">          <span>Feng Shui Express</span>        </div>      </div>      <div className="order-items">        {order.items && order.items.map((item) => (          <div className="order-item" key={item.order_item_id}>            <div className="item-image">              <img src={item.image_url || '/images/product-placeholder.jpg'} alt={item.product_name} />            </div>            <div className="item-details">              <h4 className="item-name">{item.product_name}</h4>              {item.variant_name && (                <p className="item-variation">Variation: {item.variant_name}</p>              )}              <p className="item-quantity">x{item.quantity}</p>            </div>            <div className="item-price">₱{parseFloat(item.price).toFixed(2)}</div>          </div>        ))}      </div>      <div className="order-summary">        <div className="summary-row">          <span>Merchandise Subtotal</span>          <span className="amount">₱{parseFloat(order.total_price).toFixed(2)}</span>        </div>        <div className="summary-row">          <span>Shipping Fee</span>          <span className="amount">₱{order.shipping_fee || '0.00'}</span>        </div>        {order.discount && (          <div className="summary-row">            <span>Discount</span>            <span className="amount discount">-₱{parseFloat(order.discount).toFixed(2)}</span>          </div>        )}        <div className="summary-row total">          <span>Order Total</span>          <span className="amount total-amount">₱{parseFloat(order.total_price).toFixed(2)}</span>        </div>        <div className="summary-row">          <span>Payment Method</span>          <span className="payment-method">{order.payment ? order.payment.payment_method.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'N/A'}</span>        </div>      </div>    </div>  );}export default OrderConfirmation; 
+import React, { useState, useEffect } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import api from '../../services/api';
+import './Account.css';
+import NavBar from '../NavBar';
+import Footer from '../Footer';
+
+function OrderConfirmation() {
+  const { orderId } = useParams();
+  const { isAuthenticated } = useAuth();
+  const [order, setOrder] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchOrderDetails = async () => {
+      try {
+        setLoading(true);
+        const response = await api.get(`/orders/${orderId}`);
+        setOrder(response.data);
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching order:', err);
+        setError('Failed to load order details. Please try again later.');
+        setLoading(false);
+      }
+    };
+
+    if (isAuthenticated && orderId) {
+      fetchOrderDetails();
+    }
+  }, [isAuthenticated, orderId]);
+
+  const formatDate = (dateString) => {
+    const options = { 
+      month: '2-digit', 
+      day: '2-digit', 
+      year: 'numeric',
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: false
+    };
+    return new Date(dateString).toLocaleString('en-US', options);
+  };
+
+  const getStatusColor = (status) => {
+    const statusColors = {
+      'pending_payment': '#FFD700', // Gold
+      'processing': '#800000', // Maroon
+      'for_packing': '#A52A2A', // Darker maroon
+      'packed': '#B8860B', // Dark goldenrod
+      'for_shipping': '#800000', // Maroon
+      'shipped': '#8B0000', // Dark red
+      'picked_up': '#DAA520', // Goldenrod
+      'delivered': '#006400', // Dark green
+      'completed': '#228B22', // Forest green
+      'returned': '#8B0000', // Dark red
+      'cancelled': '#8B0000' // Dark red
+    };
+    return statusColors[status.toLowerCase()] || '#757575';
+  };
+
+  const getStatusBgColor = (status) => {
+    const statusBgColors = {
+      'pending_payment': 'rgba(255, 215, 0, 0.15)', // Gold with transparency
+      'processing': 'rgba(128, 0, 0, 0.1)', // Maroon with transparency
+      'for_packing': 'rgba(165, 42, 42, 0.1)', // Darker maroon with transparency
+      'packed': 'rgba(184, 134, 11, 0.1)', // Dark goldenrod with transparency
+      'for_shipping': 'rgba(128, 0, 0, 0.1)', // Maroon with transparency
+      'shipped': 'rgba(139, 0, 0, 0.1)', // Dark red with transparency
+      'picked_up': 'rgba(218, 165, 32, 0.1)', // Goldenrod with transparency
+      'delivered': 'rgba(0, 100, 0, 0.1)', // Dark green with transparency
+      'completed': 'rgba(34, 139, 34, 0.1)', // Forest green with transparency
+      'returned': 'rgba(139, 0, 0, 0.1)', // Dark red with transparency
+      'cancelled': 'rgba(139, 0, 0, 0.1)' // Dark red with transparency
+    };
+    return statusBgColors[status.toLowerCase()] || 'rgba(117, 117, 117, 0.1)';
+  };
+
+  if (loading) {
+    return (
+      <div className="account-container">
+        <NavBar />
+        <div className="account-wrapper">
+          <div className="loading">
+            <div className="loading-spinner"></div>
+            <p>Loading order details...</p>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="account-container">
+        <NavBar />
+        <div className="account-wrapper">
+          <div className="error-message">{error}</div>
+          <Link to="/account/purchases" className="back-button">
+            Back to Purchases
+          </Link>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (!order) {
+    return (
+      <div className="account-container">
+        <NavBar />
+        <div className="account-wrapper">
+          <div className="error-message">Order not found.</div>
+          <Link to="/account/purchases" className="back-button">
+            Back to Purchases
+          </Link>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  return (
+    <div className="account-container">
+      <NavBar />
+      <div className="account-wrapper">
+        <h1 className="account-title">Order Details</h1>
+        
+        <div className="order-confirmation-container">
+          <div className="order-header">
+            <div className="order-info">
+              <div className="order-number">
+                <span>Order ID:</span> {order.order_id}
+              </div>
+              <div className="order-date">
+                <span>Order Date:</span> {formatDate(order.created_at)}
+              </div>
+            </div>
+            <div 
+              className="order-status"
+              style={{ 
+                color: getStatusColor(order.order_status),
+                backgroundColor: getStatusBgColor(order.order_status),
+                borderColor: getStatusColor(order.order_status)
+              }}
+            >
+              {order.order_status.charAt(0).toUpperCase() + order.order_status.slice(1).replace(/_/g, ' ')}
+            </div>
+          </div>
+
+          <div className="order-details">
+            <div className="shipping-info">
+              <h3>Shipping Information</h3>
+              <div className="info-content">
+                <p><strong>Name:</strong> {order.first_name} {order.last_name}</p>
+                {order.shipping && (
+                  <>
+                    <p><strong>Address:</strong> {order.shipping.address}</p>
+                    <p><strong>City:</strong> {order.shipping.city}</p>
+                    <p><strong>State/Province:</strong> {order.shipping.state}</p>
+                    <p><strong>Postal Code:</strong> {order.shipping.postal_code}</p>
+                  </>
+                )}
+                <p><strong>Phone:</strong> {order.phone || 'Not provided'}</p>
+                <p><strong>Email:</strong> {order.email}</p>
+              </div>
+            </div>
+
+            <div className="payment-info">
+              <h3>Payment Information</h3>
+              <div className="info-content">
+                {order.payment && (
+                  <>
+                    <p>
+                      <strong>Status:</strong> 
+                      <span className={`payment-status ${order.payment.status.toLowerCase()}`}>
+                        {order.payment.status.charAt(0).toUpperCase() + order.payment.status.slice(1)}
+                      </span>
+                    </p>
+                    <p><strong>Method:</strong> {order.payment.payment_method}</p>
+                    <p><strong>Transaction ID:</strong> {order.payment.transaction_id || 'Pending'}</p>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="order-items">
+              <h3>Order Items</h3>
+              <div className="items-list">
+                {order.items && order.items.map((item, index) => (
+                  <div key={index} className="order-item">
+                    <div className="item-image">
+                      <img 
+                        src={item.image_url || '/placeholder-product.jpg'} 
+                        alt={item.product_name}
+                        onError={(e) => e.target.src = '/placeholder-product.jpg'}
+                      />
+                    </div>
+                    <div className="item-details">
+                      <h4>{item.product_name}</h4>
+                      <p className="item-code">Product Code: {item.product_code}</p>
+                      {item.variant_attributes && (
+                        <p className="item-variants">
+                          {Object.entries(item.variant_attributes)
+                            .map(([key, value]) => `${key}: ${value}`)
+                            .join(', ')}
+                        </p>
+                      )}
+                      <div className="item-price-qty">
+                        <span className="item-price">₱{parseFloat(item.price).toFixed(2)}</span>
+                        <span className="item-quantity">× {item.quantity}</span>
+                        <span className="item-total">
+                          ₱{(parseFloat(item.price) * item.quantity).toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="order-summary">
+              <h3>Order Summary</h3>
+              <div className="summary-details">
+                <div className="summary-row">
+                  <span>Subtotal:</span>
+                  <span>₱{parseFloat(order.total_price).toFixed(2)}</span>
+                </div>
+                <div className="summary-row">
+                  <span>Shipping:</span>
+                  <span>₱0.00</span>
+                </div>
+                <div className="summary-row total">
+                  <span>Total:</span>
+                  <span>₱{parseFloat(order.total_price).toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="order-actions">
+            <Link to="/account/purchases" className="back-button">
+              Back to Purchases
+            </Link>
+            {order.tracking_number && (
+              <Link 
+                to={`/account/tracking/${order.order_id}`}
+                className="track-order-button"
+              >
+                Track Order
+              </Link>
+            )}
+          </div>
+        </div>
+      </div>
+      <Footer />
+    </div>
+  );
+}
+
+export default OrderConfirmation; 

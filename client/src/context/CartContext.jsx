@@ -1,17 +1,24 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import API_BASE_URL from '../config';
+
 const CartContext = createContext();
+
 export const useCart = () => useContext(CartContext);
+
 export const CartProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const { user } = useAuth() || {}; 
+
+  // Load cart from localStorage whenever user changes
   useEffect(() => {
     const loadCart = () => {
       try {
-        const storageKey = user ? `cart_${user.id}` : 'cart_guest';
+        // Use a storage key based on user ID if logged in, or 'guest' if not
+        const storageKey = user?.id ? `cart_${user.id}` : 'cart_guest';
         console.log('Loading cart from localStorage:', storageKey);
+        
         const savedCart = localStorage.getItem(storageKey);
         if (savedCart) {
           const parsedCart = JSON.parse(savedCart);
@@ -26,13 +33,21 @@ export const CartProvider = ({ children }) => {
         setCartItems([]);
       }
     };
+    
     loadCart();
   }, [user]); 
+
+  // Save cart to localStorage whenever cartItems or user changes
   useEffect(() => {
-    const storageKey = user ? `cart_${user.id}` : 'cart_guest';
-    console.log('Saving cart to localStorage:', storageKey, cartItems.length, 'items');
-    localStorage.setItem(storageKey, JSON.stringify(cartItems));
+    try {
+      const storageKey = user?.id ? `cart_${user.id}` : 'cart_guest';
+      console.log('Saving cart to localStorage:', storageKey, cartItems.length, 'items');
+      localStorage.setItem(storageKey, JSON.stringify(cartItems));
+    } catch (error) {
+      console.error('Error saving cart to localStorage:', error);
+    }
   }, [cartItems, user]);
+
   const addToCart = (product, quantity = 1) => {
     setCartItems(prevItems => {
       const existingItemIndex = prevItems.findIndex(item => {
@@ -54,6 +69,7 @@ export const CartProvider = ({ children }) => {
       }
     });
   };
+
   const removeFromCart = (productId, variantId = null) => {
     setCartItems(prevItems => prevItems.filter(item => {
       if (variantId && item.variant_id) {
@@ -62,6 +78,7 @@ export const CartProvider = ({ children }) => {
       return item.id !== productId;
     }));
   };
+
   const updateQuantity = (productId, quantity, variantId = null) => {
     if (quantity <= 0) {
       removeFromCart(productId, variantId);
@@ -76,6 +93,7 @@ export const CartProvider = ({ children }) => {
       })
     );
   };
+
   const toggleItemSelection = (productId, variantId = null) => {
     setCartItems(prevItems => 
       prevItems.map(item => {
@@ -86,28 +104,40 @@ export const CartProvider = ({ children }) => {
       })
     );
   };
+
   const toggleSelectAll = (selectAll) => {
     setCartItems(prevItems => 
       prevItems.map(item => ({ ...item, selected: selectAll }))
     );
   };
+
   const clearCart = () => {
     setCartItems([]);
   };
+
+  // Merge guest cart with user cart when logging in
   const mergeGuestCartWithUserCart = () => {
-    if (!user) return; 
+    if (!user?.id) {
+      console.log('Cannot merge carts: user not logged in');
+      return; 
+    }
+    
     try {
       const guestCart = JSON.parse(localStorage.getItem('cart_guest') || '[]');
+      console.log(`Merging guest cart (${guestCart.length} items) with user cart (${cartItems.length} items)`);
+      
       if (guestCart.length > 0) {
         guestCart.forEach(item => {
           addToCart(item, item.quantity);
         });
         localStorage.removeItem('cart_guest');
+        console.log('Guest cart merged and removed');
       }
     } catch (error) {
       console.error('Error merging guest cart with user cart:', error);
     }
   };
+
   const getTotalPrice = () => {
     return cartItems
       .filter(item => item.selected)
@@ -118,12 +148,15 @@ export const CartProvider = ({ children }) => {
         return total + (price * item.quantity);
       }, 0);
   };
+
   const getSelectedCount = () => {
     return cartItems.filter(item => item.selected).length;
   };
+
   const getTotalCount = () => {
     return cartItems.reduce((count, item) => count + item.quantity, 0);
   };
+
   const createOrder = async (userId) => {
     const selectedItems = cartItems.filter(item => item.selected);
     if (selectedItems.length === 0) {
@@ -166,6 +199,7 @@ export const CartProvider = ({ children }) => {
       setLoading(false);
     }
   };
+
   const processPayment = async (orderId, email) => {
     setLoading(true);
     try {
@@ -197,9 +231,11 @@ export const CartProvider = ({ children }) => {
       setLoading(false);
     }
   };
+
   const removeSelectedItems = () => {
     setCartItems(prevItems => prevItems.filter(item => !item.selected));
   };
+
   const value = {
     cartItems,
     loading,
@@ -217,6 +253,7 @@ export const CartProvider = ({ children }) => {
     processPayment,
     mergeGuestCartWithUserCart
   };
+
   return (
     <CartContext.Provider value={value}>
       {children}

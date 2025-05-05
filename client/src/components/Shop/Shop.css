@@ -1,10 +1,27 @@
+/* Define color variables at the top for consistency */
+:root {
+  --primary-maroon: #800000;  /* Maroon */
+  --primary-maroon-dark: #650000;
+  --primary-gold: #DAA520;    /* Gold */
+  --primary-gold-light: #FFD700;
+  --primary-gold-dark: #B8860B;
+  --white: #ffffff;
+  --off-white: #f8f8f8;
+  --light-gray: #e0e0e0;
+  --gray: #999999;
+  --dark-gray: #555555;
+  --text-color: #333333;
+}
+
+/* Shop Container - Fix navbar overlap */
 .shop-container {
   width: 100%;
   min-height: 100vh;
-  background-color: #f8f9fa;
+  background-color: var(--off-white);
   display: flex;
   flex-direction: column;
-  padding-top: 80px; 
+  padding-top: 100px; /* Increased padding to prevent navbar overlap */
+  margin: 0;
 }
 .shop-main {
   display: flex;
@@ -1719,11 +1736,11 @@
 }
 .cart-container.cart-redesign {
   max-width: 1200px;
-  margin: 1rem auto 2rem auto;
+  margin: 2rem auto;
   padding: 0;
-  background-color: #f5f5f5;
-  border-radius: 4px;
-  box-shadow: 0 1px 1px 0 rgba(0,0,0,.05);
+  background-color: var(--off-white);
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 .cart-container.cart-redesign h1 {
   display: none; 

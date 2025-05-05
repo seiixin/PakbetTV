@@ -1,11 +1,9 @@
 import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom'
 import './App.css'
+import './styles/Modern.css'
 import Home from './components/Home'
 import Login from './components/Auth/Login'
 import Signup from './components/Auth/Signup'
-import NavBar from './components/NavBar'
-import { AuthProvider } from './context/AuthContext'
-import { CartProvider } from './context/CartContext'
 import Account from './components/Account/Account'
 import Purchases from './components/Account/Purchases'
 import OrderConfirmation from './components/Account/OrderConfirmation'
@@ -17,14 +15,18 @@ import Checkout from './components/Shop/Checkout'
 import TransactionComplete from './components/Shop/TransactionComplete'
 import ProsperGuide from './components/Guides/ProsperGuide'
 import OrderTracking from './pages/OrderTracking'
+import { AuthProvider } from './context/AuthContext'
+import { CartProvider } from './context/CartContext'
 
 function AppContent() {
   const location = useLocation();
-  const isAuthPage = location.pathname === '/login' || location.pathname === '/signup';
   console.log('Current location:', location.pathname);
+  
+  // Determine if we should show the debug component (only in development)
+  const isDevelopment = import.meta.env.DEV;
+  
   return (
     <>
-      {!isAuthPage && <NavBar />}
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
@@ -45,6 +47,7 @@ function AppContent() {
     </>
   );
 }
+
 function App() {
   console.log('App component rendering');
   return (
@@ -57,4 +60,5 @@ function App() {
     </Router>
   )
 }
+
 export default App

@@ -1,81 +1,88 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import React from 'react';
 import './TrackingDisplay.css';
+import { FaBoxOpen, FaShippingFast, FaBox, FaTruck, FaCheckCircle } from 'react-icons/fa';
 
-const TrackingDisplay = ({ trackingId }) => {
-  const [trackingData, setTrackingData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+const TrackingDisplay = ({ trackingData, orderStatus }) => {
+  if (!trackingData && !orderStatus) {
+    return <div className="tracking-unavailable">Tracking information not available yet.</div>;
+  }
 
-  useEffect(() => {
-    const fetchTrackingData = async () => {
-      try {
-        setLoading(true);
-        const response = await axios.get(`/api/delivery/tracking/${trackingId}`);
-        setTrackingData(response.data);
-        setLoading(false);
-      } catch (err) {
-        console.error('Error fetching tracking data:', err);
-        setError('Unable to load tracking information at this time.');
-        setLoading(false);
-      }
+  // Define the stages for the order tracking
+  const stages = [
+    { key: 'processing', label: 'Processing', icon: <FaBoxOpen size={24} /> },
+    { key: 'for_packing', label: 'Packing', icon: <FaBox size={24} /> },
+    { key: 'shipped', label: 'Shipped', icon: <FaShippingFast size={24} /> },
+    { key: 'picked_up', label: 'Delivery', icon: <FaTruck size={24} /> },
+    { key: 'completed', label: 'Completed', icon: <FaCheckCircle size={24} /> }
+  ];
+
+  // Map the order status to the tracking stages
+  const getStageIndex = (status) => {
+    const statusMap = {
+      'pending_payment': -1,
+      'processing': 0,
+      'for_packing': 1,
+      'packed': 1,
+      'for_shipping': 2,
+      'shipped': 2,
+      'picked_up': 3,
+      'delivered': 4,
+      'completed': 4,
+      'returned': -1,
+      'cancelled': -1
     };
-
-    if (trackingId) {
-      fetchTrackingData();
-    }
-  }, [trackingId]);
-
-  if (loading) return <div className="tracking-loading">Loading tracking information...</div>;
-  if (error) return <div className="tracking-error">{error}</div>;
-  if (!trackingData) return <div className="tracking-unavailable">Tracking information not available yet.</div>;
-
-  const getStatusLabel = (status) => {
-    switch (status) {
-      case 'Picked Up, In Transit To Origin Hub':
-        return 'Picked up';
-      case 'Delivered, Collected by Customer':
-      case 'Delivered, Left at Doorstep':
-      case 'Delivered, Received by Customer':
-        return 'Delivered';
-      case 'Returned to Sender':
-        return 'Returned';
-      case 'Cancelled':
-        return 'Cancelled';
-      default:
-        return 'In Transit';
-    }
+    return statusMap[status] !== undefined ? statusMap[status] : -1;
   };
 
+  const currentStageIndex = getStageIndex(orderStatus);
+
   return (
-    <div className="tracking-container">
-      <h3>Tracking Information</h3>
-      <div className="tracking-number">
-        <span className="label">Tracking Number:</span>
-        <span className="value">{trackingId}</span>
+    <div className="tracking-display-container">
+      <h3 className="tracking-title">Order Status</h3>
+      
+      <div className="tracking-stages">
+        {stages.map((stage, index) => {
+          const isActive = index <= currentStageIndex;
+          const isCurrentStage = index === currentStageIndex;
+          
+          return (
+            <div 
+              key={stage.key} 
+              className={`tracking-stage ${isActive ? 'active' : ''} ${isCurrentStage ? 'current' : ''}`}
+            >
+              <div className="stage-icon-container">
+                <div className="stage-icon">
+                  {stage.icon}
+                </div>
+                {index < stages.length - 1 && (
+                  <div className={`stage-line ${isActive ? 'active' : ''}`}></div>
+                )}
+              </div>
+              <div className="stage-label">{stage.label}</div>
+            </div>
+          );
+        })}
       </div>
       
-      <div className="tracking-status">
-        <span className="label">Current Status:</span>
-        <span className={`status-badge ${trackingData.currentStatus?.toLowerCase().replace(/\s/g, '-')}`}>
-          {getStatusLabel(trackingData.currentStatus)}
-        </span>
-      </div>
-      
-      <div className="tracking-timeline">
-        {trackingData.events && trackingData.events.map((event, index) => (
-          <div key={index} className="timeline-item">
-            <div className="timeline-date">
-              {new Date(event.created_at).toLocaleDateString()} 
-              {new Date(event.created_at).toLocaleTimeString()}
-            </div>
-            <div className="timeline-content">
-              <div className="timeline-title">{getStatusLabel(event.status)}</div>
-              <div className="timeline-description">{event.description}</div>
-            </div>
+      {trackingData && trackingData.events && trackingData.events.length > 0 && (
+        <div className="tracking-events">
+          <h4>Tracking Updates</h4>
+          <div className="tracking-timeline">
+            {trackingData.events.map((event, index) => (
+              <div key={index} className="timeline-item">
+                <div className="timeline-date">
+                  {new Date(event.created_at).toLocaleDateString()} 
+                  {new Date(event.created_at).toLocaleTimeString()}
+                </div>
+                <div className="timeline-content">
+                  <div className="timeline-title">{event.status}</div>
+                  <div className="timeline-description">{event.description}</div>
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

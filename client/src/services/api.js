@@ -1,12 +1,16 @@
 import axios from 'axios';
 import API_BASE_URL from '../config'; 
 
+// Create a custom axios instance with base URL set to '' to use the proxy setup in Vite
 const api = axios.create({
-  baseURL: API_BASE_URL, 
+  baseURL: '', 
   headers: {
     'Content-Type': 'application/json'
   }
 });
+
+// Track if we're currently redirecting to login to prevent multiple redirects
+let isRedirectingToLogin = false;
 
 // Add request interceptor to add auth token
 api.interceptors.request.use(
@@ -15,11 +19,14 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    if (config.url && !config.url.startsWith('/api')) {
+    
+    // Always use /api prefix for requests
+    if (!config.url.startsWith('/api')) {
       config.url = `/api${config.url.startsWith('/') ? '' : '/'}${config.url}`;
     }
+    
     console.log('[Axios Interceptor] Requesting:', {
-      url: config.baseURL + config.url,
+      url: config.url,
       method: config.method,
       headers: config.headers
     });
@@ -35,25 +42,35 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
+    console.error('[Axios Interceptor] Response Error:', error.response?.status, error.config?.url);
+    
     const originalRequest = error.config;
 
     // If the error is 401 and we haven't already tried to refresh
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
-      // Clear stored auth data
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-
-      // Only redirect to login if we're not already there and not trying to login
+      // Check if we should try to get a new token or just logout
       const currentPath = window.location.pathname;
       const isAuthEndpoint = originalRequest.url.includes('/auth/login') || 
                             originalRequest.url.includes('/auth/signup');
       
       if (!currentPath.includes('/login') && 
           !currentPath.includes('/signup') && 
-          !isAuthEndpoint) {
-        window.location.href = '/login';
+          !isAuthEndpoint &&
+          !isRedirectingToLogin) {
+            
+        isRedirectingToLogin = true;
+        
+        // Clear stored auth data
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        
+        // Prevent page reloads from causing logout loops
+        setTimeout(() => {
+          window.location.href = '/login';
+          isRedirectingToLogin = false;
+        }, 500);
       }
     }
 

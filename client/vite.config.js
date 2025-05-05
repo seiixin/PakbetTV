@@ -10,13 +10,13 @@ export default defineConfig({
         target: 'http://localhost:5000',
         changeOrigin: true,
         secure: false,
-        rewrite: (path) => path.replace(/^\/api/, ''),
         configure: (proxy, options) => {
           proxy.on('proxyReq', (proxyReq, req, res) => {
             // Log proxy requests for debugging
             console.log('Proxying:', {
               method: req.method,
               path: req.url,
+              target: `${options.target}${req.url}`,
               headers: req.headers
             });
           });

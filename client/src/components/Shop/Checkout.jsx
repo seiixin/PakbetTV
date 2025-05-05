@@ -4,6 +4,8 @@ import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import './Shop.css';
 import API_BASE_URL from '../../config';
+import NavBar from '../NavBar';
+import Footer from '../Footer';
 
 const Checkout = () => {
   const [loading, setLoading] = useState(false);
@@ -256,7 +258,8 @@ const Checkout = () => {
   }
 
   return (
-    <div className="shop-container">
+    <div className="checkout-page">
+      <NavBar />
       <div className="checkout-container">
         <h2>Checkout</h2>
         
@@ -269,7 +272,7 @@ const Checkout = () => {
             <div className="shipping-details">
               <div className="info-group">
                 <label>Recipient</label>
-                <div className="info-value">{shippingDetails.name}</div>
+                <div className="info-value">{shippingDetails.name || user?.firstName + ' ' + user?.lastName}</div>
               </div>
               
               <div className="info-group">
@@ -381,6 +384,7 @@ const Checkout = () => {
               <button 
                 className="back-to-cart-button" 
                 onClick={handleBackToCart}
+                disabled={loading}
               >
                 Back to Cart
               </button>
@@ -395,6 +399,7 @@ const Checkout = () => {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 };
