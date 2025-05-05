@@ -7,7 +7,7 @@ import NavBar from '../NavBar';
 import Footer from '../Footer';
 
 function Purchases() {
-  const { isAuthenticated, token } = useAuth();
+  const { isAuthenticated, token, refreshing } = useAuth();
   const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -187,8 +187,35 @@ function Purchases() {
     );
   };
 
+  // Subtle loading spinner for auth refreshing
+  const refreshSpinnerStyle = {
+    position: 'fixed',
+    top: '10px',
+    right: '10px',
+    width: '20px',
+    height: '20px',
+    border: '2px solid rgba(128, 0, 0, 0.1)',
+    borderTop: '2px solid #800000',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite',
+    zIndex: 9999
+  };
+
   return (
     <div className="purchase-account-page">
+      {refreshing && (
+        <>
+          <div style={refreshSpinnerStyle}></div>
+          <style>
+            {`
+              @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+            `}
+          </style>
+        </>
+      )}
       <NavBar />
       <div className="purchase-account-container">
         <div className="purchase-account-wrapper">

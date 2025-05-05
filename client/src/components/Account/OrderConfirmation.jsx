@@ -8,7 +8,7 @@ import Footer from '../Footer';
 
 function OrderConfirmation() {
   const { orderId } = useParams();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, refreshing } = useAuth();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -112,6 +112,20 @@ function OrderConfirmation() {
     }
   };
 
+  // Subtle loading spinner for auth refreshing
+  const refreshSpinnerStyle = {
+    position: 'fixed',
+    top: '10px',
+    right: '10px',
+    width: '20px',
+    height: '20px',
+    border: '2px solid rgba(128, 0, 0, 0.1)',
+    borderTop: '2px solid #800000',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite',
+    zIndex: 9999
+  };
+
   if (loading) {
     return (
       <div className="account-container">
@@ -159,6 +173,19 @@ function OrderConfirmation() {
 
   return (
     <div className="order-confirmation-page">
+      {refreshing && (
+        <>
+          <div style={refreshSpinnerStyle}></div>
+          <style>
+            {`
+              @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+            `}
+          </style>
+        </>
+      )}
       <NavBar />
       <div className="order-confirmation-wrapper">
         <h1 className="account-title">Order Details</h1>

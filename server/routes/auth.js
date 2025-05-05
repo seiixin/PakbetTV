@@ -167,4 +167,73 @@ router.get('/me', auth, async (req, res) => {
     });
   }
 });
+
+// Add a new route for token refresh
+router.post('/refresh', async (req, res) => {
+  const { token } = req.body;
+
+  if (!token) {
+    return res.status(400).json({ message: 'Token is required' });
+  }
+
+  try {
+    // Verify the token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    // Check if decoded token has valid user information
+    if (!decoded.user || !decoded.user.id) {
+      return res.status(401).json({ message: 'Invalid token' });
+    }
+    
+    // Fetch latest user info from database
+    const [users] = await db.query(
+      'SELECT user_id, first_name, last_name, email, user_type, status FROM users WHERE user_id = ?',
+      [decoded.user.id]
+    );
+    
+    if (users.length === 0 || users[0].status !== 'Active') {
+      return res.status(401).json({ message: 'User not found or inactive' });
+    }
+    
+    const user = users[0];
+    
+    // Create a new token with renewed expiration
+    const payload = {
+      user: {
+        id: user.user_id,
+        userType: user.user_type
+      }
+    };
+    
+    // Sign a new token
+    jwt.sign(
+      payload,
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' },
+      (err, newToken) => {
+        if (err) {
+          console.error('Token signing error:', err);
+          return res.status(500).json({ message: 'Error refreshing token' });
+        }
+        
+        // Return the new token
+        res.json({
+          token: newToken,
+          user: {
+            id: user.user_id,
+            firstName: user.first_name,
+            lastName: user.last_name,
+            email: user.email,
+            userType: user.user_type
+          }
+        });
+      }
+    );
+  } catch (err) {
+    console.error('Token refresh error:', err);
+    // If the token is expired or invalid, return 401
+    return res.status(401).json({ message: 'Invalid or expired token' });
+  }
+});
+
 module.exports = router; 

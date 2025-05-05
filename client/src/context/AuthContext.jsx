@@ -7,21 +7,26 @@ const AuthContext = createContext();
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('token'));
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(() => {
+    const storedUser = localStorage.getItem('user');
+    return storedUser ? JSON.parse(storedUser) : null;
+  });
+  const [token, setToken] = useState(() => localStorage.getItem('token'));
+  const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const navigate = useNavigate();
 
+  // This effect runs once on mount to validate the token
   useEffect(() => {
     const validateToken = async () => {
       const storedToken = localStorage.getItem('token');
-      const userData = localStorage.getItem('user');
-
+      
       if (!storedToken) {
         setToken(null);
         setUser(null);
-        setLoading(false);
+        setInitialLoading(false);
         return;
       }
 
@@ -44,21 +49,62 @@ export const AuthProvider = ({ children }) => {
         setUser(updatedUserData);
       } catch (error) {
         console.error('Token validation failed:', error);
-        // Only clear auth data if it's an auth error
+        
+        // Check if we should try to refresh the token
         if (error.response?.status === 401) {
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          setToken(null);
-          setUser(null);
-          
-          // Only navigate to login if we're not already there
-          const currentPath = window.location.pathname;
-          if (!currentPath.includes('/login') && !currentPath.includes('/signup')) {
-            navigate('/login');
+          try {
+            console.log('Attempting to refresh token...');
+            setRefreshing(true);
+            const refreshResponse = await authService.refreshToken();
+            
+            if (refreshResponse && refreshResponse.data && refreshResponse.data.token) {
+              const newToken = refreshResponse.data.token;
+              localStorage.setItem('token', newToken);
+              setToken(newToken);
+              
+              // Try to get profile with new token
+              const newProfileResponse = await authService.getProfile();
+              const newProfileData = newProfileResponse.data;
+              
+              const refreshedUserData = {
+                id: newProfileData.id,
+                firstName: newProfileData.firstName,
+                lastName: newProfileData.lastName,
+                email: newProfileData.email,
+                userType: newProfileData.userType
+              };
+              
+              localStorage.setItem('user', JSON.stringify(refreshedUserData));
+              setUser(refreshedUserData);
+              console.log('Token refreshed successfully');
+            } else {
+              throw new Error('Failed to refresh token');
+            }
+          } catch (refreshError) {
+            console.error('Token refresh failed:', refreshError);
+            // Only clear auth data if it's an auth error and refresh failed
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            setToken(null);
+            setUser(null);
+            
+            // Only navigate to login if we're not already there and not in a public route
+            const currentPath = window.location.pathname;
+            const isPublicRoute = currentPath === '/' || 
+                                  currentPath.includes('/login') || 
+                                  currentPath.includes('/signup') || 
+                                  currentPath.includes('/shop') ||
+                                  currentPath.includes('/product/');
+            
+            if (!isPublicRoute) {
+              navigate('/login');
+            }
+          } finally {
+            setRefreshing(false);
           }
         }
       } finally {
-        setLoading(false);
+        setInitialLoading(false);
       }
     };
 
@@ -117,6 +163,8 @@ export const AuthProvider = ({ children }) => {
     user,
     token,
     loading,
+    initialLoading,
+    refreshing,
     loggingOut,
     login,
     register,
@@ -124,9 +172,41 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated: !!token && !!user
   };
 
+  // Styles for the initial loading state
+  const loadingContainerStyle = {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: '100vh',
+    backgroundColor: '#fff'
+  };
+
+  const spinnerStyle = {
+    width: '30px',
+    height: '30px',
+    border: '3px solid rgba(128, 0, 0, 0.1)',
+    borderTop: '3px solid #800000',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite'
+  };
+
   return (
     <AuthContext.Provider value={value}>
-      {children}
+      {initialLoading ? (
+        <div style={loadingContainerStyle}>
+          <div style={spinnerStyle}></div>
+          <style>
+            {`
+              @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+            `}
+          </style>
+        </div>
+      ) : (
+        children
+      )}
     </AuthContext.Provider>
   );
 };

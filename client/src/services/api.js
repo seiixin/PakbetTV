@@ -11,6 +11,10 @@ const api = axios.create({
 
 // Track if we're currently redirecting to login to prevent multiple redirects
 let isRedirectingToLogin = false;
+// Track if we're currently refreshing token
+let isRefreshingToken = false;
+// Store pending requests that wait for token refresh
+let pendingRequests = [];
 
 // Add request interceptor to add auth token
 api.interceptors.request.use(
@@ -53,24 +57,53 @@ api.interceptors.response.use(
       // Check if we should try to get a new token or just logout
       const currentPath = window.location.pathname;
       const isAuthEndpoint = originalRequest.url.includes('/auth/login') || 
-                            originalRequest.url.includes('/auth/signup');
+                            originalRequest.url.includes('/auth/signup') ||
+                            originalRequest.url.includes('/auth/refresh');
       
       if (!currentPath.includes('/login') && 
           !currentPath.includes('/signup') && 
           !isAuthEndpoint &&
-          !isRedirectingToLogin) {
+          !isRedirectingToLogin &&
+          !isRefreshingToken) {
+        
+        // Try to refresh the token first
+        try {
+          isRefreshingToken = true;
+          const refreshResponse = await authService.refreshToken();
+          
+          if (refreshResponse && refreshResponse.data && refreshResponse.data.token) {
+            const newToken = refreshResponse.data.token;
+            localStorage.setItem('token', newToken);
             
-        isRedirectingToLogin = true;
-        
-        // Clear stored auth data
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        
-        // Prevent page reloads from causing logout loops
-        setTimeout(() => {
-          window.location.href = '/login';
-          isRedirectingToLogin = false;
-        }, 500);
+            // Update the Authorization header for the original request
+            originalRequest.headers.Authorization = `Bearer ${newToken}`;
+            
+            // Process any pending requests with the new token
+            pendingRequests.forEach(callback => callback(newToken));
+            pendingRequests = [];
+            
+            // Retry the original request with the new token
+            isRefreshingToken = false;
+            return api(originalRequest);
+          } else {
+            throw new Error('Failed to refresh token');
+          }
+        } catch (refreshError) {
+          console.error('Token refresh failed:', refreshError);
+          
+          isRedirectingToLogin = true;
+          isRefreshingToken = false;
+          
+          // Clear stored auth data
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          
+          // Prevent page reloads from causing logout loops
+          setTimeout(() => {
+            window.location.href = '/login';
+            isRedirectingToLogin = false;
+          }, 500);
+        }
       }
     }
 
@@ -85,6 +118,15 @@ export const authService = {
     return api.post(url, userData); 
   },
   login: (credentials) => api.post('/auth/login', credentials),
+  refreshToken: () => {
+    // Get the current token
+    const token = localStorage.getItem('token');
+    if (!token) {
+      return Promise.reject(new Error('No token to refresh'));
+    }
+    // Send refresh token request to backend
+    return api.post('/auth/refresh', { token });
+  },
   getProfile: () => api.get('/auth/me'),
   updateProfile: (userData) => api.put('/users/profile', userData),
   getShippingAddresses: () => api.get('/users/shipping-addresses'),

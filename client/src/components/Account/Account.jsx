@@ -7,7 +7,7 @@ import Footer from '../Footer';
 import NavBar from '../NavBar';
 
 function Account() {
-  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const { user, isAuthenticated, loading: authLoading, refreshing } = useAuth();
   const navigate = useNavigate();
   const [userData, setUserData] = useState({
     username: '',
@@ -245,6 +245,20 @@ function Account() {
     }));
   };
 
+  // Subtle loading spinner for auth refreshing
+  const refreshSpinnerStyle = {
+    position: 'fixed',
+    top: '10px',
+    right: '10px',
+    width: '20px',
+    height: '20px',
+    border: '2px solid rgba(128, 0, 0, 0.1)',
+    borderTop: '2px solid #800000',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite',
+    zIndex: 9999
+  };
+
   if (loading || authLoading) {
     return (
       <div className="account-page">
@@ -283,6 +297,19 @@ function Account() {
 
   return (
     <div className="account-page">
+      {refreshing && (
+        <>
+          <div style={refreshSpinnerStyle}></div>
+          <style>
+            {`
+              @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+            `}
+          </style>
+        </>
+      )}
       <NavBar />
       <main className="container" role="main" aria-label="My Account">
         <section className="column" aria-labelledby="personal-details-title">
