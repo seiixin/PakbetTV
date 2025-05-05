@@ -13,6 +13,7 @@ import ProductManagement from './components/Admin/ProductManagement'
 import ProductPage from './components/Shop/ProductPage'
 import ProductDetailPage from './components/Shop/ProductDetailPage'
 import Cart from './components/Shop/Cart'
+import Checkout from './components/Shop/Checkout'
 import TransactionComplete from './components/Shop/TransactionComplete'
 import ProsperGuide from './components/Guides/ProsperGuide'
 import OrderTracking from './pages/OrderTracking'
@@ -37,6 +38,7 @@ function AppContent() {
         <Route path="/shop" element={<ProductPage />} />
         <Route path="/product/:id" element={<ProductDetailPage />} />
         <Route path="/cart" element={<Cart />} />
+        <Route path="/checkout" element={<Checkout />} />
         <Route path="/transaction-complete" element={<TransactionComplete />} />
         <Route path="/prosper-guide/:sign" element={<ProsperGuide />} />
       </Routes>

@@ -66,8 +66,13 @@ router.get('/shipping-addresses', auth, async (req, res) => {
     const userId = req.user.id || req.user.user.id;
     console.log('Fetching shipping addresses for user:', userId);
     
+    // Join with users table to get phone number
     const [addresses] = await db.query(
-      'SELECT * FROM user_shipping_details WHERE user_id = ? ORDER BY is_default DESC, id DESC',
+      `SELECT sd.*, u.phone 
+       FROM user_shipping_details sd
+       LEFT JOIN users u ON sd.user_id = u.user_id
+       WHERE sd.user_id = ? 
+       ORDER BY sd.is_default DESC, sd.id DESC`,
       [userId]
     );
     
@@ -156,44 +161,160 @@ router.delete('/:id', [auth, admin], async (req, res) => {
   }
 });
 
+// Add this function to check if user_shipping_details table exists
+const ensureShippingDetailsTable = async (connection) => {
+  try {
+    // Try to select from the table to check if it exists
+    await connection.query('SELECT 1 FROM user_shipping_details LIMIT 1');
+    console.log('user_shipping_details table exists');
+    return true;
+  } catch (error) {
+    // If error contains "doesn't exist", create the table
+    if (error.message.includes("doesn't exist") || error.message.includes("not found")) {
+      console.log('user_shipping_details table does not exist, creating it...');
+      try {
+        await connection.query(`
+          CREATE TABLE user_shipping_details (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            address1 VARCHAR(255),
+            address2 VARCHAR(255),
+            city VARCHAR(100),
+            state VARCHAR(100),
+            postcode VARCHAR(20),
+            country VARCHAR(2) DEFAULT 'PH',
+            address_type VARCHAR(20) DEFAULT 'home',
+            is_default BOOLEAN DEFAULT 1,
+            region VARCHAR(100),
+            province VARCHAR(100),
+            city_municipality VARCHAR(100),
+            barangay VARCHAR(100),
+            street_name VARCHAR(255),
+            building VARCHAR(255),
+            house_number VARCHAR(50),
+            address_format VARCHAR(50) DEFAULT 'philippines',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+          )
+        `);
+        console.log('user_shipping_details table created successfully');
+        return true;
+      } catch (createError) {
+        console.error('Error creating user_shipping_details table:', createError);
+        return false;
+      }
+    } else {
+      console.error('Error checking user_shipping_details table:', error);
+      return false;
+    }
+  }
+};
+
 // Get user profile with shipping addresses
 router.get('/profile', auth, async (req, res) => {
   try {
-    const userId = req.user.id || req.user.user.id;
-    console.log('Fetching profile for user:', userId);
+    // Log the user object and request details for debugging
+    console.log('Profile request received:', {
+      headers: req.headers,
+      user: req.user
+    });
     
-    // Get user profile
-    const [users] = await db.query(
-      'SELECT user_id, username, first_name, last_name, email, phone, address, user_type, status FROM users WHERE user_id = ?',
-      [userId]
-    );
+    // Get user ID from req.user, handling both object structures
+    const userId = req.user?.id || req.user?.user?.id;
     
-    if (users.length === 0) {
-      return res.status(404).json({ message: 'User not found' });
+    if (!userId) {
+      console.error('No user ID found in token payload:', req.user);
+      return res.status(401).json({ message: 'Invalid user token structure' });
     }
     
-    // Get shipping addresses
-    const [shippingAddresses] = await db.query(
-      'SELECT * FROM user_shipping_details WHERE user_id = ? ORDER BY is_default DESC, id DESC',
-      [userId]
-    );
+    console.log('Attempting to fetch profile for user ID:', userId);
     
-    const user = users[0];
-    res.json({
-      id: user.user_id,
-      username: user.username,
-      firstName: user.first_name,
-      lastName: user.last_name,
-      email: user.email,
-      phone: user.phone || '',
-      address: user.address || '',
-      userType: user.user_type,
-      status: user.status,
-      shippingAddresses: shippingAddresses || []
-    });
+    // Test database connection first
+    const connection = await db.getConnection();
+    console.log('Database connection successful');
+    
+    try {
+      // Fetch user basic info and shipping details in parallel
+      const [userResults, shippingResults] = await Promise.all([
+        connection.query(
+          'SELECT user_id, username, first_name, last_name, email, phone, address FROM users WHERE user_id = ?',
+          [userId]
+        ),
+        connection.query(
+          `SELECT * FROM user_shipping_details 
+           WHERE user_id = ? AND is_default = 1
+           ORDER BY updated_at DESC LIMIT 1`,
+          [userId]
+        )
+      ]);
+      
+      connection.release();
+      
+      const [users] = userResults;
+      const [shippingAddresses] = shippingResults;
+      
+      if (!users || users.length === 0) {
+        console.log('User not found for ID:', userId);
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      const user = users[0];
+      const shippingAddress = shippingAddresses?.[0];
+      
+      console.log('User profile and shipping details retrieved successfully');
+      
+      // Combine user data with shipping details
+      const response = {
+        id: user.user_id,
+        username: user.username,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        email: user.email,
+        phone: user.phone || '',
+        address: user.address || '',
+        shipping_details: shippingAddress ? {
+          address1: shippingAddress.address1 || '',
+          address2: shippingAddress.address2 || '',
+          city: shippingAddress.city_municipality || '',
+          state: shippingAddress.province || '',
+          postal_code: shippingAddress.postcode || '',
+          country: shippingAddress.country || 'PH',
+          region: shippingAddress.region || '',
+          barangay: shippingAddress.barangay || '',
+          street_name: shippingAddress.street_name || '',
+          building: shippingAddress.building || '',
+          house_number: shippingAddress.house_number || '',
+          is_default: Boolean(shippingAddress.is_default)
+        } : null
+      };
+      
+      res.json(response);
+    } catch (dbError) {
+      connection.release();
+      console.error('Database query error:', dbError);
+      throw dbError;
+    }
   } catch (err) {
-    console.error('Error fetching user profile:', err);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Profile endpoint error:', {
+      name: err.name,
+      message: err.message,
+      stack: err.stack
+    });
+    
+    // Send appropriate error response based on error type
+    if (err.code === 'ECONNREFUSED') {
+      return res.status(503).json({ message: 'Database connection failed' });
+    }
+    
+    if (err.code === 'ER_ACCESS_DENIED_ERROR') {
+      return res.status(503).json({ message: 'Database authentication failed' });
+    }
+    
+    res.status(500).json({ 
+      message: 'Server error',
+      details: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
   }
 });
 
@@ -437,6 +558,40 @@ router.get('/', [auth, admin], async (req, res) => {
   } catch (err) {
     console.error(err.message);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+router.post('/update-shipping', auth, async (req, res) => {
+  try {
+    const { name, address, city, state, postal_code, phone } = req.body;
+    console.log('Updating shipping details:', { address, phone });
+    
+    // Get user ID from req.user
+    const userId = req.user.id;
+    console.log('Using user ID for update:', userId);
+    
+    // Update only the fields that exist in the database
+    const [result] = await db.query(
+      `UPDATE users SET 
+        address = ?,
+        phone = ?
+      WHERE user_id = ?`,
+      [address, phone, userId]
+    );
+    
+    console.log('Update result:', result.affectedRows > 0 ? 'Success' : 'No rows updated');
+    
+    res.status(200).json({ 
+      message: 'Shipping details updated successfully',
+      updated: result.affectedRows > 0
+    });
+  } catch (error) {
+    console.error('Error updating shipping details:', error.message);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      message: 'Failed to update shipping details',
+      error: error.message 
+    });
   }
 });
 

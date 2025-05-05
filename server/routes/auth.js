@@ -101,32 +101,70 @@ router.post(
 );
 router.get('/me', auth, async (req, res) => {
   try {
-    const userId = req.user.id || req.user.user.id;
+    const userId = req.user?.id || req.user?.user?.id;
     console.log('Fetching user profile for /me endpoint:', userId);
     
-    const [users] = await db.query(
-      'SELECT user_id, first_name, last_name, email, phone, address, user_type, status FROM users WHERE user_id = ?',
-      [userId]
-    );
-    
-    if (users.length === 0) {
-      return res.status(404).json({ message: 'User not found' });
+    if (!userId) {
+      console.error('No user ID found in token payload:', req.user);
+      return res.status(401).json({ message: 'Invalid user token structure' });
     }
     
-    const user = users[0];
-    res.json({
-      id: user.user_id,
-      firstName: user.first_name,
-      lastName: user.last_name,
-      email: user.email,
-      phone: user.phone,
-      address: user.address,
-      userType: user.user_type,
-      status: user.status
-    });
+    // Get a connection from the pool
+    const connection = await db.getConnection();
+    console.log('Database connection acquired');
+    
+    try {
+      const [users] = await connection.query(
+        'SELECT user_id, first_name, last_name, email, phone, address, user_type, status FROM users WHERE user_id = ?',
+        [userId]
+      );
+      
+      connection.release();
+      console.log('Database connection released');
+      
+      if (!users || users.length === 0) {
+        console.log('User not found:', userId);
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      const user = users[0];
+      console.log('User found, returning profile data');
+      
+      res.json({
+        id: user.user_id,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        email: user.email,
+        phone: user.phone || '',
+        address: user.address || '',
+        userType: user.user_type,
+        status: user.status
+      });
+    } catch (dbError) {
+      connection.release();
+      console.error('Database query error:', dbError);
+      throw dbError;
+    }
   } catch (err) {
-    console.error('Error in /me endpoint:', err);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Error in /me endpoint:', {
+      name: err.name,
+      message: err.message,
+      stack: err.stack
+    });
+    
+    // Send appropriate error response based on error type
+    if (err.code === 'ECONNREFUSED') {
+      return res.status(503).json({ message: 'Database connection failed' });
+    }
+    
+    if (err.code === 'ER_ACCESS_DENIED_ERROR') {
+      return res.status(503).json({ message: 'Database authentication failed' });
+    }
+    
+    res.status(500).json({ 
+      message: 'Server error',
+      details: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
   }
 });
 module.exports = router; 

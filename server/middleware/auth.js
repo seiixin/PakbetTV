@@ -27,17 +27,35 @@ const auth = (req, res, next) => {
 
   try {
     const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log('Processing token:', token.substring(0, 10) + '...');
     
-    if (!decoded.user || !decoded.user.id) {
-      console.log('Auth Error: Invalid token payload structure');
-      return res.status(401).json({ message: 'Invalid token structure' });
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log('Decoded token payload:', JSON.stringify(decoded));
+    
+    // Handle different token payload structures
+    let userId, userType;
+    
+    if (decoded.user && decoded.user.id) {
+      // Standard structure
+      userId = decoded.user.id;
+      userType = decoded.user.userType;
+    } else if (decoded.id) {
+      // Simplified structure
+      userId = decoded.id;
+      userType = decoded.userType;
+    } else if (decoded.user_id) {
+      // Alternative structure
+      userId = decoded.user_id;
+      userType = decoded.user_type;
+    } else {
+      console.log('Auth Error: Could not extract user ID from token');
+      return res.status(401).json({ message: 'Invalid token structure - no user ID found' });
     }
     
-    // Set a consistent user object structure
+    // Set user object with consistent structure - always use the top-level structure
     req.user = {
-      id: decoded.user.id,
-      userType: decoded.user.userType
+      id: userId,
+      userType: userType || 'customer' // Default to customer if no userType is provided
     };
     
     console.log('Token verified successfully:', {

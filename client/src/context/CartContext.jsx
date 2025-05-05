@@ -1,1 +1,225 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';import { useAuth } from './AuthContext';import API_BASE_URL from '../config';const CartContext = createContext();export const useCart = () => useContext(CartContext);export const CartProvider = ({ children }) => {  const [cartItems, setCartItems] = useState([]);  const [loading, setLoading] = useState(false);  const { user } = useAuth() || {};   useEffect(() => {    const loadCart = () => {      try {        const storageKey = user ? `cart_${user.id}` : 'cart_guest';        console.log('Loading cart from localStorage:', storageKey);        const savedCart = localStorage.getItem(storageKey);        if (savedCart) {          const parsedCart = JSON.parse(savedCart);          setCartItems(parsedCart);          console.log('Cart loaded successfully:', parsedCart.length, 'items');        } else {          setCartItems([]);          console.log('No saved cart found');        }      } catch (error) {        console.error('Error loading cart from localStorage:', error);        setCartItems([]);      }    };    loadCart();  }, [user]);   useEffect(() => {    const storageKey = user ? `cart_${user.id}` : 'cart_guest';    console.log('Saving cart to localStorage:', storageKey, cartItems.length, 'items');    localStorage.setItem(storageKey, JSON.stringify(cartItems));  }, [cartItems, user]);  const addToCart = (product, quantity = 1) => {    setCartItems(prevItems => {      const existingItemIndex = prevItems.findIndex(item => {        if (product.variant_id && item.variant_id) {          return item.variant_id === product.variant_id;        }        return item.id === product.id;      });      if (existingItemIndex >= 0) {        const updatedItems = [...prevItems];        updatedItems[existingItemIndex] = {          ...updatedItems[existingItemIndex],          quantity: updatedItems[existingItemIndex].quantity + quantity,          selected: true        };        return updatedItems;      } else {        return [...prevItems, { ...product, quantity, selected: true }];      }    });  };  const removeFromCart = (productId, variantId = null) => {    setCartItems(prevItems => prevItems.filter(item => {      if (variantId && item.variant_id) {        return item.variant_id !== variantId;      }      return item.id !== productId;    }));  };  const updateQuantity = (productId, quantity, variantId = null) => {    if (quantity <= 0) {      removeFromCart(productId, variantId);      return;    }    setCartItems(prevItems =>       prevItems.map(item => {        if (variantId && item.variant_id) {          return item.variant_id === variantId ? { ...item, quantity } : item;        }        return item.id === productId ? { ...item, quantity } : item;      })    );  };  const toggleItemSelection = (productId, variantId = null) => {    setCartItems(prevItems =>       prevItems.map(item => {        if (variantId && item.variant_id) {          return item.variant_id === variantId ? { ...item, selected: !item.selected } : item;        }        return item.id === productId ? { ...item, selected: !item.selected } : item;      })    );  };  const toggleSelectAll = (selectAll) => {    setCartItems(prevItems =>       prevItems.map(item => ({ ...item, selected: selectAll }))    );  };  const clearCart = () => {    setCartItems([]);  };  const mergeGuestCartWithUserCart = () => {    if (!user) return;     try {      const guestCart = JSON.parse(localStorage.getItem('cart_guest') || '[]');      if (guestCart.length > 0) {        guestCart.forEach(item => {          addToCart(item, item.quantity);        });        localStorage.removeItem('cart_guest');      }    } catch (error) {      console.error('Error merging guest cart with user cart:', error);    }  };  const getTotalPrice = () => {    return cartItems      .filter(item => item.selected)      .reduce((total, item) => {        const price = item.is_flash_deal && item.discount_percentage          ? item.price - (item.price * item.discount_percentage / 100)          : item.price;        return total + (price * item.quantity);      }, 0);  };  const getSelectedCount = () => {    return cartItems.filter(item => item.selected).length;  };  const getTotalCount = () => {    return cartItems.reduce((count, item) => count + item.quantity, 0);  };  const createOrder = async (userId) => {    const selectedItems = cartItems.filter(item => item.selected);    if (selectedItems.length === 0) {      throw new Error('No items selected');    }    setLoading(true);    try {      const orderData = {        user_id: userId,        total_amount: getTotalPrice(),        items: selectedItems.map(item => ({          product_id: item.product_id || item.id,          quantity: item.quantity,          price: item.is_flash_deal && item.discount_percentage            ? (item.price - (item.price * item.discount_percentage / 100))            : item.price,          variant_id: item.variant_id || null,          variant_attributes: item.variant_attributes || null        }))      };      const response = await fetch(`${API_BASE_URL}/api/transactions/orders`, {        method: 'POST',        headers: {          'Content-Type': 'application/json',          'Authorization': `Bearer ${localStorage.getItem('token')}`        },        body: JSON.stringify(orderData)      });      if (!response.ok) {        const errorData = await response.json();        throw new Error(errorData.message || 'Failed to create order');      }      const result = await response.json();      setCartItems(prevItems => prevItems.filter(item => !item.selected));      return result;    } catch (error) {      console.error('Error creating order:', error);      throw error;    } finally {      setLoading(false);    }  };  const processPayment = async (orderId, email) => {    setLoading(true);    try {      const paymentData = {        order_id: orderId,        payment_method: 'dragonpay',        payment_details: {          email: email        }      };      const response = await fetch(`${API_BASE_URL}/api/transactions/payment`, {        method: 'POST',        headers: {          'Content-Type': 'application/json',          'Authorization': `Bearer ${localStorage.getItem('token')}`        },        body: JSON.stringify(paymentData)      });      if (!response.ok) {        const errorData = await response.json();        throw new Error(errorData.message || 'Payment processing failed');      }      const result = await response.json();      return result;    } catch (error) {      console.error('Error processing payment:', error);      throw error;    } finally {      setLoading(false);    }  };  const removeSelectedItems = () => {    setCartItems(prevItems => prevItems.filter(item => !item.selected));  };  const value = {    cartItems,    loading,    addToCart,    removeFromCart,    removeSelectedItems,    updateQuantity,    toggleItemSelection,    toggleSelectAll,    clearCart,    getTotalPrice,    getSelectedCount,    getTotalCount,    createOrder,    processPayment,    mergeGuestCartWithUserCart  };  return (    <CartContext.Provider value={value}>      {children}    </CartContext.Provider>  );}; 
+import React, { createContext, useState, useContext, useEffect } from 'react';
+import { useAuth } from './AuthContext';
+import API_BASE_URL from '../config';
+const CartContext = createContext();
+export const useCart = () => useContext(CartContext);
+export const CartProvider = ({ children }) => {
+  const [cartItems, setCartItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const { user } = useAuth() || {}; 
+  useEffect(() => {
+    const loadCart = () => {
+      try {
+        const storageKey = user ? `cart_${user.id}` : 'cart_guest';
+        console.log('Loading cart from localStorage:', storageKey);
+        const savedCart = localStorage.getItem(storageKey);
+        if (savedCart) {
+          const parsedCart = JSON.parse(savedCart);
+          setCartItems(parsedCart);
+          console.log('Cart loaded successfully:', parsedCart.length, 'items');
+        } else {
+          setCartItems([]);
+          console.log('No saved cart found');
+        }
+      } catch (error) {
+        console.error('Error loading cart from localStorage:', error);
+        setCartItems([]);
+      }
+    };
+    loadCart();
+  }, [user]); 
+  useEffect(() => {
+    const storageKey = user ? `cart_${user.id}` : 'cart_guest';
+    console.log('Saving cart to localStorage:', storageKey, cartItems.length, 'items');
+    localStorage.setItem(storageKey, JSON.stringify(cartItems));
+  }, [cartItems, user]);
+  const addToCart = (product, quantity = 1) => {
+    setCartItems(prevItems => {
+      const existingItemIndex = prevItems.findIndex(item => {
+        if (product.variant_id && item.variant_id) {
+          return item.variant_id === product.variant_id;
+        }
+        return item.id === product.id;
+      });
+      if (existingItemIndex >= 0) {
+        const updatedItems = [...prevItems];
+        updatedItems[existingItemIndex] = {
+          ...updatedItems[existingItemIndex],
+          quantity: updatedItems[existingItemIndex].quantity + quantity,
+          selected: true
+        };
+        return updatedItems;
+      } else {
+        return [...prevItems, { ...product, quantity, selected: true }];
+      }
+    });
+  };
+  const removeFromCart = (productId, variantId = null) => {
+    setCartItems(prevItems => prevItems.filter(item => {
+      if (variantId && item.variant_id) {
+        return item.variant_id !== variantId;
+      }
+      return item.id !== productId;
+    }));
+  };
+  const updateQuantity = (productId, quantity, variantId = null) => {
+    if (quantity <= 0) {
+      removeFromCart(productId, variantId);
+      return;
+    }
+    setCartItems(prevItems => 
+      prevItems.map(item => {
+        if (variantId && item.variant_id) {
+          return item.variant_id === variantId ? { ...item, quantity } : item;
+        }
+        return item.id === productId ? { ...item, quantity } : item;
+      })
+    );
+  };
+  const toggleItemSelection = (productId, variantId = null) => {
+    setCartItems(prevItems => 
+      prevItems.map(item => {
+        if (variantId && item.variant_id) {
+          return item.variant_id === variantId ? { ...item, selected: !item.selected } : item;
+        }
+        return item.id === productId ? { ...item, selected: !item.selected } : item;
+      })
+    );
+  };
+  const toggleSelectAll = (selectAll) => {
+    setCartItems(prevItems => 
+      prevItems.map(item => ({ ...item, selected: selectAll }))
+    );
+  };
+  const clearCart = () => {
+    setCartItems([]);
+  };
+  const mergeGuestCartWithUserCart = () => {
+    if (!user) return; 
+    try {
+      const guestCart = JSON.parse(localStorage.getItem('cart_guest') || '[]');
+      if (guestCart.length > 0) {
+        guestCart.forEach(item => {
+          addToCart(item, item.quantity);
+        });
+        localStorage.removeItem('cart_guest');
+      }
+    } catch (error) {
+      console.error('Error merging guest cart with user cart:', error);
+    }
+  };
+  const getTotalPrice = () => {
+    return cartItems
+      .filter(item => item.selected)
+      .reduce((total, item) => {
+        const price = item.is_flash_deal && item.discount_percentage
+          ? item.price - (item.price * item.discount_percentage / 100)
+          : item.price;
+        return total + (price * item.quantity);
+      }, 0);
+  };
+  const getSelectedCount = () => {
+    return cartItems.filter(item => item.selected).length;
+  };
+  const getTotalCount = () => {
+    return cartItems.reduce((count, item) => count + item.quantity, 0);
+  };
+  const createOrder = async (userId) => {
+    const selectedItems = cartItems.filter(item => item.selected);
+    if (selectedItems.length === 0) {
+      throw new Error('No items selected');
+    }
+    setLoading(true);
+    try {
+      const orderData = {
+        user_id: userId,
+        total_amount: getTotalPrice(),
+        items: selectedItems.map(item => ({
+          product_id: item.id,
+          quantity: item.quantity,
+          price: item.is_flash_deal && item.discount_percentage
+            ? (item.price - (item.price * item.discount_percentage / 100))
+            : item.price,
+          variant_id: item.variant_id || null,
+          variant_attributes: item.variant_attributes || null
+        }))
+      };
+      const response = await fetch(`${API_BASE_URL}/api/transactions/orders`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(orderData)
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create order');
+      }
+      const result = await response.json();
+      setCartItems(prevItems => prevItems.filter(item => !item.selected));
+      return result;
+    } catch (error) {
+      console.error('Error creating order:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+  const processPayment = async (orderId, email) => {
+    setLoading(true);
+    try {
+      const paymentData = {
+        order_id: orderId,
+        payment_method: 'dragonpay',
+        payment_details: {
+          email: email
+        }
+      };
+      const response = await fetch(`${API_BASE_URL}/api/transactions/payment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(paymentData)
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Payment processing failed');
+      }
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error processing payment:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+  const removeSelectedItems = () => {
+    setCartItems(prevItems => prevItems.filter(item => !item.selected));
+  };
+  const value = {
+    cartItems,
+    loading,
+    addToCart,
+    removeFromCart,
+    removeSelectedItems,
+    updateQuantity,
+    toggleItemSelection,
+    toggleSelectAll,
+    clearCart,
+    getTotalPrice,
+    getSelectedCount,
+    getTotalCount,
+    createOrder,
+    processPayment,
+    mergeGuestCartWithUserCart
+  };
+  return (
+    <CartContext.Provider value={value}>
+      {children}
+    </CartContext.Provider>
+  );
+}; 

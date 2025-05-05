@@ -12,9 +12,11 @@ const SECRET_KEY_SHA256 = process.env.DRAGONPAY_SECRET_KEY_SHA256 || 'test_sha25
 router.post('/orders', async (req, res) => {
   const connection = await db.getConnection();
   console.log('Starting order creation process...');
+  console.log('Database connection acquired');
   
   try {
     await connection.beginTransaction();
+    console.log('Transaction started');
     
     // Log the incoming order data
     console.log('Order data:', req.body);
@@ -22,8 +24,9 @@ router.post('/orders', async (req, res) => {
     const { user_id, total_amount, items } = req.body;
     
     // Create the order record first
+    console.log('Creating order record with data:', { user_id, total_amount });
     const [orderResult] = await connection.query(
-      'INSERT INTO orders (user_id, total_price, order_status, payment_status) VALUES (?, ?, ?, ?)',
+      'INSERT INTO orders (user_id, total_price, order_status, payment_status, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())',
       [user_id, total_amount, 'processing', 'pending']
     );
     
@@ -31,16 +34,20 @@ router.post('/orders', async (req, res) => {
     console.log(`Order record created with ID: ${orderId}`);
 
     // Process order items
+    console.log('Processing order items:', items);
     for (const item of items) {
+      console.log('Processing item:', item);
       const [orderItemResult] = await connection.query(
-        'INSERT INTO order_items (order_id, product_id, quantity, price, variant_id) VALUES (?, ?, ?, ?, ?)',
+        'INSERT INTO order_items (order_id, product_id, quantity, price, variant_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NOW(), NOW())',
         [orderId, item.product_id, item.quantity, item.price, item.variant_id || null]
       );
       
       const orderItemId = orderItemResult.insertId;
+      console.log(`Order item created with ID: ${orderItemId}`);
       
       // Handle variant attributes if present
       if (item.variant_attributes && Object.keys(item.variant_attributes).length > 0) {
+        console.log('Updating variant attributes for item:', orderItemId);
         await connection.query(
           'UPDATE order_items SET variant_data = ? WHERE order_item_id = ?',
           [JSON.stringify(item.variant_attributes), orderItemId]
@@ -49,6 +56,7 @@ router.post('/orders', async (req, res) => {
 
       // Update stock levels
       if (item.variant_id) {
+        console.log('Updating variant stock levels');
         const [[variant]] = await connection.query(
           'SELECT stock FROM product_variants WHERE variant_id = ?',
           [item.variant_id]
@@ -76,6 +84,7 @@ router.post('/orders', async (req, res) => {
           [newStock, item.variant_id]
         );
       } else {
+        console.log('Updating product stock levels');
         const [[product]] = await connection.query(
           'SELECT stock FROM products WHERE product_id = ?',
           [item.product_id]
@@ -105,8 +114,13 @@ router.post('/orders', async (req, res) => {
       }
     }
     
+    console.log('All items processed, committing transaction');
     await connection.commit();
     console.log(`Order ${orderId} committed successfully`);
+    
+    // Verify the order was saved
+    const [verifyOrder] = await connection.query('SELECT * FROM orders WHERE order_id = ?', [orderId]);
+    console.log('Verification query result:', verifyOrder);
     
     res.status(201).json({ 
       message: 'Order created successfully', 
@@ -122,6 +136,7 @@ router.post('/orders', async (req, res) => {
       error: error.message 
     });
   } finally {
+    console.log('Releasing database connection');
     connection.release();
   }
 });
