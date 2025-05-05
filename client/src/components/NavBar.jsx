@@ -73,10 +73,10 @@ const NavBar = () => {
               <Link to="#" className="navbar-navbar-link">Horoscope</Link>
             </li>
             <li className="navbar-navbar-item">
-              <Link to="#" className="navbar-navbar-link">Blogs</Link>
+              <Link to="/blog" className="navbar-navbar-link">Blogs</Link>
             </li>
             <li className="navbar-navbar-item">
-              <Link to="#" className="navbar-navbar-link">Free Tools</Link>
+              <Link to="/blog/:slug" className="navbar-navbar-link">Free Tools</Link>
             </li>
           </ul>
           <div className="navbar-navbar-actions">

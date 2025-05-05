@@ -17,6 +17,8 @@ import ProsperGuide from './components/Guides/ProsperGuide'
 import OrderTracking from './pages/OrderTracking'
 import { AuthProvider } from './context/AuthContext'
 import { CartProvider } from './context/CartContext'
+import Blog from './components/Blog'
+import BlogDetail from './components/BlogDetail'
 
 function AppContent() {
   const location = useLocation();
@@ -43,6 +45,8 @@ function AppContent() {
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/transaction-complete" element={<TransactionComplete />} />
         <Route path="/prosper-guide/:sign" element={<ProsperGuide />} />
+        <Route path="/blog" element={<Blog />} />
+        <Route path="/blog/:blogID" element={<BlogDetail />} />
       </Routes>
     </>
   );
