@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import api, { authService } from '../../services/api';
+import { authService } from '../../services/api';
 import './Account.css';
 import Footer from '../Footer';
 import NavBar from '../NavBar';
@@ -15,19 +15,24 @@ function Account() {
     lastname: '',
     email: '',
     phone: '',
-    address: ''
+  });
+  
+  // Keep track of original data to restore on cancel
+  const [originalUserData, setOriginalUserData] = useState({
+    username: '',
+    firstname: '',
+    lastname: '',
+    email: '',
+    phone: '',
   });
   
   const [shippingAddress, setShippingAddress] = useState({
     address1: '',
     address2: '',
-    area: '',
     city: '',
     state: '',
     postcode: '',
     country: 'PH',
-    address_type: 'home',
-    is_default: true,
     region: '',
     province: '',
     city_municipality: '',
@@ -35,25 +40,38 @@ function Account() {
     street_name: '',
     building: '',
     house_number: '',
-    address_format: 'philippines'
   });
   
-  const [isEditingAddress, setIsEditingAddress] = useState(false);
-  const [addressLoading, setAddressLoading] = useState(false);
-  const [addressError, setAddressError] = useState('');
-  const [addressSuccess, setAddressSuccess] = useState('');
+  // Keep track of original address to restore on cancel
+  const [originalAddress, setOriginalAddress] = useState({
+    address1: '',
+    address2: '',
+    city: '',
+    state: '',
+    postcode: '',
+    country: 'PH',
+    region: '',
+    province: '',
+    city_municipality: '',
+    barangay: '',
+    street_name: '',
+    building: '',
+    house_number: '',
+  });
+  
+  const [isEditingPersonal, setIsEditingPersonal] = useState(false);
+  const [isEditingShipping, setIsEditingShipping] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
+  // Fetch user profile and shipping info on component mount
   useEffect(() => {
-    if (authLoading) {
-      return;
-    }
-
+    if (authLoading) return;
     if (!isAuthenticated) {
       navigate('/login');
       return;
     }
-    
     if (isAuthenticated && user) {
       fetchUserProfile();
     }
@@ -63,451 +81,434 @@ function Account() {
     try {
       setLoading(true);
       const response = await authService.getProfile();
-      const profileData = response.data;
+      console.log("Profile data received:", response.data);
       
-      setUserData({
+      const profileData = response.data;
+      const userInfo = {
         username: profileData.username || '',
         firstname: profileData.firstName || '',
         lastname: profileData.lastName || '',
         email: profileData.email || '',
         phone: profileData.phone || '',
-        address: profileData.address || ''
-      });
+      };
       
-      const shippingResponse = await authService.getShippingAddresses();
-      const addresses = shippingResponse.data;
+      setUserData(userInfo);
+      setOriginalUserData(userInfo);
       
-      if (addresses && addresses.length > 0) {
-        const defaultAddress = addresses.find(addr => addr.is_default) || addresses[0];
-        setShippingAddress({
-          address1: defaultAddress.address1 || '',
-          address2: defaultAddress.address2 || '',
-          area: defaultAddress.area || '',
-          city: defaultAddress.city || '',
-          state: defaultAddress.state || '',
-          postcode: defaultAddress.postcode || '',
-          country: defaultAddress.country || 'PH',
-          address_type: defaultAddress.address_type || 'home',
-          is_default: defaultAddress.is_default || true,
-          region: defaultAddress.region || '',
-          province: defaultAddress.province || '',
-          city_municipality: defaultAddress.city_municipality || '',
-          barangay: defaultAddress.barangay || '',
-          street_name: defaultAddress.street_name || '',
-          building: defaultAddress.building || '',
-          house_number: defaultAddress.house_number || '',
-          address_format: defaultAddress.address_format || 'philippines',
-          phone: profileData.phone || ''
-        });
+      try {
+        const shippingResponse = await authService.getShippingAddresses();
+        console.log("Shipping addresses received:", shippingResponse.data);
+        
+        const addresses = shippingResponse.data;
+        if (addresses && addresses.length > 0) {
+          const defaultAddress = addresses.find(addr => addr.is_default) || addresses[0];
+          console.log("Using default address:", defaultAddress);
+          
+          const addressInfo = {
+            address1: defaultAddress.address1 || '',
+            address2: defaultAddress.address2 || '',
+            city: defaultAddress.city || '',
+            state: defaultAddress.state || '',
+            postcode: defaultAddress.postcode || '',
+            country: defaultAddress.country || 'PH',
+            region: defaultAddress.region || '',
+            province: defaultAddress.province || '',
+            city_municipality: defaultAddress.city_municipality || '',
+            barangay: defaultAddress.barangay || '',
+            street_name: defaultAddress.street_name || '',
+            building: defaultAddress.building || '',
+            house_number: defaultAddress.house_number || '',
+          };
+          
+          setShippingAddress(addressInfo);
+          setOriginalAddress(addressInfo);
+        }
+      } catch (addressError) {
+        console.error("Error fetching shipping addresses:", addressError);
       }
     } catch (error) {
       console.error('Error fetching user profile:', error);
-      if (error.response?.status === 401) {
-        navigate('/login');
-      } else {
-        setAddressError(error.response?.data?.message || 'Failed to fetch user profile. Please try again later.');
-      }
+      setError('Failed to load profile information');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePersonalDetailsSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      setLoading(true);
+      setError('');
+      setSuccess('');
+      
+      const updatedProfile = {
+        firstName: userData.firstname,
+        lastName: userData.lastname,
+        email: userData.email,
+        phone: userData.phone
+      };
+      
+      await authService.updateProfile(updatedProfile);
+      setSuccess('Personal details updated successfully');
+      setIsEditingPersonal(false);
+      
+      // Update original data after successful save
+      setOriginalUserData({...userData});
+      
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      setError(error.response?.data?.message || 'Failed to update personal details');
     } finally {
       setLoading(false);
     }
   };
   
-  const handleAddressChange = (e) => {
-    const { name, value } = e.target;
-    setShippingAddress(prev => ({
-      ...prev,
-      [name]: value
-    }));
+  const handleShippingDetailsSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      setLoading(true);
+      setError('');
+      setSuccess('');
+      
+      // Format shipping address for API using the format from the server response
+      const addressToSave = {
+        address1: shippingAddress.address1,
+        address2: shippingAddress.address2,
+        city: shippingAddress.city,
+        state: shippingAddress.state,
+        city_municipality: shippingAddress.city_municipality || shippingAddress.city,
+        province: shippingAddress.province || shippingAddress.state,
+        postcode: shippingAddress.postcode,
+        country: shippingAddress.country,
+        region: shippingAddress.region,
+        barangay: shippingAddress.barangay,
+        street_name: shippingAddress.street_name,
+        building: shippingAddress.building,
+        house_number: shippingAddress.house_number,
+        is_default: true
+      };
+      
+      await authService.addShippingAddress(addressToSave);
+      setSuccess('Shipping details updated successfully');
+      setIsEditingShipping(false);
+      
+      // Update original address after successful save
+      setOriginalAddress({...shippingAddress});
+      
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (error) {
+      console.error('Error updating shipping address:', error);
+      setError(error.response?.data?.message || 'Failed to update shipping details');
+    } finally {
+      setLoading(false);
+    }
   };
   
-  const handleAddressSubmit = async (e) => {
-    e.preventDefault();
-    setAddressLoading(true);
-    setAddressError('');
-    setAddressSuccess('');
-    
-    if (!shippingAddress.region || !shippingAddress.province || 
-        !shippingAddress.city_municipality || !shippingAddress.barangay || 
-        !shippingAddress.postcode || !shippingAddress.phone) {
-      setAddressError('Please fill in all required fields (marked with *)');
-      setAddressLoading(false);
-      return;
+  const togglePersonalEdit = () => {
+    if (isEditingPersonal) {
+      // If canceling edit, restore original data
+      setUserData({...originalUserData});
     }
-    
-    try {
-      await authService.addShippingAddress(shippingAddress);
-      setAddressSuccess('Address and contact information updated successfully');
-      setIsEditingAddress(false);
-      await fetchUserProfile();
-    } catch (error) {
-      console.error('Error saving address:', error);
-      if (error.response?.status === 401) {
-        navigate('/login');
-      } else {
-        setAddressError(error.response?.data?.message || 'Failed to update address');
-      }
-    } finally {
-      setAddressLoading(false);
+    setIsEditingPersonal(!isEditingPersonal);
+  };
+  
+  const toggleShippingEdit = () => {
+    if (isEditingShipping) {
+      // If canceling edit, restore original data
+      setShippingAddress({...originalAddress});
     }
+    setIsEditingShipping(!isEditingShipping);
+  };
+  
+  const cancelPersonalEdit = () => {
+    // Reset to original values
+    setUserData({...originalUserData});
+    setIsEditingPersonal(false);
+  };
+  
+  const cancelShippingEdit = () => {
+    // Reset to original values
+    setShippingAddress({...originalAddress});
+    setIsEditingShipping(false);
   };
 
-  if (authLoading || loading) {
+  // Handler for name input
+  const handleNameChange = (e) => {
+    const nameParts = e.target.value.split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+    setUserData(prev => ({
+      ...prev,
+      firstname: firstName,
+      lastname: lastName
+    }));
+  };
+
+  if (loading || authLoading) {
     return (
       <div className="account-page">
         <NavBar />
-        <div className="account-container">
-          <div className="account-wrapper">
-            <h1 className="account-title">My Account</h1>
-            <div className="loading">
-              <div className="loading-spinner"></div>
-              <p>Loading your account information...</p>
-            </div>
-          </div>
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <p>Loading your account information...</p>
         </div>
         <Footer />
       </div>
     );
   }
 
-  if (!isAuthenticated) {
-    return null;
-  }
+  // Combine first and last name for the full name field
+  const fullName = `${userData.firstname || ''} ${userData.lastname || ''}`.trim();
+  
+  // For the shipping address display, using city_municipality or city
+  const displayCity = shippingAddress.city_municipality || shippingAddress.city || '';
+  const displayState = shippingAddress.province || shippingAddress.state || '';
+  
+  // Display address for view mode
+  const formattedAddress = [
+    shippingAddress.address1,
+    shippingAddress.address2,
+    displayCity,
+    displayState,
+    shippingAddress.postcode,
+    shippingAddress.country === 'PH' ? 'Philippines' : 
+    shippingAddress.country === 'SG' ? 'Singapore' : 
+    shippingAddress.country === 'US' ? 'United States' : 
+    shippingAddress.country === 'CA' ? 'Canada' :
+    shippingAddress.country === 'GB' ? 'United Kingdom' :
+    shippingAddress.country === 'AU' ? 'Australia' :
+    shippingAddress.country
+  ].filter(Boolean).join(', ');
 
   return (
     <div className="account-page">
       <NavBar />
-      <div className="account-container">
-        <div className="account-wrapper">
-          <h1 className="account-title">My Account</h1>
-          
-          <div className="account-navigation">
-            <Link to="/account" className="account-nav-item active">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                <circle cx="12" cy="7" r="4"></circle>
-              </svg>
-              <span>Profile</span>
-            </Link>
-            <Link to="/purchases" className="account-nav-item">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
-                <line x1="3" y1="6" x2="21" y2="6"></line>
-                <path d="M16 10a4 4 0 0 1-8 0"></path>
-              </svg>
-              <span>Purchases</span>
-            </Link>
+      <main className="container" role="main" aria-label="My Account">
+        <section className="column" aria-labelledby="personal-details-title">
+          <div className="section-header-container">
+            <h2 id="personal-details-title" className="section-header">Personal Details</h2>
+            {!isEditingPersonal && (
+              <button 
+                type="button" 
+                className="edit-button" 
+                onClick={togglePersonalEdit}
+              >
+                Edit
+              </button>
+            )}
           </div>
           
-          <div className="account-info">
-            <div className="account-section">
-              <h2>Personal Information</h2>
-              <div className="info-row">
-                <p className="info-label">Username:</p>
-                <p className="info-value">{userData.username}</p>
-              </div>
-              <div className="info-row">
-                <p className="info-label">First Name:</p>
-                <p className="info-value">{userData.firstname}</p>
-              </div>
-              <div className="info-row">
-                <p className="info-label">Last Name:</p>
-                <p className="info-value">{userData.lastname}</p>
-              </div>
-              <div className="info-row">
-                <p className="info-label">Email:</p>
-                <p className="info-value">{userData.email}</p>
-              </div>
-              <div className="info-row">
-                <p className="info-label">Phone:</p>
-                <p className="info-value">{userData.phone || 'Not set'}</p>
-              </div>
-              <div className="info-row">
-                <p className="info-label">Address:</p>
-                <p className="info-value">{userData.address || 'Not set'}</p>
-              </div>
-            </div>
-            
-            <div className="account-section">
-              <div className="section-header">
-                <h2>Shipping Address</h2>
-                {!isEditingAddress && (
-                  <button 
-                    className="edit-button"
-                    onClick={() => setIsEditingAddress(true)}
-                  >
-                    {shippingAddress.address1 ? 'Edit Address' : 'Add Address'}
-                  </button>
-                )}
-              </div>
+          {isEditingPersonal ? (
+            // Edit mode - Form
+            <form 
+              id="personal-details-form" 
+              aria-describedby="personal-details-desc" 
+              autoComplete="on" 
+              noValidate
+              onSubmit={handlePersonalDetailsSubmit}
+            >
+              <p id="personal-details-desc">
+                Update your name, email, and contact details here.
+              </p>
               
-              {addressSuccess && (
-                <div className="success-message">{addressSuccess}</div>
-              )}
-              {addressError && (
-                <div className="error-message">{addressError}</div>
-              )}
+              <label htmlFor="fullname">Full Name</label>
+              <input 
+                type="text" 
+                id="fullname" 
+                name="fullname" 
+                placeholder="John Doe" 
+                required 
+                autoComplete="name"
+                value={fullName}
+                onChange={handleNameChange}
+              />
+
+              <label htmlFor="email">Email Address</label>
+              <input 
+                type="email" 
+                id="email" 
+                name="email" 
+                placeholder="john@example.com" 
+                required 
+                autoComplete="email"
+                value={userData.email || ''}
+                onChange={(e) => setUserData(prev => ({ ...prev, email: e.target.value }))}
+              />
+
+              <label htmlFor="phone">Phone Number</label>
+              <input 
+                type="tel" 
+                id="phone" 
+                name="phone" 
+                placeholder="+1 555 123 4567" 
+                autoComplete="tel" 
+                pattern="[+0-9\s\-]{7,}"
+                value={userData.phone || ''}
+                onChange={(e) => setUserData(prev => ({ ...prev, phone: e.target.value }))}
+              />
+
+              <div className="form-actions">
+                <button type="button" className="cancel-button" onClick={cancelPersonalEdit}>
+                  Cancel
+                </button>
+                <button type="submit" className="save-button">
+                  Save Personal Details
+                </button>
+              </div>
+            </form>
+          ) : (
+            // View mode - Display only
+            <div className="info-display">
+              <p className="info-label">Full Name</p>
+              <p className="info-value">{fullName || 'Not set'}</p>
               
-              {isEditingAddress ? (
-                <form className="address-form" onSubmit={handleAddressSubmit}>
-                  <div className="form-group">
-                    <label htmlFor="phone">Phone Number*</label>
-                    <input
-                      type="tel"
-                      id="phone"
-                      name="phone"
-                      value={shippingAddress.phone}
-                      onChange={handleAddressChange}
-                      placeholder="Enter your phone number"
-                      required
-                      disabled={addressLoading}
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label htmlFor="region">Region*</label>
-                    <input
-                      type="text"
-                      id="region"
-                      name="region"
-                      value={shippingAddress.region}
-                      onChange={handleAddressChange}
-                      placeholder="e.g. Region IX"
-                      required
-                      disabled={addressLoading}
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label htmlFor="province">Province*</label>
-                    <input
-                      type="text"
-                      id="province"
-                      name="province"
-                      value={shippingAddress.province}
-                      onChange={handleAddressChange}
-                      placeholder="e.g. Zamboanga del Sur"
-                      required
-                      disabled={addressLoading}
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label htmlFor="city_municipality">City/Municipality*</label>
-                    <input
-                      type="text"
-                      id="city_municipality"
-                      name="city_municipality"
-                      value={shippingAddress.city_municipality}
-                      onChange={handleAddressChange}
-                      placeholder="e.g. Zamboanga City"
-                      required
-                      disabled={addressLoading}
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label htmlFor="barangay">Barangay*</label>
-                    <input
-                      type="text"
-                      id="barangay"
-                      name="barangay"
-                      value={shippingAddress.barangay}
-                      onChange={handleAddressChange}
-                      placeholder="e.g. Punta Dulo"
-                      required
-                      disabled={addressLoading}
-                    />
-                  </div>
-                  
-                  <div className="form-row">
-                    <div className="form-group half">
-                      <label htmlFor="street_name">Street Name</label>
-                      <input
-                        type="text"
-                        id="street_name"
-                        name="street_name"
-                        value={shippingAddress.street_name}
-                        onChange={handleAddressChange}
-                        placeholder="Street name (optional)"
-                        disabled={addressLoading}
-                      />
-                    </div>
-                    
-                    <div className="form-group half">
-                      <label htmlFor="house_number">House Number</label>
-                      <input
-                        type="text"
-                        id="house_number"
-                        name="house_number"
-                        value={shippingAddress.house_number}
-                        onChange={handleAddressChange}
-                        placeholder="House number (optional)"
-                        disabled={addressLoading}
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="form-group">
-                    <label htmlFor="building">Building</label>
-                    <input
-                      type="text"
-                      id="building"
-                      name="building"
-                      value={shippingAddress.building}
-                      onChange={handleAddressChange}
-                      placeholder="Building name (optional)"
-                      disabled={addressLoading}
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label htmlFor="address2">Additional Address Details</label>
-                    <input
-                      type="text"
-                      id="address2"
-                      name="address2"
-                      value={shippingAddress.address2}
-                      onChange={handleAddressChange}
-                      placeholder="Additional address details (optional)"
-                      disabled={addressLoading}
-                    />
-                  </div>
-                  
-                  <div className="form-row">
-                    <div className="form-group half">
-                      <label htmlFor="postcode">Postal Code*</label>
-                      <input
-                        type="text"
-                        id="postcode"
-                        name="postcode"
-                        value={shippingAddress.postcode}
-                        onChange={handleAddressChange}
-                        placeholder="e.g. 7000"
-                        required
-                        disabled={addressLoading}
-                      />
-                    </div>
-                    
-                    <div className="form-group half">
-                      <label htmlFor="country">Country</label>
-                      <select
-                        id="country"
-                        name="country"
-                        value={shippingAddress.country}
-                        onChange={handleAddressChange}
-                        disabled={addressLoading}
-                      >
-                        <option value="PH">Philippines</option>
-                        <option value="MY">Malaysia</option>
-                        <option value="SG">Singapore</option>
-                      </select>
-                    </div>
-                  </div>
-                  
-                  <div className="form-row">
-                    <div className="form-group half">
-                      <label htmlFor="address_type">Address Type</label>
-                      <select
-                        id="address_type"
-                        name="address_type"
-                        value={shippingAddress.address_type}
-                        onChange={handleAddressChange}
-                        disabled={addressLoading}
-                      >
-                        <option value="home">Home</option>
-                        <option value="office">Office</option>
-                        <option value="other">Other</option>
-                      </select>
-                    </div>
-                    
-                    <div className="form-group half checkbox-group">
-                      <label>
-                        <input
-                          type="checkbox"
-                          name="is_default"
-                          checked={shippingAddress.is_default}
-                          onChange={(e) => setShippingAddress(prev => ({
-                            ...prev,
-                            is_default: e.target.checked
-                          }))}
-                          disabled={addressLoading}
-                        /> 
-                        Set as default address
-                      </label>
-                    </div>
-                  </div>
-                  
-                  <div className="form-actions">
-                    <button 
-                      type="button" 
-                      className="cancel-button"
-                      onClick={() => {
-                        setIsEditingAddress(false);
-                        fetchUserProfile();
-                      }}
-                      disabled={addressLoading}
-                    >
-                      Cancel
-                    </button>
-                    <button 
-                      type="submit" 
-                      className="save-button"
-                      disabled={addressLoading}
-                    >
-                      {addressLoading ? 'Saving...' : 'Save Address'}
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                <div className="address-display">
-                  {shippingAddress.address1 || (shippingAddress.barangay && shippingAddress.city_municipality) ? (
-                    <>
-                      <div className="info-row">
-                        <p className="info-label">Phone:</p>
-                        <p className="info-value">{shippingAddress.phone}</p>
-                      </div>
-                      <div className="info-row">
-                        <p className="info-label">Address:</p>
-                        <p className="info-value">
-                          {[
-                            shippingAddress.house_number && shippingAddress.house_number,
-                            shippingAddress.building && shippingAddress.building,
-                            shippingAddress.street_name && shippingAddress.street_name,
-                            shippingAddress.barangay && `Brgy. ${shippingAddress.barangay}`,
-                            shippingAddress.city_municipality,
-                            shippingAddress.province,
-                            shippingAddress.region,
-                            shippingAddress.postcode
-                          ].filter(Boolean).join(', ')}
-                          {shippingAddress.address2 && <span><br />{shippingAddress.address2}</span>}
-                        </p>
-                      </div>
-                      <div className="info-row">
-                        <p className="info-label">Country:</p>
-                        <p className="info-value">
-                          {shippingAddress.country === 'PH' ? 'Philippines' : 
-                           shippingAddress.country === 'MY' ? 'Malaysia' : 
-                           shippingAddress.country === 'SG' ? 'Singapore' : 
-                           shippingAddress.country}
-                        </p>
-                      </div>
-                      <div className="info-row">
-                        <p className="info-label">Address Type:</p>
-                        <p className="info-value">
-                          {shippingAddress.address_type.charAt(0).toUpperCase() + 
-                           shippingAddress.address_type.slice(1)}
-                        </p>
-                      </div>
-                    </>
-                  ) : (
-                    <p className="no-address">No shipping address added yet.</p>
-                  )}
-                </div>
-              )}
+              <p className="info-label">Email Address</p>
+              <p className="info-value">{userData.email || 'Not set'}</p>
+              
+              <p className="info-label">Phone Number</p>
+              <p className="info-value">{userData.phone || 'Not set'}</p>
             </div>
+          )}
+        </section>
+        
+        <section className="column" aria-labelledby="shipping-details-title">
+          <div className="section-header-container">
+            <h2 id="shipping-details-title" className="section-header">Shipping Details</h2>
+            {!isEditingShipping && (
+              <button 
+                type="button" 
+                className="edit-button" 
+                onClick={toggleShippingEdit}
+              >
+                Edit
+              </button>
+            )}
           </div>
-        </div>
-      </div>
+          
+          {isEditingShipping ? (
+            // Edit mode - Form
+            <form 
+              id="shipping-details-form" 
+              aria-describedby="shipping-details-desc" 
+              autoComplete="on" 
+              noValidate
+              onSubmit={handleShippingDetailsSubmit}
+            >
+              <p id="shipping-details-desc">
+                Manage your delivery address details.
+              </p>
+              
+              <label htmlFor="address1">Street Address</label>
+              <input 
+                type="text" 
+                id="address1" 
+                name="address1" 
+                placeholder="1234 Main St" 
+                required 
+                autoComplete="address-line1"
+                value={shippingAddress.address1 || ''}
+                onChange={(e) => setShippingAddress(prev => ({ ...prev, address1: e.target.value }))}
+              />
+
+              <label htmlFor="address2">Apartment, suite, etc. (optional)</label>
+              <input 
+                type="text" 
+                id="address2" 
+                name="address2" 
+                placeholder="Apartment or suite" 
+                autoComplete="address-line2"
+                value={shippingAddress.address2 || ''}
+                onChange={(e) => setShippingAddress(prev => ({ ...prev, address2: e.target.value }))}
+              />
+
+              <label htmlFor="city">City</label>
+              <input 
+                type="text" 
+                id="city" 
+                name="city" 
+                placeholder="New York" 
+                required 
+                autoComplete="address-level2"
+                value={displayCity}
+                onChange={(e) => setShippingAddress(prev => ({ 
+                  ...prev, 
+                  city: e.target.value,
+                  city_municipality: e.target.value
+                }))}
+              />
+
+              <label htmlFor="state">State / Province</label>
+              <input 
+                type="text" 
+                id="state" 
+                name="state" 
+                placeholder="NY" 
+                required 
+                autoComplete="address-level1"
+                value={displayState}
+                onChange={(e) => setShippingAddress(prev => ({ 
+                  ...prev, 
+                  state: e.target.value,
+                  province: e.target.value
+                }))}
+              />
+
+              <label htmlFor="zipcode">Zip / Postal Code</label>
+              <input 
+                type="text" 
+                id="zipcode" 
+                name="zipcode" 
+                placeholder="10001" 
+                required 
+                autoComplete="postal-code"
+                value={shippingAddress.postcode || ''}
+                onChange={(e) => setShippingAddress(prev => ({ ...prev, postcode: e.target.value }))}
+              />
+
+              <label htmlFor="country">Country</label>
+              <select 
+                id="country" 
+                name="country" 
+                required 
+                autoComplete="country"
+                value={shippingAddress.country || 'PH'}
+                onChange={(e) => setShippingAddress(prev => ({ ...prev, country: e.target.value }))}
+              >
+                <option value="" disabled>Select your country</option>
+                <option value="PH">Philippines</option>
+                <option value="SG">Singapore</option>
+                <option value="US">United States</option>
+                <option value="CA">Canada</option>
+                <option value="GB">United Kingdom</option>
+                <option value="AU">Australia</option>
+                <option value="MY">Malaysia</option>
+              </select>
+
+              <div className="form-actions">
+                <button type="button" className="cancel-button" onClick={cancelShippingEdit}>
+                  Cancel
+                </button>
+                <button type="submit" className="save-button">
+                  Save Shipping Details
+                </button>
+              </div>
+            </form>
+          ) : (
+            // View mode - Display only
+            <div className="info-display">
+              <p className="info-label">Address</p>
+              <p className="info-value">
+                {formattedAddress || 'No shipping address has been set yet'}
+              </p>
+            </div>
+          )}
+        </section>
+      </main>
+      
+      {error && <div className="error-message" role="alert">{error}</div>}
+      {success && <div className="success-message" role="status">{success}</div>}
+      
       <Footer />
     </div>
   );

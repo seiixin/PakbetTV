@@ -105,11 +105,11 @@ const Home = () => {
     if (loading) return <LoadingSpinner />;
     if (error) return <div className="error-message">{error}</div>;
     return (
-      <section className="new-arrivals">
-        <div className="section-header">
+      <section className="home-new-arrivals">
+        <div className="home-section-header">
           <h2>New Arrivals</h2>
         </div>
-        <div className="new-arrivals-grid">
+        <div className="home-new-arrivals-grid">
           {newArrivals.map(product => {
             let imageUrl = constructUrl(API_BASE_URL, null); 
             if (product.variants && product.variants.length > 0 && product.variants[0].image_url) {
@@ -168,50 +168,50 @@ const Home = () => {
     );
   };
   return (
-    <div className="home">
+    <div className="home-page">
       <NavBar />
-      <section className="hero-section" style={{ 
+      <section className="home-hero-section" style={{ 
         backgroundColor: '#A2201A',
         backgroundImage: `url(/HeroBG-01-01.png)`,
         backgroundSize: '100% 100%',
         backgroundPosition: 'center center',
         backgroundRepeat: 'no-repeat'
       }}>
-        <div className="hero-grid">
-          <div className="hero-top-left">
-            <div className="hero-content">
-              {Logo && <img src={Logo} alt="Logo" className="hero-logo" />}
+        <div className="home-hero-grid">
+          <div className="home-hero-top-left">
+            <div className="home-hero-content">
+              {Logo && <img src={Logo} alt="Logo" className="home-hero-logo" />}
               <h1>MICHAEL DE MESA</h1>
               <h2>BAZI & FENG SHUI CONSULTANCY</h2>
               <p>Will give you a step-by-step guideline that will help you towards your desired</p>
-              <button className="primary-button">Learn More</button>
+              <button className="home-primary-button">Learn More</button>
             </div>
           </div>
-          <div className="hero-top-right">
-            {Michael && <img src={Michael} alt="Michael De Mesa" className="hero-image"/>}
+          <div className="home-hero-top-right">
+            {Michael && <img src={Michael} alt="Michael De Mesa" className="home-hero-image"/>}
           </div>
-          <div className="hero-bottom-left">
+          <div className="home-hero-bottom-left">
           </div>
-          <div className="hero-bottom-right">
-            <div className="hero-why-consult">
+          <div className="home-hero-bottom-right">
+            <div className="home-hero-why-consult">
               <h3>WHY CONSULT WITH MASTER MICHAEL DE MESA</h3>
-              <div className="why-consult-icons">
-                <div className="why-consult-icon">
+              <div className="home-why-consult-icons">
+                <div className="home-why-consult-icon">
                   <img src="/Icons-1.png" alt="Icon 1" />
                 </div>
-                <div className="why-consult-icon">
+                <div className="home-why-consult-icon">
                   <img src="/Icons-2.png" alt="Icon 2" />
                 </div>
-                <div className="why-consult-icon">
+                <div className="home-why-consult-icon">
                   <img src="/Icons-3.png" alt="Icon 3" />
                 </div>
-                <div className="why-consult-icon">
+                <div className="home-why-consult-icon">
                   <img src="/Icons-4.png" alt="Icon 4" />
                 </div>
-                <div className="why-consult-icon">
+                <div className="home-why-consult-icon">
                   <img src="/Icons-5.png" alt="Icon 5" />
                 </div>
-                <div className="why-consult-icon">
+                <div className="home-why-consult-icon">
                   <img src="/Icons-6.png" alt="Icon 6" />
                 </div>
               </div>
@@ -220,18 +220,18 @@ const Home = () => {
         </div>
       </section>
       {renderNewArrivals()}
-      <section className="categories">
-        <div className="section-header">
+      <section className="home-categories">
+        <div className="home-section-header">
           <h2>CATEGORIES</h2>
         </div>
-        <div className="categories-grid">
+        <div className="home-categories-grid">
           {homeCategories.map(category => (
             <Link 
               to={`/shop?category=${category.filterId}`} 
               key={category.filterId} 
-              className="category-card" 
+              className="home-category-card"
             >
-              <div className="category-image">
+              <div className="home-category-image">
                 <img src={category.image} alt={`${category.name} Icon`} />
               </div>
               <h3>{category.name}</h3>
@@ -240,30 +240,30 @@ const Home = () => {
         </div>
       </section>
       {}
-      <section className="prosper-guide-section">
-        <div className="section-header prosper-header">
+      <section className="home-prosper-guide-section">
+        <div className="home-section-header home-prosper-header">
           <h2>2025 PROSPER GUIDE</h2> 
           <p>Career, Health, Love, & Wealth</p>
         </div>
-        <div className="zodiac-icons-container">
+        <div className="home-zodiac-icons-container">
           {zodiacSigns.map((sign) => (
-            <Link to={`/prosper-guide/${sign.name.toLowerCase()}`} key={sign.name} className="zodiac-item">
-              <img src={sign.image} alt={sign.name} className="zodiac-icon" />
-              <p className="zodiac-name">{sign.name}</p>
+            <Link to={`/prosper-guide/${sign.name.toLowerCase()}`} key={sign.name} className="home-zodiac-item">
+              <img src={sign.image} alt={sign.name} className="home-zodiac-icon" />
+              <p className="home-zodiac-name">{sign.name}</p>
             </Link>
           ))}
         </div>
       </section>
       {}
-      <section className="shop-aspirations">
-        <div className="section-header">
+      <section className="home-shop-aspirations">
+        <div className="home-section-header">
           <h2>SHOP BY ASPIRATION</h2>
           <p>Find products aligned with your life goals</p>
         </div>
-        <div className="aspirations-grid">
+        <div className="home-aspirations-grid">
           {aspirations.map((item) => (
-            <div key={item.name} className="aspiration-card">
-              <div className="aspiration-icon">
+            <div key={item.name} className="home-aspiration-card">
+              <div className="home-aspiration-icon">
                  <img src={item.image} alt={`${item.name} Icon`} />
               </div>
               <h3>{item.name}</h3>
@@ -272,30 +272,30 @@ const Home = () => {
         </div>
       </section>
       {}
-      <section className="blog-section">
-        <div className="section-header">
+      <section className="home-blog-section">
+        <div className="home-section-header">
           <h2>BLOG</h2>
         </div>
-        <div className="blog-grid">
-          <div className="blog-card">
-            <div className="blog-image" style={{ backgroundImage: `url(${placeholderImages.blogOffice})` }}></div>
-            <div className="blog-content">
+        <div className="home-blog-grid">
+          <div className="home-blog-card">
+            <div className="home-blog-image" style={{ backgroundImage: `url(${placeholderImages.blogOffice})` }}></div>
+            <div className="home-blog-content">
               <h3>Balance Your Home Office for Success</h3>
               <p>Discover how proper Feng Shui can boost productivity and success...</p>
               <a href="#">Read More</a>
             </div>
           </div>
-          <div className="blog-card">
-            <div className="blog-image" style={{ backgroundImage: `url(${placeholderImages.blogWater})` }}></div>
-            <div className="blog-content">
+          <div className="home-blog-card">
+            <div className="home-blog-image" style={{ backgroundImage: `url(${placeholderImages.blogWater})` }}></div>
+            <div className="home-blog-content">
               <h3>Water Elements for Wealth Attraction</h3>
               <p>Learn how water features can enhance your wealth sector...</p>
               <a href="#">Read More</a>
             </div>
           </div>
-          <div className="blog-card">
-            <div className="blog-image" style={{ backgroundImage: `url(${placeholderImages.blogBedroom})` }}></div>
-            <div className="blog-content">
+          <div className="home-blog-card">
+            <div className="home-blog-image" style={{ backgroundImage: `url(${placeholderImages.blogBedroom})` }}></div>
+            <div className="home-blog-content">
               <h3>Bedroom Feng Shui for Better Sleep</h3>
               <p>Transform your bedroom into a sanctuary for rest and rejuvenation...</p>
               <a href="#">Read More</a>

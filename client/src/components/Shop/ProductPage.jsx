@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import './Shop.css';
 import API_BASE_URL from '../../config';
+import NavBar from '../NavBar';
+import Footer from '../Footer';
 const ProductPage = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -107,6 +109,7 @@ const ProductPage = () => {
   };
   return (
     <div className="shop-container">
+      <NavBar />
       <div className="shop-main">
         {}
         <div className="products-content">
@@ -217,6 +220,7 @@ const ProductPage = () => {
           )}
         </div>
       </div>
+      <Footer />
     </div>
   );
 };

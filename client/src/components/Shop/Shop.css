@@ -16,12 +16,9 @@
 /* Shop Container - Fix navbar overlap */
 .shop-container {
   width: 100%;
-  min-height: 100vh;
-  background-color: var(--off-white);
   display: flex;
   flex-direction: column;
-  padding-top: 100px; /* Increased padding to prevent navbar overlap */
-  margin: 0;
+  margin-top: 100px !important;
 }
 .shop-main {
   display: flex;
@@ -29,6 +26,7 @@
   margin: 0 auto;
   padding: 2rem 1rem;
   width: 100%;
+  flex-grow: 1;
 }
 .products-content {
   flex: 1;
