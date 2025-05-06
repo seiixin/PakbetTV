@@ -70,10 +70,13 @@ const NavBar = () => {
               <Link to="#" className="navbar-navbar-link">Consultations</Link>
             </li>
             <li className="navbar-navbar-item">
-              <Link to="#" className="navbar-navbar-link">Horoscope</Link>
+              <Link to="/horoscope" className="navbar-navbar-link">Horoscope</Link>
             </li>
             <li className="navbar-navbar-item">
               <Link to="/blog" className="navbar-navbar-link">Blogs</Link>
+            </li>
+            <li className="navbar-navbar-item">
+              <Link to="/faqs" className="navbar-navbar-link">FAQs</Link>
             </li>
             <li className="navbar-navbar-item">
               <Link to="/blog/:slug" className="navbar-navbar-link">Free Tools</Link>

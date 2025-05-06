@@ -10,12 +10,13 @@ const Footer = () => {
         <div className="footer-section">
           <h3>FAQ</h3>
           <ul>
-            <li><Link to="#">Delivery</Link></li>
-            <li><Link to="#">Return/Exchange</Link></li>
-            <li><Link to="#">Order/Cancellation</Link></li>
-            <li><Link to="#">Payment</Link></li>
-            <li><Link to="#">Product Availability</Link></li>
-            <li><Link to="#">Gift Wrapping Services</Link></li>
+            <li><Link to="/faqs">Frequently Asked Questions</Link></li>
+            <li><Link to="/faqs?category=delivery">Delivery</Link></li>
+            <li><Link to="/faqs?category=returns">Return/Exchange</Link></li>
+            <li><Link to="/faqs?category=orders">Order/Cancellation</Link></li>
+            <li><Link to="/faqs?category=payment">Payment</Link></li>
+            <li><Link to="/faqs?category=products">Product Availability</Link></li>
+            <li><Link to="/faqs?category=services">Gift Wrapping Services</Link></li>
           </ul>
         </div>
 

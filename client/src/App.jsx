@@ -14,11 +14,13 @@ import Cart from './components/Shop/Cart'
 import Checkout from './components/Shop/Checkout'
 import TransactionComplete from './components/Shop/TransactionComplete'
 import ProsperGuide from './components/Guides/ProsperGuide'
+import Horoscope from './components/Horoscope/Horoscope'
 import OrderTracking from './pages/OrderTracking'
 import { AuthProvider } from './context/AuthContext'
 import { CartProvider } from './context/CartContext'
 import Blog from './components/Blog'
 import BlogDetail from './components/BlogDetail'
+import FAQs from './components/FAQs'
 
 function AppContent() {
   const location = useLocation();
@@ -45,8 +47,10 @@ function AppContent() {
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/transaction-complete" element={<TransactionComplete />} />
         <Route path="/prosper-guide/:sign" element={<ProsperGuide />} />
+        <Route path="/horoscope" element={<Horoscope />} />
         <Route path="/blog" element={<Blog />} />
         <Route path="/blog/:blogID" element={<BlogDetail />} />
+        <Route path="/faqs" element={<FAQs />} />
       </Routes>
     </>
   );
