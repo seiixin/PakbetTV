@@ -102,67 +102,75 @@ const Home = () => {
     navigate(`/product/${id}`);
   };
   const renderNewArrivals = () => {
-    if (loading) return <LoadingSpinner />;
-    if (error) return <div className="error-message">{error}</div>;
     return (
       <section className="home-new-arrivals">
         <div className="home-section-header">
           <h2>New Arrivals</h2>
         </div>
-        <div className="home-new-arrivals-grid">
-          {newArrivals.map(product => {
-            let imageUrl = constructUrl(API_BASE_URL, null); 
-            if (product.variants && product.variants.length > 0 && product.variants[0].image_url) {
-              imageUrl = constructUrl(API_BASE_URL, product.variants[0].image_url);
-            }
-            else if (product.images && product.images.length > 0 && product.images[0].url) {
-              imageUrl = constructUrl(API_BASE_URL, product.images[0].url);
-            }
-            else if (product.image_url) {
-              imageUrl = constructUrl(API_BASE_URL, product.image_url);
-            }
-            const discountPercent = product.regular_price > product.price 
-              ? Math.round(((product.regular_price - product.price) / product.regular_price) * 100) 
-              : 0; 
-            return (
-              <div 
-                key={product.product_id}
-                className="shop-product-card"
-                onClick={() => navigateToProduct(product.product_id)}
-              >
+        
+        {loading ? (
+          <div className="home-new-arrivals-loading-container">
+            <LoadingSpinner />
+          </div>
+        ) : error ? (
+          <div className="error-message">{error}</div>
+        ) : (
+          <div className="home-new-arrivals-grid">
+            {newArrivals.map(product => {
+              let imageUrl = constructUrl(API_BASE_URL, null); 
+              if (product.variants && product.variants.length > 0 && product.variants[0].image_url) {
+                imageUrl = constructUrl(API_BASE_URL, product.variants[0].image_url);
+              }
+              else if (product.images && product.images.length > 0 && product.images[0].url) {
+                imageUrl = constructUrl(API_BASE_URL, product.images[0].url);
+              }
+              else if (product.image_url) {
+                imageUrl = constructUrl(API_BASE_URL, product.image_url);
+              }
+              const discountPercent = product.regular_price > product.price 
+                ? Math.round(((product.regular_price - product.price) / product.regular_price) * 100) 
+                : 0; 
+              return (
                 <div 
-                  className="shop-product-image" 
-                  style={{ backgroundImage: `url(${imageUrl})` }}
+                  key={product.product_id}
+                  className="shop-product-card"
+                  onClick={() => navigateToProduct(product.product_id)}
                 >
-                  {}
-                  {discountPercent > 0 && (
-                    <div className="discount-percentage-tag">
-                      Save {discountPercent}%
-                    </div>
-                  )}
-                </div>
-                <div className="shop-product-details">
-                  <div className="product-info">
-                    <h3>{product.name}</h3>
+                  <div 
+                    className="shop-product-image" 
+                    style={{ backgroundImage: `url(${imageUrl})` }}
+                  >
+                    {}
+                    {discountPercent > 0 && (
+                      <div className="discount-percentage-tag">
+                        Save {discountPercent}%
+                      </div>
+                    )}
                   </div>
-                  <div className="product-card-bottom">
-                    <div className="product-price">
-                      {product.regular_price > product.price ? (
-                        <>
-                          <span className="sale-price">{formatPrice(product.price)}</span>
-                          <span className="regular-price">{formatPrice(product.regular_price)}</span>
-                        </>
-                      ) : (
-                        <span>{formatPrice(product.price)}</span>
-                      )}
+                  <div className="shop-product-details">
+                    <div className="product-info">
+                      <h3>{product.name}</h3>
                     </div>
-                    <div className="items-sold">{formatItemsSold(product.items_sold || 0)}</div>
+                    <div className="product-card-bottom">
+                      <div className="product-price">
+                        {product.regular_price > product.price ? (
+                          <>
+                            <span className="sale-price">{formatPrice(product.price)}</span>
+                            <span className="regular-price">{formatPrice(product.regular_price)}</span>
+                          </>
+                        ) : (
+                          <span>{formatPrice(product.price)}</span>
+                        )}
+                      </div>
+                      <div className="items-sold">{formatItemsSold(product.items_sold || 0)}</div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
+        
         <Link to="/shop" className="view-all-btn">View All Products</Link>
       </section>
     );

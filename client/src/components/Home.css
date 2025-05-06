@@ -384,8 +384,8 @@ body {
   text-decoration: none;
   padding: 1rem;
   margin: 0;
-  background-color: var(--white-color);
-  border-top: 1px solid #eee;
+  background-color: var(--white-color); 
+  border-top: 1px solid #eee; 
 }
 .home-prosper-guide-section {
   background-color: white; 
@@ -963,4 +963,13 @@ body {
   margin: 0;
   background-color: var(--white-color);
   border-top: 1px solid #eee;
+}
+
+.home-new-arrivals-loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+  width: 100%;
+  padding: 2rem 0;
 } 
