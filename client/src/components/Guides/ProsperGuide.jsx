@@ -1,1 +1,142 @@
-import React from 'react';import { useParams } from 'react-router-dom';import NavBar from '../NavBar';import './ProsperGuide.css';const ProsperGuide = () => {  const { sign } = useParams();  const capitalizedSign = sign ? sign.toUpperCase() : '';  const content = {    RAT: {      overview: `The Year 2022 is a good year for those born in the Year of the Rat. It presents many opportunities for career advancement, wealth accumulation, and personal growth. Your natural intelligence and adaptability will serve you well this year. However, be cautious of health issues related to overwork and stress.`,      career: `Your career prospects are looking good in 2022. Your quick thinking and resourcefulness will be recognized by superiors. Expect possible promotions or new job opportunities, especially in the second half of the year. Networking will be particularly beneficial for Rats this year. Collaborations with colleagues born in the years of the Dragon and Monkey could lead to successful projects.`,      health: `Pay attention to your health this year, especially your digestive and respiratory systems. Regular exercise and adequate rest are essential. Consider incorporating more relaxation techniques into your routine to manage stress levels. Maintain a balanced diet and avoid excessive consumption of cold foods and beverages.`,      love: `For single Rats, 2022 brings promising romantic prospects, especially in social gatherings and work-related events. Existing relationships may face minor challenges in communication, but nothing that can't be resolved with patience and understanding. The second half of the year is particularly favorable for romantic developments and strengthening bonds.`,      wealth: `Financial prospects look favorable. Your natural ability to seize opportunities will help you increase your income. Good months for investments are April, August, and December. However, avoid speculative ventures and gambling. Property investments may bring good returns. Keep an eye on unnecessary expenses, particularly in the third quarter of the year.`    },  };  const signContent = content[capitalizedSign] || {    overview: 'Content coming soon.',    career: 'Content coming soon.',    health: 'Content coming soon.',    love: 'Content coming soon.',    wealth: 'Content coming soon.'  };  return (    <div className="prosper-guide-container">      <div className="prosper-guide-content">        <div className="prosper-guide-header">          <h1>{capitalizedSign}</h1>          <h2>OVERALL FORECAST OF 2022</h2>        </div>        <div className="prosper-guide-sections">          <div className="guide-section">            <h3>Overview</h3>            <div className="section-content">              <p>{signContent.overview}</p>            </div>          </div>          <div className="guide-section">            <h3>Career</h3>            <div className="section-content">              <p>{signContent.career}</p>            </div>          </div>          <div className="guide-section">            <h3>Health</h3>            <div className="section-content">              <p>{signContent.health}</p>            </div>          </div>          <div className="guide-section">            <h3>Love</h3>            <div className="section-content">              <p>{signContent.love}</p>            </div>          </div>          <div className="guide-section">            <h3>Wealth</h3>            <div className="section-content">              <p>{signContent.wealth}</p>            </div>          </div>        </div>      </div>      {}      <footer className="footer">        <div className="footer-content">          <div className="footer-section">            <h3>FAQ</h3>            <ul>              <li><a href="#">Delivery</a></li>              <li><a href="#">Return/Exchange</a></li>              <li><a href="#">Order/Cancellation</a></li>              <li><a href="#">Payment</a></li>              <li><a href="#">Product Availability</a></li>              <li><a href="#">Gift Wrapping Services</a></li>            </ul>          </div>          <div className="footer-section">            <h3>VISIT US</h3>            <ul>              <p>Feng Shui by Pakbet TV</p>              <p>Unit 1004 Cityland Shaw Tower</p>              <p>Corner St. Francis, Shaw Blvd.</p>              <p>Mandaluyong City, Philippines</p>              <p>Hours</p>              <p>Monday - Sunday</p>              <p>8:00 AM - 5:00 PM</p>              <p>Public Holidays - CLOSED</p>            </ul>          </div>          <div className="footer-section">            <h3>FOLLOW US</h3>            <ul>              <p>Facebook</p>              <p>Instagram</p>              <p>YouTube</p>              <p>NEED HELP?</p>              <p>admin@pakbettv.com</p>              <p>09123-12312-12123</p>            </ul>          </div>        </div>        <div className="footer-bottom">          <div>            <p>COPYRIGHT 2025 FENG SHUI BY PAKBET TV. ALL RIGHTS RESERVED.</p>          </div>          <div>            <p>Terms of Use</p>            <p>Privacy Policy</p>          </div>        </div>      </footer>    </div>  );};export default ProsperGuide; 
+import React, { useState, useEffect } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import axios from 'axios';
+import NavBar from '../NavBar';
+import Footer from '../Footer';
+import API_BASE_URL from '../../config';
+import LoadingSpinner from '../common/LoadingSpinner';
+import './ProsperGuide.css';
+
+const ProsperGuide = () => {
+  const { sign } = useParams();
+  const [guideData, setGuideData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // The zodiacID in the database has first letter capitalized: 'Rat', 'Ox', etc.
+  const formattedSign = sign ? sign.charAt(0).toUpperCase() + sign.slice(1).toLowerCase() : '';
+
+  useEffect(() => {
+    if (!formattedSign) {
+      setError('Invalid zodiac sign provided.');
+      setLoading(false);
+      return;
+    }
+
+    const fetchGuideData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        console.log(`Fetching data for sign: ${formattedSign}`);
+        
+        // This endpoint will only return published guides
+        const response = await axios.get(`${API_BASE_URL}/api/cms/zodiacs/${formattedSign}`);
+        
+        if (response.data) {
+          setGuideData(response.data);
+          console.log("Data fetched successfully:", response.data);
+        } else {
+          setError(`Prosper guide not found for ${formattedSign}.`);
+          console.log(`No data found for ${formattedSign}`);
+        }
+      } catch (err) {
+        console.error(`Error fetching prosper guide for ${formattedSign}:`, err);
+        
+        if (err.response) {
+          console.log("Error response status:", err.response.status);
+          console.log("Error response data:", err.response.data);
+          
+          if (err.response.status === 404) {
+            // The guide might exist but not be published
+            setError(`Prosper guide for "${formattedSign}" is not currently published. Please check back later.`);
+          } else {
+            setError(`Error (${err.response.status}): ${err.response.data?.error || 'Unknown error'}`);
+          }
+        } else if (err.request) {
+          // Request was made but no response received
+          setError('Network error. Please check your connection and try again.');
+        } else {
+          setError(`Error: ${err.message}`);
+        }
+        
+        setGuideData(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchGuideData();
+  }, [formattedSign]);
+
+  const renderContent = () => {
+    if (loading) {
+      return <div className="loading-container"><LoadingSpinner /></div>;
+    }
+    if (error) {
+      return (
+        <div className="error-container">
+          <div className="error-message">{error}</div>
+          <div className="error-actions">
+            <Link to="/" className="error-link">Return to Home</Link>
+          </div>
+        </div>
+      );
+    }
+    if (!guideData) {
+      return <div className="error-message">No guide data available for {formattedSign}.</div>;
+    }
+
+    return (
+      <div className="prosper-guide-sections">
+        <div className="guide-section">
+          <h3>Overview</h3>
+          <div className="section-content">
+            <p>{guideData.overview || 'Not available.'}</p>
+          </div>
+        </div>
+        <div className="guide-section">
+          <h3>Career</h3>
+          <div className="section-content">
+            <p>{guideData.career || 'Not available.'}</p>
+          </div>
+        </div>
+        <div className="guide-section">
+          <h3>Health</h3>
+          <div className="section-content">
+            <p>{guideData.health || 'Not available.'}</p>
+          </div>
+        </div>
+        <div className="guide-section">
+          <h3>Love</h3>
+          <div className="section-content">
+            <p>{guideData.love || 'Not available.'}</p>
+          </div>
+        </div>
+        <div className="guide-section">
+          <h3>Wealth</h3>
+          <div className="section-content">
+            <p>{guideData.wealth || 'Not available.'}</p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="prosper-guide-page">
+      <NavBar />
+      <div className="prosper-guide-container">
+        <div className="prosper-guide-content">
+          <div className="prosper-guide-header">
+            <h1>{formattedSign || 'Zodiac Guide'}</h1>
+            <h2>PROSPER GUIDE FORECAST</h2>
+          </div>
+          {renderContent()}
+        </div>
+      </div>
+      <Footer />
+    </div>
+  );
+};
+
+export default ProsperGuide; 

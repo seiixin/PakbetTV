@@ -66,7 +66,6 @@ router.get('/zodiacs/:zodiacID', async (req, res) => {
     const [results] = await db.query(
       `SELECT * FROM prosper_guides 
        WHERE zodiacID IN ('Rat', 'Ox', 'Tiger', 'Rabbit', 'Dragon', 'Snake', 'Horse', 'Goat', 'Monkey', 'Rooster', 'Dog', 'Pig') 
-       AND status = 'published' 
        AND zodiacID = ?`,
       [zodiacID]
     );

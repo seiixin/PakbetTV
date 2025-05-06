@@ -355,6 +355,7 @@ body {
   text-align: center;
   height: 100%;
   width: 100%;
+  text-decoration: none;
 }
 .home-category-card:hover {
   transform: translateY(-5px);
@@ -377,12 +378,14 @@ body {
   object-fit: contain; 
 }
 .home-category-card h3 {
-  padding: 1rem;
+  color: #A2201A;
+  font-weight: 600;
   font-size: 1.1rem;
-  color: var(--primary-color); 
+  text-decoration: none;
+  padding: 1rem;
   margin: 0;
-  background-color: var(--white-color); 
-  border-top: 1px solid #eee; 
+  background-color: var(--white-color);
+  border-top: 1px solid #eee;
 }
 .home-prosper-guide-section {
   background-color: white; 
@@ -927,4 +930,37 @@ body {
     width: 30px;
     height: 30px;
   }
+}
+/* View All Products Button */
+.view-all-btn {
+  background-color: #A2201A;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 4px;
+  text-decoration: none;
+  font-weight: 600;
+  display: inline-block;
+  margin-top: 20px;
+  transition: all 0.3s ease;
+}
+
+.view-all-btn:hover {
+  background-color: #8a1b16;
+  transform: translateY(-2px);
+}
+
+/* Category Card Styles */
+.home-category-card {
+  text-decoration: none;
+}
+
+.home-category-card h3 {
+  color: #A2201A;
+  font-weight: 600;
+  font-size: 1.1rem;
+  text-decoration: none;
+  padding: 1rem;
+  margin: 0;
+  background-color: var(--white-color);
+  border-top: 1px solid #eee;
 } 
