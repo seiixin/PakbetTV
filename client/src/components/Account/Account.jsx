@@ -171,16 +171,26 @@ function Account() {
       setError('');
       setSuccess('');
       
+      // Validate required fields
+      const requiredFields = ['region', 'province', 'city_municipality', 'barangay', 'postcode'];
+      const missingFields = requiredFields.filter(field => !shippingAddress[field]);
+      
+      if (missingFields.length > 0) {
+        setError(`Please fill in all required fields: ${missingFields.join(', ')}`);
+        setLoading(false);
+        return;
+      }
+      
       // Format shipping address for API using the format from the server response
       const addressToSave = {
         address1: shippingAddress.address1,
         address2: shippingAddress.address2,
-        city: shippingAddress.city,
-        state: shippingAddress.state,
-        city_municipality: shippingAddress.city_municipality || shippingAddress.city,
-        province: shippingAddress.province || shippingAddress.state,
+        city: shippingAddress.city_municipality,
+        state: shippingAddress.province,
+        city_municipality: shippingAddress.city_municipality,
+        province: shippingAddress.province,
         postcode: shippingAddress.postcode,
-        country: shippingAddress.country,
+        country: shippingAddress.country || 'PH',
         region: shippingAddress.region,
         barangay: shippingAddress.barangay,
         street_name: shippingAddress.street_name,
@@ -195,6 +205,9 @@ function Account() {
       
       // Update original address after successful save
       setOriginalAddress({...shippingAddress});
+      
+      // Refresh the profile data to get updated information
+      await fetchUserProfile();
       
       setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
@@ -423,72 +436,94 @@ function Account() {
               onSubmit={handleShippingDetailsSubmit}
             >
               <p id="shipping-details-desc">
-                Manage your delivery address details.
+                Manage your delivery address details. Fields marked with * are required.
               </p>
               
-              <label htmlFor="address1">Street Address</label>
+              <label htmlFor="region">Region *</label>
               <input 
                 type="text" 
-                id="address1" 
-                name="address1" 
-                placeholder="1234 Main St" 
+                id="region" 
+                name="region" 
+                placeholder="Region" 
                 required 
-                autoComplete="address-line1"
-                value={shippingAddress.address1 || ''}
-                onChange={(e) => setShippingAddress(prev => ({ ...prev, address1: e.target.value }))}
+                value={shippingAddress.region || ''}
+                onChange={(e) => setShippingAddress(prev => ({ ...prev, region: e.target.value }))}
               />
 
-              <label htmlFor="address2">Apartment, suite, etc. (optional)</label>
+              <label htmlFor="province">Province *</label>
               <input 
                 type="text" 
-                id="address2" 
-                name="address2" 
-                placeholder="Apartment or suite" 
-                autoComplete="address-line2"
-                value={shippingAddress.address2 || ''}
-                onChange={(e) => setShippingAddress(prev => ({ ...prev, address2: e.target.value }))}
+                id="province" 
+                name="province" 
+                placeholder="Province" 
+                required 
+                value={shippingAddress.province || ''}
+                onChange={(e) => setShippingAddress(prev => ({ ...prev, province: e.target.value }))}
               />
 
-              <label htmlFor="city">City</label>
+              <label htmlFor="city_municipality">City/Municipality *</label>
               <input 
                 type="text" 
-                id="city" 
-                name="city" 
-                placeholder="New York" 
+                id="city_municipality" 
+                name="city_municipality" 
+                placeholder="City/Municipality" 
                 required 
-                autoComplete="address-level2"
-                value={displayCity}
+                value={shippingAddress.city_municipality || ''}
                 onChange={(e) => setShippingAddress(prev => ({ 
                   ...prev, 
-                  city: e.target.value,
-                  city_municipality: e.target.value
+                  city_municipality: e.target.value,
+                  city: e.target.value
                 }))}
               />
 
-              <label htmlFor="state">State / Province</label>
+              <label htmlFor="barangay">Barangay *</label>
               <input 
                 type="text" 
-                id="state" 
-                name="state" 
-                placeholder="NY" 
+                id="barangay" 
+                name="barangay" 
+                placeholder="Barangay" 
                 required 
-                autoComplete="address-level1"
-                value={displayState}
-                onChange={(e) => setShippingAddress(prev => ({ 
-                  ...prev, 
-                  state: e.target.value,
-                  province: e.target.value
-                }))}
+                value={shippingAddress.barangay || ''}
+                onChange={(e) => setShippingAddress(prev => ({ ...prev, barangay: e.target.value }))}
               />
 
-              <label htmlFor="zipcode">Zip / Postal Code</label>
+              <label htmlFor="street_name">Street Name</label>
               <input 
                 type="text" 
-                id="zipcode" 
-                name="zipcode" 
-                placeholder="10001" 
+                id="street_name" 
+                name="street_name" 
+                placeholder="Street Name" 
+                value={shippingAddress.street_name || ''}
+                onChange={(e) => setShippingAddress(prev => ({ ...prev, street_name: e.target.value }))}
+              />
+
+              <label htmlFor="house_number">House Number</label>
+              <input 
+                type="text" 
+                id="house_number" 
+                name="house_number" 
+                placeholder="House Number" 
+                value={shippingAddress.house_number || ''}
+                onChange={(e) => setShippingAddress(prev => ({ ...prev, house_number: e.target.value }))}
+              />
+
+              <label htmlFor="building">Building/Floor/Unit (optional)</label>
+              <input 
+                type="text" 
+                id="building" 
+                name="building" 
+                placeholder="Building, Floor, Unit number" 
+                value={shippingAddress.building || ''}
+                onChange={(e) => setShippingAddress(prev => ({ ...prev, building: e.target.value }))}
+              />
+
+              <label htmlFor="postcode">Postal Code *</label>
+              <input 
+                type="text" 
+                id="postcode" 
+                name="postcode" 
+                placeholder="Postal Code" 
                 required 
-                autoComplete="postal-code"
                 value={shippingAddress.postcode || ''}
                 onChange={(e) => setShippingAddress(prev => ({ ...prev, postcode: e.target.value }))}
               />
@@ -498,11 +533,9 @@ function Account() {
                 id="country" 
                 name="country" 
                 required 
-                autoComplete="country"
                 value={shippingAddress.country || 'PH'}
                 onChange={(e) => setShippingAddress(prev => ({ ...prev, country: e.target.value }))}
               >
-                <option value="" disabled>Select your country</option>
                 <option value="PH">Philippines</option>
                 <option value="SG">Singapore</option>
                 <option value="US">United States</option>

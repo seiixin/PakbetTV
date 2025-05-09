@@ -52,7 +52,7 @@ const auth = (req, res, next) => {
       return res.status(401).json({ message: 'Invalid token structure - no user ID found' });
     }
     
-    // Set user object with consistent structure - always use the top-level structure
+    // Set user object with consistent structure
     req.user = {
       id: userId,
       userType: userType || 'customer' // Default to customer if no userType is provided

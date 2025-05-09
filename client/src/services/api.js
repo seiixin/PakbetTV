@@ -1,9 +1,8 @@
 import axios from 'axios';
-import API_BASE_URL from '../config'; 
 
-// Create a custom axios instance with base URL set to '' to use the proxy setup in Vite
+// Create a custom axios instance
 const api = axios.create({
-  baseURL: '', 
+  baseURL: '/',
   headers: {
     'Content-Type': 'application/json'
   }
@@ -24,29 +23,38 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
     
-    // Always use /api prefix for requests
-    if (!config.url.startsWith('/api')) {
-      config.url = `/api${config.url.startsWith('/') ? '' : '/'}${config.url}`;
-    }
-    
-    console.log('[Axios Interceptor] Requesting:', {
-      url: config.url,
+    // Log the request for debugging
+    console.log('[API Request]:', {
       method: config.method,
-      headers: config.headers
+      url: config.url,
+      data: config.data
     });
+    
     return config;
   },
   (error) => {
-    console.error('[Axios Interceptor] Request Error:', error);
+    console.error('[API Request Error]:', error);
     return Promise.reject(error);
   }
 );
 
 // Add response interceptor to handle token expiration
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Log successful responses
+    console.log('[API Response]:', {
+      status: response.status,
+      url: response.config.url,
+      data: response.data
+    });
+    return response;
+  },
   async (error) => {
-    console.error('[Axios Interceptor] Response Error:', error.response?.status, error.config?.url);
+    console.error('[API Response Error]:', {
+      status: error.response?.status,
+      url: error.config?.url,
+      message: error.message
+    });
     
     const originalRequest = error.config;
 
@@ -71,7 +79,7 @@ api.interceptors.response.use(
           isRefreshingToken = true;
           const refreshResponse = await authService.refreshToken();
           
-          if (refreshResponse && refreshResponse.data && refreshResponse.data.token) {
+          if (refreshResponse?.data?.token) {
             const newToken = refreshResponse.data.token;
             localStorage.setItem('token', newToken);
             
@@ -112,27 +120,24 @@ api.interceptors.response.use(
 );
 
 export const authService = {
-  signup: (userData) => {
-    const url = '/auth/signup'; 
-    console.log('[API Service] Attempting POST to:', url);
-    return api.post(url, userData); 
-  },
-  login: (credentials) => api.post('/auth/login', credentials),
+  signup: (userData) => api.post('/api/auth/signup', userData),
+  login: (credentials) => api.post('/api/auth/login', credentials),
   refreshToken: () => {
-    // Get the current token
     const token = localStorage.getItem('token');
     if (!token) {
       return Promise.reject(new Error('No token to refresh'));
     }
-    // Send refresh token request to backend
-    return api.post('/auth/refresh', { token });
+    return api.post('/api/auth/refresh', { token });
   },
-  getProfile: () => api.get('/auth/me'),
-  updateProfile: (userData) => api.put('/users/profile', userData),
-  getShippingAddresses: () => api.get('/users/shipping-addresses'),
-  addShippingAddress: (addressData) => api.post('/users/shipping-address', addressData),
-  updateShippingAddress: (addressId, addressData) => api.put(`/users/shipping-address/${addressId}`, addressData),
-  deleteShippingAddress: (addressId) => api.delete(`/users/shipping-address/${addressId}`)
+  getProfile: () => api.get('/api/auth/me'),
+  updateProfile: (userData) => {
+    console.log('API Service - updateProfile - Sending data:', userData);
+    return api.put('/api/users/profile', userData);
+  },
+  getShippingAddresses: () => api.get('/api/users/shipping-addresses'),
+  addShippingAddress: (addressData) => api.post('/api/users/shipping-address', addressData),
+  updateShippingAddress: (addressId, addressData) => api.put(`/api/users/shipping-address/${addressId}`, addressData),
+  deleteShippingAddress: (addressId) => api.delete(`/api/users/shipping-address/${addressId}`)
 };
 
 export default api; 

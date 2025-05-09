@@ -89,7 +89,7 @@ router.get('/shipping-addresses', auth, async (req, res) => {
 router.get('/:id', auth, async (req, res) => {
   try {
     const userId = req.params.id;
-    if (req.user.user.userType !== 'admin' && req.user.user.id !== parseInt(userId)) {
+    if (req.user.userType !== 'admin' && req.user.id !== parseInt(userId)) {
       return res.status(403).json({ message: 'Not authorized to view this user' });
     }
     const [users] = await db.query(
@@ -109,7 +109,7 @@ router.get('/:id', auth, async (req, res) => {
 router.put('/:id', auth, async (req, res) => {
   try {
     const userId = req.params.id;
-    if (req.user.user.userType !== 'admin' && req.user.user.id !== parseInt(userId)) {
+    if (req.user.userType !== 'admin' && req.user.id !== parseInt(userId)) {
       return res.status(403).json({ message: 'Not authorized to update this user' });
     }
     const { firstName, lastName, phone, address } = req.body;
@@ -118,7 +118,7 @@ router.put('/:id', auth, async (req, res) => {
     if (lastName) updates.last_name = lastName;
     if (phone) updates.phone = phone;
     if (address) updates.address = address;
-    if (req.user.user.userType === 'admin') {
+    if (req.user.userType === 'admin') {
       if (req.body.status) updates.status = req.body.status;
       if (req.body.userType) updates.user_type = req.body.userType;
     }
@@ -236,31 +236,30 @@ router.get('/profile', auth, async (req, res) => {
     
     try {
       // Fetch user basic info and shipping details in parallel
-      const [userResults, shippingResults] = await Promise.all([
-        connection.query(
-          'SELECT user_id, username, first_name, last_name, email, phone, address FROM users WHERE user_id = ?',
-          [userId]
-        ),
-        connection.query(
-          `SELECT * FROM user_shipping_details 
-           WHERE user_id = ? AND is_default = 1
-           ORDER BY updated_at DESC LIMIT 1`,
-          [userId]
-        )
-      ]);
+      const [userResults] = await connection.query(
+        'SELECT user_id, username, first_name, last_name, email, phone, address FROM users WHERE user_id = ?',
+        [userId]
+      );
       
-      connection.release();
-      
-      const [users] = userResults;
-      const [shippingAddresses] = shippingResults;
-      
-      if (!users || users.length === 0) {
+      if (!userResults || userResults.length === 0) {
+        connection.release();
         console.log('User not found for ID:', userId);
         return res.status(404).json({ message: 'User not found' });
       }
       
-      const user = users[0];
-      const shippingAddress = shippingAddresses?.[0];
+      const user = userResults[0];
+      
+      // Fetch shipping details
+      const [shippingResults] = await connection.query(
+        `SELECT * FROM user_shipping_details 
+         WHERE user_id = ? AND is_default = 1
+         ORDER BY updated_at DESC LIMIT 1`,
+        [userId]
+      );
+      
+      connection.release();
+      
+      const shippingAddress = shippingResults?.[0];
       
       console.log('User profile and shipping details retrieved successfully');
       
@@ -314,6 +313,159 @@ router.get('/profile', auth, async (req, res) => {
     res.status(500).json({ 
       message: 'Server error',
       details: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
+  }
+});
+
+// Update user profile
+router.put('/profile', auth, async (req, res) => {
+  try {
+    // Get user ID from the standardized user object structure
+    const userId = req.user.id;
+    
+    console.log('Profile Update - Request Body:', req.body);
+    console.log('Profile Update - User ID:', userId);
+    
+    if (!userId) {
+      console.error('Profile Update - Error: Invalid user ID:', userId);
+      return res.status(401).json({ message: 'Invalid user token structure' });
+    }
+    
+    const { firstName, lastName, email, phone } = req.body;
+    
+    // Validate inputs
+    if (!firstName && !lastName && !email && !phone) {
+      console.error('Profile Update - Error: No update data provided');
+      return res.status(400).json({ message: 'No update data provided' });
+    }
+    
+    console.log('Updating profile for user:', userId, 'with data:', { firstName, lastName, email, phone });
+    
+    let connection;
+    try {
+      connection = await db.getConnection();
+      console.log('Profile Update - Database connection acquired');
+      
+      await connection.beginTransaction();
+      console.log('Profile Update - Transaction started');
+      
+      // First check if the user exists
+      const [checkUser] = await connection.query(
+        'SELECT user_id FROM users WHERE user_id = ?',
+        [userId]
+      );
+      
+      if (checkUser.length === 0) {
+        console.error('Profile Update - Error: User not found:', userId);
+        await connection.rollback();
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      console.log('Profile Update - User found, proceeding with update');
+      
+      // Update user profile
+      const [updateResult] = await connection.query(
+        `UPDATE users SET 
+          first_name = COALESCE(?, first_name),
+          last_name = COALESCE(?, last_name),
+          email = COALESCE(?, email),
+          phone = COALESCE(?, phone),
+          updated_at = NOW()
+        WHERE user_id = ?`,
+        [firstName, lastName, email, phone, userId]
+      );
+      
+      console.log('Profile Update - Update query result:', updateResult);
+      
+      if (updateResult.affectedRows === 0) {
+        console.error('Profile Update - Error: Update failed, no rows affected');
+        await connection.rollback();
+        return res.status(404).json({ message: 'User update failed' });
+      }
+      
+      await connection.commit();
+      console.log('Profile Update - Transaction committed');
+      
+      // Fetch updated user data
+      const [users] = await connection.query(
+        'SELECT user_id, username, first_name, last_name, email, phone FROM users WHERE user_id = ?',
+        [userId]
+      );
+      
+      if (users.length === 0) {
+        console.error('Profile Update - Error: User not found after update');
+        throw new Error('User not found after update');
+      }
+      
+      const updatedUser = users[0];
+      console.log('Profile Update - Success: User updated:', updatedUser);
+      
+      res.json({
+        message: 'Profile updated successfully',
+        user: {
+          id: updatedUser.user_id,
+          username: updatedUser.username,
+          firstName: updatedUser.first_name,
+          lastName: updatedUser.last_name,
+          email: updatedUser.email,
+          phone: updatedUser.phone || ''
+        }
+      });
+      
+    } catch (dbError) {
+      console.error('Profile Update - Database Error:', {
+        message: dbError.message,
+        code: dbError.code,
+        errno: dbError.errno,
+        sqlState: dbError.sqlState,
+        sqlMessage: dbError.sqlMessage
+      });
+      
+      if (connection) {
+        try {
+          await connection.rollback();
+          console.log('Profile Update - Transaction rolled back due to error');
+        } catch (rollbackError) {
+          console.error('Profile Update - Rollback Error:', rollbackError.message);
+        }
+      }
+      
+      throw dbError;
+    } finally {
+      if (connection) {
+        try {
+          connection.release();
+          console.log('Profile Update - Database connection released');
+        } catch (releaseError) {
+          console.error('Profile Update - Connection Release Error:', releaseError.message);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Profile Update - Unhandled Error:', {
+      name: err.name,
+      message: err.message,
+      stack: err.stack
+    });
+    
+    // Send appropriate error response
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ 
+        message: 'Email already in use',
+        error: err.message
+      });
+    }
+    
+    if (err.code === 'ER_NO_REFERENCED_ROW') {
+      return res.status(400).json({ 
+        message: 'Invalid reference in the update data',
+        error: err.message
+      });
+    }
+    
+    res.status(500).json({ 
+      message: 'Failed to update profile', 
+      error: process.env.NODE_ENV === 'development' ? err.message : 'Server error'
     });
   }
 });

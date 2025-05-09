@@ -17,7 +17,14 @@ export default defineConfig({
               method: req.method,
               path: req.url,
               target: `${options.target}${req.url}`,
-              headers: req.headers
+              headers: proxyReq.getHeaders()
+            });
+          });
+          proxy.on('proxyRes', (proxyRes, req, res) => {
+            console.log('Proxy response:', {
+              status: proxyRes.statusCode,
+              path: req.url,
+              headers: proxyRes.headers
             });
           });
           proxy.on('error', (err, req, res) => {
