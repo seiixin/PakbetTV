@@ -249,13 +249,18 @@ router.get('/google', passport.authenticate('google', {
 router.get('/google/callback', 
   passport.authenticate('google', { failureRedirect: '/login' }),
   (req, res) => {
+    // Log the user object for debugging
+    console.log('Google auth callback - User object:', req.user);
+    
     // Generate JWT token for the authenticated user
     const payload = {
       user: {
         id: req.user.user_id,
-        userType: req.user.user_type
+        userType: req.user.user_type || 'Customer'  // Ensure correct casing
       }
     };
+    
+    console.log('Google auth callback - Token payload:', payload);
     
     jwt.sign(
       payload,
@@ -266,6 +271,8 @@ router.get('/google/callback',
           console.error('Token signing error:', err);
           return res.redirect(`${process.env.CLIENT_URL}/login?error=token_error`);
         }
+        // Log the generated token
+        console.log('Google auth callback - Generated token:', token.substring(0, 20) + '...');
         // Redirect to client with token
         res.redirect(`${process.env.CLIENT_URL}/social-auth-success?token=${token}`);
       }

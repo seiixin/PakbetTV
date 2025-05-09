@@ -132,7 +132,14 @@ export const authService = {
   getProfile: () => api.get('/api/auth/me'),
   updateProfile: (userData) => {
     console.log('API Service - updateProfile - Sending data:', userData);
-    return api.put('/api/users/profile', userData);
+    const token = localStorage.getItem('token');
+    const userId = JSON.parse(atob(token.split('.')[1])).user.id;
+    console.log('API Service - updateProfile - Token present:', !!token);
+    return api.put(`/api/users/${userId}`, userData, {
+      headers: {
+        'X-Debug': 'true'
+      }
+    });
   },
   getShippingAddresses: () => api.get('/api/users/shipping-addresses'),
   addShippingAddress: (addressData) => api.post('/api/users/shipping-address', addressData),

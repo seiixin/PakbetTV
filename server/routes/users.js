@@ -109,7 +109,12 @@ router.get('/:id', auth, async (req, res) => {
 router.put('/:id', auth, async (req, res) => {
   try {
     const userId = req.params.id;
-    if (req.user.userType !== 'admin' && req.user.id !== parseInt(userId)) {
+    if (req.user.userType.toLowerCase() !== 'admin' && req.user.id !== parseInt(userId)) {
+      console.log('Access denied - User types:', { 
+        requestingUserType: req.user.userType, 
+        requestingUserId: req.user.id,
+        targetUserId: parseInt(userId)
+      });
       return res.status(403).json({ message: 'Not authorized to update this user' });
     }
     const { firstName, lastName, phone, address } = req.body;
@@ -317,19 +322,43 @@ router.get('/profile', auth, async (req, res) => {
   }
 });
 
-// Update user profile
+// Check all URLs and profile endpoints
+router.get('/profile-debug', auth, (req, res) => {
+  res.json({
+    message: 'Profile debug info',
+    user: {
+      id: req.user.id,
+      userType: req.user.userType,
+      token: req.header('Authorization') ? 'Present' : 'Missing'
+    }
+  });
+});
+
+// Update user profile - IMPORTANT: This needs to work for all authenticated users
 router.put('/profile', auth, async (req, res) => {
   try {
+    // Log extra details for debugging
+    console.log('=== PROFILE UPDATE ATTEMPT ===');
+    console.log('Headers:', req.headers);
+    console.log('User:', req.user);
+    console.log('Body:', req.body);
+    console.log('=== END DEBUG INFO ===');
+    
     // Get user ID from the standardized user object structure
     const userId = req.user.id;
     
     console.log('Profile Update - Request Body:', req.body);
     console.log('Profile Update - User ID:', userId);
+    console.log('Profile Update - User Type:', req.user.userType);
+    console.log('Profile Update - Auth header:', req.header('Authorization') ? 'Present (valid)' : 'Missing');
     
     if (!userId) {
       console.error('Profile Update - Error: Invalid user ID:', userId);
       return res.status(401).json({ message: 'Invalid user token structure' });
     }
+    
+    // NOTE: Deliberately not checking if userType === 'admin' here since any authenticated user
+    // should be able to update their own profile without restriction
     
     const { firstName, lastName, email, phone } = req.body;
     
@@ -351,7 +380,7 @@ router.put('/profile', auth, async (req, res) => {
       
       // First check if the user exists
       const [checkUser] = await connection.query(
-        'SELECT user_id FROM users WHERE user_id = ?',
+        'SELECT user_id, user_type FROM users WHERE user_id = ?',
         [userId]
       );
       
@@ -361,6 +390,7 @@ router.put('/profile', auth, async (req, res) => {
         return res.status(404).json({ message: 'User not found' });
       }
       
+      console.log('Profile Update - User found:', checkUser[0]);
       console.log('Profile Update - User found, proceeding with update');
       
       // Update user profile

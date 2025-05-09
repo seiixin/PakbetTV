@@ -55,7 +55,7 @@ const auth = (req, res, next) => {
     // Set user object with consistent structure
     req.user = {
       id: userId,
-      userType: userType || 'customer' // Default to customer if no userType is provided
+      userType: (userType || 'Customer').charAt(0).toUpperCase() + (userType || 'Customer').slice(1).toLowerCase() // Normalize case to 'Customer'
     };
     
     console.log('Token verified successfully:', {
@@ -93,7 +93,8 @@ const admin = (req, res, next) => {
     return res.status(401).json({ message: 'Authentication required' });
   }
 
-  if (req.user.userType === 'admin') {
+  // Case-insensitive check for admin rights
+  if (req.user.userType.toLowerCase() === 'admin') {
     console.log('Admin access granted');
     next();
   } else {

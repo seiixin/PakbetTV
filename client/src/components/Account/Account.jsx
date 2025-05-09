@@ -141,6 +141,7 @@ function Account() {
       setError('');
       setSuccess('');
       
+      // Convert firstname/lastname to firstName/lastName for server
       const updatedProfile = {
         firstName: userData.firstname,
         lastName: userData.lastname,
@@ -148,12 +149,16 @@ function Account() {
         phone: userData.phone
       };
       
+      console.log('Sending profile update:', updatedProfile);
       await authService.updateProfile(updatedProfile);
       setSuccess('Personal details updated successfully');
       setIsEditingPersonal(false);
       
       // Update original data after successful save
       setOriginalUserData({...userData});
+      
+      // Refresh the profile data to get updated information
+      await fetchUserProfile();
       
       setTimeout(() => setSuccess(''), 3000);
     } catch (error) {

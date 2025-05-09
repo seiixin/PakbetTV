@@ -78,7 +78,7 @@ const findOrCreateUser = async (profile, provider, done) => {
         `${firstName.toLowerCase()}_${Math.floor(Math.random() * 10000)}`,
         email,
         hashedPassword,
-        'customer',
+        'Customer',
         'Active',
         profile.id
       ]
