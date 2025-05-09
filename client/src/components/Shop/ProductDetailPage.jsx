@@ -664,11 +664,7 @@ const ProductDetailPage = () => {
             <div className="section-header">
               <h3 className="section-title">Customer Reviews</h3>
               <div className="section-rating">
-                {product.average_rating !== null && Number(product.average_rating) > 0 ? (
-                  <span className="rating-value">{Number(product.average_rating).toFixed(1)}</span>
-                ) : (
-                  <span className="rating-value">0.0</span>
-                )}
+                <span className="review-count">{product.review_count || 0} reviews</span>
               </div>
             </div>
             

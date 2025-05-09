@@ -272,6 +272,7 @@ router.get('/', async (req, res) => {
       SELECT 
         p.*, 
         c.name AS category_name,
+        p.items_sold,
         -- Use MIN variant price if variants exist, otherwise use base product price
         COALESCE(MIN(pv.price), p.price) as display_price 
       FROM products p
@@ -343,7 +344,7 @@ router.get('/:id', async (req, res) => {
       SELECT 
         p.product_id, p.name, p.product_code, p.description, p.category_id, 
         p.price, p.stock AS stock_quantity, p.created_at, p.updated_at,
-        c.name AS category_name
+        p.items_sold, c.name AS category_name
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.category_id
       WHERE p.product_id = ?

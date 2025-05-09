@@ -3,6 +3,7 @@ const router = express.Router();
 const crypto = require('crypto');
 const { auth } = require('../middleware/auth');
 const db = require('../config/db');
+const deliveryRouter = require('./delivery'); // Import delivery router with createShippingOrder function
 const MERCHANT_ID = process.env.DRAGONPAY_MERCHANT_ID || 'TEST'; 
 const API_KEY = process.env.DRAGONPAY_API_KEY || 'test_key'; 
 const BASE_URL = process.env.NODE_ENV === 'production' 
@@ -262,9 +263,24 @@ router.post('/postback', async (req, res) => {
     );
     if (status === 'S') {
       await db.query(
-        'UPDATE orders SET order_status = ? WHERE order_id = ?',
-        ['processing', orderId]
+        'UPDATE orders SET order_status = ?, payment_status = ? WHERE order_id = ?',
+        ['for_packing', 'paid', orderId]
       );
+      
+      const transactionId = `order_${orderId}_${Date.now()}`;
+      
+      await db.query(
+        'UPDATE payments SET transaction_id = ? WHERE order_id = ?',
+        [transactionId, orderId]
+      );
+      
+      try {
+        console.log(`Creating NinjaVan shipping order for order ${orderId}`);
+        const shippingResult = await deliveryRouter.createShippingOrder(orderId);
+        console.log(`Successfully created NinjaVan shipping with tracking: ${shippingResult.tracking_number}`);
+      } catch (shippingError) {
+        console.error(`Failed to create shipping order for order ${orderId}:`, shippingError);
+      }
     } else if (status === 'F') {
       await db.query(
         'UPDATE orders SET order_status = ? WHERE order_id = ?',
@@ -295,4 +311,175 @@ function mapDragonpayStatus(dpStatus) {
     default: return 'unknown';
   }
 }
+
+// Manual test endpoint to simulate Dragonpay postback for local development
+router.post('/simulate-payment', async (req, res) => {
+  try {
+    const { orderId, status = 'S' } = req.body;
+    
+    if (!orderId) {
+      return res.status(400).json({ message: 'orderId is required' });
+    }
+    
+    console.log(`Simulating payment for order ${orderId} with status ${status}`);
+    
+    // Get the order to verify it exists
+    const [orders] = await db.query('SELECT * FROM orders WHERE order_id = ?', [orderId]);
+    
+    if (orders.length === 0) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+    
+    // Get any existing payment for the order
+    const [payments] = await db.query('SELECT * FROM payments WHERE order_id = ?', [orderId]);
+    
+    // Set reference_number and transaction_id
+    const txnid = `order_${orderId}_${Date.now()}`;
+    const refno = `REF-${orderId}-${Date.now()}`;
+    const transactionId = `TXN-${orderId}-${Date.now()}`;
+    
+    // Update payment status
+    if (payments.length > 0) {
+      await db.query(
+        'UPDATE payments SET status = ?, reference_number = ?, transaction_id = ? WHERE order_id = ?',
+        [mapDragonpayStatus(status), refno, transactionId, orderId]
+      );
+    } else {
+      // Create a payment record if none exists
+      await db.query(
+        'INSERT INTO payments (order_id, user_id, amount, payment_method, status, reference_number, transaction_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [orderId, orders[0].user_id, orders[0].total_price, 'dragonpay', mapDragonpayStatus(status), refno, transactionId]
+      );
+    }
+    
+    if (status === 'S') {
+      // Update order status to for_packing
+      await db.query(
+        'UPDATE orders SET order_status = ?, payment_status = ? WHERE order_id = ?',
+        ['for_packing', 'paid', orderId]
+      );
+      
+      try {
+        console.log(`Creating NinjaVan shipping order for order ${orderId}`);
+        const shippingResult = await deliveryRouter.createShippingOrder(orderId);
+        
+        // Return success with created shipping info
+        return res.status(200).json({
+          message: 'Payment simulation successful and shipping order created',
+          order_status: 'for_packing',
+          payment_status: 'paid',
+          transaction_id: transactionId,
+          reference_number: refno,
+          shipping: shippingResult
+        });
+      } catch (shippingError) {
+        console.error(`Failed to create shipping order for order ${orderId}:`, shippingError);
+        return res.status(200).json({
+          message: 'Payment simulation successful but shipping order creation failed',
+          order_status: 'for_packing',
+          payment_status: 'paid',
+          transaction_id: transactionId,
+          reference_number: refno,
+          error: shippingError.message
+        });
+      }
+    } else if (status === 'F') {
+      await db.query(
+        'UPDATE orders SET order_status = ? WHERE order_id = ?',
+        ['cancelled', orderId]
+      );
+      
+      return res.status(200).json({
+        message: 'Payment simulation: Failed payment',
+        order_status: 'cancelled',
+        payment_status: 'failed',
+        transaction_id: transactionId,
+        reference_number: refno
+      });
+    } else if (status === 'P') {
+      await db.query(
+        'UPDATE orders SET order_status = ? WHERE order_id = ?',
+        ['pending', orderId]
+      );
+      
+      return res.status(200).json({
+        message: 'Payment simulation: Pending payment',
+        order_status: 'pending',
+        payment_status: 'pending',
+        transaction_id: transactionId,
+        reference_number: refno
+      });
+    } else {
+      return res.status(200).json({
+        message: `Payment simulation with status: ${status}`,
+        order_status: orders[0].order_status,
+        payment_status: mapDragonpayStatus(status),
+        transaction_id: transactionId,
+        reference_number: refno
+      });
+    }
+  } catch (error) {
+    console.error('Payment simulation error:', error);
+    res.status(500).json({ 
+      message: 'Failed to simulate payment',
+      error: error.message
+    });
+  }
+});
+
+// Also add a simple endpoint to manually update order status to awaiting_for_confirmation
+// This helps test the admin.js confirm-payment endpoint
+router.post('/prepare-for-confirmation', async (req, res) => {
+  try {
+    const { orderId } = req.body;
+    
+    if (!orderId) {
+      return res.status(400).json({ message: 'orderId is required' });
+    }
+    
+    // Get the order to verify it exists
+    const [orders] = await db.query('SELECT * FROM orders WHERE order_id = ?', [orderId]);
+    
+    if (orders.length === 0) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+    
+    // Update order status to processing with awaiting_for_confirmation payment status
+    await db.query(
+      'UPDATE orders SET order_status = ?, payment_status = ? WHERE order_id = ?',
+      ['processing', 'awaiting_for_confirmation', orderId]
+    );
+    
+    // Get any existing payment for the order
+    const [payments] = await db.query('SELECT * FROM payments WHERE order_id = ?', [orderId]);
+    
+    // Update payment status to waiting_for_confirmation
+    if (payments.length > 0) {
+      await db.query(
+        'UPDATE payments SET status = ? WHERE order_id = ?',
+        ['waiting_for_confirmation', orderId]
+      );
+    } else {
+      // Create a payment record if none exists
+      await db.query(
+        'INSERT INTO payments (order_id, user_id, amount, payment_method, status) VALUES (?, ?, ?, ?, ?)',
+        [orderId, orders[0].user_id, orders[0].total_price, 'dragonpay', 'waiting_for_confirmation']
+      );
+    }
+    
+    res.status(200).json({
+      message: 'Order prepared for admin confirmation',
+      order_id: orderId,
+      status: 'processing',
+      payment_status: 'awaiting_for_confirmation'
+    });
+  } catch (error) {
+    console.error('Error preparing order for confirmation:', error);
+    res.status(500).json({ 
+      message: 'Failed to prepare order',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router; 
