@@ -9,6 +9,8 @@ import NavBar from './NavBar';
 import Footer from './Footer';
 import LoadingSpinner from './common/LoadingSpinner';
 import API_BASE_URL from '../config';
+import ProductCard from './common/ProductCard';
+
 const constructUrl = (baseUrl, path) => {
   const defaultImageUrl = '/images/default-placeholder.png'; 
   if (!path) return defaultImageUrl; 
@@ -19,6 +21,7 @@ const constructUrl = (baseUrl, path) => {
     return path.startsWith('/') ? baseUrl + path : baseUrl + '/' + path;
   }
 };
+
 const Home = () => {
   const [newArrivals, setNewArrivals] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -116,58 +119,9 @@ const Home = () => {
           <div className="error-message">{error}</div>
         ) : (
           <div className="home-new-arrivals-grid">
-            {newArrivals.map(product => {
-              let imageUrl = constructUrl(API_BASE_URL, null); 
-              if (product.variants && product.variants.length > 0 && product.variants[0].image_url) {
-                imageUrl = constructUrl(API_BASE_URL, product.variants[0].image_url);
-              }
-              else if (product.images && product.images.length > 0 && product.images[0].url) {
-                imageUrl = constructUrl(API_BASE_URL, product.images[0].url);
-              }
-              else if (product.image_url) {
-                imageUrl = constructUrl(API_BASE_URL, product.image_url);
-              }
-              const discountPercent = product.regular_price > product.price 
-                ? Math.round(((product.regular_price - product.price) / product.regular_price) * 100) 
-                : 0; 
-              return (
-                <div 
-                  key={product.product_id}
-                  className="shop-product-card"
-                  onClick={() => navigateToProduct(product.product_id)}
-                >
-                  <div 
-                    className="shop-product-image" 
-                    style={{ backgroundImage: `url(${imageUrl})` }}
-                  >
-                    {}
-                    {discountPercent > 0 && (
-                      <div className="discount-percentage-tag">
-                        Save {discountPercent}%
-                      </div>
-                    )}
-                  </div>
-                  <div className="shop-product-details">
-                    <div className="product-info">
-                      <h3>{product.name}</h3>
-                    </div>
-                    <div className="product-card-bottom">
-                      <div className="product-price">
-                        {product.regular_price > product.price ? (
-                          <>
-                            <span className="sale-price">{formatPrice(product.price)}</span>
-                            <span className="regular-price">{formatPrice(product.regular_price)}</span>
-                          </>
-                        ) : (
-                          <span>{formatPrice(product.price)}</span>
-                        )}
-                      </div>
-                      <div className="items-sold">{formatItemsSold(product.items_sold || 0)}</div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+            {newArrivals.map(product => (
+              <ProductCard key={product.product_id} product={product} />
+            ))}
           </div>
         )}
         

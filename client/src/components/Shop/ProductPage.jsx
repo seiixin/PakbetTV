@@ -4,6 +4,8 @@ import './Shop.css';
 import API_BASE_URL from '../../config';
 import NavBar from '../NavBar';
 import Footer from '../Footer';
+import ProductCard from '../common/ProductCard';
+
 const ProductPage = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -111,7 +113,6 @@ const ProductPage = () => {
     <div className="shop-container">
       <NavBar />
       <div className="shop-main">
-        {}
         <div className="products-content">
           <div className="shop-header">
             <h1>Shop</h1>
@@ -160,62 +161,9 @@ const ProductPage = () => {
             </div>
           ) : (
             <div className="shop-products-grid">
-              {filteredProducts.map(product => {
-                const firstImage = product.images?.[0]?.url;
-                const fullImageUrl = firstImage ? 
-                  (firstImage.startsWith('/') ? `${API_BASE_URL}${firstImage}` : `${API_BASE_URL}/${firstImage}`) 
-                  : '/placeholder-product.jpg'; 
-                const imageToDisplay = fullImageUrl;
-                const itemsSold = product.items_sold || 0; 
-                const displayItemsSold = itemsSold > 1000 ? `${(itemsSold / 1000).toFixed(1)}k sold` : `${itemsSold} sold`;
-                return (
-                  <div 
-                    className="shop-product-card" 
-                    key={product.product_id}
-                    onClick={() => handleProductClick(product.product_id)} 
-                  >
-                    <div 
-                      className="shop-product-image"
-                      style={{ backgroundImage: `url(${imageToDisplay})` }}
-                    >
-                      {}
-                      {product.discount_percentage > 0 && (
-                        <div className="discount-percentage-tag">
-                          -{product.discount_percentage}%
-                        </div>
-                      )}
-                      {}
-                      {product.variants && product.variants.length > 0 && (
-                        <div className="variant-tag">
-                          {product.variants.length} options
-                        </div>
-                      )}
-                    </div>
-                    <div className="shop-product-details">
-                      <div className="product-info">
-                        <h3>{product.name}</h3>
-                      </div>
-                      <div className="product-price">
-                        {product.discount_percentage > 0 ? (
-                          <div className="price-amount">
-                            <span className="discounted-price">
-                              {formatPrice((product.price - (product.price * product.discount_percentage / 100)))}
-                            </span>
-                            <span className="original-price">{formatPrice(product.price)}</span>
-                          </div>
-                        ) : (
-                          <div className="price-amount">
-                            <span className="regular-price">{formatPrice(product.price)}</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="product-meta">
-                        <span className="items-sold">{displayItemsSold}</span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+              {filteredProducts.map(product => (
+                <ProductCard key={product.product_id} product={product} />
+              ))}
             </div>
           )}
         </div>
