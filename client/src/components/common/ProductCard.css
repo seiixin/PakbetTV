@@ -139,22 +139,41 @@
 .rating-container {
   display: flex;
   align-items: center;
-  gap: 0.15rem;
+  gap: 0.25rem;
 }
 
 .rating-value {
   color: #ee4d2d;
+  font-weight: 600;
 }
 
-.rating-container i {
-  color: #ee4d2d;
+.rating-stars {
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
+}
+
+.rating-stars i {
+  font-size: 0.75rem;
+}
+
+.rating-stars i.filled {
+  color: #ffc107;
+}
+
+.rating-stars i.empty {
+  color: #e0e0e0;
+}
+
+.review-count {
+  color: rgba(0, 0, 0, 0.54);
   font-size: 0.75rem;
 }
 
 .items-sold {
   color: rgba(0, 0, 0, 0.54);
   font-size: 0.75rem;
-  margin-bottom: 5px;
+  margin-left: auto;
 }
 
 .location {

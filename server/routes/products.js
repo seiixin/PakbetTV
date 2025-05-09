@@ -273,6 +273,8 @@ router.get('/', async (req, res) => {
         p.*, 
         c.name AS category_name,
         p.items_sold,
+        p.average_rating,
+        p.review_count,
         -- Use MIN variant price if variants exist, otherwise use base product price
         COALESCE(MIN(pv.price), p.price) as display_price 
       FROM products p
@@ -323,11 +325,15 @@ router.get('/', async (req, res) => {
         });
     }
     res.json({
-      products,
+      products: products.map(product => ({
+        ...product,
+        average_rating: product.average_rating !== null ? Number(product.average_rating) : null,
+        review_count: Number(product.review_count) || 0
+      })),
       pagination: {
         currentPage: page,
         totalPages,
-        totalItems: totalProducts,
+        totalProducts,
         hasNextPage: page < totalPages,
         hasPrevPage: page > 1
       }
@@ -344,7 +350,7 @@ router.get('/:id', async (req, res) => {
       SELECT 
         p.product_id, p.name, p.product_code, p.description, p.category_id, 
         p.price, p.stock AS stock_quantity, p.created_at, p.updated_at,
-        p.items_sold, c.name AS category_name
+        p.items_sold, p.average_rating, p.review_count, c.name AS category_name
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.category_id
       WHERE p.product_id = ?
@@ -352,7 +358,11 @@ router.get('/:id', async (req, res) => {
     if (productResult.length === 0) {
       return res.status(404).json({ message: 'Product not found' });
     }
-    const product = productResult[0];
+    const product = {
+      ...productResult[0],
+      average_rating: productResult[0].average_rating !== null ? Number(productResult[0].average_rating) : null,
+      review_count: Number(productResult[0].review_count) || 0
+    };
     const [variants] = await db.query('SELECT variant_id, product_id, sku, price, stock, image_url, attributes, created_at, updated_at FROM product_variants WHERE product_id = ?', [productId]);
     const variantsWithDetails = [];
     for (const variant of variants) {

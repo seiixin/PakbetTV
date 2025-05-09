@@ -32,8 +32,24 @@ const ProductCard = ({ product }) => {
 
   const itemsSold = product.items_sold || 0;
   const displayItemsSold = itemsSold > 1000 ? `${(itemsSold / 1000).toFixed(1)}k sold` : `${itemsSold} sold`;
+  
+  // Calculate rating and review count
   const rating = Number(product.average_rating) || 0;
-  const ratingCount = product.review_count || 0;
+  const ratingCount = Number(product.review_count) || 0;
+
+  // Render stars based on rating
+  const renderStars = () => {
+    const stars = [];
+    for (let i = 1; i <= 5; i++) {
+      stars.push(
+        <i 
+          key={i} 
+          className={`fas fa-star ${i <= rating ? 'filled' : 'empty'}`}
+        />
+      );
+    }
+    return stars;
+  };
 
   return (
     <Link to={`/product/${product.product_id}`} className="product-card">
@@ -76,7 +92,8 @@ const ProductCard = ({ product }) => {
             {rating > 0 && (
               <>
                 <span className="rating-value">{rating.toFixed(1)}</span>
-                <i className="fas fa-star"></i>
+                <div className="rating-stars">{renderStars()}</div>
+                <span className="review-count">({ratingCount})</span>
               </>
             )}
           </div>

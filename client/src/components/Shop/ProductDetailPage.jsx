@@ -350,9 +350,9 @@ const ProductDetailPage = () => {
         <i 
           key={i} 
           className={`fas fa-star ${i <= numRating ? 'filled' : 'empty'}`}
-          style={{ color: i <= numRating ? '#ffc107' : '#e0e0e0', cursor: 'pointer' }} 
+          style={{ cursor: showReviewForm ? 'pointer' : 'default' }} 
           onClick={() => showReviewForm && setNewRating(i)} 
-        ></i>
+        />
       );
     }
     return stars;
