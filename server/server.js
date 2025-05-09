@@ -45,6 +45,7 @@ const paymentRoutes = require('./routes/payments');
 const deliveryRoutes = require('./routes/delivery');
 const adminRoutes = require('./routes/admin');
 const cmsRoutes = require('./routes/cms');
+const emailRoutes = require('./routes/email');
 app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/categories', categoryRoutes);
@@ -57,6 +58,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/delivery', deliveryRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/cms', cmsRoutes);
+app.use('/api/email', emailRoutes);
 app.get('/transaction-complete', (req, res) => {
   console.log('Received Dragonpay return request:', req.query);
   const { txnid, refno, status, message } = req.query;

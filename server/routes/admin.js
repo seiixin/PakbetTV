@@ -6,6 +6,7 @@ const axios = require('axios');
 const config = require('../config/keys');
 const ninjaVanAuth = require('../services/ninjaVanAuth');
 const deliveryRouter = require('./delivery'); // Import delivery router for createShippingOrder function
+const { sendOrderConfirmationEmail } = require('../services/emailService');
 
 // Ninja Van API Config
 const API_BASE_URL = config.NINJAVAN_API_URL;
@@ -56,8 +57,12 @@ router.post('/confirm-payment/:orderId', async (req, res) => {
     
     // Get order details
     const [orders] = await connection.query(
-      'SELECT o.*, u.first_name, u.last_name, u.email, u.phone, u.user_id FROM orders o ' +
+      'SELECT o.*, u.first_name, u.last_name, u.email, u.phone, u.user_id, ' +
+      's.address as shipping_address, s.tracking_number, ' +
+      'COALESCE(s.shipping_fee, 0) as shipping_fee ' +
+      'FROM orders o ' +
       'JOIN users u ON o.user_id = u.user_id ' +
+      'LEFT JOIN shipping s ON o.order_id = s.order_id ' +
       'WHERE o.order_id = ?',
       [orderId]
     );
@@ -77,6 +82,15 @@ router.post('/confirm-payment/:orderId', async (req, res) => {
       });
     }
 
+    // Get order items for email
+    const [orderItems] = await connection.query(
+      `SELECT oi.*, p.name
+       FROM order_items oi
+       JOIN products p ON oi.product_id = p.product_id
+       WHERE oi.order_id = ?`,
+      [orderId]
+    );
+
     // Generate transaction ID
     const transactionId = `order_${orderId}_${Date.now()}`;
     
@@ -92,11 +106,60 @@ router.post('/confirm-payment/:orderId', async (req, res) => {
       ['completed', transactionId, orderId, 'waiting_for_confirmation']
     );
 
+    // Get payment details for email
+    const [payments] = await connection.query(
+      'SELECT * FROM payments WHERE order_id = ? ORDER BY payment_id DESC LIMIT 1',
+      [orderId]
+    );
+
+    // Prepare email details
+    const emailDetails = {
+      orderNumber: orderId,
+      customerName: `${order.first_name} ${order.last_name}`,
+      customerEmail: order.email,
+      customerPhone: order.phone,
+      items: orderItems.map(item => ({
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price
+      })),
+      totalAmount: order.total_price,
+      shippingFee: order.shipping_fee,
+      shippingAddress: order.shipping_address,
+      paymentMethod: payments.length > 0 ? payments[0].payment_method : 'Unknown',
+      paymentReference: payments.length > 0 ? payments[0].reference_number : transactionId,
+      trackingNumber: order.tracking_number
+    };
+
+    // Send confirmation email
+    try {
+      await sendOrderConfirmationEmail(emailDetails);
+      console.log('Order confirmation email sent successfully');
+    } catch (emailError) {
+      console.error('Failed to send order confirmation email:', emailError);
+      // Don't fail the transaction if email fails
+    }
+
     await connection.commit();
 
     try {
       // Use the shared delivery service to create the shipping order
       const shippingResult = await deliveryRouter.createShippingOrder(orderId);
+      
+      // Send another email with tracking number if it wasn't included in the first email
+      if (shippingResult.tracking_number && !order.tracking_number) {
+        const updatedEmailDetails = {
+          ...emailDetails,
+          trackingNumber: shippingResult.tracking_number
+        };
+
+        try {
+          await sendOrderConfirmationEmail(updatedEmailDetails);
+          console.log('Updated order confirmation email sent with tracking number');
+        } catch (emailError) {
+          console.error('Failed to send updated order confirmation email:', emailError);
+        }
+      }
       
       res.status(200).json({
         message: 'Payment confirmed and shipping order created successfully',

@@ -457,9 +457,9 @@ router.get('/profile', auth, async (req, res) => {
 
 // Check all URLs and profile endpoints
 router.get('/profile-debug', auth, (req, res) => {
-  res.json({
+      res.json({
     message: 'Profile debug info',
-    user: {
+        user: {
       id: req.user.id,
       userType: req.user.userType,
       token: req.header('Authorization') ? 'Present' : 'Missing'

@@ -10,6 +10,8 @@ const BASE_URL = process.env.NODE_ENV === 'production'
   ? 'https://gw.dragonpay.ph/api/collect/v1' 
   : 'https://test.dragonpay.ph/api/collect/v1';
 const SECRET_KEY_SHA256 = process.env.DRAGONPAY_SECRET_KEY_SHA256 || 'test_sha256_key';
+const { sendOrderConfirmationEmail } = require('../services/emailService');
+
 router.post('/orders', async (req, res) => {
   const connection = await db.getConnection();
   console.log('Starting order creation process...');
@@ -239,7 +241,7 @@ router.get('/verify', async (req, res) => {
 });
 router.post('/postback', async (req, res) => {
   try {
-    const { txnid, refno, status, message, amount, digest, signature } = req.body;
+    const { txnid, refno, status, message, amount } = req.body;
     console.log('Received postback:', { txnid, refno, status, message, amount });
     const dataToSign = `${txnid}:${refno}:${status}:${message}:${amount}`;
     const expectedSignature = crypto
@@ -247,6 +249,7 @@ router.post('/postback', async (req, res) => {
       .update(dataToSign)
       .digest('hex')
       .toUpperCase();
+    const signature = req.headers['x-signature'];
     if (signature !== expectedSignature) {
       console.error('Invalid signature', { received: signature, expected: expectedSignature });
       return res.status(400).send('result=INVALID_SIGNATURE');
@@ -257,42 +260,140 @@ router.post('/postback', async (req, res) => {
       return res.status(400).send('result=INVALID_TXNID');
     }
     const orderId = orderIdMatch[1];
-    await db.query(
-      'UPDATE payments SET status = ?, reference_number = ? WHERE order_id = ?',
-      [mapDragonpayStatus(status), refno, orderId]
-    );
-    if (status === 'S') {
-      await db.query(
-        'UPDATE orders SET order_status = ?, payment_status = ? WHERE order_id = ?',
-        ['for_packing', 'paid', orderId]
+    const connection = await db.getConnection();
+
+    try {
+      await connection.beginTransaction();
+
+      // Update payment status
+      await connection.query(
+        'UPDATE payments SET status = ?, reference_number = ? WHERE order_id = ?',
+        [mapDragonpayStatus(status), refno, orderId]
       );
-      
-      const transactionId = `order_${orderId}_${Date.now()}`;
-      
-      await db.query(
-        'UPDATE payments SET transaction_id = ? WHERE order_id = ?',
-        [transactionId, orderId]
-      );
-      
-      try {
-        console.log(`Creating NinjaVan shipping order for order ${orderId}`);
-        const shippingResult = await deliveryRouter.createShippingOrder(orderId);
-        console.log(`Successfully created NinjaVan shipping with tracking: ${shippingResult.tracking_number}`);
-      } catch (shippingError) {
-        console.error(`Failed to create shipping order for order ${orderId}:`, shippingError);
+
+      if (status === 'S') {
+        // Update order status
+        await connection.query(
+          'UPDATE orders SET order_status = ?, payment_status = ? WHERE order_id = ?',
+          ['for_packing', 'paid', orderId]
+        );
+
+        const transactionId = `order_${orderId}_${Date.now()}`;
+        await connection.query(
+          'UPDATE payments SET transaction_id = ? WHERE order_id = ?',
+          [transactionId, orderId]
+        );
+
+        // Get order details for email
+        const [orders] = await connection.query(
+          `SELECT o.*, u.first_name, u.last_name, u.email, u.phone,
+           s.address as shipping_address, s.tracking_number,
+           COALESCE(s.shipping_fee, 0) as shipping_fee
+           FROM orders o
+           JOIN users u ON o.user_id = u.user_id
+           LEFT JOIN shipping s ON o.order_id = s.order_id
+           WHERE o.order_id = ?`,
+          [orderId]
+        );
+
+        const [orderItems] = await connection.query(
+          `SELECT oi.*, p.name
+           FROM order_items oi
+           JOIN products p ON oi.product_id = p.product_id
+           WHERE oi.order_id = ?`,
+          [orderId]
+        );
+
+        if (orders.length > 0) {
+          const order = orders[0];
+          const emailDetails = {
+            orderNumber: orderId,
+            customerName: `${order.first_name} ${order.last_name}`,
+            customerEmail: order.email,
+            customerPhone: order.phone,
+            items: orderItems.map(item => ({
+              name: item.name,
+              quantity: item.quantity,
+              price: item.price
+            })),
+            totalAmount: order.total_price,
+            shippingFee: order.shipping_fee,
+            shippingAddress: order.shipping_address,
+            paymentMethod: 'DragonPay',
+            paymentReference: refno,
+            trackingNumber: order.tracking_number
+          };
+
+          // Send confirmation email
+          try {
+            await sendOrderConfirmationEmail(emailDetails);
+            console.log('Order confirmation email sent successfully');
+          } catch (emailError) {
+            console.error('Failed to send order confirmation email:', emailError);
+            // Don't fail the transaction if email fails
+          }
+        }
+
+        // Create shipping order
+        try {
+          console.log(`Creating NinjaVan shipping order for order ${orderId}`);
+          const shippingResult = await deliveryRouter.createShippingOrder(orderId);
+          console.log(`Successfully created NinjaVan shipping with tracking: ${shippingResult.tracking_number}`);
+
+          // Send another email with tracking number if it wasn't included in the first email
+          if (orders.length > 0 && shippingResult.tracking_number && !orders[0].tracking_number) {
+            const order = orders[0];
+            const emailDetails = {
+              orderNumber: orderId,
+              customerName: `${order.first_name} ${order.last_name}`,
+              customerEmail: order.email,
+              customerPhone: order.phone,
+              items: orderItems.map(item => ({
+                name: item.name,
+                quantity: item.quantity,
+                price: item.price
+              })),
+              totalAmount: order.total_price,
+              shippingFee: order.shipping_fee,
+              shippingAddress: order.shipping_address,
+              paymentMethod: 'DragonPay',
+              paymentReference: refno,
+              trackingNumber: shippingResult.tracking_number
+            };
+
+            try {
+              await sendOrderConfirmationEmail(emailDetails);
+              console.log('Updated order confirmation email sent with tracking number');
+            } catch (emailError) {
+              console.error('Failed to send updated order confirmation email:', emailError);
+            }
+          }
+        } catch (shippingError) {
+          console.error(`Failed to create shipping order for order ${orderId}:`, shippingError);
+        }
+
+        await connection.commit();
+        return res.send('result=OK');
+      } else if (status === 'F') {
+        await connection.query(
+          'UPDATE orders SET order_status = ? WHERE order_id = ?',
+          ['cancelled', orderId]
+        );
+      } else if (status === 'P') {
+        await connection.query(
+          'UPDATE orders SET order_status = ? WHERE order_id = ?',
+          ['pending', orderId]
+        );
       }
-    } else if (status === 'F') {
-      await db.query(
-        'UPDATE orders SET order_status = ? WHERE order_id = ?',
-        ['cancelled', orderId]
-      );
-    } else if (status === 'P') {
-      await db.query(
-        'UPDATE orders SET order_status = ? WHERE order_id = ?',
-        ['pending', orderId]
-      );
+
+      await connection.commit();
+      res.send('result=OK');
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
     }
-    res.send('result=OK');
   } catch (error) {
     console.error('Postback processing error:', error);
     res.status(500).send('result=SERVER_ERROR');
