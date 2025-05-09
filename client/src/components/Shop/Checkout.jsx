@@ -6,6 +6,7 @@ import './Checkout.css';
 import API_BASE_URL from '../../config';
 import NavBar from '../NavBar';
 import Footer from '../Footer';
+import { notify } from '../../utils/notifications';
 
 const Checkout = () => {
   const [loading, setLoading] = useState(false);
@@ -217,7 +218,7 @@ const Checkout = () => {
       console.log('Redirecting to payment URL:', paymentResult.payment_url);
       window.location.href = paymentResult.payment_url;
     } catch (err) {
-      setError(err.message || 'Failed to process order. Please try again.');
+      handleError(err);
       console.error('Checkout error:', err);
     } finally {
       setLoading(false);
@@ -253,6 +254,10 @@ const Checkout = () => {
     return `${API_BASE_URL}${url}`;
   };
 
+  const handleError = (err) => {
+    notify.error(err.message || 'An error occurred during checkout. Please try again.');
+  };
+
   if (selectedItems.length === 0) {
     return null; // Will redirect in useEffect
   }
@@ -262,8 +267,6 @@ const Checkout = () => {
       <NavBar />
       <div className="checkout-container">
         <h2>Checkout</h2>
-        
-        {error && <div className="error-message">{error}</div>}
         
         <div className="checkout-grid">
           {/* Left Column: Shipping Details */}

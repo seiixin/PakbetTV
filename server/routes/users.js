@@ -85,7 +85,139 @@ router.get('/shipping-addresses', auth, async (req, res) => {
   }
 });
 
-// Get user by ID
+// Update user profile - IMPORTANT: This must come BEFORE the /:id route
+router.put('/profile', auth, async (req, res) => {
+  try {
+    console.log('=== PROFILE UPDATE ATTEMPT ===');
+    console.log('Headers:', req.headers);
+    console.log('User:', req.user);
+    console.log('Body:', req.body);
+    
+    const userId = req.user.id;
+    
+    if (!userId) {
+      console.error('Profile Update - Error: Invalid user ID:', userId);
+      return res.status(401).json({ message: 'Invalid user token structure' });
+    }
+    
+    const { firstName, lastName, email, phone } = req.body;
+    
+    // Validate inputs
+    if (!firstName && !lastName && !email && !phone) {
+      console.error('Profile Update - Error: No update data provided');
+      return res.status(400).json({ message: 'No update data provided' });
+    }
+    
+    console.log('Updating profile for user:', userId, 'with data:', { firstName, lastName, email, phone });
+    
+    let connection;
+    try {
+      connection = await db.getConnection();
+      
+      await connection.beginTransaction();
+      
+      // First check if the user exists
+      const [checkUser] = await connection.query(
+        'SELECT user_id, user_type FROM users WHERE user_id = ?',
+        [userId]
+      );
+      
+      if (checkUser.length === 0) {
+        await connection.rollback();
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      // Build update query dynamically based on provided fields
+      const updates = [];
+      const values = [];
+      
+      if (firstName !== undefined) {
+        updates.push('first_name = ?');
+        values.push(firstName);
+      }
+      if (lastName !== undefined) {
+        updates.push('last_name = ?');
+        values.push(lastName);
+      }
+      if (email !== undefined) {
+        updates.push('email = ?');
+        values.push(email);
+      }
+      if (phone !== undefined) {
+        updates.push('phone = ?');
+        values.push(phone);
+      }
+      
+      updates.push('updated_at = NOW()');
+      values.push(userId);
+      
+      const updateQuery = `
+        UPDATE users 
+        SET ${updates.join(', ')}
+        WHERE user_id = ?
+      `;
+      
+      console.log('Profile Update - Query:', { sql: updateQuery, values });
+      
+      const [updateResult] = await connection.query(updateQuery, values);
+      
+      if (updateResult.affectedRows === 0) {
+        await connection.rollback();
+        return res.status(404).json({ message: 'User update failed' });
+      }
+      
+      await connection.commit();
+      
+      // Fetch updated user data
+      const [users] = await connection.query(
+        'SELECT user_id, username, first_name, last_name, email, phone FROM users WHERE user_id = ?',
+        [userId]
+      );
+      
+      if (users.length === 0) {
+        throw new Error('User not found after update');
+      }
+      
+      const updatedUser = users[0];
+      console.log('Profile Update - Success:', updatedUser);
+      
+      res.json({
+        message: 'Profile updated successfully',
+        user: {
+          id: updatedUser.user_id,
+          username: updatedUser.username,
+          firstName: updatedUser.first_name,
+          lastName: updatedUser.last_name,
+          email: updatedUser.email,
+          phone: updatedUser.phone || ''
+        }
+      });
+      
+    } catch (dbError) {
+      if (connection) {
+        await connection.rollback();
+      }
+      throw dbError;
+    } finally {
+      if (connection) {
+        connection.release();
+      }
+    }
+  } catch (err) {
+    console.error('Profile Update - Error:', err);
+    
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ message: 'Email already in use' });
+    }
+    
+    res.status(500).json({ 
+      message: 'Failed to update profile',
+      error: process.env.NODE_ENV === 'development' ? err.message : 'Server error'
+    });
+  }
+});
+
+// Get user by ID - This route should come AFTER /profile
 router.get('/:id', auth, async (req, res) => {
   try {
     const userId = req.params.id;
@@ -106,6 +238,7 @@ router.get('/:id', auth, async (req, res) => {
   }
 });
 
+// Update user by ID - This route should come AFTER /profile
 router.put('/:id', auth, async (req, res) => {
   try {
     const userId = req.params.id;
@@ -334,172 +467,6 @@ router.get('/profile-debug', auth, (req, res) => {
   });
 });
 
-// Update user profile - IMPORTANT: This needs to work for all authenticated users
-router.put('/profile', auth, async (req, res) => {
-  try {
-    // Log extra details for debugging
-    console.log('=== PROFILE UPDATE ATTEMPT ===');
-    console.log('Headers:', req.headers);
-    console.log('User:', req.user);
-    console.log('Body:', req.body);
-    console.log('=== END DEBUG INFO ===');
-    
-    // Get user ID from the standardized user object structure
-    const userId = req.user.id;
-    
-    console.log('Profile Update - Request Body:', req.body);
-    console.log('Profile Update - User ID:', userId);
-    console.log('Profile Update - User Type:', req.user.userType);
-    console.log('Profile Update - Auth header:', req.header('Authorization') ? 'Present (valid)' : 'Missing');
-    
-    if (!userId) {
-      console.error('Profile Update - Error: Invalid user ID:', userId);
-      return res.status(401).json({ message: 'Invalid user token structure' });
-    }
-    
-    // NOTE: Deliberately not checking if userType === 'admin' here since any authenticated user
-    // should be able to update their own profile without restriction
-    
-    const { firstName, lastName, email, phone } = req.body;
-    
-    // Validate inputs
-    if (!firstName && !lastName && !email && !phone) {
-      console.error('Profile Update - Error: No update data provided');
-      return res.status(400).json({ message: 'No update data provided' });
-    }
-    
-    console.log('Updating profile for user:', userId, 'with data:', { firstName, lastName, email, phone });
-    
-    let connection;
-    try {
-      connection = await db.getConnection();
-      console.log('Profile Update - Database connection acquired');
-      
-      await connection.beginTransaction();
-      console.log('Profile Update - Transaction started');
-      
-      // First check if the user exists
-      const [checkUser] = await connection.query(
-        'SELECT user_id, user_type FROM users WHERE user_id = ?',
-        [userId]
-      );
-      
-      if (checkUser.length === 0) {
-        console.error('Profile Update - Error: User not found:', userId);
-        await connection.rollback();
-        return res.status(404).json({ message: 'User not found' });
-      }
-      
-      console.log('Profile Update - User found:', checkUser[0]);
-      console.log('Profile Update - User found, proceeding with update');
-      
-      // Update user profile
-      const [updateResult] = await connection.query(
-        `UPDATE users SET 
-          first_name = COALESCE(?, first_name),
-          last_name = COALESCE(?, last_name),
-          email = COALESCE(?, email),
-          phone = COALESCE(?, phone),
-          updated_at = NOW()
-        WHERE user_id = ?`,
-        [firstName, lastName, email, phone, userId]
-      );
-      
-      console.log('Profile Update - Update query result:', updateResult);
-      
-      if (updateResult.affectedRows === 0) {
-        console.error('Profile Update - Error: Update failed, no rows affected');
-        await connection.rollback();
-        return res.status(404).json({ message: 'User update failed' });
-      }
-      
-      await connection.commit();
-      console.log('Profile Update - Transaction committed');
-      
-      // Fetch updated user data
-      const [users] = await connection.query(
-        'SELECT user_id, username, first_name, last_name, email, phone FROM users WHERE user_id = ?',
-        [userId]
-      );
-      
-      if (users.length === 0) {
-        console.error('Profile Update - Error: User not found after update');
-        throw new Error('User not found after update');
-      }
-      
-      const updatedUser = users[0];
-      console.log('Profile Update - Success: User updated:', updatedUser);
-      
-      res.json({
-        message: 'Profile updated successfully',
-        user: {
-          id: updatedUser.user_id,
-          username: updatedUser.username,
-          firstName: updatedUser.first_name,
-          lastName: updatedUser.last_name,
-          email: updatedUser.email,
-          phone: updatedUser.phone || ''
-        }
-      });
-      
-    } catch (dbError) {
-      console.error('Profile Update - Database Error:', {
-        message: dbError.message,
-        code: dbError.code,
-        errno: dbError.errno,
-        sqlState: dbError.sqlState,
-        sqlMessage: dbError.sqlMessage
-      });
-      
-      if (connection) {
-        try {
-          await connection.rollback();
-          console.log('Profile Update - Transaction rolled back due to error');
-        } catch (rollbackError) {
-          console.error('Profile Update - Rollback Error:', rollbackError.message);
-        }
-      }
-      
-      throw dbError;
-    } finally {
-      if (connection) {
-        try {
-          connection.release();
-          console.log('Profile Update - Database connection released');
-        } catch (releaseError) {
-          console.error('Profile Update - Connection Release Error:', releaseError.message);
-        }
-      }
-    }
-  } catch (err) {
-    console.error('Profile Update - Unhandled Error:', {
-      name: err.name,
-      message: err.message,
-      stack: err.stack
-    });
-    
-    // Send appropriate error response
-    if (err.code === 'ER_DUP_ENTRY') {
-      return res.status(400).json({ 
-        message: 'Email already in use',
-        error: err.message
-      });
-    }
-    
-    if (err.code === 'ER_NO_REFERENCED_ROW') {
-      return res.status(400).json({ 
-        message: 'Invalid reference in the update data',
-        error: err.message
-      });
-    }
-    
-    res.status(500).json({ 
-      message: 'Failed to update profile', 
-      error: process.env.NODE_ENV === 'development' ? err.message : 'Server error'
-    });
-  }
-});
-
 // Add or update user shipping address
 router.post('/shipping-address', auth, [
   body('region').notEmpty().withMessage('Region is required'),
@@ -541,18 +508,30 @@ router.post('/shipping-address', auth, [
   
   const address1 = address1Components.join(', ');
   
+  // Construct full address for user's main address field
+  const fullAddressComponents = [
+    address1,
+    city_municipality,
+    province,
+    region,
+    postcode,
+    country
+  ].filter(Boolean);
+  
+  const fullAddress = fullAddressComponents.join(', ');
+  
   const connection = await db.getConnection();
   
   try {
     await connection.beginTransaction();
     console.log('Started transaction');
 
-    // First update the main user profile with phone
+    // First update the main user profile with phone and address
     await connection.query(
-      'UPDATE users SET phone = ?, updated_at = NOW() WHERE user_id = ?',
-      [phone, userId]
+      'UPDATE users SET phone = ?, address = ?, updated_at = NOW() WHERE user_id = ?',
+      [phone, fullAddress, userId]
     );
-    console.log('Updated main user profile');
+    console.log('Updated main user profile with address:', fullAddress);
     
     // Delete any empty shipping addresses
     await connection.query(
@@ -654,7 +633,7 @@ router.post('/shipping-address', auth, [
     console.log('Transaction committed successfully');
     res.status(200).json({ 
       message: 'Address and contact information updated successfully',
-      address: address1,
+      address: fullAddress,
       phone: phone
     });
     

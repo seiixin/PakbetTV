@@ -1,7 +1,10 @@
 import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
+import { ToastContainer } from 'react-toastify'
+import 'react-toastify/dist/ReactToastify.css'
 import './App.css'
 import './styles/Modern.css'
+import './styles/notifications.css'
 import { initFacebookSDK } from './utils/facebookSDK'
 import Home from './components/Home'
 import Login from './components/Auth/Login'
@@ -86,6 +89,19 @@ function App() {
           <AppContent />
         </CartProvider>
       </AuthProvider>
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        limit={3}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light"
+      />
     </Router>
   )
 }

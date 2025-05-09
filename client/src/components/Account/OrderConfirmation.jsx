@@ -5,6 +5,7 @@ import api from '../../services/api';
 import './OrderConfirmation.css';
 import NavBar from '../NavBar';
 import Footer from '../Footer';
+import { notify } from '../../utils/notifications';
 
 function OrderConfirmation() {
   const { orderId } = useParams();
@@ -126,6 +127,21 @@ function OrderConfirmation() {
     zIndex: 9999
   };
 
+  const handleError = (err) => {
+    notify.error(err.message || 'An error occurred while loading the order. Please try again.');
+    return (
+      <div className="account-container">
+        <NavBar />
+        <div className="account-wrapper">
+          <Link to="/account/purchases" className="back-button">
+            Back to Purchases
+          </Link>
+        </div>
+        <Footer />
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <div className="account-container">
@@ -142,33 +158,11 @@ function OrderConfirmation() {
   }
 
   if (error) {
-    return (
-      <div className="account-container">
-        <NavBar />
-        <div className="account-wrapper">
-          <div className="error-message">{error}</div>
-          <Link to="/account/purchases" className="back-button">
-            Back to Purchases
-          </Link>
-        </div>
-        <Footer />
-      </div>
-    );
+    return handleError(error);
   }
 
   if (!order) {
-    return (
-      <div className="account-container">
-        <NavBar />
-        <div className="account-wrapper">
-          <div className="error-message">Order not found.</div>
-          <Link to="/account/purchases" className="back-button">
-            Back to Purchases
-          </Link>
-        </div>
-        <Footer />
-      </div>
-    );
+    return handleError('Order not found.');
   }
 
   return (

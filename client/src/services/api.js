@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { notify, handleApiError } from '../utils/notifications';
 
 // Create a custom axios instance
 const api = axios.create({
@@ -65,8 +66,8 @@ api.interceptors.response.use(
       // Check if we should try to get a new token or just logout
       const currentPath = window.location.pathname;
       const isAuthEndpoint = originalRequest.url.includes('/auth/login') || 
-                            originalRequest.url.includes('/auth/signup') ||
-                            originalRequest.url.includes('/auth/refresh');
+                          originalRequest.url.includes('/auth/signup') ||
+                          originalRequest.url.includes('/auth/refresh');
       
       if (!currentPath.includes('/login') && 
           !currentPath.includes('/signup') && 
@@ -106,6 +107,8 @@ api.interceptors.response.use(
           localStorage.removeItem('token');
           localStorage.removeItem('user');
           
+          notify.error('Your session has expired. Please log in again.');
+          
           // Prevent page reloads from causing logout loops
           setTimeout(() => {
             window.location.href = '/login';
@@ -120,31 +123,105 @@ api.interceptors.response.use(
 );
 
 export const authService = {
-  signup: (userData) => api.post('/api/auth/signup', userData),
-  login: (credentials) => api.post('/api/auth/login', credentials),
-  refreshToken: () => {
+  signup: async (userData) => {
+    try {
+      const response = await api.post('/api/auth/signup', userData);
+      notify.success('Account created successfully! Please log in.');
+      return response;
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
+  },
+  
+  login: async (credentials) => {
+    try {
+      const response = await api.post('/api/auth/login', credentials);
+      notify.success('Welcome back!');
+      return response;
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
+  },
+  
+  refreshToken: async () => {
     const token = localStorage.getItem('token');
     if (!token) {
+      notify.error('No authentication token found');
       return Promise.reject(new Error('No token to refresh'));
     }
     return api.post('/api/auth/refresh', { token });
   },
-  getProfile: () => api.get('/api/auth/me'),
-  updateProfile: (userData) => {
-    console.log('API Service - updateProfile - Sending data:', userData);
-    const token = localStorage.getItem('token');
-    const userId = JSON.parse(atob(token.split('.')[1])).user.id;
-    console.log('API Service - updateProfile - Token present:', !!token);
-    return api.put(`/api/users/${userId}`, userData, {
-      headers: {
-        'X-Debug': 'true'
-      }
-    });
+  
+  getProfile: async () => {
+    try {
+      return await api.get('/api/auth/me');
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
   },
-  getShippingAddresses: () => api.get('/api/users/shipping-addresses'),
-  addShippingAddress: (addressData) => api.post('/api/users/shipping-address', addressData),
-  updateShippingAddress: (addressId, addressData) => api.put(`/api/users/shipping-address/${addressId}`, addressData),
-  deleteShippingAddress: (addressId) => api.delete(`/api/users/shipping-address/${addressId}`)
+  
+  updateProfile: async (userData) => {
+    try {
+      console.log('API Service - updateProfile - Sending data:', userData);
+      const token = localStorage.getItem('token');
+      console.log('API Service - updateProfile - Token present:', !!token);
+      const response = await api.put('/api/users/profile', userData, {
+        headers: {
+          'X-Debug': 'true'
+        }
+      });
+      notify.success('Profile updated successfully!');
+      return response;
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
+  },
+  
+  getShippingAddresses: async () => {
+    try {
+      return await api.get('/api/users/shipping-addresses');
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
+  },
+  
+  addShippingAddress: async (addressData) => {
+    try {
+      const response = await api.post('/api/users/shipping-address', addressData);
+      notify.success('Shipping address added successfully!');
+      return response;
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
+  },
+  
+  updateShippingAddress: async (addressId, addressData) => {
+    try {
+      const response = await api.put(`/api/users/shipping-address/${addressId}`, addressData);
+      notify.success('Shipping address updated successfully!');
+      return response;
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
+  },
+  
+  deleteShippingAddress: async (addressId) => {
+    try {
+      const response = await api.delete(`/api/users/shipping-address/${addressId}`);
+      notify.success('Shipping address deleted successfully!');
+      return response;
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
+  }
 };
 
 export default api; 

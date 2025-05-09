@@ -6,6 +6,7 @@ import styled from 'styled-components';
 import { toast } from 'react-toastify';
 import './ProductManagement.css';
 import API_BASE_URL from '../../config';
+import { notify } from '../../utils/notifications';
 const ModalContent = styled.div`
   .read-only-field {
     background-color: #f0f0f0;
@@ -511,10 +512,18 @@ const ProductManagement = () => {
       setIsSubmitting(false);
     }
   };
+  const handleSuccess = (message) => {
+    notify.success(message);
+  };
+  const handleError = (err) => {
+    const errorMessage = typeof err === 'object' 
+      ? err.message || Object.values(err).join(', ')
+      : err;
+    notify.error(errorMessage);
+  };
   const handleDeleteImage = async (imageIdToDelete) => {
     if (!currentProduct.product_id || !imageIdToDelete) {
-      console.error("Missing product ID or image ID for deletion.");
-      setError("Cannot delete image: missing ID.");
+      handleError("Cannot delete image: missing ID.");
       return;
     }
     if (!window.confirm('Are you sure you want to delete this image permanently?')) {
@@ -532,12 +541,9 @@ const ProductManagement = () => {
         ...prev,
         images: prev.images.filter(img => img.image_id !== imageIdToDelete)
       }));
-      setSuccessMessage('Image deleted successfully!');
-      setTimeout(() => {
-        setSuccessMessage('');
-      }, 3000);
+      handleSuccess('Image deleted successfully!');
     } catch (err) {
-      setError('Error deleting image: ' + err.message);
+      handleError('Error deleting image: ' + err.message);
       console.error('Error deleting image:', err);
     }
   };
@@ -646,19 +652,6 @@ const ProductManagement = () => {
   return (
     <div className="admin-container">
       <h1>Product Management</h1>
-      {successMessage && (
-        <div className="success-message">{successMessage}</div>
-      )}
-      {error && (
-        <div className="error-message">
-          {typeof error === 'object' 
-            ? Object.values(error).join(', ')
-            : error}
-        </div>
-      )}
-      {submitError && (
-          <div className="error-message">{submitError}</div>
-      )}
       <div className="action-bar">
         <button 
           className="btn btn-primary add-product-btn"

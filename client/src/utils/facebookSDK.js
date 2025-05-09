@@ -1,21 +1,5 @@
 export const initFacebookSDK = () => {
-  return new Promise(resolve => {
-    // Wait for FB SDK to be loaded
-    window.fbAsyncInit = function() {
-      window.FB.init({
-        appId: import.meta.env.VITE_FACEBOOK_APP_ID,
-        cookie: true,
-        xfbml: true,
-        version: 'v18.0' // Use the latest stable version
-      });
-      
-      // Initial status check
-      window.FB.getLoginStatus(response => {
-        handleFacebookLoginStatus(response);
-        resolve(response);
-      });
-    };
-
+  return new Promise((resolve, reject) => {
     // Load the SDK asynchronously
     (function(d, s, id) {
       var js, fjs = d.getElementsByTagName(s)[0];
@@ -24,6 +8,26 @@ export const initFacebookSDK = () => {
       js.src = "https://connect.facebook.net/en_US/sdk.js";
       fjs.parentNode.insertBefore(js, fjs);
     }(document, 'script', 'facebook-jssdk'));
+
+    window.fbAsyncInit = function() {
+      FB.init({
+        appId: import.meta.env.VITE_FACEBOOK_APP_ID,
+        cookie: true,
+        xfbml: true,
+        version: 'v18.0'
+      });
+
+      // Only check login status if we're on HTTPS or localhost
+      if (window.location.protocol === 'https:' || window.location.hostname === 'localhost') {
+        FB.getLoginStatus(function(response) {
+          console.log('FB Login Status:', response.status);
+          resolve(response);
+        });
+      } else {
+        console.log('Facebook SDK initialized without login status check (non-HTTPS environment)');
+        resolve(null);
+      }
+    };
   });
 };
 

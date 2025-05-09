@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { authService } from '../../services/api';
 import './Account.css';
 import Footer from '../Footer';
 import NavBar from '../NavBar';
+import { notify } from '../../utils/notifications';
 
 function Account() {
   const { user, isAuthenticated, loading: authLoading, refreshing } = useAuth();
@@ -275,6 +276,14 @@ function Account() {
     borderRadius: '50%',
     animation: 'spin 1s linear infinite',
     zIndex: 9999
+  };
+
+  const handleError = (err) => {
+    notify.error(err.message || 'An error occurred. Please try again.');
+  };
+
+  const handleSuccess = (message) => {
+    notify.success(message);
   };
 
   if (loading || authLoading) {
@@ -570,9 +579,6 @@ function Account() {
           )}
         </section>
       </main>
-      
-      {error && <div className="error-message" role="alert">{error}</div>}
-      {success && <div className="success-message" role="status">{success}</div>}
       
       <Footer />
     </div>
