@@ -5,6 +5,8 @@ const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
 const db = require('../config/db');
 const { auth } = require('../middleware/auth');
+const passport = require('passport');
+
 router.post(
   '/signup',
   [
@@ -235,5 +237,85 @@ router.post('/refresh', async (req, res) => {
     return res.status(401).json({ message: 'Invalid or expired token' });
   }
 });
+
+// Social Authentication Routes
+
+// Google Authentication
+router.get('/google', passport.authenticate('google', { 
+  scope: ['profile', 'email'],
+  prompt: 'select_account'
+}));
+
+router.get('/google/callback', 
+  passport.authenticate('google', { failureRedirect: '/login' }),
+  (req, res) => {
+    // Generate JWT token for the authenticated user
+    const payload = {
+      user: {
+        id: req.user.user_id,
+        userType: req.user.user_type
+      }
+    };
+    
+    jwt.sign(
+      payload,
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' },
+      (err, token) => {
+        if (err) {
+          console.error('Token signing error:', err);
+          return res.redirect(`${process.env.CLIENT_URL}/login?error=token_error`);
+        }
+        // Redirect to client with token
+        res.redirect(`${process.env.CLIENT_URL}/social-auth-success?token=${token}`);
+      }
+    );
+  }
+);
+
+// Facebook Authentication
+router.get('/facebook', (req, res, next) => {
+  const { access_token } = req.query;
+  
+  if (access_token) {
+    // If we have an access token, use it for authentication
+    passport.authenticate('facebook-token', {
+      access_token,
+      session: false
+    })(req, res, next);
+  } else {
+    // Otherwise, initiate the Facebook login flow
+    passport.authenticate('facebook', {
+      scope: ['email', 'public_profile']
+    })(req, res, next);
+  }
+});
+
+router.get('/facebook/callback',
+  passport.authenticate('facebook', { failureRedirect: '/login' }),
+  (req, res) => {
+    // Generate JWT token for the authenticated user
+    const payload = {
+      user: {
+        id: req.user.user_id,
+        userType: req.user.user_type
+      }
+    };
+    
+    jwt.sign(
+      payload,
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' },
+      (err, token) => {
+        if (err) {
+          console.error('Token signing error:', err);
+          return res.redirect(`${process.env.CLIENT_URL}/login?error=token_error`);
+        }
+        // Redirect to client with token
+        res.redirect(`${process.env.CLIENT_URL}/social-auth-success?token=${token}`);
+      }
+    );
+  }
+);
 
 module.exports = router; 

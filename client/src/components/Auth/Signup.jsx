@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import SocialLogin from './SocialLogin';
 import './Auth.css';
+
 function Signup() {
   const navigate = useNavigate();
   const { register } = useAuth();
@@ -15,6 +17,7 @@ function Signup() {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -22,26 +25,31 @@ function Signup() {
       [name]: value
     }));
   };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
+    
     if (!formData.username || !formData.firstname || !formData.lastname || 
         !formData.email || !formData.password || !formData.confirmPassword) {
       setError('Please fill in all required fields');
       setLoading(false);
       return;
     }
+    
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       setLoading(false);
       return;
     }
+    
     if (formData.password.length < 6) {
       setError('Password must be at least 6 characters');
       setLoading(false);
       return;
     }
+    
     const userData = {
       username: formData.username,
       firstname: formData.firstname,
@@ -49,6 +57,7 @@ function Signup() {
       email: formData.email,
       password: formData.password
     };
+    
     const result = await register(userData);
     if (result.success) {
       alert('Registration successful! Please log in.');
@@ -58,6 +67,7 @@ function Signup() {
       setLoading(false);
     }
   };
+
   return (
     <div className="auth-container">
       <form className="auth-form" onSubmit={handleSubmit}>
@@ -155,6 +165,9 @@ function Signup() {
         >
           {loading ? 'Signing Up...' : 'Sign Up'}
         </button>
+        
+        <SocialLogin />
+        
         <div className="auth-redirect">
           Already have an account?
           <Link to="/login">Log In</Link>
@@ -163,4 +176,5 @@ function Signup() {
     </div>
   );
 }
+
 export default Signup; 

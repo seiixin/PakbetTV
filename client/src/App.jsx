@@ -1,6 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import './App.css'
 import './styles/Modern.css'
+import { initFacebookSDK } from './utils/facebookSDK'
 import Home from './components/Home'
 import Login from './components/Auth/Login'
 import Signup from './components/Auth/Signup'
@@ -16,6 +18,7 @@ import TransactionComplete from './components/Shop/TransactionComplete'
 import ProsperGuide from './components/Guides/ProsperGuide'
 import Horoscope from './components/Horoscope/Horoscope'
 import OrderTracking from './pages/OrderTracking'
+import SocialAuthSuccess from './components/auth/SocialAuthSuccess'
 import { AuthProvider } from './context/AuthContext'
 import { CartProvider } from './context/CartContext'
 import Blog from './components/Blog'
@@ -24,10 +27,27 @@ import FAQs from './components/FAQs'
 
 function AppContent() {
   const location = useLocation();
-  console.log('Current location:', location.pathname);
+  const [isFBInitialized, setFBInitialized] = useState(false);
   
-  // Determine if we should show the debug component (only in development)
-  const isDevelopment = import.meta.env.DEV;
+  useEffect(() => {
+    const initFB = async () => {
+      try {
+        await initFacebookSDK();
+        setFBInitialized(true);
+      } catch (error) {
+        console.error('Error initializing Facebook SDK:', error);
+        // Still set as initialized to not block the app
+        setFBInitialized(true);
+      }
+    };
+
+    initFB();
+  }, []);
+  
+  // Show loading state while FB SDK initializes
+  if (!isFBInitialized) {
+    return <div>Loading...</div>;
+  }
   
   return (
     <>
@@ -35,6 +55,7 @@ function AppContent() {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/social-auth-success" element={<SocialAuthSuccess />} />
         <Route path="/account" element={<Account />} />
         <Route path="/account/purchases" element={<Purchases />} />
         <Route path="/account/orders/:orderId" element={<OrderConfirmation />} />

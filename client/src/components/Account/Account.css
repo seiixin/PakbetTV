@@ -33,8 +33,11 @@ input, select, textarea {
   border: 1.5px solid #ccc;
   border-radius: 6px;
   transition: border-color 0.3s ease;
-  background: white;
+  background-color: #ffffff;
+  color: #333 !important;
   font-family: 'ZCOOL XiaoWei', sans-serif;
+  -webkit-text-fill-color: #333;
+  opacity: 1;
 }
 
 input:focus, select:focus, textarea:focus {
@@ -42,6 +45,24 @@ input:focus, select:focus, textarea:focus {
   border-color: #800000;
   box-shadow: 0 0 4px rgba(128, 0, 0, 0.4);
   background: #fff;
+}
+
+/* Also ensure placeholder text is visible but slightly lighter */
+input::placeholder, 
+select::placeholder, 
+textarea::placeholder {
+  color: #999;
+  opacity: 1;
+}
+
+/* Ensure text remains visible during autofill */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-text-fill-color: #333 !important;
+  -webkit-box-shadow: 0 0 0 30px white inset !important;
+  transition: background-color 5000s ease-in-out 0s;
 }
 
 .account-page {

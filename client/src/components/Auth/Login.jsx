@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
+import SocialLogin from './SocialLogin';
 import './Auth.css';
 
 function Login() {
@@ -25,6 +26,15 @@ function Login() {
   useEffect(() => {
     if (location.state?.from === '/cart') {
       setError('Please login to checkout');
+    }
+    
+    // Check for error params in URL (for social auth failures)
+    const queryParams = new URLSearchParams(location.search);
+    const errorParam = queryParams.get('error');
+    if (errorParam === 'auth_failed') {
+      setError('Social authentication failed. Please try again.');
+    } else if (errorParam === 'no_token') {
+      setError('No authentication token received. Please try again.');
     }
   }, [location]);
 
@@ -115,6 +125,10 @@ function Login() {
         >
           {loading ? 'Logging in...' : 'Log In'}
         </button>
+        
+        {/* Add Social Login component */}
+        <SocialLogin />
+        
         <div className="auth-redirect">
           Don't have an account?
           <Link to="/signup">Sign Up</Link>
