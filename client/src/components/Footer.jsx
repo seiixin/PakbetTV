@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import './Footer.css';
+import GoogleMap from './common/GoogleMap';
 
 const Footer = () => {
   return (
@@ -32,6 +33,9 @@ const Footer = () => {
               <p>Monday - Sunday: 8:00 AM - 5:00 PM</p>
               <p>Public Holidays: CLOSED</p>
             </div>
+          </div>
+          <div className="map-container">
+            <GoogleMap />
           </div>
         </div>
 

@@ -15,17 +15,19 @@ const ProductPage = () => {
     searchParams.get('category') || 'all'
   );
   const [filteredProducts, setFilteredProducts] = useState([]);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [isCategoriesVisible, setIsCategoriesVisible] = useState(true);
   const navigate = useNavigate();
+  
   const categories = [
-    { id: 'all', name: 'All Products' },
-    { id: 'books', name: 'Books' },
-    { id: 'amulets', name: 'Amulets' },
-    { id: 'bracelets', name: 'Bracelets' },
-    { id: 'best-sellers', name: 'Best Sellers' },
-    { id: 'flash-deals', name: 'Flash Deals' },
-    { id: 'new-arrivals', name: 'New Arrivals' }
+    { id: 'all', name: 'All Products', image: '/Categories-1.png' },
+    { id: 'best-sellers', name: 'Best Sellers', image: '/Categories-1.png' },
+    { id: 'flash-deals', name: 'Flash Deals', image: '/Categories-2.png' },
+    { id: 'books', name: 'Books', image: '/Categories-3.png' },
+    { id: 'amulets', name: 'Amulets', image: '/Categories-5.png' },
+    { id: 'bracelets', name: 'Bracelets', image: '/Categories-4.png' },
+    { id: 'new-arrivals', name: 'New Arrivals', image: '/Categories-2.png' }
   ];
+
   useEffect(() => {
     const categoryParam = searchParams.get('category');
     if (categoryParam && categories.some(cat => cat.id === categoryParam)) {
@@ -34,12 +36,15 @@ const ProductPage = () => {
       setSelectedCategory('all');
     }
   }, [searchParams]); 
+
   useEffect(() => {
     fetchProducts();
   }, []);
+
   useEffect(() => {
     filterProducts();
   }, [selectedCategory, products]); 
+
   const fetchProducts = async () => {
     try {
       setLoading(true);
@@ -65,6 +70,7 @@ const ProductPage = () => {
       setLoading(false);
     }
   };
+
   const filterProducts = () => {
     if (selectedCategory === 'all') {
       setFilteredProducts(products);
@@ -91,16 +97,15 @@ const ProductPage = () => {
       product.category_name?.toLowerCase() === selectedCategory?.toLowerCase()
     ));
   };
+
   const handleCategoryClick = (categoryId) => {
     setSelectedCategory(categoryId);
-    setDropdownOpen(false);
   };
-  const toggleDropdown = () => {
-    setDropdownOpen(!dropdownOpen);
-  };
+
   const handleProductClick = (productId) => {
     navigate(`/product/${productId}`);
   };
+
   const formatPrice = (price) => {
     const numericPrice = Number(price);
     if (isNaN(numericPrice)) {
@@ -109,6 +114,11 @@ const ProductPage = () => {
     }
     return `₱${numericPrice.toFixed(2)}`;
   };
+
+  const toggleCategories = () => {
+    setIsCategoriesVisible(!isCategoriesVisible);
+  };
+
   return (
     <div className="shop-container">
       <NavBar />
@@ -116,42 +126,33 @@ const ProductPage = () => {
         <div className="products-content">
           <div className="shop-header">
             <h1>Shop</h1>
-            <div className="category-dropdown">
-              <button 
-                className="dropdown-button" 
-                onClick={toggleDropdown}
-              >
-                {categories.find(cat => cat.id === selectedCategory)?.name}
-                <svg 
-                  className={`dropdown-arrow ${dropdownOpen ? 'open' : ''}`}
-                  xmlns="http://www.w3.org/2000/svg" 
-                  width="16" 
-                  height="16" 
-                  viewBox="0 0 24 24" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  strokeWidth="2" 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round"
+          </div>
+          
+          <button 
+            className={`toggle-categories ${!isCategoriesVisible ? 'collapsed' : ''}`}
+            onClick={toggleCategories}
+          >
+            {isCategoriesVisible ? 'Hide Categories' : 'Show Categories'}
+            <i className="fas fa-chevron-up"></i>
+          </button>
+
+          <div className={`shop-categories ${!isCategoriesVisible ? 'collapsed' : ''}`}>
+            <div className="shop-categories-grid">
+              {categories.map(category => (
+                <div 
+                  key={category.id}
+                  className={`shop-category-card ${selectedCategory === category.id ? 'active' : ''}`}
+                  onClick={() => handleCategoryClick(category.id)}
                 >
-                  <polyline points="6 9 12 15 18 9"></polyline>
-                </svg>
-              </button>
-              {dropdownOpen && (
-                <div className="category-dropdown-menu">
-                  {categories.map(category => (
-                    <div 
-                      key={category.id}
-                      className={`dropdown-item ${selectedCategory === category.id ? 'active' : ''}`}
-                      onClick={() => handleCategoryClick(category.id)}
-                    >
-                      {category.name}
-                    </div>
-                  ))}
+                  <div className="shop-category-image">
+                    <img src={category.image} alt={category.name} />
+                  </div>
+                  <h3>{category.name}</h3>
                 </div>
-              )}
+              ))}
             </div>
           </div>
+
           {error && <div className="error-message">{error}</div>}
           {loading ? (
             <div className="loading-spinner">Loading products...</div>
@@ -172,4 +173,5 @@ const ProductPage = () => {
     </div>
   );
 };
+
 export default ProductPage; 

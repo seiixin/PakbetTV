@@ -2262,4 +2262,128 @@
 .edit-shipping-link:hover {
   background: #efe7e3;
   text-decoration: none;
+}
+
+/* Shop Categories */
+.shop-categories {
+  margin-bottom: 2rem;
+  transition: all 0.3s ease;
+}
+
+.shop-categories-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 2rem;
+  margin: 0 auto;
+  transition: all 0.3s ease;
+  padding: 1rem;
+}
+
+.shop-category-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  cursor: pointer;
+  text-align: center;
+  transition: transform 0.3s ease;
+}
+
+.shop-category-card:hover {
+  transform: translateY(-5px);
+}
+
+.shop-category-card.active .shop-category-image {
+  border: 3px solid #FEC16E;
+  box-shadow: 0 8px 25px rgba(254, 193, 110, 0.3);
+}
+
+.shop-category-image {
+  width:100px;
+  height: 100px;
+  border-radius: 50%;
+  background-image: linear-gradient(to bottom right, #A2201A, #800000);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  box-sizing: border-box;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  border: 3px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.shop-category-image img {
+  max-width: 200%;
+  max-height: 200%;
+  height: 300%;
+  object-fit: contain;
+  filter: brightness(0) saturate(100%) invert(83%) sepia(24%) saturate(1095%) hue-rotate(328deg) brightness(101%) contrast(96%);
+}
+
+.shop-category-card h3 {
+  color: #A2201A;
+  font-weight: 600;
+  font-size: 1rem;
+  margin: 0;
+  transition: color 0.3s ease;
+}
+
+.shop-category-card.active h3 {
+  color: #800000;
+}
+
+/* Toggle Categories Button */
+.toggle-categories {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: none;
+  color: #A2201A;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+  margin-bottom: 1rem;
+  transition: all 0.3s ease;
+}
+
+.toggle-categories:hover {
+  opacity: 0.8;
+}
+
+.toggle-categories i {
+  transition: transform 0.3s ease;
+}
+
+.toggle-categories.collapsed i {
+  transform: rotate(-180deg);
+}
+
+.shop-categories.collapsed {
+  height: 0;
+  overflow: hidden;
+  margin: 0;
+}
+
+.shop-categories.collapsed .shop-categories-grid {
+  opacity: 0;
+  transform: translateY(-20px);
+}
+
+@media (max-width: 768px) {
+  .shop-categories-grid {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .shop-category-image {
+    width: 120px;
+    height: 120px;
+    padding: 1.8rem;
+  }
+
+  .shop-category-card h3 {
+    font-size: 0.9rem;
+  }
 } 
