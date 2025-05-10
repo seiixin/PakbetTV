@@ -34,9 +34,9 @@ const Footer = () => {
               <p>Public Holidays: CLOSED</p>
             </div>
           </div>
-          <div className="map-container">
-            <GoogleMap />
-          </div>
+        </div>
+        <div className='footer-section'>
+          <GoogleMap />
         </div>
 
         <div className="footer-section">

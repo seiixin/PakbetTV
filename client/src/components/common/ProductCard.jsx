@@ -37,18 +37,13 @@ const ProductCard = ({ product }) => {
   const rating = Number(product.average_rating) || 0;
   const ratingCount = Number(product.review_count) || 0;
 
-  // Render stars based on rating
+  // Render single star based on rating
   const renderStars = () => {
-    const stars = [];
-    for (let i = 1; i <= 5; i++) {
-      stars.push(
-        <i 
-          key={i} 
-          className={`fas fa-star ${i <= rating ? 'filled' : 'empty'}`}
-        />
-      );
-    }
-    return stars;
+    return (
+      <i 
+        className={`fas fa-star ${rating > 0 ? 'filled' : 'empty'}`}
+      />
+    );
   };
 
   return (
@@ -104,4 +99,4 @@ const ProductCard = ({ product }) => {
   );
 };
 
-export default ProductCard; 
+export default ProductCard;

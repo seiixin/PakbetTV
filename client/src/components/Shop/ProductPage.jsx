@@ -41,69 +41,64 @@ const ProductPage = () => {
     fetchProducts();
   }, []);
 
-  useEffect(() => {
-    filterProducts();
-  }, [selectedCategory, products]); 
-
   const fetchProducts = async () => {
     try {
       setLoading(true);
+      setError(null);
       const response = await fetch(`${API_BASE_URL}/api/products`);
       if (!response.ok) {
-        let errorMsg = 'Failed to fetch products';
-        try {
-          const errorData = await response.json();
-          errorMsg = errorData.message || errorMsg;
-        } catch (parseError) {  }
-        throw new Error(errorMsg);
+        throw new Error('Failed to fetch products');
       }
       const data = await response.json();
-      const productsArray = Array.isArray(data.products) ? data.products : []; 
-      console.log("Raw products from API:", productsArray);
-      setProducts(productsArray); 
-      setError(null);
+      setProducts(data.products || []);
+      setLoading(false);
     } catch (err) {
-      setError('Error loading products. Please try again later.');
       console.error('Error fetching products:', err);
-      setProducts([]);
-    } finally {
+      setError('Failed to load products. Please try again later.');
       setLoading(false);
     }
   };
 
-  const filterProducts = () => {
-    if (selectedCategory === 'all') {
-      setFilteredProducts(products);
-      return;
-    }
-    if (selectedCategory === 'best-sellers') {
-      setFilteredProducts(products.filter(product => product.is_best_seller));
-      return;
-    }
-    if (selectedCategory === 'flash-deals') {
-      setFilteredProducts(products.filter(product => product.is_flash_deal));
-      return;
-    }
-    if (selectedCategory === 'new-arrivals') {
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      setFilteredProducts(products.filter(product => {
-        const createdDate = new Date(product.created_at);
-        return createdDate > thirtyDaysAgo;
-      }));
-      return;
-    }
-    setFilteredProducts(products.filter(product => 
-      product.category_name?.toLowerCase() === selectedCategory?.toLowerCase()
-    ));
-  };
-
   const handleCategoryClick = (categoryId) => {
+    navigate(`/shop?category=${categoryId}`);
     setSelectedCategory(categoryId);
   };
 
-  const handleProductClick = (productId) => {
-    navigate(`/product/${productId}`);
+  useEffect(() => {
+    filterProducts();
+  }, [selectedCategory, products, searchParams]); 
+
+  const filterProducts = () => {
+    let filtered = [...products];
+    const searchQuery = searchParams.get('search')?.toLowerCase();
+
+    // Apply category filter
+    if (selectedCategory && selectedCategory !== 'all') {
+      filtered = filtered.filter(product => {
+        if (selectedCategory === 'best-sellers') {
+          return product.items_sold > 100; // Example threshold
+        } else if (selectedCategory === 'flash-deals') {
+          return product.discount_percentage > 0;
+        } else if (selectedCategory === 'new-arrivals') {
+          const thirtyDaysAgo = new Date();
+          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+          return new Date(product.created_at) > thirtyDaysAgo;
+        } else {
+          return product.category_name?.toLowerCase() === selectedCategory.toLowerCase();
+        }
+      });
+    }
+
+    // Apply search filter if search query exists
+    if (searchQuery) {
+      filtered = filtered.filter(product => 
+        product.name.toLowerCase().includes(searchQuery) ||
+        product.description?.toLowerCase().includes(searchQuery) ||
+        product.category_name?.toLowerCase().includes(searchQuery)
+      );
+    }
+
+    setFilteredProducts(filtered);
   };
 
   const formatPrice = (price) => {
@@ -124,9 +119,6 @@ const ProductPage = () => {
       <NavBar />
       <div className="shop-main">
         <div className="products-content">
-          <div className="shop-header">
-            <h1>Shop</h1>
-          </div>
           
           <button 
             className={`toggle-categories ${!isCategoriesVisible ? 'collapsed' : ''}`}
@@ -158,7 +150,7 @@ const ProductPage = () => {
             <div className="loading-spinner">Loading products...</div>
           ) : filteredProducts.length === 0 ? (
             <div className="no-products">
-              <p>No products found in this category.</p>
+              <p>No products found{searchParams.get('search') ? ' matching your search' : ' in this category'}.</p>
             </div>
           ) : (
             <div className="shop-products-grid">

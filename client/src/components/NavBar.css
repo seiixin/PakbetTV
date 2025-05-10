@@ -59,7 +59,7 @@
   position: relative;
 }
 .navbar-navbar-link:hover {
-  color: white;
+  color: rgb(179, 146, 0);
 }
 .navbar-navbar-actions {
   display: flex;
@@ -451,6 +451,16 @@ button:disabled {
   background-color: transparent;
   box-shadow: none;
   border-bottom: none;
+}
+.navbar-navbar.transparent .navbar-navbar-link {
+  color: #2b2b2b;
+}
+.navbar-navbar.transparent .navbar-logo-text h3,
+.navbar-navbar.transparent .navbar-logo-text p {
+  color: #2b2b2b;
+}
+.navbar-navbar.transparent .navbar-search-button svg {
+  stroke: #2b2b2b;
 }
 .navbar-cart-button {
   display: flex;
