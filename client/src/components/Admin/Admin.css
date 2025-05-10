@@ -9,23 +9,6 @@
   margin-bottom: 1.5rem;
   text-align: center;
 }
-.success-message,
-.error-message {
-  padding: 1rem;
-  border-radius: 4px;
-  margin-bottom: 1.5rem;
-  font-weight: 500;
-}
-.success-message {
-  background-color: rgba(76, 175, 80, 0.2);
-  color: #2e7d32;
-  border: 1px solid #2e7d32;
-}
-.error-message {
-  background-color: rgba(244, 67, 54, 0.2);
-  color: #d32f2f;
-  border: 1px solid #d32f2f;
-}
 .action-bar {
   display: flex;
   justify-content: flex-end;

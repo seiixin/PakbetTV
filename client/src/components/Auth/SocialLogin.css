@@ -1,0 +1,108 @@
+.social-login-container {
+  width: 100%;
+  margin: 20px 0;
+}
+
+.social-login-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 15px 0;
+}
+
+.social-login-divider::before,
+.social-login-divider::after {
+  content: "";
+  flex: 1;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.social-login-divider span {
+  padding: 0 10px;
+  color: #777;
+  font-size: 14px;
+}
+
+.social-login-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.social-login-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 15px;
+  border-radius: 4px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background-color 0.2s ease;
+  cursor: pointer;
+  position: relative;
+  border: 1px solid #e0e0e0;
+}
+
+.social-login-button i {
+  font-size: 18px;
+  margin-right: 8px;
+  position: absolute;
+  left: 15px;
+}
+
+.google-login {
+  background-color: #fff;
+  color: #555;
+}
+
+.google-login:hover {
+  background-color: #f2f2f2;
+}
+
+/* Facebook Login Button Styles */
+.facebook-button-wrapper {
+  display: flex;
+  justify-content: center;
+  margin: 8px 0;
+}
+
+.facebook-login-button-container {
+  min-width: 240px;
+  display: flex;
+  justify-content: center;
+}
+
+/* Ensure the FB button aligns with other buttons */
+.fb_iframe_widget {
+  display: inline-block;
+  position: relative;
+  width: 100%;
+}
+
+.fb_iframe_widget span {
+  width: 100% !important;
+}
+
+.fb_iframe_widget iframe {
+  width: 100% !important;
+}
+
+.facebook-login {
+  background-color: #1877f2;
+  color: white;
+}
+
+.facebook-login:hover {
+  background-color: #166fe5;
+}
+
+@media (max-width: 480px) {
+  .social-login-button {
+    padding: 10px;
+  }
+
+  .social-login-button i {
+    font-size: 16px;
+    left: 10px;
+  }
+} 

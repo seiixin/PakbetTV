@@ -1,0 +1,308 @@
+.horoscope-page {
+  width: 100%;
+  background-color: #fff;
+  min-height: 100vh;
+}
+
+.horoscope-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+.horoscope-header {
+  text-align: center;
+  margin-bottom: 40px;
+  padding-top: 60px;
+}
+
+.horoscope-header h1 {
+  font-size: 48px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.horoscope-header h2 {
+  font-size: 24px;
+  font-weight: 400;
+  color: #666;
+}
+
+.horoscope-selection {
+  display: flex;
+  flex-direction: column;
+  gap: 50px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.selection-method {
+  background-color: #f8f8f8;
+  border-radius: 8px;
+  padding: 30px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.selection-method h3 {
+  text-align: center;
+  font-size: 24px;
+  color: #A2201A;
+  margin-bottom: 25px;
+}
+
+.zodiac-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 20px;
+}
+
+.zodiac-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  padding: 15px 10px;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+}
+
+.zodiac-item:hover {
+  background-color: #f0f0f0;
+  transform: translateY(-3px);
+}
+
+.zodiac-icon {
+  width: 60px;
+  height: 60px;
+  object-fit: contain;
+  margin-bottom: 8px;
+}
+
+.zodiac-name {
+  font-size: 14px;
+  font-weight: 500;
+  text-align: center;
+  margin: 0;
+}
+
+.birth-date-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  justify-content: center;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  min-width: 150px;
+}
+
+.form-group label {
+  font-size: 16px;
+  margin-bottom: 5px;
+  font-weight: 500;
+}
+
+.form-group select {
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 16px;
+  background-color: white;
+}
+
+.submit-btn {
+  background-color: #A2201A;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 12px 25px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  margin-top: 25px;
+  align-self: flex-end;
+}
+
+.submit-btn:hover {
+  background-color: #8a1b16;
+}
+
+/* Results Page Styling */
+.horoscope-results {
+  display: flex;
+  gap: 30px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.zodiac-profile {
+  flex: 0 0 250px;
+  background-color: #f8f8f8;
+  border-radius: 8px;
+  padding: 30px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.zodiac-result-icon {
+  width: 120px;
+  height: 120px;
+  object-fit: contain;
+  margin-bottom: 15px;
+}
+
+.zodiac-profile h3 {
+  font-size: 28px;
+  margin: 10px 0;
+  color: #333;
+}
+
+.years-text {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 20px;
+}
+
+.back-btn {
+  background-color: #6e4b36;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 10px 20px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  margin-bottom: 10px;
+  width: 100%;
+}
+
+.back-btn:hover {
+  background-color: #5a3e2c;
+}
+
+.prosper-link {
+  display: block;
+  background-color: #A2201A;
+  color: white;
+  text-decoration: none;
+  border-radius: 4px;
+  padding: 10px 20px;
+  font-size: 14px;
+  transition: background-color 0.3s ease;
+  margin-top: 10px;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.prosper-link:hover {
+  background-color: #8a1b16;
+}
+
+.horoscope-readings {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.reading-section {
+  background-color: #f8f8f8;
+  border-radius: 5px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.reading-section h3 {
+  padding: 15px 20px;
+  margin: 0;
+  background-color: #A2201A;
+  color: white;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.reading-content {
+  padding: 20px;
+  line-height: 1.6;
+}
+
+.reading-content p {
+  margin: 0;
+  color: #333;
+  font-size: 16px;
+}
+
+.lucky-elements {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.lucky-item h4 {
+  margin: 0 0 5px 0;
+  color: #6e4b36;
+  font-weight: 600;
+}
+
+.lucky-item p {
+  margin: 0;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .zodiac-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .horoscope-header h1 {
+    font-size: 36px;
+  }
+  
+  .horoscope-header h2 {
+    font-size: 20px;
+  }
+  
+  .zodiac-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .horoscope-results {
+    flex-direction: column;
+  }
+  
+  .zodiac-profile {
+    flex: none;
+    width: 100%;
+  }
+  
+  .lucky-elements {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .horoscope-header h1 {
+    font-size: 28px;
+  }
+  
+  .horoscope-header h2 {
+    font-size: 16px;
+  }
+  
+  .zodiac-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .form-group {
+    width: 100%;
+  }
+} 

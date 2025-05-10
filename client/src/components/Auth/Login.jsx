@@ -2,25 +2,42 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
+import SocialLogin from './SocialLogin';
 import './Auth.css';
+
 function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const authContext = useAuth();
-  const { mergeGuestCartWithUserCart } = useCart();
+  const cart = useCart();
   console.log('Auth context in Login:', authContext);
+  console.log('Cart context in Login:', cart);
+  
   const { login } = authContext || {};
+  const { mergeGuestCartWithUserCart } = cart || {};
+  
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
   useEffect(() => {
     if (location.state?.from === '/cart') {
       setError('Please login to checkout');
     }
+    
+    // Check for error params in URL (for social auth failures)
+    const queryParams = new URLSearchParams(location.search);
+    const errorParam = queryParams.get('error');
+    if (errorParam === 'auth_failed') {
+      setError('Social authentication failed. Please try again.');
+    } else if (errorParam === 'no_token') {
+      setError('No authentication token received. Please try again.');
+    }
   }, [location]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -28,25 +45,37 @@ function Login() {
       [name]: value
     }));
   };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
+
     if (!formData.email || !formData.password) {
       setError('Please fill in all fields');
       setLoading(false);
       return;
     }
+
     if (!login) {
       setError('Authentication service not available');
       setLoading(false);
       return;
     }
+
     const result = await login(formData);
     if (result.success) {
-      setTimeout(() => {
-        mergeGuestCartWithUserCart();
-      }, 500); 
+      // Only merge carts if the function is available
+      if (mergeGuestCartWithUserCart) {
+        try {
+          setTimeout(() => {
+            mergeGuestCartWithUserCart();
+          }, 500);
+        } catch (err) {
+          console.error('Error merging carts:', err);
+        }
+      }
+      
       const redirectPath = location.state?.from || '/';
       navigate(redirectPath);
     } else {
@@ -54,6 +83,7 @@ function Login() {
       setLoading(false);
     }
   };
+
   return (
     <div className="auth-container">
       <form className="auth-form" onSubmit={handleSubmit}>
@@ -95,6 +125,10 @@ function Login() {
         >
           {loading ? 'Logging in...' : 'Log In'}
         </button>
+        
+        {/* Add Social Login component */}
+        <SocialLogin />
+        
         <div className="auth-redirect">
           Don't have an account?
           <Link to="/signup">Sign Up</Link>
@@ -103,4 +137,5 @@ function Login() {
     </div>
   );
 }
+
 export default Login; 

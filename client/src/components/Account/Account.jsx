@@ -1,1 +1,588 @@
-import { useState, useEffect } from 'react';import { useNavigate, Link } from 'react-router-dom';import { useAuth } from '../../context/AuthContext';import './Account.css';function Account() {  const { user, isAuthenticated } = useAuth();  const navigate = useNavigate();  const [userData, setUserData] = useState({    username: '',    firstname: '',    middlename: '',    lastname: '',    email: ''  });  useEffect(() => {    if (!isAuthenticated) {      navigate('/login');      return;    }    if (user) {      setUserData({        username: user.username || '',        firstname: user.first_name || user.firstname || '',        middlename: user.middle_name || user.middlename || '',        lastname: user.last_name || user.lastname || '',        email: user.email || ''      });    }  }, [user, isAuthenticated, navigate]);  return (    <div className="account-container">      <div className="account-wrapper">        <h1 className="account-title">My Account</h1>        <div className="account-navigation">          <Link to="/account" className="account-nav-item active">            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>              <circle cx="12" cy="7" r="4"></circle>            </svg>            Profile          </Link>          <Link to="/account/purchases" className="account-nav-item">            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">              <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>              <line x1="3" y1="6" x2="21" y2="6"></line>              <path d="M16 10a4 4 0 0 1-8 0"></path>            </svg>            Purchases          </Link>          <Link to="/cart" className="account-nav-item">            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">              <circle cx="9" cy="21" r="1"></circle>              <circle cx="20" cy="21" r="1"></circle>              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>            </svg>            Cart          </Link>        </div>        <div className="account-info">          <div className="account-section">            <h2>Personal Information</h2>            <div className="info-row">              <p className="info-label">Username:</p>              <p className="info-value">{userData.username}</p>            </div>            <div className="info-row">              <p className="info-label">First Name:</p>              <p className="info-value">{userData.firstname}</p>            </div>            {userData.middlename && (              <div className="info-row">                <p className="info-label">Middle Name:</p>                <p className="info-value">{userData.middlename}</p>              </div>            )}            <div className="info-row">              <p className="info-label">Last Name:</p>              <p className="info-value">{userData.lastname}</p>            </div>            <div className="info-row">              <p className="info-label">Email:</p>              <p className="info-value">{userData.email}</p>            </div>          </div>        </div>      </div>    </div>  );}export default Account; 
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import { authService } from '../../services/api';
+import './Account.css';
+import Footer from '../Footer';
+import NavBar from '../NavBar';
+import { notify } from '../../utils/notifications';
+
+function Account() {
+  const { user, isAuthenticated, loading: authLoading, refreshing } = useAuth();
+  const navigate = useNavigate();
+  const [userData, setUserData] = useState({
+    username: '',
+    firstname: '',
+    lastname: '',
+    email: '',
+    phone: '',
+  });
+  
+  // Keep track of original data to restore on cancel
+  const [originalUserData, setOriginalUserData] = useState({
+    username: '',
+    firstname: '',
+    lastname: '',
+    email: '',
+    phone: '',
+  });
+  
+  const [shippingAddress, setShippingAddress] = useState({
+    address1: '',
+    address2: '',
+    city: '',
+    state: '',
+    postcode: '',
+    country: 'PH',
+    region: '',
+    province: '',
+    city_municipality: '',
+    barangay: '',
+    street_name: '',
+    building: '',
+    house_number: '',
+  });
+  
+  // Keep track of original address to restore on cancel
+  const [originalAddress, setOriginalAddress] = useState({
+    address1: '',
+    address2: '',
+    city: '',
+    state: '',
+    postcode: '',
+    country: 'PH',
+    region: '',
+    province: '',
+    city_municipality: '',
+    barangay: '',
+    street_name: '',
+    building: '',
+    house_number: '',
+  });
+  
+  const [isEditingPersonal, setIsEditingPersonal] = useState(false);
+  const [isEditingShipping, setIsEditingShipping] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  // Fetch user profile and shipping info on component mount
+  useEffect(() => {
+    if (authLoading) return;
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+    if (isAuthenticated && user) {
+      fetchUserProfile();
+    }
+  }, [user, isAuthenticated, authLoading, navigate]);
+  
+  const fetchUserProfile = async () => {
+    try {
+      setLoading(true);
+      const response = await authService.getProfile();
+      console.log("Profile data received:", response.data);
+      
+      const profileData = response.data;
+      const userInfo = {
+        username: profileData.username || '',
+        firstname: profileData.firstName || '',
+        lastname: profileData.lastName || '',
+        email: profileData.email || '',
+        phone: profileData.phone || '',
+      };
+      
+      setUserData(userInfo);
+      setOriginalUserData(userInfo);
+      
+      try {
+        const shippingResponse = await authService.getShippingAddresses();
+        console.log("Shipping addresses received:", shippingResponse.data);
+        
+        const addresses = shippingResponse.data;
+        if (addresses && addresses.length > 0) {
+          const defaultAddress = addresses.find(addr => addr.is_default) || addresses[0];
+          console.log("Using default address:", defaultAddress);
+          
+          const addressInfo = {
+            address1: defaultAddress.address1 || '',
+            address2: defaultAddress.address2 || '',
+            city: defaultAddress.city || '',
+            state: defaultAddress.state || '',
+            postcode: defaultAddress.postcode || '',
+            country: defaultAddress.country || 'PH',
+            region: defaultAddress.region || '',
+            province: defaultAddress.province || '',
+            city_municipality: defaultAddress.city_municipality || '',
+            barangay: defaultAddress.barangay || '',
+            street_name: defaultAddress.street_name || '',
+            building: defaultAddress.building || '',
+            house_number: defaultAddress.house_number || '',
+          };
+          
+          setShippingAddress(addressInfo);
+          setOriginalAddress(addressInfo);
+        }
+      } catch (addressError) {
+        console.error("Error fetching shipping addresses:", addressError);
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      setError('Failed to load profile information');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePersonalDetailsSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      setLoading(true);
+      setError('');
+      setSuccess('');
+      
+      // Convert firstname/lastname to firstName/lastName for server
+      const updatedProfile = {
+        firstName: userData.firstname,
+        lastName: userData.lastname,
+        email: userData.email,
+        phone: userData.phone
+      };
+      
+      console.log('Sending profile update:', updatedProfile);
+      await authService.updateProfile(updatedProfile);
+      setSuccess('Personal details updated successfully');
+      setIsEditingPersonal(false);
+      
+      // Update original data after successful save
+      setOriginalUserData({...userData});
+      
+      // Refresh the profile data to get updated information
+      await fetchUserProfile();
+      
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      setError(error.response?.data?.message || 'Failed to update personal details');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const handleShippingDetailsSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      setLoading(true);
+      setError('');
+      setSuccess('');
+      
+      // Validate required fields
+      const requiredFields = ['region', 'province', 'city_municipality', 'barangay', 'postcode'];
+      const missingFields = requiredFields.filter(field => !shippingAddress[field]);
+      
+      if (missingFields.length > 0) {
+        setError(`Please fill in all required fields: ${missingFields.join(', ')}`);
+        setLoading(false);
+        return;
+      }
+      
+      // Format shipping address for API using the format from the server response
+      const addressToSave = {
+        address1: shippingAddress.address1,
+        address2: shippingAddress.address2,
+        city: shippingAddress.city_municipality,
+        state: shippingAddress.province,
+        city_municipality: shippingAddress.city_municipality,
+        province: shippingAddress.province,
+        postcode: shippingAddress.postcode,
+        country: shippingAddress.country || 'PH',
+        region: shippingAddress.region,
+        barangay: shippingAddress.barangay,
+        street_name: shippingAddress.street_name,
+        building: shippingAddress.building,
+        house_number: shippingAddress.house_number,
+        is_default: true
+      };
+      
+      await authService.addShippingAddress(addressToSave);
+      setSuccess('Shipping details updated successfully');
+      setIsEditingShipping(false);
+      
+      // Update original address after successful save
+      setOriginalAddress({...shippingAddress});
+      
+      // Refresh the profile data to get updated information
+      await fetchUserProfile();
+      
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (error) {
+      console.error('Error updating shipping address:', error);
+      setError(error.response?.data?.message || 'Failed to update shipping details');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const togglePersonalEdit = () => {
+    if (isEditingPersonal) {
+      // If canceling edit, restore original data
+      setUserData({...originalUserData});
+    }
+    setIsEditingPersonal(!isEditingPersonal);
+  };
+  
+  const toggleShippingEdit = () => {
+    if (isEditingShipping) {
+      // If canceling edit, restore original data
+      setShippingAddress({...originalAddress});
+    }
+    setIsEditingShipping(!isEditingShipping);
+  };
+  
+  const cancelPersonalEdit = () => {
+    // Reset to original values
+    setUserData({...originalUserData});
+    setIsEditingPersonal(false);
+  };
+  
+  const cancelShippingEdit = () => {
+    // Reset to original values
+    setShippingAddress({...originalAddress});
+    setIsEditingShipping(false);
+  };
+
+  // Handler for name input
+  const handleNameChange = (e) => {
+    const nameParts = e.target.value.split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+    setUserData(prev => ({
+      ...prev,
+      firstname: firstName,
+      lastname: lastName
+    }));
+  };
+
+  // Subtle loading spinner for auth refreshing
+  const refreshSpinnerStyle = {
+    position: 'fixed',
+    top: '10px',
+    right: '10px',
+    width: '20px',
+    height: '20px',
+    border: '2px solid rgba(128, 0, 0, 0.1)',
+    borderTop: '2px solid #800000',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite',
+    zIndex: 9999
+  };
+
+  const handleError = (err) => {
+    notify.error(err.message || 'An error occurred. Please try again.');
+  };
+
+  const handleSuccess = (message) => {
+    notify.success(message);
+  };
+
+  if (loading || authLoading) {
+    return (
+      <div className="account-page">
+        <NavBar />
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <p>Loading your account information...</p>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  // Combine first and last name for the full name field
+  const fullName = `${userData.firstname || ''} ${userData.lastname || ''}`.trim();
+  
+  // For the shipping address display, using city_municipality or city
+  const displayCity = shippingAddress.city_municipality || shippingAddress.city || '';
+  const displayState = shippingAddress.province || shippingAddress.state || '';
+  
+  // Display address for view mode
+  const formattedAddress = [
+    shippingAddress.address1,
+    shippingAddress.address2,
+    displayCity,
+    displayState,
+    shippingAddress.postcode,
+    shippingAddress.country === 'PH' ? 'Philippines' : 
+    shippingAddress.country === 'SG' ? 'Singapore' : 
+    shippingAddress.country === 'US' ? 'United States' : 
+    shippingAddress.country === 'CA' ? 'Canada' :
+    shippingAddress.country === 'GB' ? 'United Kingdom' :
+    shippingAddress.country === 'AU' ? 'Australia' :
+    shippingAddress.country
+  ].filter(Boolean).join(', ');
+
+  return (
+    <div className="account-page">
+      {refreshing && (
+        <>
+          <div style={refreshSpinnerStyle}></div>
+          <style>
+            {`
+              @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+            `}
+          </style>
+        </>
+      )}
+      <NavBar />
+      <main className="container" role="main" aria-label="My Account">
+        <section className="column" aria-labelledby="personal-details-title">
+          <div className="section-header-container">
+            <h2 id="personal-details-title" className="section-header">Personal Details</h2>
+            {!isEditingPersonal && (
+              <button 
+                type="button" 
+                className="edit-button" 
+                onClick={togglePersonalEdit}
+              >
+                Edit
+              </button>
+            )}
+          </div>
+          
+          {isEditingPersonal ? (
+            // Edit mode - Form
+            <form 
+              id="personal-details-form" 
+              aria-describedby="personal-details-desc" 
+              autoComplete="on" 
+              noValidate
+              onSubmit={handlePersonalDetailsSubmit}
+            >
+              <p id="personal-details-desc">
+                Update your name, email, and contact details here.
+              </p>
+              
+              <label htmlFor="fullname">Full Name</label>
+              <input 
+                type="text" 
+                id="fullname" 
+                name="fullname" 
+                placeholder="John Doe" 
+                required 
+                autoComplete="name"
+                value={fullName}
+                onChange={handleNameChange}
+              />
+
+              <label htmlFor="email">Email Address</label>
+              <input 
+                type="email" 
+                id="email" 
+                name="email" 
+                placeholder="john@example.com" 
+                required 
+                autoComplete="email"
+                value={userData.email || ''}
+                onChange={(e) => setUserData(prev => ({ ...prev, email: e.target.value }))}
+              />
+
+              <label htmlFor="phone">Phone Number</label>
+              <input 
+                type="tel" 
+                id="phone" 
+                name="phone" 
+                placeholder="+1 555 123 4567" 
+                autoComplete="tel" 
+                pattern="[+0-9\s\-]{7,}"
+                value={userData.phone || ''}
+                onChange={(e) => setUserData(prev => ({ ...prev, phone: e.target.value }))}
+              />
+
+              <div className="form-actions">
+                <button type="button" className="cancel-button" onClick={cancelPersonalEdit}>
+                  Cancel
+                </button>
+                <button type="submit" className="save-button">
+                  Save Personal Details
+                </button>
+              </div>
+            </form>
+          ) : (
+            // View mode - Display only
+            <div className="info-display">
+              <p className="info-label">Full Name</p>
+              <p className="info-value">{fullName || 'Not set'}</p>
+              
+              <p className="info-label">Email Address</p>
+              <p className="info-value">{userData.email || 'Not set'}</p>
+              
+              <p className="info-label">Phone Number</p>
+              <p className="info-value">{userData.phone || 'Not set'}</p>
+            </div>
+          )}
+        </section>
+        
+        <section className="column" aria-labelledby="shipping-details-title">
+          <div className="section-header-container">
+            <h2 id="shipping-details-title" className="section-header">Shipping Details</h2>
+            {!isEditingShipping && (
+              <button 
+                type="button" 
+                className="edit-button" 
+                onClick={toggleShippingEdit}
+              >
+                Edit
+              </button>
+            )}
+          </div>
+          
+          {isEditingShipping ? (
+            // Edit mode - Form
+            <form 
+              id="shipping-details-form" 
+              aria-describedby="shipping-details-desc" 
+              autoComplete="on" 
+              noValidate
+              onSubmit={handleShippingDetailsSubmit}
+            >
+              <p id="shipping-details-desc">
+                Manage your delivery address details. Fields marked with * are required.
+              </p>
+              
+              <label htmlFor="region">Region *</label>
+              <input 
+                type="text" 
+                id="region" 
+                name="region" 
+                placeholder="Region" 
+                required 
+                value={shippingAddress.region || ''}
+                onChange={(e) => setShippingAddress(prev => ({ ...prev, region: e.target.value }))}
+              />
+
+              <label htmlFor="province">Province *</label>
+              <input 
+                type="text" 
+                id="province" 
+                name="province" 
+                placeholder="Province" 
+                required 
+                value={shippingAddress.province || ''}
+                onChange={(e) => setShippingAddress(prev => ({ ...prev, province: e.target.value }))}
+              />
+
+              <label htmlFor="city_municipality">City/Municipality *</label>
+              <input 
+                type="text" 
+                id="city_municipality" 
+                name="city_municipality" 
+                placeholder="City/Municipality" 
+                required 
+                value={shippingAddress.city_municipality || ''}
+                onChange={(e) => setShippingAddress(prev => ({ 
+                  ...prev, 
+                  city_municipality: e.target.value,
+                  city: e.target.value
+                }))}
+              />
+
+              <label htmlFor="barangay">Barangay *</label>
+              <input 
+                type="text" 
+                id="barangay" 
+                name="barangay" 
+                placeholder="Barangay" 
+                required 
+                value={shippingAddress.barangay || ''}
+                onChange={(e) => setShippingAddress(prev => ({ ...prev, barangay: e.target.value }))}
+              />
+
+              <label htmlFor="street_name">Street Name</label>
+              <input 
+                type="text" 
+                id="street_name" 
+                name="street_name" 
+                placeholder="Street Name" 
+                value={shippingAddress.street_name || ''}
+                onChange={(e) => setShippingAddress(prev => ({ ...prev, street_name: e.target.value }))}
+              />
+
+              <label htmlFor="house_number">House Number</label>
+              <input 
+                type="text" 
+                id="house_number" 
+                name="house_number" 
+                placeholder="House Number" 
+                value={shippingAddress.house_number || ''}
+                onChange={(e) => setShippingAddress(prev => ({ ...prev, house_number: e.target.value }))}
+              />
+
+              <label htmlFor="building">Building/Floor/Unit (optional)</label>
+              <input 
+                type="text" 
+                id="building" 
+                name="building" 
+                placeholder="Building, Floor, Unit number" 
+                value={shippingAddress.building || ''}
+                onChange={(e) => setShippingAddress(prev => ({ ...prev, building: e.target.value }))}
+              />
+
+              <label htmlFor="postcode">Postal Code *</label>
+              <input 
+                type="text" 
+                id="postcode" 
+                name="postcode" 
+                placeholder="Postal Code" 
+                required 
+                value={shippingAddress.postcode || ''}
+                onChange={(e) => setShippingAddress(prev => ({ ...prev, postcode: e.target.value }))}
+              />
+
+              <label htmlFor="country">Country</label>
+              <select 
+                id="country" 
+                name="country" 
+                required 
+                value={shippingAddress.country || 'PH'}
+                onChange={(e) => setShippingAddress(prev => ({ ...prev, country: e.target.value }))}
+              >
+                <option value="PH">Philippines</option>
+                <option value="SG">Singapore</option>
+                <option value="US">United States</option>
+                <option value="CA">Canada</option>
+                <option value="GB">United Kingdom</option>
+                <option value="AU">Australia</option>
+                <option value="MY">Malaysia</option>
+              </select>
+
+              <div className="form-actions">
+                <button type="button" className="cancel-button" onClick={cancelShippingEdit}>
+                  Cancel
+                </button>
+                <button type="submit" className="save-button">
+                  Save Shipping Details
+                </button>
+              </div>
+            </form>
+          ) : (
+            // View mode - Display only
+            <div className="info-display">
+              <p className="info-label">Address</p>
+              <p className="info-value">
+                {formattedAddress || 'No shipping address has been set yet'}
+              </p>
+            </div>
+          )}
+        </section>
+      </main>
+      
+      <Footer />
+    </div>
+  );
+}
+
+export default Account; 

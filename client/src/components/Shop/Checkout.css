@@ -1,0 +1,286 @@
+/* Checkout Page Styling */
+.checkout-page {
+  background-color: #f9f9f9;
+  min-height: 100vh;
+  padding-bottom: 40px;
+  margin: 100px auto;
+}
+
+.checkout-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.checkout-container h2 {
+  color: #800000; /* Maroon */
+  text-align: center;
+  margin-bottom: 30px;
+  font-size: 28px;
+}
+
+.checkout-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+}
+
+@media (max-width: 768px) {
+  .checkout-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Common card styling */
+.checkout-shipping,
+.checkout-summary {
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  padding: 25px;
+  position: relative;
+  border: 1px solid #e0e0e0;
+}
+
+.checkout-shipping h3,
+.checkout-summary h3,
+.checkout-payment h3 {
+  color: #800000; /* Maroon */
+  font-size: 20px;
+  margin: 0 0 20px 0;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #d4af37; /* Gold */
+}
+
+/* Shipping details styling */
+.shipping-details {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.info-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.info-group label {
+  font-weight: bold;
+  color: #800000; /* Maroon */
+  font-size: 14px;
+}
+
+.info-value {
+  font-size: 16px;
+  color: #333;
+  padding: 8px 12px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  line-height: 1.4;
+}
+
+.address-text {
+  white-space: pre-line;
+}
+
+.shipping-actions {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.edit-shipping-link {
+  display: inline-block;
+  color: #800000; /* Maroon */
+  text-decoration: none;
+  font-weight: 500;
+  padding: 8px 15px;
+  border: 1px solid #800000;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+}
+
+.edit-shipping-link:hover {
+  background-color: #800000;
+  color: white;
+}
+
+/* Order summary styling */
+.checkout-items {
+  max-height: 320px;
+  overflow-y: auto;
+  margin-bottom: 20px;
+  padding-right: 5px;
+}
+
+.checkout-item {
+  display: flex;
+  margin-bottom: 15px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #eee;
+}
+
+.checkout-item:last-child {
+  margin-bottom: 0;
+  border-bottom: none;
+}
+
+.checkout-item-image {
+  width: 70px;
+  height: 70px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid #eee;
+}
+
+.checkout-item-details {
+  margin-left: 15px;
+  flex-grow: 1;
+}
+
+.checkout-item-name {
+  margin: 0 0 5px 0;
+  font-weight: 500;
+  color: #333;
+}
+
+.checkout-item-variant {
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 5px;
+}
+
+.checkout-item-price-qty {
+  display: flex;
+  gap: 5px;
+  font-size: 14px;
+  color: #777;
+}
+
+.checkout-item-total {
+  font-weight: bold;
+  color: #800000; /* Maroon */
+  margin-top: 5px;
+}
+
+/* Payment method styling */
+.checkout-payment {
+  margin-bottom: 25px;
+  background-color: #f9f9f9;
+  border-radius: 10px;
+  padding: 15px;
+}
+
+.payment-method {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.payment-method input[type="radio"] {
+  margin: 0;
+}
+
+.payment-method label {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+.payment-logo {
+  font-weight: bold;
+  color: #333;
+}
+
+.payment-description {
+  font-size: 13px;
+  color: #666;
+}
+
+/* Totals section styling */
+.checkout-totals {
+  background-color: #f9f9f9;
+  border-radius: 10px;
+  padding: 15px;
+  margin-bottom: 25px;
+}
+
+.checkout-total-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  color: #333;
+}
+
+.checkout-grand-total {
+  font-weight: bold;
+  font-size: 18px;
+  color: #800000; /* Maroon */
+  border-top: 1px solid #d4af37; /* Gold */
+  padding-top: 12px;
+  margin-top: 8px;
+}
+
+/* Action buttons styling */
+.checkout-actions {
+  display: flex;
+  gap: 15px;
+  justify-content: space-between;
+}
+
+.back-to-cart-button,
+.place-order-button {
+  padding: 12px 20px;
+  border-radius: 8px;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  flex: 1;
+}
+
+.back-to-cart-button {
+  background-color: white;
+  border: 1px solid #d4af37; /* Gold */
+  color: #800000; /* Maroon */
+}
+
+.back-to-cart-button:hover {
+  background-color: #f0f0f0;
+}
+
+.place-order-button {
+  background-color: #800000; /* Maroon */
+  color: white;
+  border: 1px solid #800000;
+}
+
+.place-order-button:hover {
+  background-color: #600000; /* Darker maroon */
+}
+
+.place-order-button:disabled,
+.back-to-cart-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Scrollbar styling */
+.checkout-items::-webkit-scrollbar {
+  width: 8px;
+}
+
+.checkout-items::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.checkout-items::-webkit-scrollbar-thumb {
+  background: #d4af37; /* Gold */
+  border-radius: 4px;
+}
+
+.checkout-items::-webkit-scrollbar-thumb:hover {
+  background: #ba9625; /* Darker gold */
+} 

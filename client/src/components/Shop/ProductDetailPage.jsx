@@ -1,18 +1,18 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import LoadingSpinner from '../common/LoadingSpinner';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
-import './Shop.css';
+import './ProductDetail.css';
 import { createGlobalStyle } from 'styled-components';
 import API_BASE_URL from '../../config';
+import NavBar from '../NavBar';
+import Footer from '../Footer';
 
 const GlobalStyle = createGlobalStyle`
   body {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
+    overflow-x: hidden;
   }
 `;
 
@@ -39,6 +39,7 @@ const ProductDetailPage = () => {
   const [reviewLoading, setReviewLoading] = useState(false);
   const [reviewError, setReviewError] = useState(null);
   const [purchaseCheckLoading, setPurchaseCheckLoading] = useState(false);
+  
   useEffect(() => {
     fetchProductDetails();
   }, [id]);
@@ -115,10 +116,8 @@ const ProductDetailPage = () => {
         setHasReviewed(false);
         return;
       }
-
       console.log(`[Review Check] User: ${user.id}, Product: ${product.product_id}, Token: Present`);
       setPurchaseCheckLoading(true);
-
       try {
         console.log(`[Review Check] Fetching purchase status for product ${product.product_id}...`);
         const purchaseCheckRes = await fetch(`${API_BASE_URL}/api/orders/check/${product.product_id}`, {
@@ -126,31 +125,20 @@ const ProductDetailPage = () => {
             'Authorization': `Bearer ${token}`
           }
         });
-
         console.log(`[Review Check] Purchase check response status: ${purchaseCheckRes.status}`);
-        
         if (purchaseCheckRes.ok) {
           const purchaseData = await purchaseCheckRes.json();
           console.log('[Review Check] Purchase check data:', purchaseData);
           setCanReview(purchaseData.hasPurchased);
         } else {
-          const errorData = await purchaseCheckRes.json().catch(() => ({ message: 'Failed to parse error response' }));
-          console.error('[Review Check] Failed purchase check response:', errorData);
-          // Don't show error toast for 401/403 as these are expected for non-authenticated users
-          if (purchaseCheckRes.status !== 401 && purchaseCheckRes.status !== 403) {
-            toast.error('Unable to check purchase status. Please try again later.');
-          }
-          setCanReview(false);
+          console.error('[Review Check] Failed purchase check response:', await purchaseCheckRes.text());
+          setCanReview(false); 
         }
-
-        // Check for existing review regardless of purchase status
         const userReview = reviews.find(review => review.user_id === user.id);
         console.log('[Review Check] User review found:', userReview);
         setHasReviewed(!!userReview);
-
       } catch (err) {
         console.error('[Review Check] Error during purchase/review status check:', err);
-        toast.error('Unable to check purchase status. Please try again later.');
         setCanReview(false);
         setHasReviewed(false);
       } finally {
@@ -246,7 +234,11 @@ const ProductDetailPage = () => {
     }
   };
   const incrementQuantity = () => {
-    if (product && quantity < product.stock_quantity) {
+    if (selectedVariant) {
+      if (quantity < selectedVariant.stock) {
+        setQuantity(prev => prev + 1);
+      }
+    } else if (product && quantity < product.stock_quantity) {
       setQuantity(prev => prev + 1);
     }
   };
@@ -358,9 +350,9 @@ const ProductDetailPage = () => {
         <i 
           key={i} 
           className={`fas fa-star ${i <= numRating ? 'filled' : 'empty'}`}
-          style={{ color: i <= numRating ? '#ffc107' : '#e0e0e0', cursor: 'pointer' }} 
+          style={{ cursor: showReviewForm ? 'pointer' : 'default' }} 
           onClick={() => showReviewForm && setNewRating(i)} 
-        ></i>
+        />
       );
     }
     return stars;
@@ -416,6 +408,7 @@ const ProductDetailPage = () => {
   if (loading) {
     return (
       <div className="container product-detail-page-container">
+        <NavBar />
         <LoadingSpinner message="Loading product details..." />
       </div>
     );
@@ -423,6 +416,7 @@ const ProductDetailPage = () => {
   if (error) {
     return (
       <div className="container product-detail-page-container">
+        <NavBar />
         <div className="error-message">{error}</div>
         <button className="back-button" onClick={goBack}>
           <i className="fas fa-arrow-left"></i> Back to Shop
@@ -433,6 +427,7 @@ const ProductDetailPage = () => {
   if (!product) {
     return (
       <div className="container product-detail-page-container">
+        <NavBar />
         <div className="error-message">Product not found</div>
         <button className="back-button" onClick={goBack}>
           <i className="fas fa-arrow-left"></i> Back to Shop
@@ -444,283 +439,302 @@ const ProductDetailPage = () => {
   const currentStock = selectedVariant ? selectedVariant.stock : product.stock_quantity;
   return (
     <>
-    <GlobalStyle />
-    <div className="container product-detail-page-container">
-      <button className="back-button" onClick={goBack}>
-        <i className="fas fa-arrow-left"></i> Back to Shop
-      </button>
-      {}
-      <div className="product-detail-main-layout">
-        {}
-        <div className="product-detail-image-gallery">
-          <div className="main-image-container">
-            <img
-              src={selectedVariant?.image_url ? getFullImageUrl(selectedVariant.image_url) : (selectedImageUrl || (product.images?.[0]?.url ? getFullImageUrl(product.images[0].url) : '/placeholder-product.jpg'))}
-              alt={product.name}
-              className="main-product-image"
-              onError={(e) => { e.target.onerror = null; e.target.src='/placeholder-product.jpg'}}
-            />
-          </div>
-          <div className="thumbnail-container">
-            {}
-            {Array.isArray(product.images) && product.images.length > 0 && product.images.map((image, idx) => {
-              const imageUrl = getFullImageUrl(image.url);
-              const isBaseImageActive = !selectedVariant && idx === 0; 
-              return (
-                <div
-                  key={image.id || `image-${idx}`}
-                  className={`thumbnail-item ${isBaseImageActive ? 'active' : ''}`}
-                  onClick={() => {
-                     const initialSelections = {};
-                     Object.keys(attributeOptions).forEach(key => {
-                         if (attributeOptions[key]?.length > 0) {
-                             initialSelections[key] = attributeOptions[key][0];
-                         }
-                     });
-                     setSelectedAttributes(initialSelections);
-                  }}
-                 >
-                  <img
-                    src={imageUrl}
-                    alt={`${product.name} - view ${idx + 1}`}
-                    onError={(e) => { e.target.style.display='none'; }}
-                  />
-        </div>
-              );
-            })}
-            {}
-            {Array.isArray(product.variants) && product.variants
-              .filter(variant => variant.image_url)
-              .map((variant, idx) => {
-                const variantImageUrl = getFullImageUrl(variant.image_url);
-                const isCurrentVariantImage = selectedVariant?.variant_id === variant.variant_id;
+      <GlobalStyle />
+      <div className="container product-detail-page-container">
+        <NavBar />
+        
+        <Link to="/shop" className="back-button">
+          <i className="fas fa-arrow-left"></i> Back to Shop
+        </Link>
+        
+        <div className="product-detail-main-layout">
+          <div className="product-detail-image-gallery">
+            <div className="main-image-container">
+              <img
+                src={selectedVariant?.image_url ? getFullImageUrl(selectedVariant.image_url) : (selectedImageUrl || (product.images?.[0]?.url ? getFullImageUrl(product.images[0].url) : '/placeholder-product.jpg'))}
+                alt={product.name}
+                className="main-product-image"
+                onError={(e) => { e.target.onerror = null; e.target.src='/placeholder-product.jpg'}}
+              />
+            </div>
+            
+            <div className="thumbnail-container">
+              {Array.isArray(product.images) && product.images.length > 0 && product.images.map((image, idx) => {
+                const imageUrl = getFullImageUrl(image.url);
+                const isBaseImageActive = !selectedVariant && idx === 0; 
                 return (
                   <div
-                    key={`variant-${variant.variant_id}`}
-                    className={`thumbnail-item ${isCurrentVariantImage ? 'active' : ''}`}
+                    key={image.id || `image-${idx}`}
+                    className={`thumbnail-item ${isBaseImageActive ? 'active' : ''}`}
                     onClick={() => {
-                        if(variant.attributes) {
-                            setSelectedAttributes(variant.attributes);
-                        }
+                       const initialSelections = {};
+                       Object.keys(attributeOptions).forEach(key => {
+                           if (attributeOptions[key]?.length > 0) {
+                               initialSelections[key] = attributeOptions[key][0];
+                           }
+                       });
+                       setSelectedAttributes(initialSelections);
                     }}
-                  >
+                   >
                     <img
-                      src={variantImageUrl}
-                      alt={`${product.name} - ${variant.attributes ? Object.entries(variant.attributes).map(([key, value]) => `${key}: ${value}`).join(', ') : 'Variant'}`}
+                      src={imageUrl}
+                      alt={`${product.name} - view ${idx + 1}`}
                       onError={(e) => { e.target.style.display='none'; }}
                     />
                   </div>
                 );
               })}
+              
+              {Array.isArray(product.variants) && product.variants
+                .filter(variant => variant.image_url)
+                .map((variant, idx) => {
+                  const variantImageUrl = getFullImageUrl(variant.image_url);
+                  const isCurrentVariantImage = selectedVariant?.variant_id === variant.variant_id;
+                  return (
+                    <div
+                      key={`variant-${variant.variant_id}`}
+                      className={`thumbnail-item ${isCurrentVariantImage ? 'active' : ''}`}
+                      onClick={() => {
+                          if(variant.attributes) {
+                              setSelectedAttributes(variant.attributes);
+                          }
+                      }}
+                    >
+                      <img
+                        src={variantImageUrl}
+                        alt={`${product.name} - ${variant.attributes ? Object.entries(variant.attributes).map(([key, value]) => `${key}: ${value}`).join(', ') : 'Variant'}`}
+                        onError={(e) => { e.target.style.display='none'; }}
+                      />
+                    </div>
+                  );
+                })}
+            </div>
           </div>
-        </div>
-        {}
-        <div className="product-detail-info-actions">
-          <h1 className="product-detail-name">{product.name}</h1>
-          {}
-          <div className="product-detail-price-section">
-            {product.discount_percentage > 0 ? (
-              <>
-                <span className="discounted-price">
-                  {formatPrice(calculateDiscountedPrice(currentPrice, product.discount_percentage))}
+          
+          <div className="product-detail-info-actions">
+            <h1 className="product-detail-name">{product.name}</h1>
+            
+            <div className="product-detail-price-section">
+              {product.discount_percentage > 0 ? (
+                <>
+                  <span className="discounted-price">
+                    <span className="price-currency">₱</span>
+                    {calculateDiscountedPrice(currentPrice, product.discount_percentage)}
+                  </span>
+                  <span className="original-price">
+                    <span className="price-currency">₱</span>
+                    {currentPrice}
+                  </span>
+                  <span className="discount-badge">
+                    {product.discount_percentage}% OFF
+                  </span>
+                </>
+              ) : (
+                <span className="regular-price">
+                  <span className="price-currency">₱</span>
+                  {currentPrice}
                 </span>
-                <span className="original-price">{formatPrice(currentPrice)}</span>
-                <span className="discount-badge">
-                  {product.discount_percentage}% OFF
-                </span>
-              </>
-            ) : (
-              <span className="regular-price">{formatPrice(currentPrice)}</span>
+              )}
+            </div>
+            
+            <div className="product-rating-summary">
+              {product.average_rating !== null && Number(product.average_rating) > 0 ? (
+                <>
+                  <span className="rating-value">{Number(product.average_rating).toFixed(1)}</span>
+                  <span className="rating-stars">{renderStars(product.average_rating)}</span>
+                  <span className="review-count">({product.review_count || 0} reviews)</span>
+                </>
+              ) : (
+                <span className="rating-stars no-rating">{renderStars(0)}</span> 
+              )}
+            </div>
+            
+            {Object.keys(attributeOptions).length > 0 && (
+              <div className="variant-selection-container">
+                {Object.entries(attributeOptions).map(([attributeName, availableValues]) => (
+                  <div key={attributeName} className="variant-options">
+                    <label>{attributeName}:</label>
+                    <div className="variant-buttons">
+                      {availableValues.map((value) => (
+                        <button
+                          key={`${attributeName}-${value}`}
+                          className={`variant-button ${selectedAttributes[attributeName] === value ? 'selected' : ''} ${value.toLowerCase() === 'emerald' ? 'emerald' : ''}`}
+                          onClick={() => handleAttributeChange(attributeName, value)}
+                        >
+                          {value}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
-          </div>
-          {}
-          <div className="product-rating-summary">
-            {product.average_rating !== null && Number(product.average_rating) > 0 ? (
-              <>
-                <span className="rating-value">{Number(product.average_rating).toFixed(1)}</span>
-                <span className="rating-stars">{renderStars(product.average_rating)}</span>
-                <span className="review-count">({product.review_count || 0} reviews)</span>
-              </>
-            ) : (
-              <span className="rating-stars no-rating">{renderStars(0)}</span> 
-            )}
-          </div>
-          {}
-          {Object.keys(attributeOptions).length > 0 && (
-            <div className="variant-selection-container">
-              {Object.entries(attributeOptions).map(([attributeName, availableValues]) => (
-                <div key={attributeName} className="variant-options">
-                  <label>{attributeName}:</label>
-                  <div className="variant-buttons">
-                    {availableValues.map((value) => (
-                      <button
-                        key={`${attributeName}-${value}`}
-                        className={`variant-button ${selectedAttributes[attributeName] === value ? 'selected' : 'inactive-variant'}`}
-                        onClick={() => handleAttributeChange(attributeName, value)}
-                      >
-                        {value}
-                      </button>
-                    ))}
+            
+            <div className="product-detail-shipping">
+              <i className="fas fa-truck"></i>
+              <span>Free shipping on orders over ₱1000</span>
+            </div>
+            
+            {currentStock > 0 ? (
+              <div className="product-detail-actions">
+                <div className="quantity-control-wrapper">
+                  <span className="stock-available">
+                    {currentStock < 10 ? 
+                      <><i className="fas fa-exclamation-circle"></i> Only {currentStock} left!</> : 
+                      <><i className="fas fa-check-circle"></i> In Stock ({currentStock} available)</>}
+                  </span>
+                
+                  <div className="quantity-input">
+                    <button 
+                      className="quantity-btn" 
+                      onClick={decrementQuantity}
+                      disabled={quantity <= 1}
+                      aria-label="Decrease quantity"
+                    >
+                      <i className="fas fa-minus"></i>
+                    </button>
+                    <input
+                      type="number"
+                      value={quantity}
+                      onChange={handleQuantityChange}
+                      min="1"
+                      max={currentStock}
+                      aria-label="Quantity"
+                    />
+                    <button 
+                      className="quantity-btn" 
+                      onClick={incrementQuantity}
+                      disabled={quantity >= currentStock}
+                      aria-label="Increase quantity"
+                    >
+                      <i className="fas fa-plus"></i>
+                    </button>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-          {}
-          {}
-          <div className="product-detail-shipping">
-            <i className="fas fa-truck"></i>
-            <span>Free shipping on orders over ₱1000</span>
-          </div>
-          {}          
-          {currentStock > 0 ? (
-          <div className="product-detail-actions">
-              {}          
-              <div className="quantity-control-wrapper">
-                <span className="stock-available">
-                  {currentStock < 10 ? 
-                    <><i className="fas fa-exclamation-circle"></i> Only {currentStock} left!</> : 
-                    <><i className="fas fa-check-circle"></i> In Stock ({currentStock} available)</>}
-                </span>
-                {}          
-              <div className="quantity-input">
-                <button 
-                  className="quantity-btn" 
-                  onClick={decrementQuantity}
-                  disabled={quantity <= 1}
-                    aria-label="Decrease quantity"
-                >
-                    <i className="fas fa-minus"></i>
-                </button>
-                <input
-                  type="number"
-                  value={quantity}
-                  onChange={handleQuantityChange}
-                  min="1"
-                    max={currentStock}
-                    aria-label="Quantity"
-                />
-                <button 
-                  className="quantity-btn" 
-                  onClick={incrementQuantity}
-                    disabled={quantity >= currentStock}
-                    aria-label="Increase quantity"
+                
+                <div className="product-detail-action-buttons">
+                  <button 
+                    className={`action-button add-to-cart ${addedToCart ? 'added' : ''}`}
+                    onClick={handleAddToCart}
+                    disabled={currentStock <= 0 || addedToCart}
                   >
-                    <i className="fas fa-plus"></i>
+                    {addedToCart ? <><i className="fas fa-check"></i> Added</> : <><i className="fas fa-shopping-cart"></i> Add to Cart</>}
+                  </button>
+                  <button 
+                    className="action-button buy-now" 
+                    onClick={handleBuyNow}
+                    disabled={currentStock <= 0}
+                  >
+                    <i className="fas fa-bolt"></i> Buy Now
                   </button>
                 </div>
               </div>
-              {}          
-              <div className="product-detail-action-buttons">
-                <button 
-                  className={`action-button add-to-cart ${addedToCart ? 'added' : ''}`}
-                  onClick={handleAddToCart}
-                  disabled={currentStock <= 0 || addedToCart}
-                >
-                  {addedToCart ? <><i className="fas fa-check"></i> Added</> : <><i className="fas fa-shopping-cart"></i> Add to Cart</>}
-                </button>
-                <button 
-                  className="action-button buy-now" 
-                  onClick={handleBuyNow}
-                  disabled={currentStock <= 0}
-                >
-                  <i className="fas fa-bolt"></i> Buy Now
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="out-of-stock-message">
-              <i className="fas fa-exclamation-circle"></i> Out of Stock
-            </div>
-          )}
-        </div>
-      </div>
-      {}
-      <div className="product-description-container">
-        <h3>Product Description</h3>
-        <div className="product-detail-description">
-          {product.description || 'No description available.'}
-          {}
-          <div className="spec-items-inline mt-4"> {}
-            <h5>Specifications:</h5> {}
-             <p><strong>Category:</strong> {product.category_name || 'N/A'}</p>
-             <p><strong>Product Code:</strong> {product.product_code || 'N/A'}</p>
-              {}
-             {product.material && (
-                 <p><strong>Material:</strong> {product.material}</p>
-             )}
-          </div>
-          {}
-        </div>
-      </div>
-      {}
-      <div className="product-detail-lower-section">
-        <div className="reviews-section">
-          <h3>Customer Reviews</h3>
-          {}
-          {user && canReview && !hasReviewed && (
-            <div className="add-review-section">
-              <button 
-                  className="toggle-review-form-btn" 
-                  onClick={() => setShowReviewForm(!showReviewForm) }
-              >
-                  {showReviewForm ? 'Cancel' : 'Write a Review'}
-              </button>
-              {showReviewForm && (
-                <form onSubmit={handleReviewSubmit} className="review-form">
-                  <div className="form-group rating-input">
-                    <label>Your Rating:</label>
-                    <div className="stars">{renderStars(newRating)}</div> 
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor="reviewComment">Your Comment:</label>
-                    <textarea
-                      id="reviewComment"
-                      value={newComment}
-                      onChange={(e) => setNewComment(e.target.value)}
-                      placeholder="Share your thoughts..."
-                      rows={4}
-                      required
-                    />
-                  </div>
-                  {reviewError && <p className="error-message">{reviewError}</p>}
-                  <button type="submit" disabled={reviewLoading} className="submit-review-btn">
-                    {reviewLoading ? 'Submitting...' : 'Submit Review' }
-              </button>
-                </form>
-              )}
-            </div>
-          )}
-          {user && !canReview && !hasReviewed && !purchaseCheckLoading && (
-              <p className="info-message">Purchase this item to leave a review.</p>
-          )}
-          {!user && (
-              <p className="info-message">Login to leave a review.</p>
-          )}
-          {}         
-          <div className="reviews-container">
-            {reviews && reviews.length > 0 ? (
-              reviews.map((review, idx) => (
-                <div key={review.review_id || idx} className="review-item">
-                  <div className="review-header">
-                    <span className="reviewer-name">{review.username || 'Anonymous'}</span>
-                    <span className="review-date">{formatDate(review.created_at)}</span>
-                  </div>
-                  <div className="rating-stars">{renderStars(review.rating)}</div>
-                  <div className="review-content">{review.review_text || 'No comment provided.'}</div>
-                </div>
-              ))
             ) : (
-              <div className="no-reviews">
-                <i className="fas fa-comment-slash" style={{ fontSize: '24px', marginBottom: '12px' }}></i>
-                <p>No reviews yet. Be the first to review this product!</p>
+              <div className="out-of-stock-message">
+                <i className="fas fa-exclamation-circle"></i> Out of Stock
               </div>
             )}
           </div>
         </div>
+        
+        <div className="product-content-reviews">
+          <div className="product-description-section">
+            <div className="section-header">
+              <h3 className="section-title">Product Information</h3>
+              <div className="section-toggle">Overview</div>
+            </div>
+            <div className="product-description-container">
+              <div className="product-detail-description">
+                <h4>The best feng shui bracelets</h4>
+                <p className="product-tagline">You can create a soft, cozy atmosphere in your home with this table lamp when Svallet's without shade gives a directed and decorative light.</p>
+                
+                <div className="spec-items-inline">
+                  <h5>Specifications:</h5>
+                  <p><strong>Category:</strong> {product.category_name || 'amulets'}</p>
+                  <p><strong>Product Code:</strong> {product.product_code || 'AMU-001'}</p>
+                  {product.material && (
+                    <p><strong>Material:</strong> {product.material}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="product-reviews-section">
+            <div className="section-header">
+              <h3 className="section-title">Customer Reviews</h3>
+              <div className="section-rating">
+                <span className="review-count">{product.review_count || 0} reviews</span>
+              </div>
+            </div>
+            
+            <div className="reviews-section">
+              {reviews && reviews.length > 0 ? (
+                <div className="reviews-container">
+                  {reviews.map((review, idx) => (
+                    <div key={review.review_id || idx} className="review-item">
+                      <div className="review-header">
+                        <span className="reviewer-name">{review.username || 'Anonymous'}</span>
+                        <div className="rating-stars">{renderStars(review.rating)}</div>
+                      </div>
+                      <div className="review-content">{review.review_text || 'No comment provided.'}</div>
+                      <span className="review-date">{formatDate(review.created_at)}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="no-reviews">
+                  <i className="far fa-comment-alt"></i>
+                  <p>No reviews yet. Be the first to review this product!</p>
+                </div>
+              )}
+              
+              <div className="review-action">
+                <button 
+                  className="toggle-review-form-btn" 
+                  onClick={() => user ? setShowReviewForm(!showReviewForm) : navigate('/login')}
+                >
+                  Write a Review
+                </button>
+              </div>
+              
+              {user && showReviewForm && (
+                <div className="add-review-section">
+                  <form onSubmit={handleReviewSubmit} className="review-form">
+                    <div className="form-group rating-input">
+                      <label>Your Rating:</label>
+                      <div className="stars">{renderStars(newRating)}</div> 
+                    </div>
+                    <div className="form-group">
+                      <label htmlFor="reviewComment">Your Comment:</label>
+                      <textarea
+                        id="reviewComment"
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
+                        placeholder="Share your thoughts..."
+                        rows={4}
+                        required
+                      />
+                    </div>
+                    {reviewError && <p className="error-message">{reviewError}</p>}
+                    <div className="form-actions">
+                      <button type="button" onClick={() => setShowReviewForm(false)} className="cancel-btn">
+                        Cancel
+                      </button>
+                      <button type="submit" disabled={reviewLoading} className="submit-review-btn">
+                        {reviewLoading ? 'Submitting...' : 'Submit Review'}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
+      <Footer />
     </>
   );
 };
+
 export default ProductDetailPage; 

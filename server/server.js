@@ -2,19 +2,35 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const path = require('path');
+const session = require('express-session');
+const passport = require('./config/passport');
 dotenv.config();
 const { runMigrations } = require('./config/db-migrations');
 const app = express();
-app.use(cors());
+
+app.use(cors({
+  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Session and Passport setup
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'fengshui-session-secret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
+}));
+app.use(passport.initialize());
+app.use(passport.session());
+
 app.use((req, res, next) => {
-  console.log('Incoming request:', {
-    method: req.method,
-    path: req.path,
-    headers: req.headers
-  });
-  next();
+  console.log(`Incoming Request: ${req.method} ${req.path}`); 
+  next(); 
 });
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 const userRoutes = require('./routes/users');
@@ -27,11 +43,9 @@ const transactionRoutes = require('./routes/transactions');
 const reviewRoutes = require('./routes/reviews');
 const paymentRoutes = require('./routes/payments');
 const deliveryRoutes = require('./routes/delivery');
-const webhookRoutes = require('./routes/webhook');
-
-// Import cron job
-const { scheduleOrderConfirmation } = require('./cron/orderConfirmation');
-
+const adminRoutes = require('./routes/admin');
+const cmsRoutes = require('./routes/cms');
+const emailRoutes = require('./routes/email');
 app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/categories', categoryRoutes);
@@ -42,8 +56,9 @@ app.use('/api/transactions', transactionRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/delivery', deliveryRoutes);
-app.use('/api/webhooks', webhookRoutes);
-
+app.use('/api/admin', adminRoutes);
+app.use('/api/cms', cmsRoutes);
+app.use('/api/email', emailRoutes);
 app.get('/transaction-complete', (req, res) => {
   console.log('Received Dragonpay return request:', req.query);
   const { txnid, refno, status, message } = req.query;
@@ -139,10 +154,6 @@ app.use((err, req, res, next) => {
     error: process.env.NODE_ENV === 'production' ? {} : err
   });
 });
-
-// Start cron jobs
-scheduleOrderConfirmation();
-
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, async () => {
   console.log(`Server is running on port ${PORT}`);

@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import './Shop.css';
 import API_BASE_URL from '../../config';
+import NavBar from '../NavBar';
+import Footer from '../Footer';
+import ProductCard from '../common/ProductCard';
+
 const ProductPage = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -11,17 +15,19 @@ const ProductPage = () => {
     searchParams.get('category') || 'all'
   );
   const [filteredProducts, setFilteredProducts] = useState([]);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [isCategoriesVisible, setIsCategoriesVisible] = useState(true);
   const navigate = useNavigate();
+  
   const categories = [
-    { id: 'all', name: 'All Products' },
-    { id: 'books', name: 'Books' },
-    { id: 'amulets', name: 'Amulets' },
-    { id: 'bracelets', name: 'Bracelets' },
-    { id: 'best-sellers', name: 'Best Sellers' },
-    { id: 'flash-deals', name: 'Flash Deals' },
-    { id: 'new-arrivals', name: 'New Arrivals' }
+    { id: 'all', name: 'All Products', image: '/Categories-1.png' },
+    { id: 'best-sellers', name: 'Best Sellers', image: '/Categories-1.png' },
+    { id: 'flash-deals', name: 'Flash Deals', image: '/Categories-2.png' },
+    { id: 'books', name: 'Books', image: '/Categories-3.png' },
+    { id: 'amulets', name: 'Amulets', image: '/Categories-5.png' },
+    { id: 'bracelets', name: 'Bracelets', image: '/Categories-4.png' },
+    { id: 'new-arrivals', name: 'New Arrivals', image: '/Categories-2.png' }
   ];
+
   useEffect(() => {
     const categoryParam = searchParams.get('category');
     if (categoryParam && categories.some(cat => cat.id === categoryParam)) {
@@ -30,73 +36,71 @@ const ProductPage = () => {
       setSelectedCategory('all');
     }
   }, [searchParams]); 
+
   useEffect(() => {
     fetchProducts();
   }, []);
-  useEffect(() => {
-    filterProducts();
-  }, [selectedCategory, products]); 
+
   const fetchProducts = async () => {
     try {
       setLoading(true);
+      setError(null);
       const response = await fetch(`${API_BASE_URL}/api/products`);
       if (!response.ok) {
-        let errorMsg = 'Failed to fetch products';
-        try {
-          const errorData = await response.json();
-          errorMsg = errorData.message || errorMsg;
-        } catch (parseError) {  }
-        throw new Error(errorMsg);
+        throw new Error('Failed to fetch products');
       }
       const data = await response.json();
-      const productsArray = Array.isArray(data.products) ? data.products : []; 
-      console.log("Raw products from API:", productsArray);
-      setProducts(productsArray); 
-      setError(null);
+      setProducts(data.products || []);
+      setLoading(false);
     } catch (err) {
-      setError('Error loading products. Please try again later.');
       console.error('Error fetching products:', err);
-      setProducts([]);
-    } finally {
+      setError('Failed to load products. Please try again later.');
       setLoading(false);
     }
   };
-  const filterProducts = () => {
-    if (selectedCategory === 'all') {
-      setFilteredProducts(products);
-      return;
-    }
-    if (selectedCategory === 'best-sellers') {
-      setFilteredProducts(products.filter(product => product.is_best_seller));
-      return;
-    }
-    if (selectedCategory === 'flash-deals') {
-      setFilteredProducts(products.filter(product => product.is_flash_deal));
-      return;
-    }
-    if (selectedCategory === 'new-arrivals') {
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      setFilteredProducts(products.filter(product => {
-        const createdDate = new Date(product.created_at);
-        return createdDate > thirtyDaysAgo;
-      }));
-      return;
-    }
-    setFilteredProducts(products.filter(product => 
-      product.category_name?.toLowerCase() === selectedCategory?.toLowerCase()
-    ));
-  };
+
   const handleCategoryClick = (categoryId) => {
+    navigate(`/shop?category=${categoryId}`);
     setSelectedCategory(categoryId);
-    setDropdownOpen(false);
   };
-  const toggleDropdown = () => {
-    setDropdownOpen(!dropdownOpen);
+
+  useEffect(() => {
+    filterProducts();
+  }, [selectedCategory, products, searchParams]); 
+
+  const filterProducts = () => {
+    let filtered = [...products];
+    const searchQuery = searchParams.get('search')?.toLowerCase();
+
+    // Apply category filter
+    if (selectedCategory && selectedCategory !== 'all') {
+      filtered = filtered.filter(product => {
+        if (selectedCategory === 'best-sellers') {
+          return product.items_sold > 100; // Example threshold
+        } else if (selectedCategory === 'flash-deals') {
+          return product.discount_percentage > 0;
+        } else if (selectedCategory === 'new-arrivals') {
+          const thirtyDaysAgo = new Date();
+          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+          return new Date(product.created_at) > thirtyDaysAgo;
+        } else {
+          return product.category_name?.toLowerCase() === selectedCategory.toLowerCase();
+        }
+      });
+    }
+
+    // Apply search filter if search query exists
+    if (searchQuery) {
+      filtered = filtered.filter(product => 
+        product.name.toLowerCase().includes(searchQuery) ||
+        product.description?.toLowerCase().includes(searchQuery) ||
+        product.category_name?.toLowerCase().includes(searchQuery)
+      );
+    }
+
+    setFilteredProducts(filtered);
   };
-  const handleProductClick = (productId) => {
-    navigate(`/product/${productId}`);
-  };
+
   const formatPrice = (price) => {
     const numericPrice = Number(price);
     if (isNaN(numericPrice)) {
@@ -105,119 +109,61 @@ const ProductPage = () => {
     }
     return `₱${numericPrice.toFixed(2)}`;
   };
+
+  const toggleCategories = () => {
+    setIsCategoriesVisible(!isCategoriesVisible);
+  };
+
   return (
     <div className="shop-container">
+      <NavBar />
       <div className="shop-main">
-        {}
         <div className="products-content">
-          <div className="shop-header">
-            <h1>Shop</h1>
-            <div className="category-dropdown">
-              <button 
-                className="dropdown-button" 
-                onClick={toggleDropdown}
-              >
-                {categories.find(cat => cat.id === selectedCategory)?.name}
-                <svg 
-                  className={`dropdown-arrow ${dropdownOpen ? 'open' : ''}`}
-                  xmlns="http://www.w3.org/2000/svg" 
-                  width="16" 
-                  height="16" 
-                  viewBox="0 0 24 24" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  strokeWidth="2" 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round"
+          
+          <button 
+            className={`toggle-categories ${!isCategoriesVisible ? 'collapsed' : ''}`}
+            onClick={toggleCategories}
+          >
+            {isCategoriesVisible ? 'Hide Categories' : 'Show Categories'}
+            <i className="fas fa-chevron-up"></i>
+          </button>
+
+          <div className={`shop-categories ${!isCategoriesVisible ? 'collapsed' : ''}`}>
+            <div className="shop-categories-grid">
+              {categories.map(category => (
+                <div 
+                  key={category.id}
+                  className={`shop-category-card ${selectedCategory === category.id ? 'active' : ''}`}
+                  onClick={() => handleCategoryClick(category.id)}
                 >
-                  <polyline points="6 9 12 15 18 9"></polyline>
-                </svg>
-              </button>
-              {dropdownOpen && (
-                <div className="category-dropdown-menu">
-                  {categories.map(category => (
-                    <div 
-                      key={category.id}
-                      className={`dropdown-item ${selectedCategory === category.id ? 'active' : ''}`}
-                      onClick={() => handleCategoryClick(category.id)}
-                    >
-                      {category.name}
-                    </div>
-                  ))}
+                  <div className="shop-category-image">
+                    <img src={category.image} alt={category.name} />
+                  </div>
+                  <h3>{category.name}</h3>
                 </div>
-              )}
+              ))}
             </div>
           </div>
+
           {error && <div className="error-message">{error}</div>}
           {loading ? (
             <div className="loading-spinner">Loading products...</div>
           ) : filteredProducts.length === 0 ? (
             <div className="no-products">
-              <p>No products found in this category.</p>
+              <p>No products found{searchParams.get('search') ? ' matching your search' : ' in this category'}.</p>
             </div>
           ) : (
             <div className="shop-products-grid">
-              {filteredProducts.map(product => {
-                const firstImage = product.images?.[0]?.url;
-                const fullImageUrl = firstImage ? 
-                  (firstImage.startsWith('/') ? `${API_BASE_URL}${firstImage}` : `${API_BASE_URL}/${firstImage}`) 
-                  : '/placeholder-product.jpg'; 
-                const imageToDisplay = fullImageUrl;
-                const itemsSold = product.items_sold || 0; 
-                const displayItemsSold = itemsSold > 1000 ? `${(itemsSold / 1000).toFixed(1)}k sold` : `${itemsSold} sold`;
-                return (
-                  <div 
-                    className="shop-product-card" 
-                    key={product.product_id}
-                    onClick={() => handleProductClick(product.product_id)} 
-                  >
-                    <div 
-                      className="shop-product-image"
-                      style={{ backgroundImage: `url(${imageToDisplay})` }}
-                    >
-                      {}
-                      {product.discount_percentage > 0 && (
-                        <div className="discount-percentage-tag">
-                          -{product.discount_percentage}%
-                        </div>
-                      )}
-                      {}
-                      {product.variants && product.variants.length > 0 && (
-                        <div className="variant-tag">
-                          {product.variants.length} options
-                        </div>
-                      )}
-                    </div>
-                    <div className="shop-product-details">
-                      <div className="product-info">
-                        <h3>{product.name}</h3>
-                      </div>
-                      <div className="product-price">
-                        {product.discount_percentage > 0 ? (
-                          <div className="price-amount">
-                            <span className="discounted-price">
-                              {formatPrice((product.price - (product.price * product.discount_percentage / 100)))}
-                            </span>
-                            <span className="original-price">{formatPrice(product.price)}</span>
-                          </div>
-                        ) : (
-                          <div className="price-amount">
-                            <span className="regular-price">{formatPrice(product.price)}</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="product-meta">
-                        <span className="items-sold">{displayItemsSold}</span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+              {filteredProducts.map(product => (
+                <ProductCard key={product.product_id} product={product} />
+              ))}
             </div>
           )}
         </div>
       </div>
+      <Footer />
     </div>
   );
 };
+
 export default ProductPage; 
