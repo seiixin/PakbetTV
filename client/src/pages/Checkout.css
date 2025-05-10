@@ -1,0 +1,253 @@
+.checkout-container {
+  max-width: 1200px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+
+.checkout-container h1 {
+  font-size: 1.75rem;
+  margin-bottom: 1.5rem;
+  color: #333;
+}
+
+.error-message,
+.success-message {
+  padding: 0.75rem 1rem;
+  border-radius: 0.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.error-message {
+  background-color: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #f87171;
+}
+
+.success-message {
+  background-color: #d1fae5;
+  color: #047857;
+  border: 1px solid #6ee7b7;
+}
+
+.checkout-grid {
+  display: grid;
+  grid-template-columns: 1fr 350px;
+  gap: 2rem;
+}
+
+.checkout-form {
+  background-color: #fff;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.checkout-section {
+  padding: 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.checkout-section:last-child {
+  border-bottom: none;
+}
+
+.checkout-section h2 {
+  font-size: 1.25rem;
+  margin-bottom: 1rem;
+  color: #111827;
+}
+
+/* Payment methods */
+.payment-methods {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.payment-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.payment-option input[type="radio"] {
+  margin: 0;
+}
+
+.payment-option label {
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+/* Order summary */
+.order-summary {
+  background-color: #fff;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+  height: fit-content;
+}
+
+.order-summary h2 {
+  font-size: 1.25rem;
+  margin-bottom: 1rem;
+  color: #111827;
+}
+
+.summary-items {
+  max-height: 300px;
+  overflow-y: auto;
+  margin-bottom: 1.5rem;
+  padding-right: 0.5rem;
+}
+
+.summary-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.summary-item:last-child {
+  border-bottom: none;
+}
+
+.item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.item-name {
+  font-weight: 500;
+  color: #1f2937;
+}
+
+.item-variant,
+.item-quantity {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.item-price {
+  font-weight: 500;
+  color: #1f2937;
+}
+
+.summary-total {
+  margin-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 1rem;
+}
+
+.subtotal,
+.shipping,
+.total {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.total {
+  font-weight: 700;
+  font-size: 1.125rem;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.place-order-button,
+.back-button {
+  width: 100%;
+  padding: 0.875rem;
+  border-radius: 0.375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.place-order-button {
+  background-color: #ef5a3f;
+  color: white;
+  border: none;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.place-order-button:hover:not(:disabled) {
+  background-color: #d54a2f;
+}
+
+.place-order-button:disabled {
+  background-color: #f6a69a;
+  cursor: not-allowed;
+}
+
+.back-button {
+  background-color: transparent;
+  border: 1px solid #d1d5db;
+  color: #374151;
+}
+
+.back-button:hover:not(:disabled) {
+  background-color: #f9fafb;
+}
+
+.back-button:disabled {
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.loading-spinner {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+  font-size: 1.125rem;
+  color: #6b7280;
+}
+
+.empty-cart-message {
+  text-align: center;
+  padding: 3rem 1rem;
+}
+
+.empty-cart-message h2 {
+  font-size: 1.5rem;
+  margin-bottom: 0.75rem;
+  color: #1f2937;
+}
+
+.empty-cart-message p {
+  color: #6b7280;
+  margin-bottom: 1.5rem;
+}
+
+.primary-button {
+  background-color: #ef5a3f;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.primary-button:hover {
+  background-color: #d54a2f;
+}
+
+@media (max-width: 768px) {
+  .checkout-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .checkout-form {
+    order: 2;
+  }
+  
+  .order-summary {
+    order: 1;
+    margin-bottom: 1.5rem;
+  }
+} 
