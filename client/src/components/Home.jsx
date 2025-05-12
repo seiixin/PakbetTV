@@ -7,7 +7,6 @@ import Logo from '/Logo.png';
 import Michael from '/Michael.png';
 import NavBar from './NavBar';
 import Footer from './Footer';
-import LoadingSpinner from './common/LoadingSpinner';
 import API_BASE_URL from '../config';
 import ProductCard from './common/ProductCard';
 import axios from 'axios';
@@ -118,7 +117,9 @@ const Home = () => {
       </div>
       {loading ? (
         <div className="home-new-arrivals-loading-container">
-          <LoadingSpinner />
+          <div className="spinner-border" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
         </div>
       ) : error ? (
         <div className="error-message">{error}</div>
@@ -292,9 +293,7 @@ const Home = () => {
     )}
   </div>
 </section>
-
-
-      <Footer />
+  <Footer forceShow={false} />
     </div>
   );
 };

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import LoadingSpinner from '../common/LoadingSpinner';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import './ProductDetail.css';
@@ -425,8 +424,19 @@ const ProductDetailPage = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  if (loading) {
-    return <LoadingSpinner />;
+  if (loading || authLoading) {
+    return (
+      <div className="product-detail-page">
+        <NavBar />
+        <div className="loading-container">
+          <div className="spinner-border" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+          <p>Loading product details...</p>
+        </div>
+        <Footer />
+      </div>
+    );
   }
 
   if (error) {

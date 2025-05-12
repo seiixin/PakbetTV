@@ -1,7 +1,6 @@
 import { createContext, useState, useEffect, useContext } from 'react';
 import { authService } from '../services/api';
 import { useNavigate } from 'react-router-dom';
-import LoadingSpinner from '../components/common/LoadingSpinner';
 
 const AuthContext = createContext();
 
@@ -180,10 +179,22 @@ export const AuthProvider = ({ children }) => {
   return (
     <AuthContext.Provider value={value}>
       {initialLoading ? (
-        <LoadingSpinner message="Loading..." />
+        <div className="loading-container">
+          <div className="spinner-border" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+          <p>Loading...</p>
+        </div>
       ) : (
         <>
-          {loggingOut && <LoadingSpinner message="Logging out..." />}
+          {loggingOut && (
+            <div className="loading-container">
+              <div className="spinner-border" role="status">
+                <span className="visually-hidden">Loading...</span>
+              </div>
+              <p>Logging out...</p>
+            </div>
+          )}
           {children}
         </>
       )}

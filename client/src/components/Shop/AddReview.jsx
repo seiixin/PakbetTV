@@ -4,7 +4,6 @@ import { useParams } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
-import LoadingSpinner from '../common/LoadingSpinner';
 import { createGlobalStyle } from 'styled-components';
 import API_BASE_URL from '../../config';
 
