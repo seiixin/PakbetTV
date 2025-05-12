@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import LoadingSpinner from '../common/LoadingSpinner';
@@ -39,6 +39,8 @@ const ProductDetailPage = () => {
   const [reviewLoading, setReviewLoading] = useState(false);
   const [reviewError, setReviewError] = useState(null);
   const [purchaseCheckLoading, setPurchaseCheckLoading] = useState(false);
+  const [isFooterVisible, setIsFooterVisible] = useState(false);
+  const pageEndRef = useRef(null);
   
   useEffect(() => {
     fetchProductDetails();
@@ -405,334 +407,384 @@ const ProductDetailPage = () => {
       setReviewLoading(false);
     }
   };
+
+  // Update the scroll detection useEffect
+  useEffect(() => {
+    const handleScroll = () => {
+      if (pageEndRef.current) {
+        const rect = pageEndRef.current.getBoundingClientRect();
+        const isAtBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 100;
+        setIsFooterVisible(isAtBottom);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    // Trigger initial check
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   if (loading) {
-    return (
-      <div className="container product-detail-page-container">
-        <NavBar />
-        <LoadingSpinner message="Loading product details..." />
-      </div>
-    );
+    return <LoadingSpinner />;
   }
+
   if (error) {
     return (
-      <div className="container product-detail-page-container">
-        <NavBar />
-        <div className="error-message">{error}</div>
-        <button className="back-button" onClick={goBack}>
-          <i className="fas fa-arrow-left"></i> Back to Shop
+      <div className="error-container">
+        <h2>Error</h2>
+        <p>{error}</p>
+        <button onClick={goBack} className="back-button">
+          <i className="fas fa-arrow-left"></i> Go Back
         </button>
       </div>
     );
   }
-  if (!product) {
-    return (
-      <div className="container product-detail-page-container">
-        <NavBar />
-        <div className="error-message">Product not found</div>
-        <button className="back-button" onClick={goBack}>
-          <i className="fas fa-arrow-left"></i> Back to Shop
-        </button>
-      </div>
-    );
-  }
-  const currentPrice = selectedVariant ? selectedVariant.price : product.price;
-  const currentStock = selectedVariant ? selectedVariant.stock : product.stock_quantity;
+
   return (
     <>
       <GlobalStyle />
-      <div className="container product-detail-page-container">
-        <NavBar />
-        
-        <Link to="/shop" className="back-button">
-          <i className="fas fa-arrow-left"></i> Back to Shop
-        </Link>
-        
-        <div className="product-detail-main-layout">
-          <div className="product-detail-image-gallery">
-            <div className="main-image-container">
-              <img
-                src={selectedVariant?.image_url ? getFullImageUrl(selectedVariant.image_url) : (selectedImageUrl || (product.images?.[0]?.url ? getFullImageUrl(product.images[0].url) : '/placeholder-product.jpg'))}
-                alt={product.name}
-                className="main-product-image"
-                onError={(e) => { e.target.onerror = null; e.target.src='/placeholder-product.jpg'}}
-              />
-            </div>
-            
-            <div className="thumbnail-container">
-              {Array.isArray(product.images) && product.images.length > 0 && product.images.map((image, idx) => {
-                const imageUrl = getFullImageUrl(image.url);
-                const isBaseImageActive = !selectedVariant && idx === 0; 
-                return (
-                  <div
-                    key={image.id || `image-${idx}`}
-                    className={`thumbnail-item ${isBaseImageActive ? 'active' : ''}`}
-                    onClick={() => {
-                       const initialSelections = {};
-                       Object.keys(attributeOptions).forEach(key => {
-                           if (attributeOptions[key]?.length > 0) {
-                               initialSelections[key] = attributeOptions[key][0];
-                           }
-                       });
-                       setSelectedAttributes(initialSelections);
-                    }}
-                   >
-                    <img
-                      src={imageUrl}
-                      alt={`${product.name} - view ${idx + 1}`}
-                      onError={(e) => { e.target.style.display='none'; }}
-                    />
-                  </div>
-                );
-              })}
-              
-              {Array.isArray(product.variants) && product.variants
-                .filter(variant => variant.image_url)
-                .map((variant, idx) => {
-                  const variantImageUrl = getFullImageUrl(variant.image_url);
-                  const isCurrentVariantImage = selectedVariant?.variant_id === variant.variant_id;
-                  return (
-                    <div
-                      key={`variant-${variant.variant_id}`}
-                      className={`thumbnail-item ${isCurrentVariantImage ? 'active' : ''}`}
-                      onClick={() => {
-                          if(variant.attributes) {
-                              setSelectedAttributes(variant.attributes);
-                          }
-                      }}
-                    >
-                      <img
-                        src={variantImageUrl}
-                        alt={`${product.name} - ${variant.attributes ? Object.entries(variant.attributes).map(([key, value]) => `${key}: ${value}`).join(', ') : 'Variant'}`}
-                        onError={(e) => { e.target.style.display='none'; }}
-                      />
-                    </div>
-                  );
-                })}
-            </div>
-          </div>
-          
-          <div className="product-detail-info-actions">
-            <h1 className="product-detail-name">{product.name}</h1>
-            
-            <div className="product-detail-price-section">
-              {product.discount_percentage > 0 ? (
-                <>
-                  <span className="discounted-price">
-                    <span className="price-currency">₱</span>
-                    {calculateDiscountedPrice(currentPrice, product.discount_percentage)}
-                  </span>
-                  <span className="original-price">
-                    <span className="price-currency">₱</span>
-                    {currentPrice}
-                  </span>
-                  <span className="discount-badge">
-                    {product.discount_percentage}% OFF
-                  </span>
-                </>
-              ) : (
-                <span className="regular-price">
-                  <span className="price-currency">₱</span>
-                  {currentPrice}
-                </span>
-              )}
-            </div>
-            
-            <div className="product-rating-summary">
-              {product.average_rating !== null && Number(product.average_rating) > 0 ? (
-                <>
-                  <span className="rating-value">{Number(product.average_rating).toFixed(1)}</span>
-                  <span className="rating-stars">{renderStars(product.average_rating)}</span>
-                  <span className="review-count">({product.review_count || 0} reviews)</span>
-                </>
-              ) : (
-                <span className="rating-stars no-rating">{renderStars(0)}</span> 
-              )}
-            </div>
-            
-            {Object.keys(attributeOptions).length > 0 && (
-              <div className="variant-selection-container">
-                {Object.entries(attributeOptions).map(([attributeName, availableValues]) => (
-                  <div key={attributeName} className="variant-options">
-                    <label>{attributeName}:</label>
-                    <div className="variant-buttons">
-                      {availableValues.map((value) => (
-                        <button
-                          key={`${attributeName}-${value}`}
-                          className={`variant-button ${selectedAttributes[attributeName] === value ? 'selected' : ''} ${value.toLowerCase() === 'emerald' ? 'emerald' : ''}`}
-                          onClick={() => handleAttributeChange(attributeName, value)}
-                        >
-                          {value}
-                        </button>
-                      ))}
-                    </div>
+      <NavBar />
+      <div className="product-detail-page-container">
+        <button onClick={goBack} className="back-button">
+          <i className="fas fa-arrow-left"></i> Go Back
+        </button>
+
+        {/* Container 1: Product Overview */}
+        <div className="product-container product-overview-container">
+          <div className="product-detail-main-layout">
+            {/* Product Images */}
+            <div className="product-detail-image-gallery">
+              <div className="main-image-container">
+                {selectedImageUrl && (
+                  <img 
+                    src={selectedImageUrl} 
+                    alt={product.name} 
+                    className="main-product-image" 
+                  />
+                )}
+              </div>
+              <div className="thumbnail-container">
+                {product.images && product.images.length > 0 && product.images.map((image, index) => (
+                  <div 
+                    key={index}
+                    className={`thumbnail-item ${getFullImageUrl(image.url) === selectedImageUrl ? 'active' : ''}`}
+                    onClick={() => setSelectedImageUrl(getFullImageUrl(image.url))}
+                  >
+                    <img src={getFullImageUrl(image.url)} alt={`${product.name} thumbnail ${index + 1}`} />
                   </div>
                 ))}
+                {product.variants && product.variants.length > 0 && 
+                  product.variants
+                    .filter(v => v.image_url && (!product.images || !product.images.some(img => getFullImageUrl(img.url) === getFullImageUrl(v.image_url))))
+                    .map((variant, index) => (
+                      <div 
+                        key={`variant-${index}`}
+                        className={`thumbnail-item ${getFullImageUrl(variant.image_url) === selectedImageUrl ? 'active' : ''}`}
+                        onClick={() => {
+                          setSelectedImageUrl(getFullImageUrl(variant.image_url));
+                          if (variant.attributes) {
+                            setSelectedAttributes(variant.attributes);
+                          }
+                        }}
+                      >
+                        <img src={getFullImageUrl(variant.image_url)} alt={`${product.name} variant ${index + 1}`} />
+                      </div>
+                    ))
+                }
               </div>
-            )}
-            
-            <div className="product-detail-shipping">
-              <i className="fas fa-truck"></i>
-              <span>Free shipping on orders over ₱1000</span>
             </div>
-            
-            {currentStock > 0 ? (
+
+            {/* Product Info and Actions */}
+            <div className="product-detail-info-actions">
+              <h1 className="product-detail-name">{product.name}</h1>
+              
+              {/* Price Section First */}
+              <div className="product-detail-price-section">
+                {product.discount_percentage > 0 ? (
+                  <>
+                    <div className="discounted-price">
+                      <span className="price-currency">₱</span>
+                      {calculateDiscountedPrice(
+                        selectedVariant ? selectedVariant.price : product.price,
+                        product.discount_percentage
+                      )}
+                    </div>
+                    <div className="original-price">
+                      <span className="price-currency">₱</span>
+                      {formatPrice(selectedVariant ? selectedVariant.price : product.price)}
+                    </div>
+                    <div className="discount-badge">
+                      {product.discount_percentage}% OFF
+                    </div>
+                  </>
+                ) : (
+                  <div className="regular-price">
+                    <span className="price-currency">₱</span>
+                    {formatPrice(selectedVariant ? selectedVariant.price : product.price)}
+                  </div>
+                )}
+              </div>
+
+              {/* Ratings Section Below Price */}
+              <div className="product-rating-summary">
+                <div className="rating-stars">
+                  {renderStars(product.average_rating || 0)}
+                </div>
+                <span className="rating-value">{product.average_rating ? product.average_rating.toFixed(1) : '0.0'}</span>
+                <span className="review-count">({product.review_count || 0} reviews)</span>
+              </div>
+
+              {Object.keys(attributeOptions).length > 0 && (
+                <div className="variant-selection-container">
+                  {Object.keys(attributeOptions).map((attributeName) => (
+                    <div key={attributeName} className="variant-options">
+                      <label>{attributeName.replace('_', ' ')}</label>
+                      <div className="variant-buttons">
+                        {attributeOptions[attributeName].map((value) => {
+                          const isSelected = selectedAttributes[attributeName] === value;
+                          const currentSelections = {
+                            ...selectedAttributes,
+                            [attributeName]: value,
+                          };
+                          const isAvailable = isVariantCombinationAvailable(currentSelections);
+                          
+                          return (
+                            <button
+                              key={value}
+                              className={`variant-button ${isSelected ? 'selected' : ''} ${value.toLowerCase()}`}
+                              onClick={() => handleAttributeChange(attributeName, value)}
+                              disabled={!isAvailable}
+                            >
+                              {value}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <div className="product-detail-actions">
                 <div className="quantity-control-wrapper">
-                  <span className="stock-available">
-                    {currentStock < 10 ? 
-                      <><i className="fas fa-exclamation-circle"></i> Only {currentStock} left!</> : 
-                      <><i className="fas fa-check-circle"></i> In Stock ({currentStock} available)</>}
-                  </span>
-                
+                  <div className={`stock-available ${(selectedVariant ? selectedVariant.stock : product.stock_quantity) > 0 ? 'in-stock' : 'out-of-stock'}`}>
+                    {(selectedVariant ? selectedVariant.stock : product.stock_quantity) > 0 ? (
+                      <>
+                        <i className="fas fa-check-circle"></i> 
+                        <span>In Stock ({selectedVariant ? selectedVariant.stock : product.stock_quantity} available)</span>
+                      </>
+                    ) : (
+                      <>
+                        <i className="fas fa-exclamation-circle"></i>
+                        <span>Out of Stock</span>
+                      </>
+                    )}
+                  </div>
+                  
                   <div className="quantity-input">
                     <button 
-                      className="quantity-btn" 
+                      className="quantity-btn"
                       onClick={decrementQuantity}
-                      disabled={quantity <= 1}
-                      aria-label="Decrease quantity"
+                      disabled={(selectedVariant ? selectedVariant.stock : product.stock_quantity) <= 0}
                     >
                       <i className="fas fa-minus"></i>
                     </button>
-                    <input
-                      type="number"
-                      value={quantity}
-                      onChange={handleQuantityChange}
-                      min="1"
-                      max={currentStock}
-                      aria-label="Quantity"
+                    <input 
+                      type="number" 
+                      value={quantity} 
+                      onChange={handleQuantityChange} 
+                      min="1" 
+                      max={selectedVariant ? selectedVariant.stock : product.stock_quantity}
+                      disabled={(selectedVariant ? selectedVariant.stock : product.stock_quantity) <= 0}
                     />
                     <button 
-                      className="quantity-btn" 
+                      className="quantity-btn"
                       onClick={incrementQuantity}
-                      disabled={quantity >= currentStock}
-                      aria-label="Increase quantity"
+                      disabled={
+                        (selectedVariant 
+                          ? quantity >= selectedVariant.stock 
+                          : quantity >= product.stock_quantity) || 
+                        (selectedVariant ? selectedVariant.stock : product.stock_quantity) <= 0
+                      }
                     >
                       <i className="fas fa-plus"></i>
                     </button>
                   </div>
                 </div>
-                
+
                 <div className="product-detail-action-buttons">
                   <button 
                     className={`action-button add-to-cart ${addedToCart ? 'added' : ''}`}
                     onClick={handleAddToCart}
-                    disabled={currentStock <= 0 || addedToCart}
+                    disabled={(selectedVariant ? selectedVariant.stock : product.stock_quantity) <= 0}
                   >
-                    {addedToCart ? <><i className="fas fa-check"></i> Added</> : <><i className="fas fa-shopping-cart"></i> Add to Cart</>}
+                    <i className={`fas ${addedToCart ? 'fa-check' : 'fa-shopping-cart'}`}></i>
+                    {addedToCart ? 'Added to Cart' : 'Add to Cart'}
                   </button>
                   <button 
-                    className="action-button buy-now" 
+                    className="action-button buy-now"
                     onClick={handleBuyNow}
-                    disabled={currentStock <= 0}
+                    disabled={(selectedVariant ? selectedVariant.stock : product.stock_quantity) <= 0}
                   >
-                    <i className="fas fa-bolt"></i> Buy Now
+                    <i className="fas fa-bolt"></i>
+                    Buy Now
                   </button>
                 </div>
+                
+                {(selectedVariant ? selectedVariant.stock : product.stock_quantity) <= 0 && (
+                  <div className="out-of-stock-message">
+                    <i className="fas fa-exclamation-triangle"></i>
+                    <span>This item is currently out of stock. Please check back later or browse similar items.</span>
+                  </div>
+                )}
               </div>
-            ) : (
-              <div className="out-of-stock-message">
-                <i className="fas fa-exclamation-circle"></i> Out of Stock
-              </div>
-            )}
+            </div>
           </div>
         </div>
-        
-        <div className="product-content-reviews">
+
+        {/* Container 2: Product Specifications */}
+        <div className="product-container product-specs-container">
           <div className="product-description-section">
             <div className="section-header">
-              <h3 className="section-title">Product Information</h3>
-              <div className="section-toggle">Overview</div>
+              <h2 className="section-title">Product Specifications</h2>
             </div>
             <div className="product-description-container">
-              <div className="product-detail-description">
-                <h4>The best feng shui bracelets</h4>
-                <p className="product-tagline">You can create a soft, cozy atmosphere in your home with this table lamp when Svallet's without shade gives a directed and decorative light.</p>
-                
-                <div className="spec-items-inline">
-                  <h5>Specifications:</h5>
-                  <p><strong>Category:</strong> {product.category_name || 'amulets'}</p>
-                  <p><strong>Product Code:</strong> {product.product_code || 'AMU-001'}</p>
-                  {product.material && (
-                    <p><strong>Material:</strong> {product.material}</p>
-                  )}
+              {product.description && <div dangerouslySetInnerHTML={{ __html: product.description }} />}
+              
+              {product.specs && (
+                <div className="product-specs">
+                  <h3>Specifications</h3>
+                  <div className="spec-items-inline">
+                    {Object.entries(product.specs).map(([key, value]) => (
+                      <div key={key} className="spec-item">
+                        <h5>{key.replace(/_/g, ' ')}</h5>
+                        <p>{value}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
-          
+        </div>
+
+        {/* Container 3: Customer Reviews */}
+        <div className="product-container product-reviews-container">
           <div className="product-reviews-section">
             <div className="section-header">
-              <h3 className="section-title">Customer Reviews</h3>
+              <h2 className="section-title">Customer Reviews</h2>
               <div className="section-rating">
-                <span className="review-count">{product.review_count || 0} reviews</span>
+                <div className="rating-stars">{renderStars(product.average_rating || 0)}</div>
+                <span>{product.average_rating ? product.average_rating.toFixed(1) : '0.0'}</span>
+                <span className="review-count">({product.review_count || 0})</span>
               </div>
             </div>
             
             <div className="reviews-section">
-              {reviews && reviews.length > 0 ? (
-                <div className="reviews-container">
-                  {reviews.map((review, idx) => (
-                    <div key={review.review_id || idx} className="review-item">
-                      <div className="review-header">
-                        <span className="reviewer-name">{review.username || 'Anonymous'}</span>
-                        <div className="rating-stars">{renderStars(review.rating)}</div>
-                      </div>
-                      <div className="review-content">{review.review_text || 'No comment provided.'}</div>
-                      <span className="review-date">{formatDate(review.created_at)}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="no-reviews">
-                  <i className="far fa-comment-alt"></i>
-                  <p>No reviews yet. Be the first to review this product!</p>
+              {user && canReview && !hasReviewed && (
+                <div className="review-action">
+                  <button 
+                    className="toggle-review-form-btn"
+                    onClick={() => setShowReviewForm(!showReviewForm)}
+                  >
+                    <i className="fas fa-pen"></i>
+                    {showReviewForm ? 'Cancel Review' : 'Write a Review'}
+                  </button>
                 </div>
               )}
               
-              <div className="review-action">
-                <button 
-                  className="toggle-review-form-btn" 
-                  onClick={() => user ? setShowReviewForm(!showReviewForm) : navigate('/login')}
-                >
-                  Write a Review
-                </button>
-              </div>
-              
-              {user && showReviewForm && (
+              {showReviewForm && (
                 <div className="add-review-section">
-                  <form onSubmit={handleReviewSubmit} className="review-form">
-                    <div className="form-group rating-input">
-                      <label>Your Rating:</label>
-                      <div className="stars">{renderStars(newRating)}</div> 
+                  <form className="review-form" onSubmit={handleReviewSubmit}>
+                    <div className="rating-input">
+                      <label>Your Rating</label>
+                      <div className="stars">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <i 
+                            key={star}
+                            className={`fas fa-star ${newRating >= star ? 'filled' : ''}`}
+                            onClick={() => setNewRating(star)}
+                          ></i>
+                        ))}
+                      </div>
                     </div>
+                    
                     <div className="form-group">
-                      <label htmlFor="reviewComment">Your Comment:</label>
-                      <textarea
-                        id="reviewComment"
+                      <label htmlFor="comment">Your Review</label>
+                      <textarea 
+                        id="comment"
                         value={newComment}
                         onChange={(e) => setNewComment(e.target.value)}
-                        placeholder="Share your thoughts..."
-                        rows={4}
+                        rows="4"
+                        placeholder="Share your experience with this product..."
                         required
-                      />
+                      ></textarea>
                     </div>
-                    {reviewError && <p className="error-message">{reviewError}</p>}
+                    
+                    {reviewError && <div className="error-message">{reviewError}</div>}
+                    
                     <div className="form-actions">
-                      <button type="button" onClick={() => setShowReviewForm(false)} className="cancel-btn">
+                      <button 
+                        type="button" 
+                        className="cancel-btn"
+                        onClick={() => {
+                          setShowReviewForm(false);
+                          setNewRating(0);
+                          setNewComment('');
+                          setReviewError(null);
+                        }}
+                      >
                         Cancel
                       </button>
-                      <button type="submit" disabled={reviewLoading} className="submit-review-btn">
+                      <button 
+                        type="submit" 
+                        className="submit-review-btn"
+                        disabled={reviewLoading || newRating === 0 || !newComment.trim()}
+                      >
                         {reviewLoading ? 'Submitting...' : 'Submit Review'}
                       </button>
                     </div>
                   </form>
                 </div>
               )}
+              
+              <div className="reviews-container">
+                {reviews.length > 0 ? (
+                  reviews.map((review) => (
+                    <div key={review.review_id} className="review-item">
+                      <div className="review-header">
+                        <div className="reviewer-name">
+                          {review.user_name || 'Anonymous User'}
+                        </div>
+                        <div className="rating-stars">
+                          {renderStars(review.rating)}
+                        </div>
+                        <div className="review-date">
+                          {formatDate(review.created_at)}
+                        </div>
+                      </div>
+                      <div className="review-content">
+                        {review.comment}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="no-reviews">
+                    <i className="far fa-comment-dots"></i>
+                    <p>No reviews yet. Be the first to share your experience!</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
+        
+        {/* Move the pageEndRef to a less visible element */}
+        <div ref={pageEndRef} style={{ height: '1px', marginBottom: '-1px' }}></div>
       </div>
-      <Footer />
+      
+      {/* Update footer rendering */}
+      <Footer forceShow={false} />
     </>
   );
 };

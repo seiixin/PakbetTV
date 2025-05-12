@@ -45,10 +45,6 @@ const NavBar = () => {
   } ${scrolled ? 'scrolled' : ''}`;
   return (
     <>
-      {loggingOut && <div className="navbar-logout-overlay">
-        <div className="navbar-logout-spinner"></div>
-        <p>Logging out...</p>
-      </div>}
       <nav className={navClassName}>
         <div className="navbar-navbar-container">
           <div className="navbar-navbar-logo">

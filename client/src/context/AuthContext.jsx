@@ -1,6 +1,7 @@
 import { createContext, useState, useEffect, useContext } from 'react';
 import { authService } from '../services/api';
 import { useNavigate } from 'react-router-dom';
+import LoadingSpinner from '../components/common/LoadingSpinner';
 
 const AuthContext = createContext();
 
@@ -148,7 +149,11 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    setLoggingOut(true); 
+    // Small delay before starting logout to ensure smooth transition
+    setTimeout(() => {
+      setLoggingOut(true);
+    }, 100);
+
     setTimeout(() => {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
@@ -156,7 +161,7 @@ export const AuthProvider = ({ children }) => {
       setToken(null);
       setLoggingOut(false);
       navigate('/');
-    }, 2000);
+    }, 2500); // Increased to 2.5s for better visibility
   };
 
   const value = {
@@ -172,40 +177,15 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated: !!token && !!user
   };
 
-  // Styles for the initial loading state
-  const loadingContainerStyle = {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    height: '100vh',
-    backgroundColor: '#fff'
-  };
-
-  const spinnerStyle = {
-    width: '30px',
-    height: '30px',
-    border: '3px solid rgba(128, 0, 0, 0.1)',
-    borderTop: '3px solid #800000',
-    borderRadius: '50%',
-    animation: 'spin 1s linear infinite'
-  };
-
   return (
     <AuthContext.Provider value={value}>
       {initialLoading ? (
-        <div style={loadingContainerStyle}>
-          <div style={spinnerStyle}></div>
-          <style>
-            {`
-              @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-              }
-            `}
-          </style>
-        </div>
+        <LoadingSpinner message="Loading..." />
       ) : (
-        children
+        <>
+          {loggingOut && <LoadingSpinner message="Logging out..." />}
+          {children}
+        </>
       )}
     </AuthContext.Provider>
   );

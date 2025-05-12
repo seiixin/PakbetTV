@@ -3,9 +3,9 @@ import { Link } from 'react-router-dom';
 import './Footer.css';
 import GoogleMap from './common/GoogleMap';
 
-const Footer = () => {
+const Footer = ({ forceShow = true }) => {
   return (
-    <footer className="modern-footer">
+    <footer className={`modern-footer ${!forceShow ? 'scroll-visible' : ''}`}>
 
       <div className="footer-content">
         <div className="footer-section">
