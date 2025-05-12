@@ -1,6 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
+dotenv.config({ path: '../.env' }); // Adjust path based on your file location
+
 const path = require('path');
 const session = require('express-session');
 const passport = require('./config/passport');
@@ -9,8 +11,10 @@ const { runMigrations } = require('./config/db-migrations');
 const app = express();
 
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
-  credentials: true
+  origin: process.env.CLIENT_URL || ['http://localhost:3000', 'http://localhost:5173'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -29,8 +33,10 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 app.use((req, res, next) => {
-  console.log(`Incoming Request: ${req.method} ${req.path}`); 
-  next(); 
+  console.log(`Incoming Request: ${req.method} ${req.path}`);
+  console.log('Headers:', req.headers);
+  console.log('Body:', req.body);
+  next();
 });
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 const userRoutes = require('./routes/users');
@@ -154,7 +160,7 @@ app.use((err, req, res, next) => {
     error: process.env.NODE_ENV === 'production' ? {} : err
   });
 });
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 4444;
 app.listen(PORT, async () => {
   console.log(`Server is running on port ${PORT}`);
   try {

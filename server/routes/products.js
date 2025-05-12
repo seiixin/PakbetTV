@@ -268,23 +268,31 @@ router.get('/', async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
     const category = req.query.category;
+
+    console.log('Fetching products with params:', { page, limit, offset, category });
+
     let productQuery = `
       SELECT 
-        p.*, 
+        p.product_id, 
+        p.name, 
+        p.product_code, 
+        p.description, 
+        p.category_id, 
+        p.created_at, 
+        p.updated_at,
         c.name AS category_name,
-        p.items_sold,
-        p.average_rating,
-        p.review_count,
-        -- Use MIN variant price if variants exist, otherwise use base product price
-        COALESCE(MIN(pv.price), p.price) as display_price 
+        COALESCE(MIN(pv.price), 0) as price,
+        COALESCE(SUM(pv.stock), 0) as stock,
+        GROUP_CONCAT(DISTINCT pv.image_url) as variant_images
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.category_id
-      -- Join to find the minimum variant price
-      LEFT JOIN product_variants pv ON p.product_id = pv.product_id 
+      LEFT JOIN product_variants pv ON p.product_id = pv.product_id
     `;
-    let countQuery = 'SELECT COUNT(*) AS total FROM products p';
+
+    let countQuery = 'SELECT COUNT(DISTINCT p.product_id) AS total FROM products p';
     const queryParams = [];
     let countQueryParams = [];
+
     if (category) {
       const whereClause = ' WHERE p.category_id = ?';
       productQuery += whereClause;
@@ -292,55 +300,85 @@ router.get('/', async (req, res) => {
       queryParams.push(category);
       countQueryParams.push(category);
     }
-    productQuery += ' GROUP BY p.product_id, c.name'; 
+
+    productQuery += ' GROUP BY p.product_id, p.name, p.product_code, p.description, p.category_id, p.created_at, p.updated_at, c.name';
     productQuery += ' ORDER BY p.created_at DESC LIMIT ? OFFSET ?';
     queryParams.push(limit, offset);
-    const [products] = await db.query(productQuery, queryParams);
-    const [countResult] = await db.query(countQuery, countQueryParams);
-    const totalProducts = countResult[0].total;
-    const totalPages = Math.ceil(totalProducts / limit);
-    if (products.length > 0) {
-        const productIds = products.map(p => p.product_id);
-        const [images] = await db.query(
-            'SELECT product_id, image_url, alt_text, sort_order FROM product_images WHERE product_id IN (?) ORDER BY product_id, sort_order',
-            [productIds]
-        );
-        const imagesMap = images.reduce((map, img) => {
-            if (!map[img.product_id]) {
-                map[img.product_id] = [];
+
+    console.log('Executing product query:', productQuery);
+    console.log('Query params:', queryParams);
+
+    try {
+      const [products] = await db.query(productQuery, queryParams);
+      console.log(`Successfully fetched ${products.length} products`);
+      
+      const [countResult] = await db.query(countQuery, countQueryParams);
+      const totalProducts = countResult[0].total;
+      const totalPages = Math.ceil(totalProducts / limit);
+
+      console.log(`Found ${products.length} products out of ${totalProducts} total`);
+
+      // Process variant images
+      products.forEach(product => {
+        if (product.variant_images) {
+          const imageUrls = product.variant_images.split(',').filter(url => url);
+          console.log(`Processing images for product ${product.product_id}:`, imageUrls);
+          
+          product.images = imageUrls.map((url, index) => {
+            // Ensure the URL is properly formatted
+            let imageUrl = url.trim();
+            if (!imageUrl.startsWith('http')) {
+              // If it's a relative path, ensure it starts with /uploads/
+              imageUrl = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`;
+              if (!imageUrl.startsWith('/uploads/')) {
+                imageUrl = `/uploads/${imageUrl}`;
+              }
             }
-            if (img.image_url) {
-              map[img.product_id].push({
-                  url: img.image_url.startsWith('uploads/') ? `/${img.image_url}` : `/uploads/${img.image_url}`,
-                  alt: img.alt_text,
-                  order: img.sort_order
-              });
-            }
-            return map;
-        }, {});
-        products.forEach(product => {
-            product.images = imagesMap[product.product_id] || [];
-            product.price = product.display_price; 
-            delete product.display_price; 
-        });
+            console.log(`Formatted image URL: ${imageUrl}`);
+            return {
+              url: imageUrl,
+              alt: `${product.name} - Variant ${index + 1}`,
+              order: index
+            };
+          });
+        } else {
+          product.images = [];
+        }
+        product.price = Number(product.price) || 0;
+        product.stock = Number(product.stock) || 0;
+        delete product.variant_images; // Remove the raw variant_images field
+      });
+
+      res.json({
+        products: products,
+        pagination: {
+          currentPage: page,
+          totalPages,
+          totalProducts,
+          hasNextPage: page < totalPages,
+          hasPrevPage: page > 1
+        }
+      });
+    } catch (queryError) {
+      console.error('Error executing product query:', queryError);
+      throw new Error('Query execution failed: ' + queryError.message);
     }
-    res.json({
-      products: products.map(product => ({
-        ...product,
-        average_rating: product.average_rating !== null ? Number(product.average_rating) : null,
-        review_count: Number(product.review_count) || 0
-      })),
-      pagination: {
-        currentPage: page,
-        totalPages,
-        totalProducts,
-        hasNextPage: page < totalPages,
-        hasPrevPage: page > 1
-      }
-    });
   } catch (err) {
-    console.error("Error fetching products:", err);
-    res.status(500).json({ message: 'Server error while fetching products' });
+    console.error("Error in products route:", {
+      name: err.name,
+      message: err.message,
+      stack: err.stack,
+      code: err.code
+    });
+    
+    res.status(500).json({ 
+      message: 'Server error while fetching products',
+      error: process.env.NODE_ENV === 'development' ? {
+        message: err.message,
+        code: err.code,
+        stack: err.stack
+      } : undefined
+    });
   }
 });
 router.get('/:id', async (req, res) => {
@@ -350,10 +388,16 @@ router.get('/:id', async (req, res) => {
       SELECT 
         p.product_id, p.name, p.product_code, p.description, p.category_id, 
         p.price, p.stock AS stock_quantity, p.created_at, p.updated_at,
-        p.items_sold, p.average_rating, p.review_count, c.name AS category_name
+        COALESCE(SUM(oi.quantity), 0) as items_sold,
+        p.average_rating, p.review_count, c.name AS category_name
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.category_id
+      LEFT JOIN order_items oi ON p.product_id = oi.product_id
+      LEFT JOIN orders o ON oi.order_id = o.order_id AND o.order_status IN ('completed', 'delivered')
       WHERE p.product_id = ?
+      GROUP BY p.product_id, p.name, p.product_code, p.description, p.category_id, 
+               p.price, p.stock, p.created_at, p.updated_at, p.average_rating, 
+               p.review_count, c.name
     `, [productId]);
     if (productResult.length === 0) {
       return res.status(404).json({ message: 'Product not found' });
