@@ -4,7 +4,6 @@ import axios from 'axios';
 import NavBar from '../NavBar';
 import Footer from '../Footer';
 import API_BASE_URL from '../../config';
-import LoadingSpinner from '../common/LoadingSpinner';
 import './ProsperGuide.css';
 
 const ProsperGuide = () => {
@@ -70,10 +69,21 @@ const ProsperGuide = () => {
 
   const renderContent = () => {
     if (loading) {
-      return <div className="loading-container"><LoadingSpinner /></div>;
+      return (
+        <div className="prosper-guide">
+          <NavBar />
+          <div className="loading-container">
+            <div className="spinner-border" role="status">
+              <span className="visually-hidden">Loading...</span>
+            </div>
+            <p>Loading guide...</p>
+          </div>
+          <Footer />
+        </div>
+      );
     }
     if (error) {
-  return (
+      return (
         <div className="error-container">
           <div className="error-message">{error}</div>
           <div className="error-actions">

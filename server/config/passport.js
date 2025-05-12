@@ -3,6 +3,9 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const FacebookStrategy = require('passport-facebook').Strategy;
 const db = require('./db');
 const bcrypt = require('bcryptjs');
+require('dotenv').config({ path: '../../.env' }); // 👈 Make sure this is here
+
+
 
 // Serialize user for the session
 passport.serializeUser((user, done) => {

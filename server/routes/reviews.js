@@ -54,7 +54,10 @@ router.post('/product/:productId',
       );
 
       if (purchases.length === 0) {
-        return res.status(403).json({ message: 'You must purchase and receive the product before reviewing it' });
+        return res.status(403).json({ 
+          error: 'purchase_required',
+          message: 'Please purchase and receive the product before reviewing' 
+        });
       }
 
       const [products] = await db.query('SELECT product_id FROM products WHERE product_id = ?', [productId]);
@@ -68,7 +71,10 @@ router.post('/product/:productId',
       );
 
       if (existingReviews.length > 0) {
-        return res.status(400).json({ message: 'You have already reviewed this product' });
+        return res.status(400).json({ 
+          error: 'already_reviewed',
+          message: 'You have already reviewed this product' 
+        });
       }
 
       const [result] = await db.query(

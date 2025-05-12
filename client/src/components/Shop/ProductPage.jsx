@@ -161,7 +161,7 @@ const ProductPage = () => {
           )}
         </div>
       </div>
-      <Footer />
+      <Footer forceShow={false} />
     </div>
   );
 };

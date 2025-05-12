@@ -1,42 +1,65 @@
-/* Modern Footer Styles */
 :root {
   --footer-maroon: #800000;
-  --footer-gold: #DAA520;
-  --footer-light-gold: #f7efd1;
+  --footer-gold: #e6a400;
+  --footer-light-gold: #f9c300;
   --footer-accent: #f3f3f3;
-  --footer-text: #333;
-  --footer-light-text: #666;
+  --footer-text: #1c1c1c;
+  --footer-light-text: #baee1f;
+  --footer-font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 .modern-footer {
+  background-color: var(--footer-maroon);
+  color: var(--footer-accent);
+  padding: 4rem 2rem 0;
+  font-family: var(--footer-font-family);
+  letter-spacing: 0.4px;
+  font-size: 1.05rem;
   position: relative;
   background-color: var(--footer-text);
   color: white;
   padding: 3rem 2rem 0;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+/* Scroll-dependent footer styles */
+.modern-footer.scroll-visible {
+  display: block;
+}
+
+.modern-footer:not(.scroll-visible) {
+  opacity: 0;
+  transform: translateY(20px);
+  pointer-events: none;
 }
 
 .footer-content {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 2rem;
+  grid-template-columns: 1.2fr 1fr 1fr; /* Map, then other sections */
+  gap: 2.5rem;
   max-width: 1200px;
   margin: 0 auto;
-  padding-bottom: 2rem;
+  padding-bottom: 2.5rem;
+  align-items: start;
 }
 
 .footer-section h3 {
-  color: var(--footer-gold);
-  font-size: 1.2rem;
-  font-weight: 600;
+  color: var(--footer-light-gold);
+  font-size: 1.6rem;
+  font-weight: 700;
   margin-bottom: 1.5rem;
   text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .footer-section h4 {
-  color: var(--footer-light-gold);
-  font-size: 1rem;
-  margin: 1.5rem 0 0.7rem;
+  color: var(--footer-gold);
+  font-size: 1.25rem;
+  margin: 1.2rem 0 0.7rem;
+  font-weight: 600;
 }
 
 .footer-section ul {
@@ -46,66 +69,74 @@
 }
 
 .footer-section ul li {
-  margin-bottom: 0.8rem;
+  margin-bottom: 1rem;
+  font-size: 1.05rem;
 }
 
-.footer-section ul li a,
 .footer-section a {
-  color: white;
+  color: var(--footer-accent);
   text-decoration: none;
   transition: color 0.2s ease;
 }
 
-.footer-section ul li a:hover,
 .footer-section a:hover {
   color: var(--footer-gold);
+  font-weight: 500;
 }
 
-.location-info p {
-  margin: 0.3rem 0;
-  line-height: 1.5;
-}
-
-.hours {
-  margin-top: 1.2rem;
+.location-info p,
+.contact-info p {
+  margin: 0.5rem 0;
+  line-height: 1.7;
+  font-size: 1.05rem;
 }
 
 .hours-title {
   font-weight: 600;
   color: var(--footer-light-gold);
-  margin-bottom: 0.4rem;
+  margin-top: 1rem;
 }
 
 .map-container {
-  margin-top: 1.5rem;
-  border-radius: 8px;
+  flex: 1;
+  border-radius: 20px;
   overflow: hidden;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
 }
 
 .google-map {
-  width: 100%;
-  height: 250px;
-  background-color: rgba(255, 255, 255, 0.1);
+  width: 450px;
+  height: 350px;
+  display: flex;
+  background-color: rgba(255, 255, 255, 0.05);
 }
 
 .google-map iframe {
-  border-radius: 8px;
+  width: 100%;
+  height: 100%;
+  border: none;
+  border-radius: 20px;
+  display: block;
+}
+
+.right-content {
+  flex: 1;
+  min-width: 300px;
 }
 
 .social-icons {
   display: flex;
-  gap: 1rem;
-  margin-top: 0.5rem;
+  gap: 1.2rem;
+  margin-top: 1rem;
 }
 
 .social-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
-  background-color: rgba(255, 255, 255, 0.1);
+  width: 54px;
+  height: 54px;
+  background-color: rgba(255, 255, 255, 0.15);
   border-radius: 50%;
   transition: all 0.3s ease;
 }
@@ -117,24 +148,19 @@
 }
 
 .social-icon i {
-  font-size: 1rem;
-}
-
-.contact-info p {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin: 0.5rem 0;
+  font-size: 1.25rem;
 }
 
 .contact-info i {
   color: var(--footer-gold);
+  font-size: 1.1rem;
 }
 
 .footer-bottom {
-  background-color: rgba(0, 0, 0, 0.2);
-  padding: 1.25rem 0;
-  font-size: 0.8rem;
+  background-color: rgba(0, 0, 0, 0.15);
+  padding: 1.5rem 0;
+  font-size: 0.95rem;
+  color: var(--footer-light-text);
 }
 
 .footer-bottom-content {
@@ -147,17 +173,13 @@
   gap: 1rem;
 }
 
-.copyright p {
-  margin: 0;
-}
-
 .footer-links {
   display: flex;
-  gap: 1.5rem;
+  gap: 1.8rem;
 }
 
 .footer-links a {
-  color: white;
+  color: var(--footer-accent);
   text-decoration: none;
   transition: color 0.2s ease;
 }
@@ -166,27 +188,30 @@
   color: var(--footer-gold);
 }
 
+/* Responsive Design */
 @media (max-width: 768px) {
   .footer-content {
     grid-template-columns: 1fr;
     gap: 2rem;
   }
-  
+
   .footer-bottom-content {
     flex-direction: column;
     text-align: center;
   }
-  
+
   .footer-links {
     justify-content: center;
   }
 
   .map-container {
-    margin-top: 1rem;
+    margin-top: 1.5rem;
+
   }
 
   .google-map {
-    height: 200px;
+    height: 220px;
+
   }
 }
 
@@ -196,10 +221,10 @@
   }
 
   .map-container {
-    margin-top: 1rem;
+    margin-top: 1.2rem;
   }
 
   .google-map {
-    height: 180px;
+    height: 200px;
   }
-} 
+}

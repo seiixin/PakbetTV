@@ -45,10 +45,6 @@ const NavBar = () => {
   } ${scrolled ? 'scrolled' : ''}`;
   return (
     <>
-      {loggingOut && <div className="navbar-logout-overlay">
-        <div className="navbar-logout-spinner"></div>
-        <p>Logging out...</p>
-      </div>}
       <nav className={navClassName}>
         <div className="navbar-navbar-container">
           <div className="navbar-navbar-logo">
@@ -77,6 +73,9 @@ const NavBar = () => {
             </li>
             <li className="navbar-navbar-item">
               <Link to="/faqs" className="navbar-navbar-link">FAQs</Link>
+            </li>
+            <li className="navbar-navbar-item">
+              <Link to="/contact" className="navbar-navbar-link">Contact Us</Link>
             </li>
             <li className="navbar-navbar-item">
               <Link to="/blog/:slug" className="navbar-navbar-link">Free Tools</Link>

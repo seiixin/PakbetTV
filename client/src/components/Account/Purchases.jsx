@@ -38,15 +38,29 @@ function Purchases() {
           throw new Error('No authentication token found');
         }
 
-        // Use the API service which has the correct base URL configured
-        const response = await api.get('/orders');
-        console.log('Orders fetched successfully:', response.data);
-        setOrders(response.data);
-        setFilteredOrders(response.data);
-        setLoading(false);
+        const response = await api.get('/api/orders');
+        
+        // Check if response is valid JSON
+        if (typeof response.data === 'string') {
+          console.error('Invalid response format:', response.data);
+          setError('Invalid response from server. Please try again later.');
+          setOrders([]);
+          setFilteredOrders([]);
+          return;
+        }
+
+        // Ensure response.data is an array
+        const ordersData = Array.isArray(response.data) ? response.data : [];
+        console.log('Orders fetched successfully:', ordersData);
+        
+        setOrders(ordersData);
+        setFilteredOrders(ordersData);
       } catch (err) {
         console.error('Error fetching orders:', err);
         setError('Failed to load your purchase history. Please try again later.');
+        setOrders([]);
+        setFilteredOrders([]);
+      } finally {
         setLoading(false);
       }
     };

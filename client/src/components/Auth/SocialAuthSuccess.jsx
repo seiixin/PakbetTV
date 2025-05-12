@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import LoadingSpinner from '../common/LoadingSpinner';
 
 const SocialAuthSuccess = () => {
   const navigate = useNavigate();
@@ -41,7 +40,9 @@ const SocialAuthSuccess = () => {
 
   return (
     <div className="social-auth-success">
-      <LoadingSpinner />
+      <div className="spinner-border" role="status">
+        <span className="visually-hidden">Loading...</span>
+      </div>
       <p>Processing login, please wait...</p>
     </div>
   );
