@@ -265,8 +265,7 @@ const Home = () => {
           </div>
         </div>
       </section>
-      
-      <Footer />
+      <Footer forceShow={false} />
     </div>
   );
 };

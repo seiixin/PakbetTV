@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
-import './Shop.css';
+import './Cart.css';
 import API_BASE_URL from '../../config';
 import NavBar from '../NavBar';
 import Footer from '../Footer';
@@ -88,9 +88,9 @@ const Cart = () => {
     return (
       <div className="cart-page">
         <NavBar />
-        <div className="shop-container">
-          <div className="loading">
-            <div className="loading-spinner"></div>
+        <div className="cart-shop-container">
+          <div className="cart-loading">
+            <div className="cart-loading-spinner"></div>
             <p>Loading your cart...</p>
           </div>
         </div>
@@ -103,11 +103,11 @@ const Cart = () => {
     return (
       <div className="cart-page">
         <NavBar />
-        <div className="shop-container">
-          <div className="cart-container empty-cart cart-redesign">
+        <div className="cart-shop-container">
+          <div className="cart-empty-cart">
             <h2>Your Shopping Cart is Empty</h2>
             <p>Add items to your cart to see them here.</p>
-            <button className="continue-shopping-button" onClick={handleContinueShopping}>
+            <button className="cart-continue-shopping-button" onClick={handleContinueShopping}>
               Continue Shopping
             </button>
           </div>
@@ -122,9 +122,9 @@ const Cart = () => {
   return (
     <div className="cart-page">
       <NavBar />
-      <div className="shop-container">
+      <div className="cart-shop-container">
         <div className="cart-container cart-redesign">
-          {error && <div className="error-message">{error}</div>}
+          {error && <div className="cart-error-message">{error}</div>}
           <div className="cart-header-new">
             <div className="cart-header-select">
               <input
@@ -250,7 +250,6 @@ const Cart = () => {
           </div>
         </div>
       </div>
-      <Footer />
     </div>
   );
 };

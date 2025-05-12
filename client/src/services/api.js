@@ -1,11 +1,13 @@
 import axios from 'axios';
 import { notify, handleApiError } from '../utils/notifications';
+import API_BASE_URL from '../config';
 
 // Create a custom axios instance
 const api = axios.create({
-  baseURL: '/',
+  baseURL: API_BASE_URL,
   headers: {
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
   }
 });
 

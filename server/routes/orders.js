@@ -267,7 +267,10 @@ router.get('/', auth, async (req, res) => {
     query += ' ORDER BY o.created_at DESC';
     
     const [orders] = await db.query(query, params);
-    res.json(orders);
+    
+    // Set proper content type and return JSON
+    res.setHeader('Content-Type', 'application/json');
+    res.json(orders || []);
   } catch (err) {
     console.error('GET orders error:', err.message);
     res.status(500).json({ message: 'Server error' });

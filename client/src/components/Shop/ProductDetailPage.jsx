@@ -371,15 +371,14 @@ const ProductDetailPage = () => {
   const handleReviewSubmit = async (e) => {
     e.preventDefault();
     if (newRating === 0) {
-      setReviewError('Please select a rating.');
+      toast.warning('Please select a rating');
       return;
     }
     if (!newComment.trim()) {
-        setReviewError('Please enter a comment.');
-        return;
+      toast.warning('Please enter your review');
+      return;
     }
     setReviewLoading(true);
-    setReviewError(null);
     try {
       const response = await fetch(`${API_BASE_URL}/api/reviews/product/${product.product_id}`, {
         method: 'POST',
@@ -389,20 +388,22 @@ const ProductDetailPage = () => {
         },
         body: JSON.stringify({ rating: newRating, review_text: newComment })
       });
+
+      const data = await response.json();
+      
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to submit review');
+        throw new Error(data.message || 'Failed to submit review');
       }
+
       toast.success('Review submitted successfully!');
       setShowReviewForm(false);
       setNewRating(0);
       setNewComment('');
-      fetchProductDetails(); 
-      setHasReviewed(true); 
+      fetchProductDetails();
+      setHasReviewed(true);
     } catch (err) {
       console.error('Error submitting review:', err);
-      setReviewError(err.message || 'An error occurred. Please try again.');
-      toast.error(err.message || 'Failed to submit review.');
+      toast.error(err.message || 'Failed to submit review');
     } finally {
       setReviewLoading(false);
     }
@@ -721,8 +722,6 @@ const ProductDetailPage = () => {
                       ></textarea>
                     </div>
                     
-                    {reviewError && <div className="error-message">{reviewError}</div>}
-                    
                     <div className="form-actions">
                       <button 
                         type="button" 
@@ -731,7 +730,6 @@ const ProductDetailPage = () => {
                           setShowReviewForm(false);
                           setNewRating(0);
                           setNewComment('');
-                          setReviewError(null);
                         }}
                       >
                         Cancel
