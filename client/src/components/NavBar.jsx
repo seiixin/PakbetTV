@@ -79,6 +79,9 @@ const NavBar = () => {
               <Link to="/faqs" className="navbar-navbar-link">FAQs</Link>
             </li>
             <li className="navbar-navbar-item">
+              <Link to="/contact" className="navbar-navbar-link">Contact Us</Link>
+            </li>
+            <li className="navbar-navbar-item">
               <Link to="/blog/:slug" className="navbar-navbar-link">Free Tools</Link>
             </li>
           </ul>

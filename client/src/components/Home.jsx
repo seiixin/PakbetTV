@@ -10,6 +10,9 @@ import Footer from './Footer';
 import LoadingSpinner from './common/LoadingSpinner';
 import API_BASE_URL from '../config';
 import ProductCard from './common/ProductCard';
+import axios from 'axios';
+import Swal from 'sweetalert2';
+
 
 const constructUrl = (baseUrl, path) => {
   const defaultImageUrl = '/images/default-placeholder.png'; 
@@ -17,17 +20,19 @@ const constructUrl = (baseUrl, path) => {
   if (!baseUrl) {
     return path.startsWith('/') ? path : '/' + path;
   }
-  else {
-    return path.startsWith('/') ? baseUrl + path : baseUrl + '/' + path;
-  }
+  return path.startsWith('/') ? baseUrl + path : baseUrl + '/' + path;
 };
 
 const Home = () => {
   const [newArrivals, setNewArrivals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [blogs, setBlogs] = useState([]);
+  const [blogLoading, setBlogLoading] = useState(true);
+
   const navigate = useNavigate();
   const { } = useCart();
+
   const zodiacSigns = [
     { name: 'RAT', image: '/Prosper-1.png' },
     { name: 'OX', image: '/Prosper-2.png' },
@@ -42,6 +47,7 @@ const Home = () => {
     { name: 'DOG', image: '/Prosper-11.png' },
     { name: 'PIG', image: '/Prosper-12.png' },
   ];
+
   const aspirations = [
     { name: 'Balance', image: '/Aspiration-1.png' },
     { name: 'Health', image: '/Aspiration-2.png' },
@@ -52,6 +58,7 @@ const Home = () => {
     { name: 'Wealth', image: '/Aspiration-7.png' },
     { name: 'Wisdom', image: '/Aspiration-8.png' },
   ];
+
   const homeCategories = [
     { name: 'Best Sellers', image: '/Categories-1.png', filterId: 'best-sellers' },
     { name: 'Flash Deals', image: '/Categories-2.png', filterId: 'flash-deals' },
@@ -59,11 +66,12 @@ const Home = () => {
     { name: 'Amulets', image: '/Categories-5.png', filterId: 'amulets' }, 
     { name: 'Bracelets', image: '/Categories-4.png', filterId: 'bracelets' } 
   ];
+
   useEffect(() => {
     const fetchNewArrivals = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`${API_BASE_URL}/api/products?limit=1000`); 
+        const response = await fetch(`${API_BASE_URL}/api/products?limit=20`);
         if (!response.ok) {
           throw new Error('Failed to fetch products for new arrivals');
         }
@@ -71,74 +79,80 @@ const Home = () => {
         const allProducts = Array.isArray(data?.products) ? data.products : [];
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        const filteredArrivals = allProducts.filter(product => {
-            const createdDate = new Date(product.created_at);
-            return createdDate > thirtyDaysAgo;
-        });
-        const limitedArrivals = filteredArrivals.slice(0, 10);
-        console.log(`Found ${limitedArrivals.length} new arrivals (limited to 10).`);
-        setNewArrivals(limitedArrivals);
+        const filteredArrivals = allProducts.filter(product => new Date(product.created_at) > thirtyDaysAgo);
+        setNewArrivals(filteredArrivals.slice(0, 10));
       } catch (error) {
         console.error('Error fetching new arrivals:', error);
         setError('Error fetching new arrivals');
-        setNewArrivals([]); 
+        setNewArrivals([]);
       } finally {
         setLoading(false);
       }
     };
+
     fetchNewArrivals();
   }, []);
-  const calculateDiscountedPrice = (price, discount) => {
-    if (!discount) return price;
-    return (price - (price * discount / 100)).toFixed(2);
-  };
-  const formatPrice = (price) => {
-    return `₱${Number(price).toFixed(2)}`;
-  };
-  const formatItemsSold = (count) => {
-    if (count >= 1000) {
-      return `${(count / 1000).toFixed(1)}k sold`;
-    }
-    return `${count} sold`;
-  };
-  const navigateToProduct = (id) => {
-    navigate(`/product/${id}`);
-  };
-  const renderNewArrivals = () => {
-    return (
-      <section className="home-new-arrivals">
-        <div className="home-section-header">
-          <h2>New Arrivals</h2>
+
+  useEffect(() => {
+    setBlogLoading(true);
+    axios.get(`${API_BASE_URL}/api/cms/blogs`)
+      .then(res => {
+        if (res.data.length === 0) {
+          Swal.fire("No Blog Posts Found", "Please check back later.", "info");
+        }
+        setBlogs(res.data);
+      })
+      .catch(err => {
+        console.error("Error fetching blogs:", err);
+        Swal.fire("Error", "Failed to fetch blogs", "error");
+      })
+      .finally(() => {
+        setBlogLoading(false);
+      });
+  }, []);
+
+  const renderNewArrivals = () => (
+    <section className="home-new-arrivals">
+      <div className="home-section-header">
+        <h2>New Arrivals</h2>
+      </div>
+      {loading ? (
+        <div className="home-new-arrivals-loading-container">
+          <LoadingSpinner />
         </div>
-        
-        {loading ? (
-          <div className="home-new-arrivals-loading-container">
-            <LoadingSpinner />
-          </div>
-        ) : error ? (
-          <div className="error-message">{error}</div>
-        ) : (
-          <div className="home-new-arrivals-grid">
-            {newArrivals.map(product => (
-              <ProductCard key={product.product_id} product={product} />
-            ))}
-          </div>
-        )}
-        
-        <Link to="/shop" className="view-all-btn">View All Products</Link>
+      ) : error ? (
+        <div className="error-message">{error}</div>
+      ) : (
+        <div className="home-new-arrivals-grid">
+          {newArrivals.map(product => (
+            <ProductCard key={product.product_id} product={product} />
+          ))}
+        </div>
+      )}
+      <Link to="/shop" className="view-all-btn">View All Products</Link>
+    </section>
+  );
+
+  const Hero = () => {
+    return (
+      <section className="blog-hero" role="banner" tabIndex={0}>
+        <div className="blog-hero-text">
+          Bring the auspicious into your life today!
+        </div>
+        <Link to="/shop">
+          <button className="blog-hero-button" type="button" tabIndex={0}>
+            SHOP NOW
+          </button>
+        </Link>
       </section>
     );
   };
+
   return (
     <div className="home-page">
       <NavBar />
-      <section className="home-hero-section" style={{ 
-        backgroundColor: '#A2201A',
-        backgroundImage: `url(/HeroBG-01-01.png)`,
-        backgroundSize: '100% 100%',
-        backgroundPosition: 'center center',
-        backgroundRepeat: 'no-repeat'
-      }}>
+
+      <section className="home-hero-section" style={{ backgroundColor: '#A2201A', backgroundImage: `url(/HeroBG-01-01.png)`, backgroundSize: '100% 100%', backgroundPosition: 'center center', backgroundRepeat: 'no-repeat' }}>
         <div className="home-hero-grid">
           <div className="home-hero-top-left">
             <div className="home-hero-content">
@@ -150,49 +164,32 @@ const Home = () => {
             </div>
           </div>
           <div className="home-hero-top-right">
-            {Michael && <img src={Michael} alt="Michael De Mesa" className="home-hero-image"/>}
-          </div>
-          <div className="home-hero-bottom-left">
+            {Michael && <img src={Michael} alt="Michael De Mesa" className="home-hero-image" />}
           </div>
           <div className="home-hero-bottom-right">
             <div className="home-hero-why-consult">
               <h3>WHY CONSULT WITH MASTER MICHAEL DE MESA</h3>
               <div className="home-why-consult-icons">
-                <div className="home-why-consult-icon">
-                  <img src="/Icons-1.png" alt="Icon 1" />
-                </div>
-                <div className="home-why-consult-icon">
-                  <img src="/Icons-2.png" alt="Icon 2" />
-                </div>
-                <div className="home-why-consult-icon">
-                  <img src="/Icons-3.png" alt="Icon 3" />
-                </div>
-                <div className="home-why-consult-icon">
-                  <img src="/Icons-4.png" alt="Icon 4" />
-                </div>
-                <div className="home-why-consult-icon">
-                  <img src="/Icons-5.png" alt="Icon 5" />
-                </div>
-                <div className="home-why-consult-icon">
-                  <img src="/Icons-6.png" alt="Icon 6" />
-                </div>
+                {[1, 2, 3, 4, 5, 6].map(i => (
+                  <div className="home-why-consult-icon" key={i}>
+                    <img src={`/Icons-${i}.png`} alt={`Icon ${i}`} />
+                  </div>
+                ))}
               </div>
             </div>
           </div>
         </div>
       </section>
+
       {renderNewArrivals()}
+
       <section className="home-categories">
         <div className="home-section-header">
           <h2>CATEGORIES</h2>
         </div>
         <div className="home-categories-grid">
           {homeCategories.map(category => (
-            <Link 
-              to={`/shop?category=${category.filterId}`} 
-              key={category.filterId} 
-              className="home-category-card"
-            >
+            <Link to={`/shop?category=${category.filterId}`} key={category.filterId} className="home-category-card">
               <div className="home-category-image">
                 <img src={category.image} alt={`${category.name} Icon`} />
               </div>
@@ -201,14 +198,27 @@ const Home = () => {
           ))}
         </div>
       </section>
-      {}
+
+    
+      <section className="blog-hero" role="banner" tabIndex={0}>
+        <div className="blog-hero-text">
+          Bring the auspicious into your life today!
+        </div>
+        <Link to="/shop">
+          <button className="blog-hero-button" type="button" tabIndex={0}>
+            SHOP NOW
+          </button>
+        </Link>
+      </section>
+
+
       <section className="home-prosper-guide-section">
         <div className="home-section-header home-prosper-header">
-          <h2>2025 PROSPER GUIDE</h2> 
+          <h2>2025 PROSPER GUIDE</h2>
           <p>Career, Health, Love, & Wealth</p>
         </div>
         <div className="home-zodiac-icons-container">
-          {zodiacSigns.map((sign) => (
+          {zodiacSigns.map(sign => (
             <Link to={`/prosper-guide/${sign.name.toLowerCase()}`} key={sign.name} className="home-zodiac-item">
               <img src={sign.image} alt={sign.name} className="home-zodiac-icon" />
               <p className="home-zodiac-name">{sign.name}</p>
@@ -216,58 +226,77 @@ const Home = () => {
           ))}
         </div>
       </section>
-      {}
+
       <section className="home-shop-aspirations">
         <div className="home-section-header">
           <h2>SHOP BY ASPIRATION</h2>
           <p>Find products aligned with your life goals</p>
         </div>
         <div className="home-aspirations-grid">
-          {aspirations.map((item) => (
+          {aspirations.map(item => (
             <div key={item.name} className="home-aspiration-card">
               <div className="home-aspiration-icon">
-                 <img src={item.image} alt={`${item.name} Icon`} />
+                <img src={item.image} alt={`${item.name} Icon`} />
               </div>
               <h3>{item.name}</h3>
             </div>
           ))}
         </div>
       </section>
-      {}
       <section className="home-blog-section">
-        <div className="home-section-header">
-          <h2>BLOG</h2>
+  <div className="home-blog-container py-5">
+    <div className="home-blog-section-header text-center mb-5">
+      <h2 className="text-dark">BLOG</h2>
+      <p className="text-muted">Latest insights on Feng Shui and wellness</p>
+    </div>
+    {blogLoading ? (
+      <div className="text-center py-5">
+        <div className="spinner-border" role="status">
+          <span className="visually-hidden">Loading...</span>
         </div>
-        <div className="home-blog-grid">
-          <div className="home-blog-card">
-            <div className="home-blog-image" style={{ backgroundImage: `url(${placeholderImages.blogOffice})` }}></div>
-            <div className="home-blog-content">
-              <h3>Balance Your Home Office for Success</h3>
-              <p>Discover how proper Feng Shui can boost productivity and success...</p>
-              <a href="#">Read More</a>
+      </div>
+    ) : (
+      <div className="row justify-content-center g-4">
+        {blogs.slice(0, 4).map(blog => (
+          <div className="col-sm-10 col-md-6 col-lg-3" key={blog.blogID}>
+            <div className="card h-100 shadow-lg border-0 rounded-3">
+              <img
+                src={blog.cover_image}
+                className="card-img-top rounded-3"
+                alt="Blog Cover"
+              />
+              <div className="card-body d-flex flex-column p-4">
+                <h5 className="card-title text-dark mb-3">{blog.title}</h5>
+                <p className="card-subtitle text-muted small mb-2">
+                  {blog.category} • {new Date(blog.publish_date).toLocaleDateString()}
+                </p>
+                <p className="card-text text-muted mb-3">
+                  {blog.content.substring(0, 120)}...
+                </p>
+                <Link to={`/blog/${blog.blogID}`} className="blog-read-more-btn mt-auto"
+                style={{
+                  backgroundColor: 'var(--primary-color)',
+                  color: 'white',
+                  padding: '10px 20px',
+                  borderRadius: '5px',
+                  textDecoration: 'none',
+                }}
+                >
+                  Read More
+                </Link>
+              </div>
             </div>
           </div>
-          <div className="home-blog-card">
-            <div className="home-blog-image" style={{ backgroundImage: `url(${placeholderImages.blogWater})` }}></div>
-            <div className="home-blog-content">
-              <h3>Water Elements for Wealth Attraction</h3>
-              <p>Learn how water features can enhance your wealth sector...</p>
-              <a href="#">Read More</a>
-            </div>
-          </div>
-          <div className="home-blog-card">
-            <div className="home-blog-image" style={{ backgroundImage: `url(${placeholderImages.blogBedroom})` }}></div>
-            <div className="home-blog-content">
-              <h3>Bedroom Feng Shui for Better Sleep</h3>
-              <p>Transform your bedroom into a sanctuary for rest and rejuvenation...</p>
-              <a href="#">Read More</a>
-            </div>
-          </div>
-        </div>
-      </section>
-      
+        ))}
+      </div>
+    )}
+  </div>
+</section>
+
+
       <Footer />
     </div>
   );
 };
-export default Home; 
+
+export default Home;

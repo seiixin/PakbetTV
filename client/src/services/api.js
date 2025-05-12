@@ -3,7 +3,7 @@ import { notify, handleApiError } from '../utils/notifications';
 
 // Create a custom axios instance
 const api = axios.create({
-  baseURL: '/',
+  baseURL: 'http://localhost:4444',
   headers: {
     'Content-Type': 'application/json'
   }
