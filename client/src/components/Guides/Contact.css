@@ -1,0 +1,96 @@
+:root {
+    --custom-red: #dc2626;
+    --custom-gray: #f3f4f6;
+    --custom-black: #000;
+    --custom-dark-gray: #333;
+}
+
+body {
+    background-color: white;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.contact-container {
+    width: 100%;
+    max-width: 600px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    padding: 2rem;
+}
+
+.contact-title {
+    text-align: center;
+    font-weight: bold;
+    font-size: 1.75rem; /* Increased font size */
+    color: var(--custom-black);
+}
+
+.contact-description {
+    text-align: center;
+    color: gray;
+    margin-top: 0.5rem;
+}
+
+.contact-form {
+    margin-top: 1.5rem;
+}
+
+.contact-label {
+    display: block;
+    color: var(--custom-black);
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.contact-input,
+.contact-textarea {
+    width: 100%;
+    background-color: var(--custom-red);
+    color: white;
+    padding: 0.75rem;
+    border-radius: 4px;
+    border: none;
+    margin-bottom: 1rem;
+    transition: border 0.3s;
+}
+
+.contact-input:focus,
+.contact-textarea:focus {
+    outline: none;
+    border: 2px solid var(--custom-dark-gray);
+}
+
+.contact-input::placeholder,
+.contact-textarea::placeholder {
+    color: white;
+}
+
+.contact-textarea {
+    resize: vertical;
+}
+
+.contact-submit-button {
+    background-color: var(--custom-black);
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.contact-submit-button:hover {
+    background-color: var(--custom-dark-gray);
+}
+
+.error-message {
+    color: red;
+    font-size: 0.875rem;
+    margin-top: -0.5rem;
+    margin-bottom: 1rem;
+}
