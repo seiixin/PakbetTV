@@ -15,7 +15,6 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [loggingOut, setLoggingOut] = useState(false);
   const navigate = useNavigate();
 
   // This effect runs once on mount to validate the token
@@ -148,19 +147,12 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    // Small delay before starting logout to ensure smooth transition
-    setTimeout(() => {
-      setLoggingOut(true);
-    }, 100);
-
-    setTimeout(() => {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      setUser(null);
-      setToken(null);
-      setLoggingOut(false);
-      navigate('/');
-    }, 2500); // Increased to 2.5s for better visibility
+    // Immediately clear auth data and redirect
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setUser(null);
+    setToken(null);
+    navigate('/');
   };
 
   const value = {
@@ -169,7 +161,6 @@ export const AuthProvider = ({ children }) => {
     loading,
     initialLoading,
     refreshing,
-    loggingOut,
     login,
     register,
     logout,
@@ -186,17 +177,7 @@ export const AuthProvider = ({ children }) => {
           <p>Loading...</p>
         </div>
       ) : (
-        <>
-          {loggingOut && (
-            <div className="loading-container">
-              <div className="spinner-border" role="status">
-                <span className="visually-hidden">Loading...</span>
-              </div>
-              <p>Logging out...</p>
-            </div>
-          )}
-          {children}
-        </>
+        children
       )}
     </AuthContext.Provider>
   );

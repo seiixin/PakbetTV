@@ -41,13 +41,12 @@
   cursor: pointer;
   position: relative;
   border: 1px solid #e0e0e0;
+  font-size: 14px;
 }
 
-.social-login-button i {
+.social-login-button svg {
   font-size: 18px;
   margin-right: 8px;
-  position: absolute;
-  left: 15px;
 }
 
 .google-login {
@@ -60,40 +59,18 @@
 }
 
 /* Facebook Login Button Styles */
-.facebook-button-wrapper {
-  display: flex;
-  justify-content: center;
-  margin: 8px 0;
-}
-
-.facebook-login-button-container {
-  min-width: 240px;
-  display: flex;
-  justify-content: center;
-}
-
-/* Ensure the FB button aligns with other buttons */
-.fb_iframe_widget {
-  display: inline-block;
-  position: relative;
-  width: 100%;
-}
-
-.fb_iframe_widget span {
-  width: 100% !important;
-}
-
-.fb_iframe_widget iframe {
-  width: 100% !important;
-}
-
 .facebook-login {
   background-color: #1877f2;
   color: white;
+  border: none;
 }
 
 .facebook-login:hover {
   background-color: #166fe5;
+}
+
+.facebook-login svg {
+  font-size: 20px;
 }
 
 @media (max-width: 480px) {
@@ -101,8 +78,8 @@
     padding: 10px;
   }
 
-  .social-login-button i {
+  .social-login-button svg {
     font-size: 16px;
-    left: 10px;
+    margin-right: 6px;
   }
 } 

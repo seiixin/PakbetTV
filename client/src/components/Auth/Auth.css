@@ -117,4 +117,36 @@ input:-webkit-autofill:active {
   font-size: 0.8rem;
   margin-top: 0.3rem;
   margin-bottom: 0.5rem;
+}
+
+/* Social Auth Success */
+.social-auth-success-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 80vh;
+  padding: 20px;
+}
+
+.social-auth-success {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  padding: 30px;
+  text-align: center;
+  max-width: 400px;
+  width: 100%;
+}
+
+.social-auth-success .spinner-border {
+  width: 3rem;
+  height: 3rem;
+  margin-bottom: 20px;
+  color: #4299e1;
+}
+
+.social-auth-success p {
+  font-size: 1.1rem;
+  margin-top: 15px;
+  color: #4a5568;
 } 

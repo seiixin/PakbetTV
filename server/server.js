@@ -160,7 +160,7 @@ app.use((err, req, res, next) => {
     error: process.env.NODE_ENV === 'production' ? {} : err
   });
 });
-const PORT = process.env.PORT || 4444;
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, async () => {
   console.log(`Server is running on port ${PORT}`);
   try {

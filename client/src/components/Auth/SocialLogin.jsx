@@ -1,4 +1,5 @@
 import React from 'react';
+import { FaGoogle } from 'react-icons/fa';
 import API_BASE_URL from '../../config';
 import FacebookLoginButton from './FacebookLoginButton';
 import './SocialLogin.css';
@@ -17,13 +18,11 @@ const SocialLogin = () => {
           href={googleLoginUrl}
           className="social-login-button google-login"
         >
-          <i className="fab fa-google"></i>
+          <FaGoogle />
           <span>Continue with Google</span>
         </a>
         
-        <div className="facebook-button-wrapper">
-          <FacebookLoginButton />
-        </div>
+        <FacebookLoginButton />
       </div>
     </div>
   );

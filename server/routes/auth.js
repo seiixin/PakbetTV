@@ -6,6 +6,7 @@ const { body, validationResult } = require('express-validator');
 const db = require('../config/db');
 const { auth } = require('../middleware/auth');
 const passport = require('passport');
+const fetch = require('node-fetch');
 
 router.post(
   '/signup',
@@ -285,11 +286,167 @@ router.get('/facebook', (req, res, next) => {
   const { access_token } = req.query;
   
   if (access_token) {
-    // If we have an access token, use it for authentication
-    passport.authenticate('facebook-token', {
-      access_token,
-      session: false
-    })(req, res, next);
+    // If we have an access token, verify it with Facebook and login/register the user
+    console.log('Facebook access token auth requested:', access_token.substring(0, 10) + '...');
+    
+    // Use Facebook Graph API to get user profile
+    fetch(`https://graph.facebook.com/me?fields=id,name,email&access_token=${access_token}`)
+      .then(response => response.json())
+      .then(fbProfile => {
+        if (fbProfile.error) {
+          console.error('Facebook Graph API error:', fbProfile.error);
+          return res.status(401).json({ message: 'Invalid Facebook token' });
+        }
+        
+        console.log('Facebook profile retrieved:', {
+          id: fbProfile.id,
+          name: fbProfile.name,
+          email: fbProfile.email || 'No email provided'
+        });
+        
+        // Find or create user based on Facebook ID or email
+        db.query(
+          'SELECT * FROM users WHERE facebook_id = ? OR email = ?',
+          [fbProfile.id, fbProfile.email]
+        )
+        .then(([users]) => {
+          if (users.length > 0) {
+            // Existing user found
+            const user = users[0];
+            
+            // If user was found by email but Facebook ID is not set, update it
+            if (!user.facebook_id && fbProfile.id) {
+              db.query(
+                'UPDATE users SET facebook_id = ? WHERE user_id = ?',
+                [fbProfile.id, user.user_id]
+              ).catch(updateErr => {
+                console.error('Error updating Facebook ID:', updateErr);
+              });
+            }
+            
+            // Generate JWT token
+            const payload = {
+              user: {
+                id: user.user_id,
+                userType: user.user_type
+              }
+            };
+            
+            jwt.sign(
+              payload,
+              process.env.JWT_SECRET,
+              { expiresIn: '24h' },
+              (err, token) => {
+                if (err) {
+                  console.error('Token signing error:', err);
+                  return res.status(500).json({ message: 'Error creating token' });
+                }
+                
+                // Return the token and user data
+                res.json({
+                  token,
+                  user: {
+                    id: user.user_id,
+                    firstName: user.first_name,
+                    lastName: user.last_name,
+                    email: user.email,
+                    userType: user.user_type
+                  }
+                });
+              }
+            );
+          } else {
+            // Create new user from Facebook profile
+            const names = fbProfile.name.split(' ');
+            const firstName = names[0] || '';
+            const lastName = names.slice(1).join(' ') || '';
+            const email = fbProfile.email || `fb_${fbProfile.id}@facebook.com`;
+            
+            // Generate random password
+            const password = Math.random().toString(36).slice(-10);
+            bcrypt.hash(password, 10, (err, hashedPassword) => {
+              if (err) {
+                console.error('Password hashing error:', err);
+                return res.status(500).json({ message: 'Error creating user' });
+              }
+              
+              db.query(
+                `INSERT INTO users 
+                (first_name, last_name, username, email, password, user_type, status, facebook_id) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                [
+                  firstName,
+                  lastName,
+                  `${firstName.toLowerCase()}_${Math.floor(Math.random() * 10000)}`,
+                  email,
+                  hashedPassword,
+                  'Customer',
+                  'Active',
+                  fbProfile.id
+                ]
+              )
+              .then(([result]) => {
+                // Get the newly created user
+                return db.query(
+                  'SELECT * FROM users WHERE user_id = ?',
+                  [result.insertId]
+                );
+              })
+              .then(([newUsers]) => {
+                if (newUsers.length === 0) {
+                  throw new Error('User creation failed');
+                }
+                
+                const newUser = newUsers[0];
+                
+                // Generate JWT token
+                const payload = {
+                  user: {
+                    id: newUser.user_id,
+                    userType: newUser.user_type
+                  }
+                };
+                
+                jwt.sign(
+                  payload,
+                  process.env.JWT_SECRET,
+                  { expiresIn: '24h' },
+                  (err, token) => {
+                    if (err) {
+                      console.error('Token signing error:', err);
+                      return res.status(500).json({ message: 'Error creating token' });
+                    }
+                    
+                    // Return the token and user data
+                    res.json({
+                      token,
+                      user: {
+                        id: newUser.user_id,
+                        firstName: newUser.first_name,
+                        lastName: newUser.last_name,
+                        email: newUser.email,
+                        userType: newUser.user_type
+                      }
+                    });
+                  }
+                );
+              })
+              .catch(dbErr => {
+                console.error('Database error:', dbErr);
+                res.status(500).json({ message: 'Error creating user', error: dbErr.message });
+              });
+            });
+          }
+        })
+        .catch(dbErr => {
+          console.error('Database error:', dbErr);
+          res.status(500).json({ message: 'Database error', error: dbErr.message });
+        });
+      })
+      .catch(err => {
+        console.error('Facebook Graph API fetch error:', err);
+        res.status(500).json({ message: 'Error connecting to Facebook' });
+      });
   } else {
     // Otherwise, initiate the Facebook login flow
     passport.authenticate('facebook', {
