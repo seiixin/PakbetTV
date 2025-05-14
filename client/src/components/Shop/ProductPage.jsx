@@ -153,7 +153,7 @@ const ProductPage = () => {
 
           {error && <div className="error-message">{error}</div>}
           {loading ? (
-            <div className="loading-spinner">Loading products...</div>
+            <div>Loading products...</div>
           ) : filteredProducts.length === 0 ? (
             <div className="no-products">
               <p>No products found{searchParams.get('search') ? ' matching your search' : ' in this category'}.</p>

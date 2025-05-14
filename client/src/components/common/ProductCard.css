@@ -145,6 +145,7 @@
 .rating-value {
   color: #ee4d2d;
   font-weight: 600;
+  font-size: 1.25rem !important;
 }
 
 .rating-stars {
@@ -155,7 +156,7 @@
 }
 
 .rating-stars i {
-  font-size: 0.75rem;
+  font-size: 0.5rem;
 }
 
 .rating-stars i.filled {
@@ -168,7 +169,7 @@
 
 .review-count {
   color: rgba(0, 0, 0, 0.54);
-  font-size: 0.75rem;
+  font-size: 1rem !important;
 }
 
 .items-sold {

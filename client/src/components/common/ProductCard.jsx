@@ -84,13 +84,9 @@ const ProductCard = ({ product }) => {
 
         <div className="product-card-meta">
           <div className="rating-container">
-            {rating > 0 && (
-              <>
-                <span className="rating-value">{rating.toFixed(1)}</span>
-                <div className="rating-stars">{renderStars()}</div>
-                <span className="review-count">({ratingCount})</span>
-              </>
-            )}
+            <span className="rating-value">{rating.toFixed(1)}</span>
+            <div className="rating-stars">{renderStars()}</div>
+            <span className="review-count">({ratingCount})</span>
           </div>
           <span className="items-sold">{displayItemsSold}</span>
         </div>
