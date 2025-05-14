@@ -27,25 +27,20 @@ router.post('/orders', async (req, res) => {
     
     const { user_id, total_amount, items } = req.body;
     
-    // Generate a unique order_code using UUID
+    // Generate order_code using UUID
     const orderCode = uuidv4();
     console.log(`Generated order_code: ${orderCode}`);
     
-    // Create the order record first with the order_code
+    // Create the order record using order_code as order_id
     console.log('Creating order record with data:', { user_id, total_amount, order_code: orderCode });
     const [orderResult] = await connection.query(
       `INSERT INTO orders 
-       (user_id, total_price, order_status, payment_status, order_code, created_at, updated_at) 
-       VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
-      [user_id, total_amount, 'processing', 'pending', orderCode]
+       (order_id, user_id, total_price, order_status, payment_status, order_code, created_at, updated_at) 
+       VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      [orderCode, user_id, total_amount, 'processing', 'pending', orderCode]
     );
     
-    if (!orderResult.insertId) {
-      await connection.rollback();
-      throw new Error('Failed to get auto-incremented order ID');
-    }
-    
-    const orderId = orderResult.insertId;
+    const orderId = orderCode;
     console.log(`Order record created with ID: ${orderId}`);
 
     // Process order items
@@ -224,44 +219,321 @@ router.post('/payment', async (req, res) => {
   }
 });
 router.get('/verify', async (req, res) => {
+  let connection;
   try {
-    const { txnId, refNo } = req.query;
-    const orderIdMatch = txnId.match(/order_(\d+)_/);
-    if (!orderIdMatch) {
+    const { txnId, refNo, status } = req.query;
+    
+    if (!txnId || !refNo) {
+      console.error('Missing required parameters:', { txnId, refNo });
+      return res.status(400).json({ message: 'Missing transaction ID or reference number' });
+    }
+
+    // Extract order_id from txnId
+    const orderId = txnId.split('order_')[1].split('_')[0];
+    if (!orderId) {
+      console.error('Invalid transaction ID format:', txnId);
       return res.status(400).json({ message: 'Invalid transaction ID format' });
     }
-    const orderId = orderIdMatch[1];
-    const [orders] = await db.query(
-      'SELECT o.*, p.reference_number, p.status AS payment_status FROM orders o ' +
-      'LEFT JOIN payments p ON o.order_id = p.order_id ' +
-      'WHERE o.order_id = ? AND p.reference_number = ?', 
-      [orderId, refNo]
+    
+    console.log('Processing verification for order:', orderId);
+
+    // Get a new connection from the pool
+    connection = await db.getConnection();
+    await connection.beginTransaction();
+
+    // Get the order first to get user_id
+    const [orders] = await connection.query(
+      `SELECT o.*, p.reference_number, p.status AS payment_status,
+       s.address as shipping_address, s.tracking_number
+       FROM orders o 
+       LEFT JOIN payments p ON o.order_id = p.order_id 
+       LEFT JOIN shipping s ON o.order_id = s.order_id
+       WHERE o.order_id = ?`, 
+      [orderId]
     );
+
     if (orders.length === 0) {
+      console.error('Order not found:', orderId);
+      await connection.rollback();
       return res.status(404).json({ message: 'Order not found' });
     }
+
     const order = orders[0];
-    res.json({
-      status: order.payment_status,
+    console.log('Current order status:', {
+      order_status: order.order_status,
+      payment_status: order.payment_status,
+      shipping_address: order.shipping_address,
+      user_id: order.user_id
+    });
+
+    // Get user shipping details
+    const [userShippingDetails] = await connection.query(
+      `SELECT usd.*, u.first_name, u.last_name, u.email, u.phone
+       FROM user_shipping_details usd
+       JOIN users u ON usd.user_id = u.user_id
+       WHERE usd.user_id = ? AND usd.is_default = 1
+       ORDER BY usd.created_at DESC LIMIT 1`,
+      [order.user_id]
+    );
+
+    let shipping;
+    if (!userShippingDetails.length) {
+      console.error('No default user shipping details found for user:', order.user_id);
+      
+      // Try to get any shipping details, even if not default
+      const [anyShippingDetails] = await connection.query(
+        `SELECT usd.*, u.first_name, u.last_name, u.email, u.phone
+         FROM user_shipping_details usd
+         JOIN users u ON usd.user_id = u.user_id
+         WHERE usd.user_id = ?
+         ORDER BY usd.created_at DESC LIMIT 1`,
+        [order.user_id]
+      );
+      
+      if (!anyShippingDetails.length) {
+        await connection.rollback();
+        return res.status(400).json({ message: 'No shipping details found for this user' });
+      }
+      
+      console.log('Found non-default shipping details', anyShippingDetails[0]);
+      shipping = anyShippingDetails[0];
+    } else {
+      console.log('Found default shipping details:', userShippingDetails[0]);
+      shipping = userShippingDetails[0];
+    }
+
+    // If status is success, update order status
+    if (status === 'S') {
+      console.log('Payment successful, updating order status');
+      
+      // Update order status and payment status FIRST
+      await connection.query(
+        'UPDATE orders SET order_status = ?, payment_status = ?, updated_at = NOW() WHERE order_id = ?',
+        ['for_packing', 'paid', orderId]
+      );
+
+      // Update payment record with completed status
+      const [paymentResult] = await connection.query(
+        'SELECT * FROM payments WHERE order_id = ?',
+        [orderId]
+      );
+
+      if (paymentResult.length > 0) {
+        await connection.query(
+          'UPDATE payments SET status = ?, reference_number = ?, updated_at = NOW() WHERE order_id = ?',
+          ['completed', refNo, orderId]
+        );
+      } else {
+        await connection.query(
+          'INSERT INTO payments (order_id, user_id, amount, payment_method, status, reference_number, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())',
+          [orderId, order.user_id, order.total_price, 'dragonpay', 'completed', refNo]
+        );
+      }
+
+      // Commit the status updates immediately
+      await connection.commit();
+      console.log('Payment and order status updated successfully');
+      
+      // Start a new transaction for shipping operations
+      await connection.beginTransaction();
+
+      // Create or update shipping record with complete address
+      const addressParts = [];
+      if (shipping.house_number) addressParts.push(`Block${shipping.house_number}`);
+      if (shipping.street_name) addressParts.push(shipping.street_name);
+      if (shipping.building) addressParts.push(shipping.building);
+      if (shipping.barangay) addressParts.push(shipping.barangay);
+      if (shipping.city_municipality) addressParts.push(shipping.city_municipality);
+      if (shipping.province) addressParts.push(shipping.province);
+      if (shipping.region) addressParts.push(shipping.region);
+      if (shipping.postcode) addressParts.push(shipping.postcode);
+      if (shipping.country) addressParts.push(shipping.country);
+
+      const fullAddress = addressParts.join(', ');
+      console.log('Constructed shipping address:', fullAddress);
+
+      if (!fullAddress) {
+        console.error('Could not construct valid shipping address from details:', shipping);
+        await connection.rollback();
+        return res.status(400).json({ message: 'Could not construct valid shipping address' });
+      }
+
+      console.log('Creating/updating shipping record with address:', fullAddress);
+
+      const [existingShipping] = await connection.query(
+        'SELECT * FROM shipping WHERE order_id = ?',
+        [orderId]
+      );
+
+      if (existingShipping.length === 0) {
+        // Create new shipping record
+        await connection.query(
+          'INSERT INTO shipping (order_id, user_id, address, status, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())',
+          [orderId, order.user_id, fullAddress, 'pending']
+        );
+      } else {
+        // Update existing shipping record
+        await connection.query(
+          'UPDATE shipping SET address = ?, updated_at = NOW() WHERE order_id = ?',
+          [fullAddress, orderId]
+        );
+      }
+
+      // Commit the transaction before creating NinjaVan order
+      await connection.commit();
+      connection.release();
+      connection = null;
+
+      // Create NinjaVan shipping order
+      try {
+        console.log('Creating NinjaVan shipping order with details:', {
+          orderId,
+          address: fullAddress,
+          customerName: `${shipping.first_name} ${shipping.last_name}`,
+          customerEmail: shipping.email,
+          customerPhone: shipping.phone
+        });
+
+        const shippingResult = await deliveryRouter.createShippingOrder(orderId);
+        
+        if (shippingResult && shippingResult.tracking_number) {
+          console.log('Shipping order created:', shippingResult.tracking_number);
+          
+          // Get a new connection for updating tracking info
+          connection = await db.getConnection();
+          await connection.beginTransaction();
+
+          try {
+            // Update shipping tracking number
+            await connection.query(
+              'UPDATE shipping SET tracking_number = ?, status = ?, updated_at = NOW() WHERE order_id = ?',
+              [shippingResult.tracking_number, 'pending', orderId]
+            );
+
+            // Update orders table tracking number
+            await connection.query(
+              'UPDATE orders SET tracking_number = ? WHERE order_id = ?',
+              [shippingResult.tracking_number, orderId]
+            );
+
+            // Create tracking event
+            await connection.query(
+              'INSERT INTO tracking_events (tracking_number, order_id, status, description, created_at) VALUES (?, ?, ?, ?, NOW())',
+              [shippingResult.tracking_number, orderId, 'pending', 'Shipping order created']
+            );
+
+            await connection.commit();
+
+            // Send confirmation email with tracking
+            const emailDetails = {
+              orderNumber: orderId,
+              customerName: `${shipping.first_name} ${shipping.last_name}`,
+              customerEmail: shipping.email,
+              customerPhone: shipping.phone,
+              totalAmount: order.total_price,
+              shippingAddress: fullAddress,
+              paymentMethod: 'DragonPay',
+              paymentReference: refNo,
+              trackingNumber: shippingResult.tracking_number
+            };
+
+            try {
+              await sendOrderConfirmationEmail(emailDetails);
+              console.log('Order confirmation email sent with tracking number');
+            } catch (emailError) {
+              console.error('Failed to send order confirmation email:', emailError);
+            }
+          } catch (error) {
+            if (connection) {
+              await connection.rollback();
+            }
+            console.error('Failed to update tracking information:', error);
+          }
+        } else {
+          console.error('No tracking number received from NinjaVan');
+        }
+      } catch (shippingError) {
+        console.error('Failed to create shipping order:', shippingError);
+        // Log detailed error for debugging
+        console.error('Shipping error details:', {
+          error: shippingError.message,
+          stack: shippingError.stack,
+          orderId,
+          address: fullAddress
+        });
+      }
+
+      // Get final order status with a new connection if needed
+      if (!connection) {
+        connection = await db.getConnection();
+      }
+      
+      const [finalOrder] = await connection.query(
+        `SELECT o.*, s.tracking_number, s.address as shipping_address
+         FROM orders o 
+         LEFT JOIN shipping s ON o.order_id = s.order_id 
+         WHERE o.order_id = ?`,
+        [orderId]
+      );
+
+      return res.json({
+        status: 'success',
+        message: 'Transaction verified and processed',
+        order: {
+          id: orderId,
+          total_amount: finalOrder[0].total_price,
+          status: finalOrder[0].order_status,
+          payment_status: finalOrder[0].payment_status,
+          tracking_number: finalOrder[0].tracking_number,
+          shipping_address: finalOrder[0].shipping_address
+        }
+      });
+    }
+
+    // If not success status, just return the current order status
+    return res.json({
+      status: 'success',
       message: 'Transaction verified',
       order: {
-        id: order.order_id,
-        total_amount: order.total_amount,
-        status: order.order_status
+        id: orderId,
+        total_amount: order.total_price,
+        status: order.order_status,
+        payment_status: order.payment_status,
+        tracking_number: order.tracking_number,
+        shipping_address: order.shipping_address
       }
     });
   } catch (error) {
     console.error('Transaction verification error:', error);
-    res.status(500).json({ message: 'Failed to verify transaction' });
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch (rollbackError) {
+        console.error('Rollback failed:', rollbackError);
+      }
+    }
+    res.status(500).json({ 
+      message: 'Failed to verify transaction',
+      error: error.message 
+    });
+  } finally {
+    if (connection) {
+      try {
+        connection.release();
+      } catch (releaseError) {
+        console.error('Failed to release connection:', releaseError);
+      }
+    }
   }
 });
 router.post('/postback', async (req, res) => {
   try {
     const { txnid, refno, status, message, digest } = req.body;
-    const orderId = txnid.split('_')[1];
-
+    
+    // Extract order_id from txnid
+    const orderId = txnid.split('order_')[1].split('_')[0];
     if (!orderId) {
-      console.error('Invalid transaction ID format');
+      console.error('Invalid transaction ID format:', txnid);
       return res.status(400).send('result=Invalid transaction ID');
     }
 
@@ -270,15 +542,59 @@ router.post('/postback', async (req, res) => {
     try {
       await connection.beginTransaction();
 
-      // Get current order status
-      const [currentOrder] = await connection.query(
-        'SELECT order_status, payment_status FROM orders WHERE order_id = ?',
+      // Get order details to get user_id
+      const [orders] = await connection.query(
+        `SELECT o.*, p.reference_number, p.status AS payment_status,
+         s.address as shipping_address, s.tracking_number
+         FROM orders o 
+         LEFT JOIN payments p ON o.order_id = p.order_id 
+         LEFT JOIN shipping s ON o.order_id = s.order_id
+         WHERE o.order_id = ?`,
         [orderId]
       );
 
-      if (currentOrder.length === 0) {
+      if (orders.length === 0) {
         await connection.rollback();
         return res.status(404).send('result=Order not found');
+      }
+
+      const order = orders[0];
+      console.log('Found order:', orderId, 'User ID:', order.user_id);
+
+      // Get user shipping details
+      const [userShippingDetails] = await connection.query(
+        `SELECT usd.*, u.first_name, u.last_name, u.email, u.phone
+         FROM user_shipping_details usd
+         JOIN users u ON usd.user_id = u.user_id
+         WHERE usd.user_id = ? AND usd.is_default = 1
+         ORDER BY usd.created_at DESC LIMIT 1`,
+        [order.user_id]
+      );
+
+      if (!userShippingDetails.length) {
+        console.error('No default user shipping details found for user:', order.user_id);
+        
+        // Try to get any shipping details, even if not default
+        const [anyShippingDetails] = await connection.query(
+          `SELECT usd.*, u.first_name, u.last_name, u.email, u.phone
+           FROM user_shipping_details usd
+           JOIN users u ON usd.user_id = u.user_id
+           WHERE usd.user_id = ?
+           ORDER BY usd.created_at DESC LIMIT 1`,
+          [order.user_id]
+        );
+        
+        if (!anyShippingDetails.length) {
+          console.error('No shipping details found for user at all');
+          await connection.rollback();
+          return res.status(400).send('result=No shipping details');
+        }
+        
+        console.log('Found non-default shipping details', anyShippingDetails[0]);
+        var shipping = anyShippingDetails[0];
+      } else {
+        console.log('Found default shipping details:', userShippingDetails[0]);
+        var shipping = userShippingDetails[0];
       }
 
       // Update payment status
@@ -288,81 +604,120 @@ router.post('/postback', async (req, res) => {
       );
 
       if (status === 'S') {
-        // Only update order if it's in a valid state for payment confirmation
-        if (currentOrder[0].order_status === 'processing' && 
-            currentOrder[0].payment_status === 'pending') {
-          
-          // Update order status
-          await connection.query(
-            'UPDATE orders SET order_status = ?, payment_status = ? WHERE order_id = ?',
-            ['for_packing', 'paid', orderId]
-          );
+        // Update order status
+        await connection.query(
+          'UPDATE orders SET order_status = ?, payment_status = ?, updated_at = NOW() WHERE order_id = ?',
+          ['for_packing', 'paid', orderId]
+        );
 
-          const transactionId = `order_${orderId}_${Date.now()}`;
-          await connection.query(
-            'UPDATE payments SET transaction_id = ? WHERE order_id = ?',
-            [transactionId, orderId]
-          );
+        // Create or update shipping record with complete address
+        const addressParts = [];
+        if (shipping.house_number) addressParts.push(`Block${shipping.house_number}`);
+        if (shipping.street_name) addressParts.push(shipping.street_name);
+        if (shipping.building) addressParts.push(shipping.building);
+        if (shipping.barangay) addressParts.push(shipping.barangay);
+        if (shipping.city_municipality) addressParts.push(shipping.city_municipality);
+        if (shipping.province) addressParts.push(shipping.province);
+        if (shipping.region) addressParts.push(shipping.region);
+        if (shipping.postcode) addressParts.push(shipping.postcode);
+        if (shipping.country) addressParts.push(shipping.country);
 
-          // Get order details for email
-          const [orders] = await connection.query(
-            `SELECT o.*, u.first_name, u.last_name, u.email, u.phone,
-             s.address as shipping_address, s.tracking_number,
-             COALESCE(s.shipping_fee, 0) as shipping_fee
-             FROM orders o
-             JOIN users u ON o.user_id = u.user_id
-             LEFT JOIN shipping s ON o.order_id = s.order_id
-             WHERE o.order_id = ?`,
-            [orderId]
-          );
+        const fullAddress = addressParts.join(', ');
+        console.log('Constructed shipping address:', fullAddress);
 
-          // Create shipping order only if payment is successful
-          if (orders.length > 0) {
-            try {
-              console.log(`Creating NinjaVan shipping order for order ${orderId}`);
-              const shippingResult = await deliveryRouter.createShippingOrder(orderId);
-              
-              if (shippingResult && shippingResult.tracking_number) {
-                // Update shipping tracking number
-                await connection.query(
-                  'UPDATE shipping SET tracking_number = ?, status = ? WHERE order_id = ?',
-                  [shippingResult.tracking_number, 'pending', orderId]
-                );
-
-                // Send email with tracking information
-                const emailDetails = {
-                  orderNumber: orderId,
-                  customerName: `${orders[0].first_name} ${orders[0].last_name}`,
-                  customerEmail: orders[0].email,
-                  customerPhone: orders[0].phone,
-                  totalAmount: orders[0].total_price,
-                  shippingFee: orders[0].shipping_fee,
-                  shippingAddress: orders[0].shipping_address,
-                  paymentMethod: 'DragonPay',
-                  paymentReference: refno,
-                  trackingNumber: shippingResult.tracking_number
-                };
-
-                try {
-                  await sendOrderConfirmationEmail(emailDetails);
-                  console.log('Order confirmation email sent with tracking number');
-                } catch (emailError) {
-                  console.error('Failed to send order confirmation email:', emailError);
-                }
-              }
-            } catch (shippingError) {
-              console.error(`Failed to create shipping order for order ${orderId}:`, shippingError);
-              // Don't fail the transaction if shipping creation fails
-            }
-          }
-
-          await connection.commit();
-          return res.send('result=OK');
-        } else {
-          console.warn(`Invalid order state for payment confirmation: status=${currentOrder[0].order_status}, payment=${currentOrder[0].payment_status}`);
+        if (!fullAddress) {
+          console.error('Could not construct valid shipping address from details:', shipping);
           await connection.rollback();
-          return res.status(400).send('result=Invalid order state');
+          return res.status(400).json({ message: 'Could not construct valid shipping address' });
         }
+
+        console.log('Creating/updating shipping record with address:', fullAddress);
+
+        const [existingShipping] = await connection.query(
+          'SELECT * FROM shipping WHERE order_id = ?',
+          [orderId]
+        );
+
+        if (existingShipping.length === 0) {
+          // Create new shipping record
+          await connection.query(
+            'INSERT INTO shipping (order_id, user_id, address, status, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())',
+            [orderId, order.user_id, fullAddress, 'pending']
+          );
+        } else {
+          // Update existing shipping record
+          await connection.query(
+            'UPDATE shipping SET address = ?, updated_at = NOW() WHERE order_id = ?',
+            [fullAddress, orderId]
+          );
+        }
+
+        // Create NinjaVan shipping order
+        try {
+          console.log('Creating NinjaVan shipping order with details:', {
+            orderId,
+            address: fullAddress,
+            customerName: `${shipping.first_name} ${shipping.last_name}`,
+            customerEmail: shipping.email,
+            customerPhone: shipping.phone
+          });
+
+          const shippingResult = await deliveryRouter.createShippingOrder(orderId);
+          
+          if (shippingResult && shippingResult.tracking_number) {
+            // Update shipping tracking number
+            await connection.query(
+              'UPDATE shipping SET tracking_number = ?, status = ?, updated_at = NOW() WHERE order_id = ?',
+              [shippingResult.tracking_number, 'pending', orderId]
+            );
+
+            // Update orders table tracking number
+            await connection.query(
+              'UPDATE orders SET tracking_number = ? WHERE order_id = ?',
+              [shippingResult.tracking_number, orderId]
+            );
+
+            // Create tracking event
+            await connection.query(
+              'INSERT INTO tracking_events (tracking_number, order_id, status, description, created_at) VALUES (?, ?, ?, ?, NOW())',
+              [shippingResult.tracking_number, orderId, 'pending', 'Shipping order created']
+            );
+
+            // Send confirmation email
+            const emailDetails = {
+              orderNumber: orderId,
+              customerName: `${shipping.first_name} ${shipping.last_name}`,
+              customerEmail: shipping.email,
+              customerPhone: shipping.phone,
+              totalAmount: order.total_price,
+              shippingAddress: fullAddress,
+              paymentMethod: 'DragonPay',
+              paymentReference: refno,
+              trackingNumber: shippingResult.tracking_number
+            };
+
+            try {
+              await sendOrderConfirmationEmail(emailDetails);
+              console.log('Order confirmation email sent with tracking number');
+            } catch (emailError) {
+              console.error('Failed to send order confirmation email:', emailError);
+            }
+          } else {
+            console.error('No tracking number received from NinjaVan');
+          }
+        } catch (shippingError) {
+          console.error('Failed to create shipping order:', shippingError);
+          // Log detailed error for debugging
+          console.error('Shipping error details:', {
+            error: shippingError.message,
+            stack: shippingError.stack,
+            orderId,
+            address: fullAddress
+          });
+        }
+
+        await connection.commit();
+        return res.send('result=OK');
       } else {
         // For non-success statuses, just update the payment status
         await connection.commit();

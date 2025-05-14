@@ -45,7 +45,59 @@ const sendOrderConfirmationEmail = async (orderDetails) => {
     trackingNumber
   } = orderDetails;
 
-  
+  // Construct email HTML template
+  const emailHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .logo { max-width: 200px; }
+        .order-details { margin-bottom: 30px; }
+        .tracking-info { background-color: #f9f9f9; padding: 15px; margin: 20px 0; }
+        .footer { text-align: center; margin-top: 30px; font-size: 12px; color: #666; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <img src="cid:logoImage" alt="Logo" class="logo"/>
+          <h2>Order Confirmation</h2>
+        </div>
+        
+        <div class="order-details">
+          <p>Dear ${customerName},</p>
+          <p>Thank you for your order! We're pleased to confirm that your order has been received and is being processed.</p>
+          
+          <h3>Order Information:</h3>
+          <p><strong>Order Number:</strong> ${orderNumber}</p>
+          <p><strong>Total Amount:</strong> ₱${Number(totalAmount).toFixed(2)}</p>
+          ${shippingFee ? `<p><strong>Shipping Fee:</strong> ₱${Number(shippingFee).toFixed(2)}</p>` : ''}
+          <p><strong>Payment Method:</strong> ${paymentMethod}</p>
+          <p><strong>Payment Reference:</strong> ${paymentReference}</p>
+          
+          <div class="shipping-info">
+            <h3>Shipping Details:</h3>
+            <p><strong>Delivery Address:</strong><br/>${shippingAddress}</p>
+            ${trackingNumber ? `
+              <div class="tracking-info">
+                <p><strong>Tracking Number:</strong> ${trackingNumber}</p>
+                <p>You can track your order using this tracking number on our website.</p>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+        
+        <div class="footer">
+          <p>If you have any questions about your order, please contact our customer service.</p>
+          <p>Thank you for shopping with us!</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
 
   try {
     const info = await transporter.sendMail({
