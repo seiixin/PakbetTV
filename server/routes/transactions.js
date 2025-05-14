@@ -34,9 +34,16 @@ router.post('/orders', async (req, res) => {
     // Create the order record first with the order_code
     console.log('Creating order record with data:', { user_id, total_amount, order_code: orderCode });
     const [orderResult] = await connection.query(
-      'INSERT INTO orders (user_id, total_price, order_status, payment_status, order_code, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NOW(), NOW())',
+      `INSERT INTO orders 
+       (user_id, total_price, order_status, payment_status, order_code, created_at, updated_at) 
+       VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
       [user_id, total_amount, 'processing', 'pending', orderCode]
     );
+    
+    if (!orderResult.insertId) {
+      await connection.rollback();
+      throw new Error('Failed to get auto-incremented order ID');
+    }
     
     const orderId = orderResult.insertId;
     console.log(`Order record created with ID: ${orderId}`);
@@ -250,58 +257,29 @@ router.get('/verify', async (req, res) => {
 });
 router.post('/postback', async (req, res) => {
   try {
-    const { txnid, refno, status, message, amount } = req.body;
-    console.log('Received postback:', { txnid, refno, status, message, amount });
-    const dataToSign = `${txnid}:${refno}:${status}:${message}:${amount}`;
-    const expectedSignature = crypto
-      .createHmac('sha256', SECRET_KEY_SHA256)
-      .update(dataToSign)
-      .digest('hex')
-      .toUpperCase();
-    const signature = req.headers['x-signature'];
-    if (signature !== expectedSignature) {
-      console.error('Invalid signature', { received: signature, expected: expectedSignature });
-      return res.status(400).send('result=INVALID_SIGNATURE');
-    }
-    
-    // First try to extract order_id from transaction ID
-    let orderIdMatch = txnid.match(/order_(\d+)_/);
-    let orderId = null;
-    
-    if (orderIdMatch) {
-      // Legacy format: order_[ID]_timestamp
-      orderId = orderIdMatch[1];
-      console.log(`Found legacy order ID format: ${orderId}`);
-    } else {
-      // New format: order_[UUID]_timestamp
-      // Extract the UUID part and find the matching order in the database
-      const uuidMatch = txnid.match(/order_([0-9a-f-]+)_/);
-      if (uuidMatch) {
-        const orderCode = uuidMatch[1];
-        console.log(`Found order_code format: ${orderCode}`);
-        
-        // Look up the order by order_code
-        const [orders] = await db.query(
-          'SELECT order_id FROM orders WHERE order_code = ?',
-          [orderCode]
-        );
-        
-        if (orders.length > 0) {
-          orderId = orders[0].order_id;
-          console.log(`Resolved order_code ${orderCode} to order_id ${orderId}`);
-        }
-      }
-    }
-    
+    const { txnid, refno, status, message, digest } = req.body;
+    const orderId = txnid.split('_')[1];
+
     if (!orderId) {
-      console.error('Invalid transaction ID format or order not found:', txnid);
-      return res.status(400).send('result=INVALID_TXNID');
+      console.error('Invalid transaction ID format');
+      return res.status(400).send('result=Invalid transaction ID');
     }
-    
+
     const connection = await db.getConnection();
 
     try {
       await connection.beginTransaction();
+
+      // Get current order status
+      const [currentOrder] = await connection.query(
+        'SELECT order_status, payment_status FROM orders WHERE order_id = ?',
+        [orderId]
+      );
+
+      if (currentOrder.length === 0) {
+        await connection.rollback();
+        return res.status(404).send('result=Order not found');
+      }
 
       // Update payment status
       await connection.query(
@@ -310,131 +288,96 @@ router.post('/postback', async (req, res) => {
       );
 
       if (status === 'S') {
-        // Update order status
-        await connection.query(
-          'UPDATE orders SET order_status = ?, payment_status = ? WHERE order_id = ?',
-          ['for_packing', 'paid', orderId]
-        );
+        // Only update order if it's in a valid state for payment confirmation
+        if (currentOrder[0].order_status === 'processing' && 
+            currentOrder[0].payment_status === 'pending') {
+          
+          // Update order status
+          await connection.query(
+            'UPDATE orders SET order_status = ?, payment_status = ? WHERE order_id = ?',
+            ['for_packing', 'paid', orderId]
+          );
 
-        const transactionId = `order_${orderId}_${Date.now()}`;
-        await connection.query(
-          'UPDATE payments SET transaction_id = ? WHERE order_id = ?',
-          [transactionId, orderId]
-        );
+          const transactionId = `order_${orderId}_${Date.now()}`;
+          await connection.query(
+            'UPDATE payments SET transaction_id = ? WHERE order_id = ?',
+            [transactionId, orderId]
+          );
 
-        // Get order details for email
-        const [orders] = await connection.query(
-          `SELECT o.*, u.first_name, u.last_name, u.email, u.phone,
-           s.address as shipping_address, s.tracking_number,
-           COALESCE(s.shipping_fee, 0) as shipping_fee
-           FROM orders o
-           JOIN users u ON o.user_id = u.user_id
-           LEFT JOIN shipping s ON o.order_id = s.order_id
-           WHERE o.order_id = ?`,
-          [orderId]
-        );
+          // Get order details for email
+          const [orders] = await connection.query(
+            `SELECT o.*, u.first_name, u.last_name, u.email, u.phone,
+             s.address as shipping_address, s.tracking_number,
+             COALESCE(s.shipping_fee, 0) as shipping_fee
+             FROM orders o
+             JOIN users u ON o.user_id = u.user_id
+             LEFT JOIN shipping s ON o.order_id = s.order_id
+             WHERE o.order_id = ?`,
+            [orderId]
+          );
 
-        const [orderItems] = await connection.query(
-          `SELECT oi.*, p.name
-           FROM order_items oi
-           JOIN products p ON oi.product_id = p.product_id
-           WHERE oi.order_id = ?`,
-          [orderId]
-        );
-
-        if (orders.length > 0) {
-          const order = orders[0];
-          const emailDetails = {
-            orderNumber: orderId,
-            customerName: `${order.first_name} ${order.last_name}`,
-            customerEmail: order.email,
-            customerPhone: order.phone,
-            items: orderItems.map(item => ({
-              name: item.name,
-              quantity: item.quantity,
-              price: item.price
-            })),
-            totalAmount: order.total_price,
-            shippingFee: order.shipping_fee,
-            shippingAddress: order.shipping_address,
-            paymentMethod: 'DragonPay',
-            paymentReference: refno,
-            trackingNumber: order.tracking_number
-          };
-
-          // Send confirmation email
-          try {
-            await sendOrderConfirmationEmail(emailDetails);
-            console.log('Order confirmation email sent successfully');
-          } catch (emailError) {
-            console.error('Failed to send order confirmation email:', emailError);
-            // Don't fail the transaction if email fails
-          }
-        }
-
-        // Create shipping order
-        try {
-          console.log(`Creating NinjaVan shipping order for order ${orderId}`);
-          const shippingResult = await deliveryRouter.createShippingOrder(orderId);
-          console.log(`Successfully created NinjaVan shipping with tracking: ${shippingResult.tracking_number}`);
-
-          // Send another email with tracking number if it wasn't included in the first email
-          if (orders.length > 0 && shippingResult.tracking_number && !orders[0].tracking_number) {
-            const order = orders[0];
-            const emailDetails = {
-              orderNumber: orderId,
-              customerName: `${order.first_name} ${order.last_name}`,
-              customerEmail: order.email,
-              customerPhone: order.phone,
-              items: orderItems.map(item => ({
-                name: item.name,
-                quantity: item.quantity,
-                price: item.price
-              })),
-              totalAmount: order.total_price,
-              shippingFee: order.shipping_fee,
-              shippingAddress: order.shipping_address,
-              paymentMethod: 'DragonPay',
-              paymentReference: refno,
-              trackingNumber: shippingResult.tracking_number
-            };
-
+          // Create shipping order only if payment is successful
+          if (orders.length > 0) {
             try {
-              await sendOrderConfirmationEmail(emailDetails);
-              console.log('Updated order confirmation email sent with tracking number');
-            } catch (emailError) {
-              console.error('Failed to send updated order confirmation email:', emailError);
+              console.log(`Creating NinjaVan shipping order for order ${orderId}`);
+              const shippingResult = await deliveryRouter.createShippingOrder(orderId);
+              
+              if (shippingResult && shippingResult.tracking_number) {
+                // Update shipping tracking number
+                await connection.query(
+                  'UPDATE shipping SET tracking_number = ?, status = ? WHERE order_id = ?',
+                  [shippingResult.tracking_number, 'pending', orderId]
+                );
+
+                // Send email with tracking information
+                const emailDetails = {
+                  orderNumber: orderId,
+                  customerName: `${orders[0].first_name} ${orders[0].last_name}`,
+                  customerEmail: orders[0].email,
+                  customerPhone: orders[0].phone,
+                  totalAmount: orders[0].total_price,
+                  shippingFee: orders[0].shipping_fee,
+                  shippingAddress: orders[0].shipping_address,
+                  paymentMethod: 'DragonPay',
+                  paymentReference: refno,
+                  trackingNumber: shippingResult.tracking_number
+                };
+
+                try {
+                  await sendOrderConfirmationEmail(emailDetails);
+                  console.log('Order confirmation email sent with tracking number');
+                } catch (emailError) {
+                  console.error('Failed to send order confirmation email:', emailError);
+                }
+              }
+            } catch (shippingError) {
+              console.error(`Failed to create shipping order for order ${orderId}:`, shippingError);
+              // Don't fail the transaction if shipping creation fails
             }
           }
-        } catch (shippingError) {
-          console.error(`Failed to create shipping order for order ${orderId}:`, shippingError);
-        }
 
+          await connection.commit();
+          return res.send('result=OK');
+        } else {
+          console.warn(`Invalid order state for payment confirmation: status=${currentOrder[0].order_status}, payment=${currentOrder[0].payment_status}`);
+          await connection.rollback();
+          return res.status(400).send('result=Invalid order state');
+        }
+      } else {
+        // For non-success statuses, just update the payment status
         await connection.commit();
         return res.send('result=OK');
-      } else if (status === 'F') {
-        await connection.query(
-          'UPDATE orders SET order_status = ? WHERE order_id = ?',
-          ['cancelled', orderId]
-        );
-      } else if (status === 'P') {
-        await connection.query(
-          'UPDATE orders SET order_status = ? WHERE order_id = ?',
-          ['pending', orderId]
-        );
       }
-
-      await connection.commit();
-      res.send('result=OK');
     } catch (error) {
       await connection.rollback();
-      throw error;
+      console.error('Transaction error:', error);
+      return res.status(500).send('result=Error');
     } finally {
       connection.release();
     }
   } catch (error) {
-    console.error('Postback processing error:', error);
-    res.status(500).send('result=SERVER_ERROR');
+    console.error('Postback error:', error);
+    return res.status(500).send('result=Error');
   }
 });
 function mapDragonpayStatus(dpStatus) {

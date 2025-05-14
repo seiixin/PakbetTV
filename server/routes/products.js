@@ -103,10 +103,7 @@ const handleCombinedUpload = async (req, res, next) => {
       if (req.files && req.files.productImages) {
         console.log(`Processing ${req.files.productImages.length} product images`);
         req.productImages = req.files.productImages.map(file => {
-          const relativePath = path.relative(
-            path.join(__dirname, '..'),
-            file.path
-          ).replace(/\\/g, '/');
+          const relativePath = 'uploads/' + path.basename(file.path);
           return {
             filename: file.filename,
             path: file.path,
@@ -119,10 +116,7 @@ const handleCombinedUpload = async (req, res, next) => {
       if (req.files && req.files.variantImages) {
         console.log(`Processing ${req.files.variantImages.length} variant images`);
         req.variantImages = req.files.variantImages.map(file => {
-          const relativePath = path.relative(
-            path.join(__dirname, '..'),
-            file.path
-          ).replace(/\\/g, '/');
+          const relativePath = 'uploads/' + path.basename(file.path);
           return {
             filename: file.filename,
             path: file.path,
@@ -325,15 +319,8 @@ router.get('/', async (req, res) => {
           console.log(`Processing images for product ${product.product_id}:`, imageUrls);
           
           product.images = imageUrls.map((url, index) => {
-            // Ensure the URL is properly formatted
             let imageUrl = url.trim();
-            if (!imageUrl.startsWith('http')) {
-              // If it's a relative path, ensure it starts with /uploads/
-              imageUrl = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`;
-              if (!imageUrl.startsWith('/uploads/')) {
-                imageUrl = `/uploads/${imageUrl}`;
-              }
-            }
+            imageUrl = `/uploads/${path.basename(imageUrl)}`;
             console.log(`Formatted image URL: ${imageUrl}`);
             return {
               url: imageUrl,
@@ -422,7 +409,7 @@ router.get('/:id', async (req, res) => {
       if (variant.image_url) {
         variantImage = {
           id: `variant-img-${variant.variant_id}`,
-          url: `/uploads/${variant.image_url}`,
+          url: `/uploads/${path.basename(variant.image_url)}`,
           alt: `${product.name} - ${attributeString}`,
           order: 0
         };

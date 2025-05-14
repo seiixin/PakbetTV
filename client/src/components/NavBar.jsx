@@ -57,22 +57,25 @@ const NavBar = () => {
     setShowSearchDropdown(true);
 
     try {
-      // Search products
-      const productsResponse = await fetch(`/api/products/search?query=${encodeURIComponent(query)}`);
-      const products = await productsResponse.json();
+      setLoading(true);
+      setError(null);
 
-      // Search blogs
-      const blogsResponse = await fetch(`/api/cms/blogs/search?query=${encodeURIComponent(query)}`);
-      const blogs = await blogsResponse.json();
+      // Fetch products
+      const productsResponse = await fetch(`${API_BASE_URL}/api/products/search?query=${encodeURIComponent(query)}`);
+      const productsData = await productsResponse.json();
 
-      // Search zodiacs
-      const zodiacsResponse = await fetch(`/api/cms/zodiacs?search=${encodeURIComponent(query)}`);
-      const zodiacs = await zodiacsResponse.json();
+      // Fetch blogs
+      const blogsResponse = await fetch(`${API_BASE_URL}/api/cms/blogs/search?query=${encodeURIComponent(query)}`);
+      const blogsData = await blogsResponse.json();
+
+      // Fetch zodiacs
+      const zodiacsResponse = await fetch(`${API_BASE_URL}/api/cms/zodiacs?search=${encodeURIComponent(query)}`);
+      const zodiacsData = await zodiacsResponse.json();
 
       setSearchResults({
-        products: products || [],
-        blogs: blogs || [],
-        zodiacs: zodiacs || []
+        products: productsData || [],
+        blogs: blogsData || [],
+        zodiacs: zodiacsData || []
       });
     } catch (error) {
       console.error('Search error:', error);

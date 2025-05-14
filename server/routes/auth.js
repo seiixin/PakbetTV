@@ -255,42 +255,43 @@ router.post('/refresh', async (req, res) => {
 // Social Authentication Routes
 
 // Google Authentication
-router.get('/google', passport.authenticate('google', { 
-  scope: ['profile', 'email'],
-  prompt: 'select_account'
-}));
+router.get('/google',
+  passport.authenticate('google', {
+    scope: ['profile', 'email'],
+    prompt: 'select_account'
+  })
+);
 
-router.get('/google/callback', 
-  passport.authenticate('google', { failureRedirect: '/login' }),
+router.get('/google/callback',
+  passport.authenticate('google', { session: false, failureRedirect: '/login?error=google_auth_failed' }),
   (req, res) => {
-    // Log the user object for debugging
-    console.log('Google auth callback - User object:', req.user);
-    
-    // Generate JWT token for the authenticated user
-    const payload = {
-      user: {
-        id: req.user.user_id,
-        userType: req.user.user_type || 'Customer'  // Ensure correct casing
-      }
-    };
-    
-    console.log('Google auth callback - Token payload:', payload);
-    
-    jwt.sign(
-      payload,
-      process.env.JWT_SECRET,
-      { expiresIn: '24h' },
-      (err, token) => {
-        if (err) {
-          console.error('Token signing error:', err);
-          return res.redirect(`${process.env.CLIENT_URL}/login?error=token_error`);
+    try {
+      // Generate JWT token
+      const payload = {
+        user: {
+          id: req.user.user_id,
+          userType: req.user.user_type
         }
-        // Log the generated token
-        console.log('Google auth callback - Generated token:', token.substring(0, 20) + '...');
-        // Redirect to client with token
-        res.redirect(`${process.env.CLIENT_URL}/social-auth-success?token=${token}`);
-      }
-    );
+      };
+
+      jwt.sign(
+        payload,
+        process.env.JWT_SECRET,
+        { expiresIn: '24h' },
+        (err, token) => {
+          if (err) {
+            console.error('JWT Sign Error:', err);
+            return res.redirect('/login?error=token_generation_failed');
+          }
+          
+          // Redirect to the frontend success page with the token
+          res.redirect(`/social-auth-success?token=${token}`);
+        }
+      );
+    } catch (error) {
+      console.error('Google Auth Callback Error:', error);
+      res.redirect('/login?error=auth_error');
+    }
   }
 );
 

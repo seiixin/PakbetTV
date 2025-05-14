@@ -1,11 +1,21 @@
 import React from 'react';
 import { FaGoogle } from 'react-icons/fa';
-import API_BASE_URL from '../../config';
 import FacebookLoginButton from './FacebookLoginButton';
 import './SocialLogin.css';
 
 const SocialLogin = () => {
-  const googleLoginUrl = `${API_BASE_URL}/api/auth/google`;
+  // Get the current domain for the callback
+  const currentDomain = window.location.origin;
+  
+  // Construct the Google login URL with the correct callback URL
+  const googleLoginUrl = `${currentDomain}/api/auth/google`;
+
+  // Store the return URL in localStorage before redirecting
+  const handleGoogleLogin = (e) => {
+    // Store current path or intended destination
+    const returnTo = window.location.pathname === '/login' ? '/' : window.location.pathname;
+    localStorage.setItem('returnTo', returnTo);
+  };
 
   return (
     <div className="social-login-container">
@@ -17,6 +27,7 @@ const SocialLogin = () => {
         <a 
           href={googleLoginUrl}
           className="social-login-button google-login"
+          onClick={handleGoogleLogin}
         >
           <FaGoogle />
           <span>Continue with Google</span>

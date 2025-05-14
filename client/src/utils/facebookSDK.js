@@ -43,9 +43,10 @@ export const handleFacebookLoginStatus = async (response) => {
     case 'connected':
       // User is logged into Facebook and has authorized your app
       try {
-        // Send the access token to your backend
+        // Send the access token to your backend using the current domain
         console.log('Sending FB access token to backend:', authResponse.accessToken);
-        const result = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/facebook?access_token=${authResponse.accessToken}`, {
+        const currentDomain = window.location.origin;
+        const result = await fetch(`${currentDomain}/api/auth/facebook?access_token=${authResponse.accessToken}`, {
           method: 'GET',
           credentials: 'include',
           headers: {

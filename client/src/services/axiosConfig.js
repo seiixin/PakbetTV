@@ -1,9 +1,8 @@
 import axios from 'axios';
-import API_BASE_URL from '../config';
 
 // Create axios instance with base URL
 const api = axios.create({
-  baseURL: API_BASE_URL
+  baseURL: '/api'  // Use relative path to trigger the proxy
 });
 
 // Add request interceptor to automatically add auth token
@@ -23,11 +22,6 @@ api.interceptors.request.use(
     
     config.headers['Accept'] = 'application/json';
     config.headers['Content-Type'] = 'application/json';
-    
-    // Ensure we're using /api prefix for all endpoints
-    if (config.url && !config.url.startsWith('/api')) {
-      config.url = `/api${config.url.startsWith('/') ? '' : '/'}${config.url}`;
-    }
     
     return config;
   },

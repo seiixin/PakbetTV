@@ -76,6 +76,7 @@ function AppContent() {
         <Route path="/cart" element={<Cart />} />
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/transaction-complete" element={<TransactionComplete />} />
+        <Route path="/payment/confirmation" element={<TransactionComplete />} />
         <Route path="/prosper-guide/:sign" element={<ProsperGuide />} />
         <Route path="/horoscope" element={<Horoscope />} />
         <Route path="/blog" element={<Blog />} />

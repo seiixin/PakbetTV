@@ -94,7 +94,7 @@ const Home = () => {
 
   useEffect(() => {
     setBlogLoading(true);
-    axios.get(`${API_BASE_URL}/api/cms/blogs`)
+    axios.get(`/api/cms/blogs`)
       .then(res => {
         if (res.data.length === 0) {
           Swal.fire("No Blog Posts Found", "Please check back later.", "info");

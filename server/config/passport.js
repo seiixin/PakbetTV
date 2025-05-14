@@ -102,9 +102,7 @@ const findOrCreateUser = async (profile, provider, done) => {
 passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  callbackURL: process.env.NODE_ENV === 'production' 
-    ? '/api/auth/google/callback'  // In production, use relative URL
-    : 'http://localhost:5000/api/auth/google/callback', // In development, use full URL with port
+  callbackURL: '/api/auth/google/callback', // Use relative URL for all environments
   profileFields: ['id', 'displayName', 'name', 'emails', 'photos']
 }, (accessToken, refreshToken, profile, done) => {
   findOrCreateUser(profile, 'google', done);
