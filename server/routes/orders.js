@@ -193,6 +193,21 @@ router.post(
         'INSERT INTO shipping (order_id, user_id, address, status) VALUES (?, ?, ?, ?)',
         [orderId, userId, address, 'pending']
       );
+
+      // Create shipping_details record with structured address
+      const addressParts = address.split(',').map(part => part.trim());
+      const address1 = addressParts[0] || '';
+      const postcode = address.match(/\d{5,6}/) ? address.match(/\d{5,6}/)[0] : '';
+      const city = addressParts.length > 2 ? addressParts[addressParts.length - 2] : '';
+      const state = addressParts.length > 1 ? addressParts[addressParts.length - 1] : '';
+
+      await connection.query(
+        `INSERT INTO shipping_details (
+          order_id, address1, city, state, postcode, country, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+        [orderId, address1, city, state, postcode, 'MY']
+      );
+
       await connection.query(
         'INSERT INTO payments (order_id, user_id, amount, payment_method, status) VALUES (?, ?, ?, ?, ?)',
         [orderId, userId, totalPrice, payment_method, 'pending']
@@ -290,9 +305,13 @@ router.get('/:id', auth, async (req, res) => {
 
     let query = `
       SELECT o.*, u.first_name, u.last_name, u.email, u.phone,
-             (SELECT tracking_number FROM shipping WHERE order_id = o.order_id LIMIT 1) AS shipping_tracking_number
+             (SELECT tracking_number FROM shipping WHERE order_id = o.order_id LIMIT 1) AS shipping_tracking_number,
+             s.address as shipping_address,
+             sd.address1, sd.address2, sd.city, sd.state, sd.postcode, sd.country
       FROM orders o
       JOIN users u ON o.user_id = u.user_id
+      LEFT JOIN shipping s ON o.order_id = s.order_id
+      LEFT JOIN shipping_details sd ON o.order_id = sd.order_id
       WHERE o.order_id = ?
     `;
     if (!isAdmin) {
@@ -338,7 +357,17 @@ router.get('/:id', auth, async (req, res) => {
     res.json({
       ...order,
       items,
-      shipping: shipping.length > 0 ? shipping[0] : null,
+      shipping: shipping.length > 0 ? {
+        ...shipping[0],
+        address_details: {
+          address1: order.address1,
+          address2: order.address2,
+          city: order.city,
+          state: order.state,
+          postcode: order.postcode,
+          country: order.country
+        }
+      } : null,
       payment: payments.length > 0 ? payments[0] : null
     });
   } catch (err) {

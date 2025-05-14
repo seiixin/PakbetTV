@@ -2,334 +2,331 @@
 
 /* Outermost page container for Order Confirmation */
 .order-confirmation-page {
-  width: 100%;
-  max-width: 100%;
-  margin: 80px 0;
-  padding: 0;
+  min-height: 100vh;
+  background-color: var(--background-color);
+  color: var(--text-color);
 }
 
 /* Wrapper for the main content section */
 .order-confirmation-wrapper {
-  width: 100%;
-  background: #fff;
-  padding: 100px; /* Consider adjusting padding if it's too large */
-  min-height: calc(100vh - 80px - 200px);
-  /* No max-width needed, ensure it takes full width */
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.account-title {
+  color: var(--primary-color);
+  font-size: 2rem;
+  margin-bottom: 2rem;
+  text-align: center;
 }
 
 .order-confirmation-container {
-  /* Styles for the container *inside* the wrapper, if needed */
-  /* Currently seems redundant with wrapper, but keeping structure */
-  width: 100%; 
-  margin: 0 auto;
-  background-color: #fff; 
-  overflow: hidden;
+  background: var(--white-color);
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 2rem;
 }
 
 /* Order Header */
 .order-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  padding: 20px;
-  background-color: #f9f9f9;
-  border-bottom: 1px solid #eee;
+  align-items: flex-start;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 .order-info {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
+  flex: 1;
 }
 
 .order-number, .order-date {
-  font-size: 0.95rem;
-  color: #555;
+  margin-bottom: 0.5rem;
+  font-size: 1.1rem;
 }
 
 .order-number span, .order-date span {
   font-weight: 600;
-  color: #333;
-  margin-right: 5px;
+  color: var(--primary-color);
 }
 
 .order-status {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 8px 15px;
-  border-radius: 30px;
-  font-size: 0.9rem;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
   font-weight: 600;
-  border: 1px solid;
-  width: 120px; /* Fixed width for uniform appearance */
   text-align: center;
-  white-space: nowrap;
+  border: 1px solid;
+  min-width: 120px;
 }
 
 /* Order Progress Tracker */
 .order-progress-tracker {
-  display: flex;
-  justify-content: space-between;
-  margin: 30px 20px;
+  margin: 2rem 0;
   position: relative;
 }
 
 /* Progress Line */
 .progress-line {
   position: absolute;
-  top: 25px; /* Adjust based on icon height */
+  top: 25px;
   left: 0;
-  width: 100%;
-  height: 4px;
-  background-color: #e0e0e0;
+  right: 0;
+  height: 2px;
+  background-color: rgba(162, 32, 26, 0.1);
   z-index: 1;
 }
 
 .progress-line-filled {
-  position: absolute;
-  top: 0;
-  left: 0;
   height: 100%;
-  background-color: #800000;
-  transition: width 0.5s ease;
+  background-color: var(--primary-color);
+  transition: width 0.3s ease;
 }
 
 /* Progress Steps */
 .progress-step {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
   position: relative;
   z-index: 2;
-  width: 60px;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  width: 20%;
+  text-align: center;
 }
 
 .step-icon {
   width: 50px;
   height: 50px;
+  background-color: var(--white-color);
+  border: 2px solid rgba(162, 32, 26, 0.3);
   border-radius: 50%;
-  background-color: #f3f4f6;
-  border: 2px solid #e0e0e0;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 8px;
-  font-size: 22px;
-  color: #888;
-  transition: all 0.3s ease;
+  margin-bottom: 0.5rem;
+  color: rgba(162, 32, 26, 0.3);
 }
 
 .step-label {
-  font-size: 0.8rem;
+  font-size: 0.9rem;
+  color: var(--text-color);
   font-weight: 500;
-  color: #666;
-  text-align: center;
-  transition: color 0.3s ease;
 }
 
 /* Active Step */
 .progress-step.active .step-icon {
-  background-color: rgba(128, 0, 0, 0.1);
-  border-color: #800000;
-  color: #800000;
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+  color: var(--white-color);
 }
 
 .progress-step.active .step-label {
-  color: #800000;
+  color: var(--primary-color);
   font-weight: 600;
 }
 
 /* Completed Step */
 .progress-step.completed .step-icon {
-  background-color: #800000;
-  border-color: #800000;
-  color: #DAA520;
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+  color: var(--white-color);
 }
 
 .progress-step.completed .step-label {
-  color: #333;
+  color: var(--primary-color);
 }
 
-/* Order Details - Updated for strict 2-column layout */
+/* Order Details - Updated for row layout */
 .order-details {
-  display: grid;
-  grid-template-columns: 1fr 1fr; /* Define exactly two equal columns */
-  gap: 30px; /* Spacing between columns and rows */
-  padding: 30px 20px; /* Padding around the grid */
-}
-
-/* Style individual grid items */
-.shipping-info, .payment-info, .order-items, .order-summary {
-  margin-bottom: 0;
-  border-bottom: none;
-  padding: 20px;
-  background-color: #f9f9f9;
-  border-radius: 8px;
-}
-
-/* Explicitly place items in a 2x2 grid */
-.shipping-info {
-  grid-column: 1;
-  grid-row: 1;
-}
-.payment-info {
-  grid-column: 2; /* Move to column 2 */
-  grid-row: 1;
-}
-.order-items {
-  grid-column: 1; /* Move to column 1 */
-  grid-row: 2; /* Move to row 2 */
-  align-self: start;
-}
-.order-summary {
-  grid-column: 2;
-  grid-row: 2; /* Move to row 2 */
-  align-self: start;
-}
-
-.shipping-info h3, .payment-info h3, .order-items h3, .order-summary h3 {
-  font-size: 1.1rem;
-  margin-top: 0;
-  margin-bottom: 15px;
-  color: #333;
-  font-weight: 600;
-}
-
-.info-content {
-  background-color: transparent;
-  padding: 0;
-  border-radius: 0;
-}
-
-.info-content p {
-  margin: 5px 0;
-}
-
-.info-content strong {
-  font-weight: 600;
-  margin-right: 5px;
-}
-
-/* Order Items */
-.items-list {
   display: flex;
   flex-direction: column;
-  gap: 15px;
-  width: 100%;
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+/* Order Items Section */
+.order-items {
+  background-color: var(--white-color);
+  border-radius: 8px;
+  padding: 1.5rem;
+  border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 .order-item {
-  display: flex;
-  background-color: #f9f9f9;
-  border-radius: 8px;
-  padding: 15px;
-  width: 100%;
+  padding: 1rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
 }
 
-.item-details {
-  padding: 10px 15px;
-  flex: 1;
-  width: 100%;
+.order-item:last-child {
+  border-bottom: none;
 }
 
 .item-details h4 {
-  margin: 0 0 5px;
-  font-size: 1rem;
+  color: var(--primary-color);
+  margin-bottom: 0.5rem;
+  font-size: 1.1rem;
 }
 
 .item-code, .item-variants {
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   color: #666;
-  margin: 3px 0;
+  margin-bottom: 0.5rem;
 }
 
 .item-price-qty {
   display: flex;
   align-items: center;
-  margin-top: 8px;
+  gap: 1rem;
+  margin-top: 0.5rem;
 }
 
-.item-price, .item-quantity {
-  font-size: 0.9rem;
-  color: #555;
-  margin-right: 15px;
+.item-price {
+  font-weight: 600;
+  color: var(--primary-color);
+}
+
+.item-quantity {
+  color: #666;
 }
 
 .item-total {
-  font-weight: 600;
-  font-size: 1rem;
-  color: #800000;
   margin-left: auto;
+  font-weight: 600;
+  color: var(--primary-color);
 }
 
 /* Order Summary */
+.order-summary-inline {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
 .summary-details {
-  background-color: #f9f9f9;
-  padding: 15px;
-  border-radius: 8px;
+  margin-left: auto;
+  width: 100%;
+  max-width: 300px;
 }
 
 .summary-row {
   display: flex;
   justify-content: space-between;
-  padding: 5px 0;
-  font-size: 0.95rem;
+  margin-bottom: 0.5rem;
+  font-size: 1.1rem;
 }
 
 .summary-row.total {
   font-weight: 600;
-  border-top: 1px solid #e0e0e0;
-  padding-top: 10px;
-  margin-top: 10px;
+  color: var(--primary-color);
+  font-size: 1.2rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* Customer Info Section */
+.customer-info {
+  background-color: var(--white-color);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+}
+
+.shipping-info, .payment-info {
+  background-color: var(--white-color);
+  padding: 0;
+  border-radius: 0;
+  margin-bottom: 0;
+}
+
+.shipping-info h4, .payment-info h4 {
+  color: var(--primary-color);
+  margin-bottom: 1rem;
   font-size: 1.1rem;
-  color: #800000;
+  font-weight: 600;
+}
+
+.address-details {
+  margin: 1rem 0;
+  padding: 0.5rem 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.address-line {
+  margin: 0.25rem 0;
+  color: var(--text-color);
+}
+
+.info-content p {
+  margin-bottom: 0.75rem;
+  line-height: 1.5;
+}
+
+.info-content strong {
+  color: var(--primary-color);
+  margin-right: 0.5rem;
 }
 
 /* Order Actions */
 .order-actions {
   display: flex;
-  padding: 20px;
-  gap: 15px;
-  border-top: 1px solid #eee;
-  background-color: #f9f9f9;
+  gap: 1rem;
+  margin-top: 2rem;
+  justify-content: flex-end;
 }
 
 .back-button, .track-order-button {
-  padding: 10px 20px;
-  border-radius: 6px;
-  font-size: 0.95rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 4px;
   font-weight: 600;
   text-decoration: none;
-  transition: all 0.2s ease;
-  text-align: center;
+  transition: all 0.2s;
 }
 
 .back-button {
-  background-color: transparent;
-  color: #555;
-  border: 1px solid #ccc;
+  background-color: #A2201A !important;
+  color: #FEC16E !important;
+  padding: 0.75rem 1.5rem;
+  border-radius: 4px;
+  text-decoration: none;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+  border: none;
+  cursor: pointer;
+  display: inline-block;
 }
 
 .back-button:hover {
-  background-color: #f1f1f1;
+  background-color: #8B0000;
+  color: white;
 }
 
 .track-order-button {
-  background-color: #800000;
-  color: #DAA520;
-  border: none;
+  background-color: var(--primary-color);
+  color: var(--white-color);
+  border: 1px solid var(--primary-color);
 }
 
-.track-order-button:hover {
-  background-color: #600000;
+.back-button:hover, .track-order-button:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
 }
 
+/* Payment Status */
 .payment-status {
-  padding: 2px 6px;
+  padding: 0.25rem 0.5rem;
   border-radius: 4px;
-  font-size: 0.85rem;
-  margin-left: 5px;
+  font-size: 0.9rem;
+  margin-left: 0.5rem;
 }
 
 .payment-status.completed {
@@ -338,8 +335,8 @@
 }
 
 .payment-status.pending {
-  background-color: rgba(255, 215, 0, 0.15);
-  color: #B8860B;
+  background-color: rgba(254, 193, 110, 0.15);
+  color: var(--primary-color);
 }
 
 .payment-status.failed {
@@ -347,137 +344,97 @@
   color: #DC143C;
 }
 
-/* Responsive stacking */
-@media (max-width: 900px) { /* Adjust breakpoint if needed */
-  .order-details {
-    grid-template-columns: 1fr; /* Stack to single column */
-    gap: 20px; /* Adjust gap for single column */
-  }
-  /* Reset grid placements for single column (no changes needed here) */
-  .shipping-info, .payment-info, .order-items, .order-summary {
-    grid-column: 1;
-    grid-row: auto; /* Let browser determine row */
-    align-self: auto; /* Reset alignment */
-  }
-}
-
-/* Further adjustments for smaller screens (likely no changes needed here) */
-@media (max-width: 768px) {
-  .order-confirmation-page {
-    margin: 20px 0;
-  }
-
-  .order-confirmation-wrapper {
-    padding: 20px;
-    min-height: calc(100vh - 20px - 150px); /* Adjust footer/nav height for mobile */
-  }
-  
-  .order-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 15px;
-  }
-  
-  .order-progress-tracker {
-    margin: 20px 10px;
-    overflow-x: auto;
-    padding-bottom: 10px;
-  }
-  
-  .progress-step {
-    min-width: 60px;
-    margin: 0 5px;
-  }
-  
-  .order-item {
-    padding: 12px;
-  }
-  
-  .order-actions {
-    flex-direction: column;
-  }
-  
-  .back-button, .track-order-button {
-    width: 100%;
-  }
-
-  .order-details {
-    padding: 20px 10px;
-  }
-
-  .shipping-info, .payment-info, .order-items, .order-summary {
-    padding: 15px;
-  }
-}
-
+/* Tracking Number Display */
 .tracking-number-display {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background-color: rgba(254, 193, 110, 0.1);
+  border-radius: 4px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  background-color: #f8f9fa;
-  padding: 10px 15px;
-  border-radius: 6px;
-  margin-top: 10px;
-  border: 1px solid #e9ecef;
+  gap: 1rem;
 }
 
 .tracking-label {
   font-weight: 600;
-  color: #495057;
+  color: var(--primary-color);
 }
 
-.tracking-value {
+.tracking-value, .tracking-value-inline {
   font-family: monospace;
   background-color: #fff;
   padding: 4px 8px;
   border-radius: 4px;
   border: 1px solid #dee2e6;
-  color: #800000;
+  color: var(--primary-color);
 }
 
 .tracking-value-inline {
-  font-family: monospace;
-  background-color: #fff;
   padding: 2px 6px;
-  border-radius: 4px;
-  border: 1px solid #dee2e6;
-  color: #800000;
   margin-left: 8px;
 }
 
 .copy-tracking-btn {
   background: none;
   border: none;
-  color: #6c757d;
+  color: var(--primary-color);
   cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 4px;
-  transition: all 0.2s ease;
+  padding: 0.25rem;
+  transition: opacity 0.2s;
 }
 
 .copy-tracking-btn:hover {
-  background-color: #e9ecef;
-  color: #800000;
+  opacity: 0.8;
 }
 
-.order-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
+/* Responsive Design */
+@media (max-width: 768px) {
+  .order-confirmation-wrapper {
+    padding: 1rem;
+  }
 
-.order-meta p {
-  margin: 0;
-  color: #495057;
-}
+  .order-header {
+    flex-direction: column;
+    gap: 1rem;
+  }
 
-.order-status-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-size: 0.9rem;
-  font-weight: 500;
-  border-width: 1px;
-  border-style: solid;
+  .order-status {
+    width: 100%;
+  }
+
+  .progress-step {
+    font-size: 0.8rem;
+  }
+
+  .step-icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .summary-details {
+    max-width: 100%;
+  }
+
+  .order-actions {
+    flex-direction: column;
+  }
+
+  .back-button, .track-order-button {
+    width: 100%;
+    text-align: center;
+  }
+
+  .info-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  .shipping-info, .payment-info {
+    padding: 0;
+  }
+  
+  .shipping-info {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    padding-bottom: 1.5rem;
+  }
 } 

@@ -18,7 +18,7 @@ function OrderConfirmation() {
     const fetchOrderDetails = async () => {
       try {
         setLoading(true);
-        const response = await api.get(`/orders/${orderId}`);
+        const response = await api.get(`/api/orders/${orderId}`);
         setOrder(response.data);
         setLoading(false);
       } catch (err) {
@@ -47,34 +47,34 @@ function OrderConfirmation() {
 
   const getStatusColor = (status) => {
     const statusColors = {
-      'pending_payment': '#FFD700', // Gold
-      'processing': '#800000', // Maroon
-      'for_packing': '#A52A2A', // Darker maroon
-      'packed': '#B8860B', // Dark goldenrod
-      'for_shipping': '#800000', // Maroon
-      'shipped': '#8B0000', // Dark red
-      'picked_up': '#DAA520', // Goldenrod
-      'delivered': '#006400', // Dark green
-      'completed': '#228B22', // Forest green
-      'returned': '#8B0000', // Dark red
-      'cancelled': '#8B0000' // Dark red
+      'pending_payment': 'var(--secondary-color)', // Using theme gold color
+      'processing': 'var(--primary-color)', // Using theme primary color
+      'for_packing': 'var(--primary-color)',
+      'packed': 'var(--primary-color)',
+      'for_shipping': 'var(--primary-color)',
+      'shipped': 'var(--primary-color)',
+      'picked_up': 'var(--primary-color)',
+      'delivered': '#228B22',
+      'completed': '#228B22',
+      'returned': 'var(--primary-color)',
+      'cancelled': 'var(--primary-color)'
     };
     return statusColors[status.toLowerCase()] || '#757575';
   };
 
   const getStatusBgColor = (status) => {
     const statusBgColors = {
-      'pending_payment': 'rgba(255, 215, 0, 0.15)', // Gold with transparency
-      'processing': 'rgba(128, 0, 0, 0.1)', // Maroon with transparency
-      'for_packing': 'rgba(165, 42, 42, 0.1)', // Darker maroon with transparency
-      'packed': 'rgba(184, 134, 11, 0.1)', // Dark goldenrod with transparency
-      'for_shipping': 'rgba(128, 0, 0, 0.1)', // Maroon with transparency
-      'shipped': 'rgba(139, 0, 0, 0.1)', // Dark red with transparency
-      'picked_up': 'rgba(218, 165, 32, 0.1)', // Goldenrod with transparency
-      'delivered': 'rgba(0, 100, 0, 0.1)', // Dark green with transparency
-      'completed': 'rgba(34, 139, 34, 0.1)', // Forest green with transparency
-      'returned': 'rgba(139, 0, 0, 0.1)', // Dark red with transparency
-      'cancelled': 'rgba(139, 0, 0, 0.1)' // Dark red with transparency
+      'pending_payment': 'rgba(254, 193, 110, 0.15)', // Using theme secondary color with transparency
+      'processing': 'rgba(162, 32, 26, 0.1)', // Using theme primary color with transparency
+      'for_packing': 'rgba(162, 32, 26, 0.1)',
+      'packed': 'rgba(162, 32, 26, 0.1)',
+      'for_shipping': 'rgba(162, 32, 26, 0.1)',
+      'shipped': 'rgba(162, 32, 26, 0.1)',
+      'picked_up': 'rgba(162, 32, 26, 0.1)',
+      'delivered': 'rgba(34, 139, 34, 0.1)',
+      'completed': 'rgba(34, 139, 34, 0.1)',
+      'returned': 'rgba(162, 32, 26, 0.1)',
+      'cancelled': 'rgba(162, 32, 26, 0.1)'
     };
     return statusBgColors[status.toLowerCase()] || 'rgba(117, 117, 117, 0.1)';
   };
@@ -134,7 +134,7 @@ function OrderConfirmation() {
         <NavBar />
         <div className="account-wrapper">
           <Link to="/account/purchases" className="back-button">
-            Back to Purchases
+            Back to Orders
           </Link>
         </div>
         <Footer />
@@ -148,7 +148,6 @@ function OrderConfirmation() {
         <NavBar />
         <div className="account-wrapper">
           <div className="loading">
-            <div className="loading-spinner"></div>
             <p>Loading order details...</p>
           </div>
         </div>
@@ -291,46 +290,56 @@ function OrderConfirmation() {
           </div>
 
           <div className="order-details">
-            <div className="shipping-info">
-              <h3>Shipping Information</h3>
-              <div className="info-content">
-                <p><strong>Name:</strong> {order.first_name} {order.last_name}</p>
-                {order.shipping && (
-                  <>
-                    <p><strong>Address:</strong> {order.shipping.address}</p>
-                    <p><strong>City:</strong> {order.shipping.city}</p>
-                    <p><strong>State/Province:</strong> {order.shipping.state}</p>
-                    <p><strong>Postal Code:</strong> {order.shipping.postal_code}</p>
-                    {order.shipping.shipping_method && <p><strong>Method:</strong> {order.shipping.shipping_method}</p>}
-                    {order.shipping.estimated_delivery && <p><strong>Est. Delivery:</strong> {order.shipping.estimated_delivery}</p>}
-                  </>
-                )}
-                <p><strong>Phone:</strong> {order.phone || 'Not provided'}</p>
-                <p><strong>Email:</strong> {order.email}</p>
-                {order.tracking_number && (
-                  <p>
-                    <strong>Tracking Number:</strong>
-                    <span className="tracking-value-inline">{order.tracking_number}</span>
-                  </p>
-                )}
-              </div>
-            </div>
+            <div className="customer-info">
+              <h3>Order Information</h3>
+              <div className="info-grid">
+                <div className="shipping-info">
+                  <h4>Shipping Details</h4>
+                  <div className="info-content">
+                    <p><strong>Name:</strong> {order.first_name} {order.last_name}</p>
+                    <p><strong>Phone:</strong> {order.phone || 'Not provided'}</p>
+                    <p><strong>Email:</strong> {order.email}</p>
+                    <div className="address-details">
+                      <p><strong>Delivery Address:</strong></p>
+                      {order.shipping?.address_details ? (
+                        <>
+                          <p className="address-line">{order.shipping.address_details.address1}</p>
+                          {order.shipping.address_details.address2 && (
+                            <p className="address-line">{order.shipping.address_details.address2}</p>
+                          )}
+                          <p className="address-line">
+                            {order.shipping.address_details.city}
+                            {order.shipping.address_details.state && `, ${order.shipping.address_details.state}`}
+                          </p>
+                          <p className="address-line">{order.shipping.address_details.postcode}</p>
+                          <p className="address-line">{order.shipping.address_details.country}</p>
+                        </>
+                      ) : (
+                        <p className="address-line">{order.shipping?.address || 'Address not provided'}</p>
+                      )}
+                    </div>
+                    {order.shipping?.shipping_method && <p><strong>Shipping Method:</strong> {order.shipping.shipping_method}</p>}
+                    {order.shipping?.estimated_delivery && <p><strong>Estimated Delivery:</strong> {order.shipping.estimated_delivery}</p>}
+                  </div>
+                </div>
 
-            <div className="payment-info">
-              <h3>Payment Information</h3>
-              <div className="info-content">
-                {order.payment && (
-                  <>
-                    <p>
-                      <strong>Status:</strong> 
-                      <span className={`payment-status ${order.payment.status.toLowerCase()}`}>
-                        {order.payment.status.charAt(0).toUpperCase() + order.payment.status.slice(1)}
-                      </span>
-                    </p>
-                    <p><strong>Method:</strong> {order.payment.payment_method}</p>
-                    <p><strong>Transaction ID:</strong> {order.payment.transaction_id || 'Pending'}</p>
-                  </>
-                )}
+                <div className="payment-info">
+                  <h4>Payment Details</h4>
+                  <div className="info-content">
+                    {order.payment && (
+                      <>
+                        <p><strong>Method:</strong> {order.payment.payment_method}</p>
+                        <p><strong>Transaction ID:</strong> {order.payment.transaction_id || 'Pending'}</p>
+                      </>
+                    )}
+                    {order.tracking_number && (
+                      <p>
+                        <strong>Tracking Number:</strong>
+                        <span className="tracking-value-inline">{order.tracking_number}</span>
+                      </p>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -360,22 +369,21 @@ function OrderConfirmation() {
                   </div>
                 ))}
               </div>
-            </div>
-
-            <div className="order-summary">
-              <h3>Order Summary</h3>
-              <div className="summary-details">
-                <div className="summary-row">
-                  <span>Subtotal:</span>
-                  <span>₱{parseFloat(order.total_price).toFixed(2)}</span>
-                </div>
-                <div className="summary-row">
-                  <span>Shipping:</span>
-                  <span>₱0.00</span>
-                </div>
-                <div className="summary-row total">
-                  <span>Total:</span>
-                  <span>₱{parseFloat(order.total_price).toFixed(2)}</span>
+              
+              <div className="order-summary-inline">
+                <div className="summary-details">
+                  <div className="summary-row">
+                    <span>Subtotal:</span>
+                    <span>₱{parseFloat(order.total_price).toFixed(2)}</span>
+                  </div>
+                  <div className="summary-row">
+                    <span>Shipping:</span>
+                    <span>₱0.00</span>
+                  </div>
+                  <div className="summary-row total">
+                    <span>Total:</span>
+                    <span>₱{parseFloat(order.total_price).toFixed(2)}</span>
+                  </div>
                 </div>
               </div>
             </div>
