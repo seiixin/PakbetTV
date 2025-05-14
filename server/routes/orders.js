@@ -5,6 +5,7 @@ const db = require('../config/db');
 const { auth, admin } = require('../middleware/auth');
 const axios = require('axios');
 const config = require('../config/keys');
+const { v4: uuidv4 } = require('uuid');
 const API_BASE_URL = config.NINJAVAN_API_URL || 'https://api.ninjavan.co';
 const COUNTRY_CODE = config.NINJAVAN_COUNTRY_CODE || 'SG';
 const CLIENT_ID = config.NINJAVAN_CLIENT_ID;
@@ -125,10 +126,22 @@ router.post(
       cartItems.forEach(item => {
         totalPrice += parseFloat(item.price) * item.quantity;
       });
-      const [orderResult] = await connection.query(
-        'INSERT INTO orders (user_id, total_price, order_status) VALUES (?, ?, ?)',
-        [userId, totalPrice, 'pending']
+      
+      // Generate a unique order_code using UUID
+      const orderCode = uuidv4();
+      
+      // Get the last order_id for this user
+      const [lastOrder] = await connection.query(
+        'SELECT order_id FROM orders WHERE user_id = ? ORDER BY order_id DESC LIMIT 1',
+        [userId]
       );
+      
+      // Insert the order with order_code
+      const [orderResult] = await connection.query(
+        'INSERT INTO orders (user_id, total_price, order_status, payment_status, order_code, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NOW(), NOW())',
+        [userId, totalPrice, 'pending', 'pending', orderCode]
+      );
+      
       const orderId = orderResult.insertId;
       for (const item of cartItems) {
         await connection.query(
@@ -236,6 +249,7 @@ router.post(
         message: 'Order created successfully',
         order: {
           order_id: orderId,
+          order_code: orderCode,
           total_price: totalPrice,
           items: cartItems,
           tracking: deliveryInfo ? {
@@ -265,7 +279,7 @@ router.get('/', auth, async (req, res) => {
     }
 
     let query = `
-      SELECT o.order_id, o.user_id, o.total_price, o.order_status, o.created_at, o.updated_at,
+      SELECT o.order_id, o.order_code, o.user_id, o.total_price, o.order_status, o.created_at, o.updated_at,
              u.first_name, u.last_name, u.email,
              (SELECT COUNT(*) FROM order_items WHERE order_id = o.order_id) AS item_count,
              (SELECT status FROM payments WHERE order_id = o.order_id LIMIT 1) AS payment_status,

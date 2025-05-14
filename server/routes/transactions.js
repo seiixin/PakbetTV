@@ -3,6 +3,7 @@ const router = express.Router();
 const crypto = require('crypto');
 const { auth } = require('../middleware/auth');
 const db = require('../config/db');
+const { v4: uuidv4 } = require('uuid');
 const deliveryRouter = require('./delivery'); // Import delivery router with createShippingOrder function
 const MERCHANT_ID = process.env.DRAGONPAY_MERCHANT_ID || 'TEST'; 
 const API_KEY = process.env.DRAGONPAY_API_KEY || 'test_key'; 
@@ -26,11 +27,15 @@ router.post('/orders', async (req, res) => {
     
     const { user_id, total_amount, items } = req.body;
     
-    // Create the order record first
-    console.log('Creating order record with data:', { user_id, total_amount });
+    // Generate a unique order_code using UUID
+    const orderCode = uuidv4();
+    console.log(`Generated order_code: ${orderCode}`);
+    
+    // Create the order record first with the order_code
+    console.log('Creating order record with data:', { user_id, total_amount, order_code: orderCode });
     const [orderResult] = await connection.query(
-      'INSERT INTO orders (user_id, total_price, order_status, payment_status, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())',
-      [user_id, total_amount, 'processing', 'pending']
+      'INSERT INTO orders (user_id, total_price, order_status, payment_status, order_code, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NOW(), NOW())',
+      [user_id, total_amount, 'processing', 'pending', orderCode]
     );
     
     const orderId = orderResult.insertId;
@@ -128,6 +133,7 @@ router.post('/orders', async (req, res) => {
     res.status(201).json({ 
       message: 'Order created successfully', 
       order_id: orderId,
+      order_code: orderCode,
       status: 'pending'
     });
   } catch (error) {
@@ -154,7 +160,9 @@ router.post('/payment', async (req, res) => {
       return res.status(404).json({ message: 'Order not found' });
     }
     const order = orders[0];
-    const txnId = `order_${order_id}_${Date.now()}`;
+    const txnId = order.order_code ? 
+      `order_${order.order_code}_${Date.now()}` : 
+      `order_${order_id}_${Date.now()}`;
     const [paymentResult] = await db.query(
       'INSERT INTO payments (order_id, user_id, amount, payment_method, status) VALUES (?, ?, ?, ?, ?)',
       [order_id, order.user_id, order.total_price, payment_method, 'pending']
@@ -197,7 +205,8 @@ router.post('/payment', async (req, res) => {
         success: true,
         payment_id: paymentId,
         payment_url: redirectUrl,
-        reference_number: txnId
+        reference_number: txnId,
+        order_code: order.order_code
       });
     } else {
       res.status(400).json({ message: 'Unsupported payment method' });
@@ -254,12 +263,41 @@ router.post('/postback', async (req, res) => {
       console.error('Invalid signature', { received: signature, expected: expectedSignature });
       return res.status(400).send('result=INVALID_SIGNATURE');
     }
-    const orderIdMatch = txnid.match(/order_(\d+)_/);
-    if (!orderIdMatch) {
-      console.error('Invalid transaction ID format:', txnid);
+    
+    // First try to extract order_id from transaction ID
+    let orderIdMatch = txnid.match(/order_(\d+)_/);
+    let orderId = null;
+    
+    if (orderIdMatch) {
+      // Legacy format: order_[ID]_timestamp
+      orderId = orderIdMatch[1];
+      console.log(`Found legacy order ID format: ${orderId}`);
+    } else {
+      // New format: order_[UUID]_timestamp
+      // Extract the UUID part and find the matching order in the database
+      const uuidMatch = txnid.match(/order_([0-9a-f-]+)_/);
+      if (uuidMatch) {
+        const orderCode = uuidMatch[1];
+        console.log(`Found order_code format: ${orderCode}`);
+        
+        // Look up the order by order_code
+        const [orders] = await db.query(
+          'SELECT order_id FROM orders WHERE order_code = ?',
+          [orderCode]
+        );
+        
+        if (orders.length > 0) {
+          orderId = orders[0].order_id;
+          console.log(`Resolved order_code ${orderCode} to order_id ${orderId}`);
+        }
+      }
+    }
+    
+    if (!orderId) {
+      console.error('Invalid transaction ID format or order not found:', txnid);
       return res.status(400).send('result=INVALID_TXNID');
     }
-    const orderId = orderIdMatch[1];
+    
     const connection = await db.getConnection();
 
     try {

@@ -183,7 +183,7 @@ function Purchases() {
                   <span>Order Placed:</span> {formatDate(order.created_at)}
                 </div>
                 <div className="purchase-order-id">
-                  <span>Order ID:</span> {order.order_id}
+                  <span>Order Code:</span> {order.order_code || order.order_id}
                 </div>
               </div>
               <div className="purchase-order-details">

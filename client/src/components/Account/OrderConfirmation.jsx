@@ -187,7 +187,7 @@ function OrderConfirmation() {
           <div className="order-header">
             <div className="order-info">
               <div className="order-number">
-                <span>Order ID:</span> {order.order_id}
+                <span>Order Code:</span> {order.order_code || order.order_id}
               </div>
               <div className="order-date">
                 <span>Order Date:</span> {formatDate(order.created_at)}
