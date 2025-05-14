@@ -7,6 +7,19 @@ const db = require('../config/db');
 const { auth } = require('../middleware/auth');
 const passport = require('passport');
 const fetch = require('node-fetch');
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
+
+// Email configuration
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: process.env.SMTP_PORT,
+  secure: process.env.SMTP_PORT === '465', // true for 465, false for other ports
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS
+  }
+});
 
 router.post(
   '/signup',
@@ -481,5 +494,124 @@ router.get('/facebook/callback',
     );
   }
 );
+
+// Request password reset
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    // Check if user exists
+    const [user] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
+    if (!user.length) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Generate reset token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenExpires = new Date(Date.now() + 3600000); // 1 hour from now
+
+    // Save reset token to database
+    await db.query(
+      'UPDATE users SET reset_token = ?, reset_token_expires = ? WHERE email = ?',
+      [resetToken, resetTokenExpires, email]
+    );
+
+    // Create reset password URL
+    const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
+
+    // Send email
+    const mailOptions = {
+      from: process.env.SMTP_USER,
+      to: email,
+      subject: 'Password Reset Request',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background-color: #A2201A; padding: 24px; text-align: center;">
+            <h1 style="color: #FFFFFF; margin: 0;">Reset Your Password</h1>
+          </div>
+          <div style="padding: 32px; background-color: #FFFFFF; border: 1px solid #ddd;">
+            <h2 style="color: #A2201A; margin-top: 0;">Hello,</h2>
+            <p>You recently requested to reset your password. Click the button below to proceed:</p>
+            <div style="text-align: center; margin: 32px 0;">
+              <a href="${resetUrl}" 
+                 style="background-color: #FEC16E; 
+                        color: #000000; 
+                        padding: 12px 28px; 
+                        text-decoration: none; 
+                        border-radius: 6px; 
+                        font-weight: bold;">
+                Reset Password
+              </a>
+            </div>
+            <p>If you did not request a password reset, please ignore this email or contact support if you have concerns.</p>
+            <p>This link will expire in 1 hour.</p>
+          </div>
+          <div style="padding: 16px; text-align: center; font-size: 12px; color: #666666;">
+            © 2024 Seabank. All rights reserved.
+          </div>
+        </div>
+      `
+    };
+
+    await transporter.sendMail(mailOptions);
+    res.json({ message: 'Password reset email sent' });
+  } catch (error) {
+    console.error('Password reset error:', error);
+    res.status(500).json({ message: 'Error processing password reset request' });
+  }
+});
+
+// Verify reset token
+router.get('/verify-reset-token/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+    
+    const [user] = await db.query(
+      'SELECT * FROM users WHERE reset_token = ? AND reset_token_expires > NOW()',
+      [token]
+    );
+
+    if (!user.length) {
+      return res.status(400).json({ message: 'Invalid or expired reset token' });
+    }
+
+    res.json({ message: 'Valid reset token' });
+  } catch (error) {
+    console.error('Token verification error:', error);
+    res.status(500).json({ message: 'Error verifying reset token' });
+  }
+});
+
+// Reset password
+router.post('/reset-password/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { password } = req.body;
+
+    // Verify token and get user
+    const [user] = await db.query(
+      'SELECT * FROM users WHERE reset_token = ? AND reset_token_expires > NOW()',
+      [token]
+    );
+
+    if (!user.length) {
+      return res.status(400).json({ message: 'Invalid or expired reset token' });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Update password and clear reset token
+    await db.query(
+      'UPDATE users SET password = ?, reset_token = NULL, reset_token_expires = NULL WHERE user_id = ?',
+      [hashedPassword, user[0].user_id]
+    );
+
+    res.json({ message: 'Password has been reset successfully' });
+  } catch (error) {
+    console.error('Password reset error:', error);
+    res.status(500).json({ message: 'Error resetting password' });
+  }
+});
 
 module.exports = router; 

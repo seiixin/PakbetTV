@@ -28,6 +28,9 @@ import Blog from './components/Blog'
 import BlogDetail from './components/BlogDetail'
 import FAQs from './components/FAQs'
 import Contact from './components/Contact'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
+
 function AppContent() {
   const location = useLocation();
   const [isFBInitialized, setFBInitialized] = useState(false);
@@ -58,6 +61,8 @@ function AppContent() {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password/:token" element={<ResetPassword />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/social-auth-success" element={<SocialAuthSuccess />} />
         <Route path="/account" element={<Account />} />

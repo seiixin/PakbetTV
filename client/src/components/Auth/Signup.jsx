@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { toast } from 'react-toastify';
 import SocialLogin from './SocialLogin';
 import './Auth.css';
 
@@ -36,18 +37,21 @@ function Signup() {
     if (!formData.username || !formData.firstname || !formData.lastname || 
         !formData.email || !formData.password || !formData.confirmPassword) {
       setError('Please fill in all required fields');
+      toast.error('Please fill in all required fields');
       setLoading(false);
       return;
     }
     
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
+      toast.error('Passwords do not match');
       setLoading(false);
       return;
     }
     
     if (formData.password.length < 6) {
       setError('Password must be at least 6 characters');
+      toast.error('Password must be at least 6 characters');
       setLoading(false);
       return;
     }
@@ -62,10 +66,11 @@ function Signup() {
     
     const result = await register(userData);
     if (result.success) {
-      alert('Registration successful! Please log in.');
+      toast.success('Registration successful! Please log in.');
       navigate('/login');
     } else {
       setError(result.message);
+      toast.error(result.message || 'Registration failed');
       setLoading(false);
     }
   };

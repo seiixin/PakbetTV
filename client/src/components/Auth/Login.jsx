@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
+import { toast } from 'react-toastify';
 import SocialLogin from './SocialLogin';
 import './Auth.css';
 
@@ -54,18 +55,21 @@ function Login() {
 
     if (!formData.email || !formData.password) {
       setError('Please fill in all fields');
+      toast.error('Please fill in all fields');
       setLoading(false);
       return;
     }
 
     if (!login) {
       setError('Authentication service not available');
+      toast.error('Authentication service not available');
       setLoading(false);
       return;
     }
 
     const result = await login(formData);
     if (result.success) {
+      toast.success('Login successful! Welcome back!');
       // Only merge carts if the function is available
       if (mergeGuestCartWithUserCart) {
         try {
@@ -81,6 +85,7 @@ function Login() {
       navigate(redirectPath);
     } else {
       setError(result.message);
+      toast.error(result.message || 'Login failed');
       setLoading(false);
     }
   };
@@ -152,6 +157,9 @@ function Login() {
               )}
             </button>
           </div>
+        </div>
+        <div className="auth-links">
+          <Link to="/forgot-password" className="forgot-password-link">Forgot Password?</Link>
         </div>
         <button 
           type="submit" 
