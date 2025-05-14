@@ -91,11 +91,17 @@ const ProductPage = () => {
 
     // Apply search filter if search query exists
     if (searchQuery) {
-      filtered = filtered.filter(product => 
-        product.name.toLowerCase().includes(searchQuery) ||
-        product.description?.toLowerCase().includes(searchQuery) ||
-        product.category_name?.toLowerCase().includes(searchQuery)
-      );
+      filtered = filtered.filter(product => {
+        const name = product.name?.toLowerCase() || '';
+        const description = product.description?.toLowerCase() || '';
+        const category = product.category_name?.toLowerCase() || '';
+        const code = product.product_code?.toLowerCase() || '';
+        
+        return name.includes(searchQuery) ||
+               description.includes(searchQuery) ||
+               category.includes(searchQuery) ||
+               code.includes(searchQuery);
+      });
     }
 
     setFilteredProducts(filtered);

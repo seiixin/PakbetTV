@@ -245,54 +245,44 @@ const Home = () => {
         </div>
       </section>
       <section className="home-blog-section">
-  <div className="home-blog-container py-5">
-    <div className="home-blog-section-header text-center mb-5">
-      <h2 className="text-dark">BLOG</h2>
-      <p className="text-muted">Latest insights on Feng Shui and wellness</p>
-    </div>
-    {blogLoading ? (
-      <div className="text-center py-5">
-        <div className="spinner-border" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </div>
-      </div>
-    ) : (
-      <div className="row justify-content-center g-4">
-        {blogs.slice(0, 4).map(blog => (
-          <div className="col-sm-10 col-md-6 col-lg-3" key={blog.blogID}>
-            <div className="card h-100 shadow-lg border-0 rounded-3">
-              <img
-                src={blog.cover_image}
-                className="card-img-top rounded-3"
-                alt="Blog Cover"
-              />
-              <div className="card-body d-flex flex-column p-4">
-                <h5 className="card-title text-dark mb-3">{blog.title}</h5>
-                <p className="card-subtitle text-muted small mb-2">
-                  {blog.category} • {new Date(blog.publish_date).toLocaleDateString()}
-                </p>
-                <p className="card-text text-muted mb-3">
-                  {blog.content.substring(0, 120)}...
-                </p>
-                <Link to={`/blog/${blog.blogID}`} className="blog-read-more-btn mt-auto"
-                style={{
-                  backgroundColor: 'var(--primary-color)',
-                  color: 'white',
-                  padding: '10px 20px',
-                  borderRadius: '5px',
-                  textDecoration: 'none',
-                }}
-                >
-                  Read More
-                </Link>
+        <div className="home-blog-container">
+          <div className="home-blog-section-header">
+            <h2>BLOG</h2>
+            <p>Latest insights on Feng Shui and wellness</p>
+          </div>
+          {blogLoading ? (
+            <div className="home-blog-loading">
+              <div className="spinner-border" role="status">
+                <span className="visually-hidden">Loading...</span>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
-    )}
-  </div>
-</section>
+          ) : (
+            <div className="home-blog-grid">
+              {blogs.slice(0, 4).map(blog => (
+                <div className="home-blog-card" key={blog.blogID}>
+                  <img
+                    src={blog.cover_image}
+                    className="home-blog-image"
+                    alt="Blog Cover"
+                  />
+                  <div className="home-blog-content">
+                    <h5 className="home-blog-title">{blog.title}</h5>
+                    <p className="home-blog-meta">
+                      {blog.category} • {new Date(blog.publish_date).toLocaleDateString()}
+                    </p>
+                    <p className="home-blog-excerpt">
+                      {blog.content.substring(0, 120)}...
+                    </p>
+                    <Link to={`/blog/${blog.blogID}`} className="home-blog-read-more">
+                      Read More
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
   <Footer forceShow={false} />
     </div>
   );

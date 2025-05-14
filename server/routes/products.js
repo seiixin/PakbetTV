@@ -645,4 +645,40 @@ router.delete('/images/:imageId', async (req, res) => {
         connection.release();
     }
 });
+// Search products
+router.get('/search', async (req, res) => {
+  try {
+    const searchQuery = req.query.query;
+    
+    if (!searchQuery) {
+      return res.json([]);
+    }
+
+    const [results] = await db.query(
+      `SELECT p.*, 
+              GROUP_CONCAT(DISTINCT pi.image_url) as images,
+              c.name as category_name
+       FROM products p
+       LEFT JOIN product_images pi ON p.product_id = pi.product_id
+       LEFT JOIN categories c ON p.category_id = c.category_id
+       WHERE (p.name LIKE ? OR p.description LIKE ? OR p.product_code LIKE ?)
+       AND p.status = 'active'
+       GROUP BY p.product_id
+       ORDER BY p.created_at DESC
+       LIMIT 5`,
+      [`%${searchQuery}%`, `%${searchQuery}%`, `%${searchQuery}%`]
+    );
+
+    // Process the results to format the images array
+    const products = results.map(product => ({
+      ...product,
+      images: product.images ? product.images.split(',') : []
+    }));
+
+    res.json(products);
+  } catch (err) {
+    console.error('Error searching products:', err);
+    res.status(500).json({ error: 'Server error', details: err.message });
+  }
+});
 module.exports = router; 

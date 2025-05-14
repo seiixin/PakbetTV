@@ -547,7 +547,7 @@ router.post('/forgot-password', async (req, res) => {
             <p>This link will expire in 1 hour.</p>
           </div>
           <div style="padding: 16px; text-align: center; font-size: 12px; color: #666666;">
-            © 2024 Seabank. All rights reserved.
+            © 2025 PakBet TV - Feng Shui by Michael de Mesa. All rights reserved.
           </div>
         </div>
       `
