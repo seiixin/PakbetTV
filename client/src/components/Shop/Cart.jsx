@@ -23,9 +23,41 @@ const Cart = () => {
     getTotalPrice,
     getSelectedCount,
     createOrder,
-    processPayment,
-    getFullImageUrl
+    processPayment
   } = useCart();
+
+  const getFullImageUrl = (url) => {
+    if (!url) return '/placeholder-product.jpg';
+    
+    // Type check to prevent errors
+    if (typeof url !== 'string') {
+      console.warn('URL is not a string:', url);
+      return '/placeholder-product.jpg';
+    }
+    
+    // Handle base64 encoded images (longblob from database)
+    if (url.startsWith('data:')) {
+      return url; // Already a full data URL
+    }
+    
+    // Handle absolute URLs
+    if (url.startsWith('http')) {
+      return url;
+    }
+    
+    // Handle uploads paths
+    if (url.startsWith('/uploads/')) {
+      return `${API_BASE_URL}${url}`;
+    }
+    
+    // Handle other relative paths
+    if (url.startsWith('/')) {
+      return `${API_BASE_URL}${url}`;
+    }
+    
+    // Any other format
+    return `${API_BASE_URL}/uploads/${url}`;
+  };
 
   useEffect(() => {
     console.log('Cart items in Cart component:', cartItems.length, 'items');
