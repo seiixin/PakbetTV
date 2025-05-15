@@ -331,16 +331,26 @@ const ProductDetailPage = () => {
   };
   const getFullImageUrl = (url) => {
     if (!url) {
-        console.warn('[getFullImageUrl] URL is missing, returning placeholder.');
-        return '/placeholder-product.jpg';
+      console.warn('[getFullImageUrl] URL is missing, returning placeholder.');
+      return '/placeholder-product.jpg';
     }
+    
+    // Handle base64 encoded images
+    if (url.startsWith('data:')) {
+      return url; // Already a full data URL
+    }
+    
+    // Handle absolute URLs
     if (url.startsWith('http')) {
-        return url;
+      return url;
     }
+    
+    // Handle relative paths
     if (url.startsWith('/')) {
-        return `${API_BASE_URL}${url}`;
+      return `${API_BASE_URL}${url}`;
     }
-    console.log(`[getFullImageUrl] Prepending origin to relative path: ${url}`);
+    
+    // Any other format
     return `${API_BASE_URL}/${url}`;
   };
   const renderStars = (rating) => {

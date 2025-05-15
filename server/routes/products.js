@@ -312,15 +312,45 @@ router.get('/', async (req, res) => {
 
       console.log(`Found ${products.length} products out of ${totalProducts} total`);
 
-      // Process variant images
-      products.forEach(product => {
-        if (product.variant_images) {
+      // For each product, get the primary image from product_images table
+      for (const product of products) {
+        // First check if we have product_images records
+        const [productImages] = await db.query(
+          'SELECT image_id, image_url, alt_text, sort_order FROM product_images WHERE product_id = ? ORDER BY sort_order LIMIT 1', 
+          [product.product_id]
+        );
+        
+        if (productImages.length > 0) {
+          const image = productImages[0];
+          // Check if image_url is a Buffer (BLOB)
+          if (image.image_url && Buffer.isBuffer(image.image_url)) {
+            product.images = [{
+              id: image.image_id,
+              url: `data:image/jpeg;base64,${image.image_url.toString('base64')}`,
+              alt: image.alt_text || product.name,
+              order: image.sort_order
+            }];
+          } else {
+            product.images = [{
+              id: image.image_id,
+              url: `/uploads/${image.image_url}`,
+              alt: image.alt_text || product.name,
+              order: image.sort_order
+            }];
+          }
+        } 
+        // If no product_images, use variant images
+        else if (product.variant_images) {
           const imageUrls = product.variant_images.split(',').filter(url => url);
-          console.log(`Processing images for product ${product.product_id}:`, imageUrls);
+          console.log(`Processing variant images for product ${product.product_id}:`, imageUrls);
           
+          // For variant images, we're assuming they're not BLOB data but file paths
           product.images = imageUrls.map((url, index) => {
             let imageUrl = url.trim();
-            imageUrl = `/uploads/${path.basename(imageUrl)}`;
+            // Check if it's already a path
+            if (!imageUrl.startsWith('/')) {
+              imageUrl = `/uploads/${path.basename(imageUrl)}`;
+            }
             console.log(`Formatted image URL: ${imageUrl}`);
             return {
               url: imageUrl,
@@ -331,10 +361,11 @@ router.get('/', async (req, res) => {
         } else {
           product.images = [];
         }
+
         product.price = Number(product.price) || 0;
         product.stock = Number(product.stock) || 0;
         delete product.variant_images; // Remove the raw variant_images field
-      });
+      }
 
       res.json({
         products: products,
@@ -394,6 +425,8 @@ router.get('/:id', async (req, res) => {
       average_rating: productResult[0].average_rating !== null ? Number(productResult[0].average_rating) : null,
       review_count: Number(productResult[0].review_count) || 0
     };
+    
+    // Get variants including image data
     const [variants] = await db.query('SELECT variant_id, product_id, sku, price, stock, image_url, attributes, created_at, updated_at FROM product_variants WHERE product_id = ?', [productId]);
     const variantsWithDetails = [];
     for (const variant of variants) {
@@ -406,14 +439,16 @@ router.get('/:id', async (req, res) => {
       const attributeString = Object.entries(parsedAttributes || {}).map(([key, value]) => value).join(' ');
       const variantName = attributeString ? `${product.name} - ${attributeString}` : product.name;
       let variantImage = null;
+      
       if (variant.image_url) {
         variantImage = {
           id: `variant-img-${variant.variant_id}`,
-          url: `/uploads/${path.basename(variant.image_url)}`,
+          url: variant.image_url,
           alt: `${product.name} - ${attributeString}`,
           order: 0
         };
       }
+      
       variantsWithDetails.push({
         ...variant, 
         attributes: parsedAttributes, 
@@ -422,19 +457,38 @@ router.get('/:id', async (req, res) => {
         name: variantName
       });
     }
+    
+    // Get product images as BLOB data
     const [images] = await db.query(
         'SELECT image_id, image_url, alt_text, sort_order FROM product_images WHERE product_id = ? ORDER BY sort_order', 
         [productId]
     );
+    
+    // Process image data
+    const processedImages = images.map(img => {
+      // If image_url is a BLOB, convert to base64
+      if (img.image_url && Buffer.isBuffer(img.image_url)) {
+        return {
+          id: img.image_id,
+          url: `data:image/jpeg;base64,${img.image_url.toString('base64')}`,
+          alt: img.alt_text || product.name,
+          order: img.sort_order
+        };
+      } else {
+        // Otherwise use as URL path
+        return {
+          id: img.image_id,
+          url: `/uploads/${img.image_url}`,
+          alt: img.alt_text || product.name,
+          order: img.sort_order
+        };
+      }
+    });
+    
     res.json({
       ...product,
       variants: variantsWithDetails,
-      images: images.map(img => ({ 
-          id: img.image_id, 
-          url: `/uploads/${img.image_url}`, 
-          alt: img.alt_text, 
-          order: img.sort_order 
-      })) 
+      images: processedImages
     });
   } catch (err) {
     console.error("Error fetching product details:", err);

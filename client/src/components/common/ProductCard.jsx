@@ -11,10 +11,23 @@ const ProductCard = ({ product }) => {
 
   const getFullImageUrl = (url) => {
     if (!url) return '/placeholder-product.jpg';
+    
+    // Handle base64 encoded images
+    if (url.startsWith('data:')) {
+      return url; // Already a full data URL
+    }
+    
+    // Handle absolute URLs
     if (url.startsWith('http')) return url;
-    if (url.startsWith('/uploads/')) return `/api${url}`;
-    if (url.startsWith('/')) return `/api${url}`;
-    return `/api/uploads/${url}`;
+    
+    // Handle uploads paths
+    if (url.startsWith('/uploads/')) return `${API_BASE_URL}${url}`;
+    
+    // Handle other relative paths
+    if (url.startsWith('/')) return `${API_BASE_URL}${url}`;
+    
+    // Any other format
+    return `${API_BASE_URL}/uploads/${url}`;
   };
 
   // Get the primary image URL
@@ -54,7 +67,12 @@ const ProductCard = ({ product }) => {
           src={getPrimaryImage()} 
           alt={product.name}
           className="product-card-image"
-          onError={(e) => { e.target.onerror = null; e.target.src = '/placeholder-product.jpg'; }}
+          onError={(e) => { 
+            console.error('Image load error:', e.target.src); 
+            e.target.onerror = null; // Prevent infinite loop
+            e.target.src = '/placeholder-product.jpg'; 
+          }}
+          loading="lazy"
         />
         {product.discount_percentage > 0 && (
           <div className="discount-tag">-{product.discount_percentage}%</div>
