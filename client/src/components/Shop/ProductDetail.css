@@ -20,6 +20,7 @@
   font-family: 'Open Sans', sans-serif;
   color: var(--dark-gray);
   margin-top: 5rem;
+  background-image: "/cover.png";
 }
 
 .back-button {

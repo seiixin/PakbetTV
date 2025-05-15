@@ -322,8 +322,8 @@ const ProductDetailPage = () => {
     navigate(-1);
   };
   const formatPrice = (price) => {
-    if (!price) return '₱0.00';
-    return `₱${Number(price).toFixed(2)}`;
+    if (!price) return '0.00';
+    return Number(price).toFixed(2);
   };
   const calculateDiscountedPrice = (price, discount) => {
     if (!discount) return price;

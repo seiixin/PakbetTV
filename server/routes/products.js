@@ -275,7 +275,7 @@ router.get('/', async (req, res) => {
         p.created_at, 
         p.updated_at,
         c.name AS category_name,
-        COALESCE(MIN(pv.price), 0) as price,
+        p.price as base_price,
         COALESCE(SUM(pv.stock), 0) as stock,
         GROUP_CONCAT(DISTINCT pv.image_url) as variant_images
       FROM products p
@@ -295,7 +295,7 @@ router.get('/', async (req, res) => {
       countQueryParams.push(category);
     }
 
-    productQuery += ' GROUP BY p.product_id, p.name, p.product_code, p.description, p.category_id, p.created_at, p.updated_at, c.name';
+    productQuery += ' GROUP BY p.product_id, p.name, p.product_code, p.description, p.category_id, p.created_at, p.updated_at, c.name, p.price';
     productQuery += ' ORDER BY p.created_at DESC LIMIT ? OFFSET ?';
     queryParams.push(limit, offset);
 
@@ -314,6 +314,38 @@ router.get('/', async (req, res) => {
 
       // For each product, get the primary image from product_images table
       for (const product of products) {
+        // Get variants for each product to display the correct price range
+        const [productVariants] = await db.query(
+          'SELECT variant_id, sku, price, stock, image_url, attributes FROM product_variants WHERE product_id = ?',
+          [product.product_id]
+        );
+        
+        // Process variants and set price correctly
+        if (productVariants && productVariants.length > 0) {
+          product.variants = productVariants.map(variant => ({
+            ...variant,
+            price: Number(variant.price) || 0,
+            stock: Number(variant.stock) || 0,
+            attributes: variant.attributes ? JSON.parse(variant.attributes) : {}
+          }));
+
+          // Calculate price from variants if available
+          const validPrices = productVariants
+            .map(v => Number(v.price))
+            .filter(p => !isNaN(p) && p > 0);
+            
+          if (validPrices.length > 0) {
+            product.price = Math.min(...validPrices);
+          } else {
+            product.price = Number(product.base_price) || 0;
+          }
+        } else {
+          product.price = Number(product.base_price) || 0;
+          product.variants = [];
+        }
+        
+        delete product.base_price;
+
         // First check if we have product_images records
         const [productImages] = await db.query(
           'SELECT image_id, image_url, alt_text, sort_order FROM product_images WHERE product_id = ? ORDER BY sort_order LIMIT 1', 
@@ -362,7 +394,7 @@ router.get('/', async (req, res) => {
           product.images = [];
         }
 
-        product.price = Number(product.price) || 0;
+        // Ensure price and stock are numbers
         product.stock = Number(product.stock) || 0;
         delete product.variant_images; // Remove the raw variant_images field
       }

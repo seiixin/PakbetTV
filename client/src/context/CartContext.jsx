@@ -6,6 +6,56 @@ const CartContext = createContext();
 
 export const useCart = () => useContext(CartContext);
 
+// Utility function to ensure consistent image URL handling
+const getFullImageUrl = (url) => {
+  if (!url) return '/placeholder-product.jpg';
+  
+  // Handle case where url is an object (e.g., from database BLOB)
+  if (typeof url === 'object') {
+    if (url.data) {
+      // Handle Buffer or Uint8Array data
+      if (url.data instanceof Uint8Array || Buffer.isBuffer(url.data)) {
+        return `data:${url.type || 'image/jpeg'};base64,${Buffer.from(url.data).toString('base64')}`;
+      }
+      // Handle base64 string data
+      if (typeof url.data === 'string') {
+        return `data:${url.type || 'image/jpeg'};base64,${url.data}`;
+      }
+    }
+    console.warn('Invalid image object format:', url);
+    return '/placeholder-product.jpg';
+  }
+  
+  // Handle string URLs
+  if (typeof url === 'string') {
+    // Handle base64 encoded images (longblob from database)
+    if (url.startsWith('data:')) {
+      return url; // Already a full data URL
+    }
+    
+    // Handle absolute URLs
+    if (url.startsWith('http')) {
+      return url;
+    }
+    
+    // Handle uploads paths
+    if (url.startsWith('/uploads/')) {
+      return `${API_BASE_URL}${url}`;
+    }
+    
+    // Handle other relative paths
+    if (url.startsWith('/')) {
+      return `${API_BASE_URL}${url}`;
+    }
+    
+    // Any other format
+    return `${API_BASE_URL}/uploads/${url}`;
+  }
+  
+  console.warn('Invalid image URL type:', typeof url);
+  return '/placeholder-product.jpg';
+};
+
 export const CartProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -43,12 +93,21 @@ export const CartProvider = ({ children }) => {
       const storageKey = user?.id ? `cart_${user.id}` : 'cart_guest';
       console.log('Saving cart to localStorage:', storageKey, cartItems.length, 'items');
       localStorage.setItem(storageKey, JSON.stringify(cartItems));
+      
+      // Also save to a common cartItems key for easier access from checkout
+      localStorage.setItem('cartItems', JSON.stringify(cartItems));
     } catch (error) {
       console.error('Error saving cart to localStorage:', error);
     }
   }, [cartItems, user]);
 
   const addToCart = (product, quantity = 1) => {
+    // Ensure image URL is properly formatted before adding to cart
+    const productWithProperImageUrl = {
+      ...product,
+      image_url: product.image_url ? getFullImageUrl(product.image_url) : '/placeholder-product.jpg'
+    };
+    
     setCartItems(prevItems => {
       const existingItemIndex = prevItems.findIndex(item => {
         if (product.variant_id && item.variant_id) {
@@ -56,27 +115,48 @@ export const CartProvider = ({ children }) => {
         }
         return item.id === product.id;
       });
+      
+      let updatedItems;
       if (existingItemIndex >= 0) {
-        const updatedItems = [...prevItems];
+        updatedItems = [...prevItems];
         updatedItems[existingItemIndex] = {
           ...updatedItems[existingItemIndex],
           quantity: updatedItems[existingItemIndex].quantity + quantity,
           selected: true
         };
-        return updatedItems;
       } else {
-        return [...prevItems, { ...product, quantity, selected: true }];
+        updatedItems = [...prevItems, { ...productWithProperImageUrl, quantity, selected: true }];
       }
+      
+      // Also save to common cartItems key for checkout access
+      try {
+        localStorage.setItem('cartItems', JSON.stringify(updatedItems));
+      } catch (err) {
+        console.error('Failed to save cart to localStorage on add:', err);
+      }
+      
+      return updatedItems;
     });
   };
 
   const removeFromCart = (productId, variantId = null) => {
-    setCartItems(prevItems => prevItems.filter(item => {
-      if (variantId && item.variant_id) {
-        return item.variant_id !== variantId;
+    setCartItems(prevItems => {
+      const updatedItems = prevItems.filter(item => {
+        if (variantId && item.variant_id) {
+          return item.variant_id !== variantId;
+        }
+        return item.id !== productId;
+      });
+      
+      // Also save to common cartItems key for checkout access
+      try {
+        localStorage.setItem('cartItems', JSON.stringify(updatedItems));
+      } catch (err) {
+        console.error('Failed to save cart to localStorage on remove:', err);
       }
-      return item.id !== productId;
-    }));
+      
+      return updatedItems;
+    });
   };
 
   const updateQuantity = (productId, quantity, variantId = null) => {
@@ -84,14 +164,24 @@ export const CartProvider = ({ children }) => {
       removeFromCart(productId, variantId);
       return;
     }
-    setCartItems(prevItems => 
-      prevItems.map(item => {
+    
+    setCartItems(prevItems => {
+      const updatedItems = prevItems.map(item => {
         if (variantId && item.variant_id) {
           return item.variant_id === variantId ? { ...item, quantity } : item;
         }
         return item.id === productId ? { ...item, quantity } : item;
-      })
-    );
+      });
+      
+      // Also save to common cartItems key for checkout access
+      try {
+        localStorage.setItem('cartItems', JSON.stringify(updatedItems));
+      } catch (err) {
+        console.error('Failed to save cart to localStorage on update:', err);
+      }
+      
+      return updatedItems;
+    });
   };
 
   const toggleItemSelection = (productId, variantId = null) => {
@@ -113,6 +203,14 @@ export const CartProvider = ({ children }) => {
 
   const clearCart = () => {
     setCartItems([]);
+    // Clear from localStorage too
+    try {
+      localStorage.removeItem('cartItems');
+      const storageKey = user?.id ? `cart_${user.id}` : 'cart_guest';
+      localStorage.removeItem(storageKey);
+    } catch (err) {
+      console.error('Failed to clear cart from localStorage:', err);
+    }
   };
 
   // Merge guest cart with user cart when logging in

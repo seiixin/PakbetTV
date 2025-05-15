@@ -96,7 +96,10 @@
 }
 
 .product-card-price {
-  margin-top: 0.25rem;
+  margin-top: 0.5rem;
+  min-height: 1.2rem;
+  display: flex;
+  align-items: center;
 }
 
 .price-with-discount {
@@ -107,20 +110,19 @@
 }
 
 .discounted-price {
-  font-size: 0.75rem !important;
+  font-size: 0.9rem !important;
   font-weight: 500;
   color: #ee4d2d;
 }
 
 .original-price {
-  font-size: 0.65rem !important;
+  font-size: 0.7rem !important;
   text-decoration: line-through;
   color: rgba(0, 0, 0, 0.54);
 }
 
 .regular-price {
-  font-size: 1.2rem !important;
-  margin-top: 2rem;
+  font-size: 0.9rem !important;
   font-weight: 500;
   color: #ee4d2d;
 }

@@ -296,12 +296,32 @@ function OrderConfirmation() {
                 <div className="shipping-info">
                   <h4>Shipping Details</h4>
                   <div className="info-content">
-                    <p><strong>Name:</strong> {order.first_name} {order.last_name}</p>
-                    <p><strong>Phone:</strong> {order.phone || 'Not provided'}</p>
-                    <p><strong>Email:</strong> {order.email}</p>
+                    <p><strong>Name:</strong> {order.shipping?.name || order.first_name && order.last_name ? `${order.first_name} ${order.last_name}` : order.name || 'Not provided'}</p>
+                    <p><strong>Phone:</strong> {order.shipping?.phone || order.phone || 'Not provided'}</p>
+                    <p><strong>Email:</strong> {order.shipping?.email || order.email || 'Not provided'}</p>
                     <div className="address-details">
                       <p><strong>Delivery Address:</strong></p>
-                      {order.shipping?.address_details ? (
+                      {order.shipping?.full_address ? (
+                        <>
+                          <p className="address-line">{order.shipping.full_address.address_line1}</p>
+                          {order.shipping.full_address.address_line2 && (
+                            <p className="address-line">{order.shipping.full_address.address_line2}</p>
+                          )}
+                          {order.shipping.full_address.area && (
+                            <p className="address-line">{order.shipping.full_address.area}</p>
+                          )}
+                          <p className="address-line">
+                            {order.shipping.full_address.city}
+                            {order.shipping.full_address.state && `, ${order.shipping.full_address.state}`}
+                          </p>
+                          <p className="address-line">{order.shipping.full_address.postal_code}</p>
+                          <p className="address-line">{order.shipping.full_address.country === 'PH' ? 'Philippines' : 
+                                                      order.shipping.full_address.country === 'MY' ? 'Malaysia' : 
+                                                      order.shipping.full_address.country === 'SG' ? 'Singapore' : 
+                                                      order.shipping.full_address.country}
+                          </p>
+                        </>
+                      ) : order.shipping?.address_details ? (
                         <>
                           <p className="address-line">{order.shipping.address_details.address1}</p>
                           {order.shipping.address_details.address2 && (
@@ -314,8 +334,10 @@ function OrderConfirmation() {
                           <p className="address-line">{order.shipping.address_details.postcode}</p>
                           <p className="address-line">{order.shipping.address_details.country}</p>
                         </>
+                      ) : order.shipping?.address ? (
+                        <p className="address-line">{order.shipping.address}</p>
                       ) : (
-                        <p className="address-line">{order.shipping?.address || 'Address not provided'}</p>
+                        <p className="address-line">{order.address || 'Address not provided'}</p>
                       )}
                     </div>
                     {order.shipping?.shipping_method && <p><strong>Shipping Method:</strong> {order.shipping.shipping_method}</p>}

@@ -1,12 +1,53 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import API_BASE_URL from '../../config';
 import './ProductCard.css';
 
 const ProductCard = ({ product }) => {
+  // Debug product data
+  useEffect(() => {
+    if (product) {
+      console.log(`ProductCard for ${product.name}:`, {
+        product_id: product.product_id,
+        price: product.price,
+        variants: product.variants,
+        images: product.images
+      });
+    }
+  }, [product]);
+
   const formatPrice = (price) => {
-    if (!price) return '₱0.00';
-    return `₱${Number(price).toFixed(2)}`;
+    // Ensure we have a valid number to format
+    const numPrice = parseFloat(price);
+    if (isNaN(numPrice) || numPrice === undefined || numPrice === null) {
+      return '₱0.00';
+    }
+    return `₱${numPrice.toFixed(2)}`;
+  };
+
+  const getPriceDisplay = () => {
+    // First check if we have variants with valid prices
+    if (product.variants && product.variants.length > 0) {
+      const prices = product.variants
+        .map(v => parseFloat(v.price))
+        .filter(price => !isNaN(price) && price > 0);
+      
+      if (prices.length > 0) {
+        const minPrice = Math.min(...prices);
+        const maxPrice = Math.max(...prices);
+        
+        // If min and max are the same, show just one price
+        if (minPrice === maxPrice) {
+          return formatPrice(minPrice);
+        }
+        
+        // Otherwise show a price range
+        return `₱${minPrice.toFixed(2)} - ₱${maxPrice.toFixed(2)}`;
+      }
+    }
+    
+    // If no variants or no valid variant prices, use the product price
+    return formatPrice(product.price);
   };
 
   const getFullImageUrl = (url) => {
@@ -92,12 +133,12 @@ const ProductCard = ({ product }) => {
           {product.discount_percentage > 0 ? (
             <div className="price-with-discount">
               <span className="discounted-price">
-                {formatPrice(product.price - (product.price * product.discount_percentage / 100))}
+                {getPriceDisplay()}
               </span>
               <span className="original-price">{formatPrice(product.price)}</span>
             </div>
           ) : (
-            <span className="regular-price">{formatPrice(product.price)}</span>
+            <span className="regular-price">{getPriceDisplay()}</span>
           )}
         </div>
 

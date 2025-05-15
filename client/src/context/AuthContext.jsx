@@ -2,6 +2,7 @@ import { createContext, useState, useEffect, useContext } from 'react';
 import { authService } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import axios from 'axios';
 
 const AuthContext = createContext();
 
@@ -155,6 +156,87 @@ export const AuthProvider = ({ children }) => {
     setToken(null);
     toast.success('Logged out successfully');
     navigate('/');
+  };
+
+  // Add this function to check for existing email
+  const checkExistingEmail = async (email) => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/api/auth/check-email`, { email });
+      return response.data;
+    } catch (error) {
+      console.error('Error checking email:', error);
+      throw error;
+    }
+  };
+
+  // Update the social login handlers
+  const handleGoogleLogin = async (response) => {
+    try {
+      const { email, name, imageUrl } = response.profileObj;
+      
+      // Check if email already exists
+      const emailCheck = await checkExistingEmail(email);
+      
+      if (emailCheck.exists) {
+        // If email exists, check if it's a Google account
+        if (!emailCheck.isGoogleAccount) {
+          throw new Error('An account with this email already exists. Please use your regular login.');
+        }
+      }
+      
+      const authResponse = await axios.post(`${API_BASE_URL}/api/auth/google`, {
+        email,
+        name,
+        imageUrl,
+        googleId: response.googleId
+      });
+      
+      handleLoginSuccess(authResponse.data);
+    } catch (error) {
+      handleLoginError(error);
+    }
+  };
+
+  const handleFacebookLogin = async (response) => {
+    try {
+      const { email, name, picture } = response;
+      
+      // Check if email already exists
+      const emailCheck = await checkExistingEmail(email);
+      
+      if (emailCheck.exists) {
+        // If email exists, check if it's a Facebook account
+        if (!emailCheck.isFacebookAccount) {
+          throw new Error('An account with this email already exists. Please use your regular login.');
+        }
+      }
+      
+      const authResponse = await axios.post(`${API_BASE_URL}/api/auth/facebook`, {
+        email,
+        name,
+        picture: picture.data.url,
+        facebookId: response.id
+      });
+      
+      handleLoginSuccess(authResponse.data);
+    } catch (error) {
+      handleLoginError(error);
+    }
+  };
+
+  // Add error handling function
+  const handleLoginError = (error) => {
+    let errorMessage = 'An error occurred during login. Please try again.';
+    
+    if (error.response) {
+      errorMessage = error.response.data.message || errorMessage;
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    // You can dispatch this error to your notification system
+    console.error('Login error:', errorMessage);
+    throw new Error(errorMessage);
   };
 
   const value = {
