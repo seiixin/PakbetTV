@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
+import API_BASE_URL from '../config';
 import './NavBar.css';
 
 const NavBar = () => {
@@ -11,6 +12,7 @@ const NavBar = () => {
   const [searchResults, setSearchResults] = useState({ products: [], blogs: [], zodiacs: [] });
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [error, setError] = useState(null);
   const { user, logout, loggingOut } = useAuth();
   const { getTotalCount } = useCart();
   const dropdownRef = useRef(null);
@@ -55,21 +57,28 @@ const NavBar = () => {
 
     setIsSearching(true);
     setShowSearchDropdown(true);
+    setError(null);
 
     try {
-      setLoading(true);
-      setError(null);
-
       // Fetch products
       const productsResponse = await fetch(`${API_BASE_URL}/api/products/search?query=${encodeURIComponent(query)}`);
+      if (!productsResponse.ok) {
+        throw new Error('Failed to fetch products');
+      }
       const productsData = await productsResponse.json();
 
       // Fetch blogs
       const blogsResponse = await fetch(`${API_BASE_URL}/api/cms/blogs/search?query=${encodeURIComponent(query)}`);
+      if (!blogsResponse.ok) {
+        throw new Error('Failed to fetch blogs');
+      }
       const blogsData = await blogsResponse.json();
 
       // Fetch zodiacs
       const zodiacsResponse = await fetch(`${API_BASE_URL}/api/cms/zodiacs?search=${encodeURIComponent(query)}`);
+      if (!zodiacsResponse.ok) {
+        throw new Error('Failed to fetch zodiacs');
+      }
       const zodiacsData = await zodiacsResponse.json();
 
       setSearchResults({
@@ -79,6 +88,7 @@ const NavBar = () => {
       });
     } catch (error) {
       console.error('Search error:', error);
+      setError(error.message);
       setSearchResults({ products: [], blogs: [], zodiacs: [] });
     } finally {
       setIsSearching(false);
@@ -154,14 +164,20 @@ const NavBar = () => {
                 className="search-result-item"
                 onClick={() => handleSearchResultClick(product, 'product')}
               >
-                {product.image && (
-                  <div className="search-result-image">
-                    <img src={product.image} alt={product.name} />
-                  </div>
-                )}
+                <div className="search-result-image">
+                  <img 
+                    src={product.image || '/placeholder-product.jpg'} 
+                    alt={product.name} 
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = '/placeholder-product.jpg';
+                    }}
+                  />
+                </div>
                 <div className="search-result-content">
                   <div className="search-result-title">{product.name}</div>
-                  <div className="search-result-price">₱{product.price}</div>
+                  <div className="search-result-subtitle">{product.category_name}</div>
+                  <div className="search-result-price">₱{Number(product.price).toLocaleString()}</div>
                 </div>
               </div>
             ))}
@@ -179,7 +195,14 @@ const NavBar = () => {
               >
                 {blog.cover_image && (
                   <div className="search-result-image">
-                    <img src={blog.cover_image} alt={blog.title} />
+                    <img 
+                      src={blog.cover_image} 
+                      alt={blog.title}
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = '/placeholder-blog.jpg';
+                      }}
+                    />
                   </div>
                 )}
                 <div className="search-result-content">
@@ -191,7 +214,13 @@ const NavBar = () => {
           </div>
         )}
         
-        {searchResults.products.length === 0 && 
+        {isSearching && (
+          <div className="search-loading">
+            Searching...
+          </div>
+        )}
+        
+        {!isSearching && searchResults.products.length === 0 && 
          searchResults.blogs.length === 0 && 
          searchResults.zodiacs.length === 0 && (
           <div className="search-no-results">
@@ -264,11 +293,6 @@ const NavBar = () => {
                   </svg>
                 </button>
               </div>
-              {isSearching && (
-                <div className="search-loading">
-                  Searching...
-                </div>
-              )}
               {renderSearchResults()}
             </div>
             <div className="navbar-navbar-buttons">

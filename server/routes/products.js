@@ -431,6 +431,66 @@ router.get('/', async (req, res) => {
     });
   }
 });
+router.get('/search', async (req, res) => {
+  try {
+    const searchQuery = req.query.query;
+    
+    if (!searchQuery) {
+      return res.json([]);
+    }
+
+    const [results] = await db.query(
+      `SELECT p.*, 
+              GROUP_CONCAT(DISTINCT pi.image_url) as images,
+              c.name as category_name,
+              p.price as base_price,
+              COALESCE(MIN(pv.price), p.price) as price
+       FROM products p
+       LEFT JOIN product_images pi ON p.product_id = pi.product_id
+       LEFT JOIN categories c ON p.category_id = c.category_id
+       LEFT JOIN product_variants pv ON p.product_id = pv.product_id
+       WHERE (p.name LIKE ? OR p.description LIKE ? OR p.product_code LIKE ?)
+       AND p.status = 'active'
+       GROUP BY p.product_id
+       ORDER BY p.created_at DESC
+       LIMIT 5`,
+      [`%${searchQuery}%`, `%${searchQuery}%`, `%${searchQuery}%`]
+    );
+
+    // Process the results to format the images array and handle image URLs
+    const products = await Promise.all(results.map(async (product) => {
+      // Get the primary image
+      const [productImages] = await db.query(
+        'SELECT image_id, image_url, alt_text FROM product_images WHERE product_id = ? ORDER BY sort_order LIMIT 1',
+        [product.product_id]
+      );
+
+      let imageUrl = null;
+      if (productImages.length > 0) {
+        const image = productImages[0];
+        if (image.image_url) {
+          if (Buffer.isBuffer(image.image_url)) {
+            imageUrl = `data:image/jpeg;base64,${image.image_url.toString('base64')}`;
+          } else {
+            imageUrl = `/uploads/${image.image_url}`;
+          }
+        }
+      }
+
+      return {
+        ...product,
+        price: Number(product.price) || Number(product.base_price) || 0,
+        image: imageUrl,
+        images: product.images ? product.images.split(',').map(img => `/uploads/${img}`) : []
+      };
+    }));
+
+    res.json(products);
+  } catch (err) {
+    console.error('Error searching products:', err);
+    res.status(500).json({ error: 'Server error', details: err.message });
+  }
+});
 router.get('/:id', async (req, res) => {
   try {
     const productId = req.params.id;
@@ -717,41 +777,5 @@ router.delete('/images/:imageId', async (req, res) => {
     } finally {
         connection.release();
     }
-});
-// Search products
-router.get('/search', async (req, res) => {
-  try {
-    const searchQuery = req.query.query;
-    
-    if (!searchQuery) {
-      return res.json([]);
-    }
-
-    const [results] = await db.query(
-      `SELECT p.*, 
-              GROUP_CONCAT(DISTINCT pi.image_url) as images,
-              c.name as category_name
-       FROM products p
-       LEFT JOIN product_images pi ON p.product_id = pi.product_id
-       LEFT JOIN categories c ON p.category_id = c.category_id
-       WHERE (p.name LIKE ? OR p.description LIKE ? OR p.product_code LIKE ?)
-       AND p.status = 'active'
-       GROUP BY p.product_id
-       ORDER BY p.created_at DESC
-       LIMIT 5`,
-      [`%${searchQuery}%`, `%${searchQuery}%`, `%${searchQuery}%`]
-    );
-
-    // Process the results to format the images array
-    const products = results.map(product => ({
-      ...product,
-      images: product.images ? product.images.split(',') : []
-    }));
-
-    res.json(products);
-  } catch (err) {
-    console.error('Error searching products:', err);
-    res.status(500).json({ error: 'Server error', details: err.message });
-  }
 });
 module.exports = router; 
