@@ -335,6 +335,11 @@ const ProductDetailPage = () => {
       return '/placeholder-product.jpg';
     }
     
+    if (typeof url !== 'string') {
+      console.warn('[getFullImageUrl] URL is not a string:', url);
+      return '/placeholder-product.jpg';
+    }
+    
     // Handle base64 encoded images
     if (url.startsWith('data:')) {
       return url; // Already a full data URL
