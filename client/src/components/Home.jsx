@@ -153,33 +153,8 @@ const Home = () => {
     <div className="home-page">
       <NavBar />
 
-      <section className="home-hero-section" style={{ backgroundColor: '#A2201A', backgroundImage: `url(/HeroBG-01-01.png)`, backgroundSize: '100% 100%', backgroundPosition: 'center center', backgroundRepeat: 'no-repeat' }}>
-        <div className="home-hero-grid">
-          <div className="home-hero-top-left">
-            <div className="home-hero-content">
-              {Logo && <img src={Logo} alt="Logo" className="home-hero-logo" />}
-              <h1>MICHAEL DE MESA</h1>
-              <h2>BAZI & FENG SHUI CONSULTANCY</h2>
-              <p>Will give you a step-by-step guideline that will help you towards your desired</p>
-              <button className="home-primary-button">Learn More</button>
-            </div>
-          </div>
-          <div className="home-hero-top-right">
-            {Michael && <img src={Michael} alt="Michael De Mesa" className="home-hero-image" />}
-          </div>
-          <div className="home-hero-bottom-right">
-            <div className="home-hero-why-consult">
-              <h3>WHY CONSULT WITH MASTER MICHAEL DE MESA</h3>
-              <div className="home-why-consult-icons">
-                {[1, 2, 3, 4, 5, 6].map(i => (
-                  <div className="home-why-consult-icon" key={i}>
-                    <img src={`/Icons-${i}.png`} alt={`Icon ${i}`} />
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
+      <section className="home-hero-section">
+        {/* The background image will display automatically via CSS */}
       </section>
 
       {renderNewArrivals()}
@@ -235,12 +210,12 @@ const Home = () => {
         </div>
         <div className="home-aspirations-grid">
           {aspirations.map(item => (
-            <div key={item.name} className="home-aspiration-card">
+            <Link to="/shop" key={item.name} className="home-aspiration-card" style={{ textDecoration: 'none', color: 'inherit' }}>
               <div className="home-aspiration-icon">
                 <img src={item.image} alt={`${item.name} Icon`} />
               </div>
               <h3>{item.name}</h3>
-            </div>
+            </Link>
           ))}
         </div>
       </section>

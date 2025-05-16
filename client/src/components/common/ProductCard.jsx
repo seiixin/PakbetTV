@@ -92,13 +92,23 @@ const ProductCard = ({ product }) => {
   const rating = Number(product.average_rating) || 0;
   const ratingCount = Number(product.review_count) || 0;
 
-  // Render single star based on rating
+  // Render stars based on rating (5-star system)
   const renderStars = () => {
-    return (
-      <i 
-        className={`fas fa-star ${rating > 0 ? 'filled' : 'empty'}`}
-      />
-    );
+    const stars = [];
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 >= 0.5;
+    
+    for (let i = 1; i <= 5; i++) {
+      if (i <= fullStars) {
+        stars.push(<i key={i} className="fas fa-star filled" />);
+      } else if (i === fullStars + 1 && hasHalfStar) {
+        stars.push(<i key={i} className="fas fa-star-half-alt filled" />);
+      } else {
+        stars.push(<i key={i} className="far fa-star empty" />);
+      }
+    }
+    
+    return stars;
   };
 
   return (

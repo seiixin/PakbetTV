@@ -250,7 +250,7 @@ const NavBar = () => {
               <Link to="/shop" className="navbar-navbar-link">Shop</Link>
             </li>
             <li className="navbar-navbar-item">
-              <Link to="#" className="navbar-navbar-link">Consultations</Link>
+              <Link to="/consultation" className="navbar-navbar-link">Consultations</Link>
             </li>
             <li className="navbar-navbar-item">
               <Link to="/horoscope" className="navbar-navbar-link">Horoscope</Link>

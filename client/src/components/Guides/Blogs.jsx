@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import './Blogs.css';
 
 const Navbar = () => {
@@ -33,7 +34,9 @@ const Hero = () => {
   return (
     <section className="hero" role="banner" tabIndex="0" aria-label="Red banner with auspicious pattern and text 'Bring the auspicious into your life today! SHOP NOW' in white with a rounded white button">
       <div className="hero-text">Bring the auspicious into your life today!</div>
-      <button className="hero-button" type="button" tabIndex="0">SHOP NOW</button>
+      <Link to="/shop">
+        <button className="hero-button" type="button" tabIndex="0">SHOP NOW</button>
+      </Link>
     </section>
   );
 };

@@ -85,40 +85,42 @@ router.get('/zodiacs/:zodiacID', async (req, res) => {
 router.get('/zodiacs', async (req, res) => {
   try {
     const searchQuery = req.query.search;
-    console.log('Received search query:', searchQuery);
+    console.log('Zodiac search query received:', searchQuery);
     
     if (!searchQuery) {
-      console.log('No search query provided, returning empty array');
       return res.json([]);
     }
 
-    // Get all zodiac signs first
+    const searchTerm = `%${searchQuery.toLowerCase()}%`;
     const [results] = await db.query(
-      `SELECT * FROM prosper_guides 
+      `SELECT zodiacID, overview, career, health, love, wealth, status
+       FROM prosper_guides 
        WHERE zodiacID IN ('Rat', 'Ox', 'Tiger', 'Rabbit', 'Dragon', 'Snake', 'Horse', 'Goat', 'Monkey', 'Rooster', 'Dog', 'Pig')
-       AND status = 'published'`
+       AND status = 'published'
+       AND (LOWER(zodiacID) LIKE ? 
+         OR LOWER(overview) LIKE ? 
+         OR LOWER(career) LIKE ? 
+         OR LOWER(health) LIKE ? 
+         OR LOWER(love) LIKE ? 
+         OR LOWER(wealth) LIKE ?)
+       ORDER BY 
+         CASE 
+           WHEN LOWER(zodiacID) LIKE ? THEN 1
+           WHEN LOWER(overview) LIKE ? THEN 2
+           ELSE 3
+         END`,
+      [searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm]
     );
 
-    console.log('All zodiac signs:', results.map(r => r.zodiacID));
-
-    // Filter results in JavaScript for more flexible matching
-    const filteredResults = results.filter(zodiac => {
-      const match = zodiac.zodiacID.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                   zodiac.overview?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                   zodiac.career?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                   zodiac.health?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                   zodiac.love?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                   zodiac.wealth?.toLowerCase().includes(searchQuery.toLowerCase());
-      console.log(`Checking zodiac ${zodiac.zodiacID} against ${searchQuery}: ${match}`);
-      return match;
-    });
-
-    console.log('Filtered results:', filteredResults.map(r => r.zodiacID));
+    console.log(`Found ${results.length} zodiac results`);
     
-    res.json(filteredResults);
+    res.json(results);
   } catch (err) {
     console.error('Error searching zodiacs:', err);
-    res.status(500).json({ error: 'Server error', details: err.message });
+    res.status(500).json({ 
+      error: 'Server error during zodiac search',
+      details: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
   }
 });
 
@@ -126,33 +128,66 @@ router.get('/zodiacs', async (req, res) => {
 router.get('/blogs/search', async (req, res) => {
   try {
     const searchQuery = req.query.query;
+    console.log('Blog search query received:', searchQuery);
     
     if (!searchQuery) {
       return res.json([]);
     }
 
+    const searchTerm = `%${searchQuery}%`;
     const [results] = await db.query(
       `SELECT blogID, title, category, tags, content, publish_date, status, created_at, updated_at, cover_image 
        FROM blogs 
-       WHERE (title LIKE ? OR content LIKE ? OR category LIKE ? OR tags LIKE ?) 
+       WHERE (LOWER(title) LIKE LOWER(?) 
+          OR LOWER(content) LIKE LOWER(?) 
+          OR LOWER(category) LIKE LOWER(?) 
+          OR LOWER(tags) LIKE LOWER(?))
        AND status = 'published'
-       ORDER BY publish_date DESC 
+       ORDER BY 
+         CASE 
+           WHEN LOWER(title) LIKE LOWER(?) THEN 1
+           WHEN LOWER(category) LIKE LOWER(?) THEN 2
+           ELSE 3
+         END,
+         publish_date DESC 
        LIMIT 5`,
-      [`%${searchQuery}%`, `%${searchQuery}%`, `%${searchQuery}%`, `%${searchQuery}%`]
+      [searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm]
     );
 
-    // Convert cover images to base64
+    console.log(`Found ${results.length} blog results`);
+
+    // Convert cover images to base64 and handle errors gracefully
     const blogs = results.map(blog => {
-      if (blog.cover_image) {
-        blog.cover_image = `data:image/jpeg;base64,${blog.cover_image.toString('base64')}`;
+      try {
+        if (blog.cover_image) {
+          if (Buffer.isBuffer(blog.cover_image)) {
+            blog.cover_image = `data:image/jpeg;base64,${blog.cover_image.toString('base64')}`;
+          } else if (typeof blog.cover_image === 'string') {
+            // If it's already a string (URL), use it as is
+            blog.cover_image = blog.cover_image.startsWith('/') ? blog.cover_image : `/${blog.cover_image}`;
+          }
+        }
+        return {
+          ...blog,
+          tags: blog.tags ? blog.tags.split(',').map(tag => tag.trim()) : []
+        };
+      } catch (err) {
+        console.error(`Error processing blog ${blog.blogID}:`, err);
+        return {
+          ...blog,
+          cover_image: null,
+          tags: []
+        };
       }
-      return blog;
     });
 
     res.json(blogs);
   } catch (err) {
     console.error('Error searching blogs:', err);
-    res.status(500).json({ error: 'Server error', details: err.message });
+    res.status(500).json({ 
+      error: 'Server error during blog search',
+      details: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
   }
 });
 

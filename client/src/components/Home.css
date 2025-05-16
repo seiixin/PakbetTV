@@ -67,15 +67,19 @@ body {
   margin: 0;
 }
 .home-hero-section {
-  background-color: var(--primary-color);
+  background-color: #A2201A;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   color: var(--white-color);
-  min-height: 800px;
-  width: 100vw;
-  max-width: 100vw;
-  margin: 0;
-  padding: 70px 5% 120px;
+  min-height: calc(100vh - 80px);
+  width: 100%;
+  max-width: 100%;
+  margin: 80px 0 0 0;
+  padding: 40px 5%;
   position: relative;
   overflow: hidden;
+  box-sizing: border-box;
 }
 .home-hero-grid {
   display: grid;
@@ -169,7 +173,9 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-top: 200px;
+  margin-top: 40px;
+  position: relative;
+  z-index: 2;
 }
 .home-hero-content .home-hero-logo {
   max-width: 400px;
@@ -1094,5 +1100,71 @@ body {
   
   .home-blog-card {
     min-height: 400px;
+  }
+}
+
+/* Update all media queries to maintain consistent background properties */
+@media screen and (max-width: 414px) {
+  .home-hero-section {
+    background-image: url('/Mobile Large Phone (414x896).png');
+    background-size: cover;
+    margin-top: 60px;
+    min-height: calc(100vh - 60px);
+    padding: 20px 5%;
+  }
+  
+  .home-hero-content {
+    margin-top: 20px;
+  }
+}
+
+@media screen and (min-width: 415px) and (max-width: 1079px) and (orientation: portrait) {
+  .home-hero-section {
+    background-image: url('/Mobile (1080x1920).png');
+    background-size: cover;
+    margin-top: 70px;
+    min-height: calc(100vh - 70px);
+    padding: 30px 5%;
+  }
+}
+
+@media screen and (min-width: 768px) and (max-width: 1023px) and (orientation: landscape) {
+  .home-hero-section {
+    background-image: url('/Tablets Landscape - (1024x768).png');
+    background-size: cover;
+    margin-top: 80px;
+    min-height: calc(100vh - 80px);
+    padding: 40px 5%;
+  }
+}
+
+@media screen and (min-width: 1024px) and (max-width: 1279px) {
+  .home-hero-section {
+    background-image: url('/Laptop (1280x800).png');
+    background-size: cover;
+    margin-top: 80px;
+    min-height: calc(100vh - 80px);
+    padding: 60px 5%;
+  }
+}
+
+@media screen and (min-width: 1280px) and (max-width: 1365px) {
+  .home-hero-section {
+    background-image: url('/Laptop (1280x800).png');
+    background-size: cover;
+  }
+}
+
+@media screen and (min-width: 1366px) and (max-width: 1919px) {
+  .home-hero-section {
+    background-image: url('/Laptop (1366x768).png');
+    background-size: cover;
+  }
+}
+
+@media screen and (min-width: 1920px) {
+  .home-hero-section {
+    background-image: url('/Desktop Fullscreen (1920x1080).png');
+    background-size: cover;
   }
 } 

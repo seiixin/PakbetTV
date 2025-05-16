@@ -276,6 +276,8 @@ router.get('/', async (req, res) => {
         p.updated_at,
         c.name AS category_name,
         p.price as base_price,
+        p.average_rating,
+        p.review_count,
         COALESCE(SUM(pv.stock), 0) as stock,
         GROUP_CONCAT(DISTINCT pv.image_url) as variant_images
       FROM products p
@@ -345,6 +347,10 @@ router.get('/', async (req, res) => {
         }
         
         delete product.base_price;
+
+        // Ensure rating data is properly formatted
+        product.average_rating = product.average_rating !== null ? Number(product.average_rating) : 0;
+        product.review_count = Number(product.review_count) || 0;
 
         // First check if we have product_images records
         const [productImages] = await db.query(
@@ -434,61 +440,106 @@ router.get('/', async (req, res) => {
 router.get('/search', async (req, res) => {
   try {
     const searchQuery = req.query.query;
+    console.log('\n=== Product Search Debug ===');
+    console.log('Search query received:', searchQuery);
     
     if (!searchQuery) {
       return res.json([]);
     }
 
-    const [results] = await db.query(
-      `SELECT p.*, 
-              GROUP_CONCAT(DISTINCT pi.image_url) as images,
-              c.name as category_name,
-              p.price as base_price,
-              COALESCE(MIN(pv.price), p.price) as price
-       FROM products p
-       LEFT JOIN product_images pi ON p.product_id = pi.product_id
-       LEFT JOIN categories c ON p.category_id = c.category_id
-       LEFT JOIN product_variants pv ON p.product_id = pv.product_id
-       WHERE (p.name LIKE ? OR p.description LIKE ? OR p.product_code LIKE ?)
-       AND p.status = 'active'
-       GROUP BY p.product_id
-       ORDER BY p.created_at DESC
-       LIMIT 5`,
-      [`%${searchQuery}%`, `%${searchQuery}%`, `%${searchQuery}%`]
-    );
+    const searchTerm = `%${searchQuery.toLowerCase()}%`;
+    
+    // Enhanced query to include images and ensure category info
+    const sqlQuery = `
+      SELECT 
+        p.*,
+        c.name as category_name,
+        c.category_id,
+        COALESCE(MIN(pv.price), p.price) as min_price,
+        COALESCE(MAX(pv.price), p.price) as max_price,
+        (
+          SELECT pi.image_url 
+          FROM product_images pi 
+          WHERE pi.product_id = p.product_id 
+          ORDER BY pi.sort_order 
+          LIMIT 1
+        ) as primary_image
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.category_id
+      LEFT JOIN product_variants pv ON p.product_id = pv.product_id
+      WHERE 
+        LOWER(p.name) LIKE ? OR
+        LOWER(COALESCE(p.description, '')) LIKE ? OR
+        LOWER(COALESCE(p.product_code, '')) LIKE ? OR
+        LOWER(COALESCE(c.name, '')) LIKE ?
+      GROUP BY p.product_id
+      ORDER BY 
+        CASE 
+          WHEN LOWER(p.name) LIKE ? THEN 10
+          WHEN LOWER(p.description) LIKE ? THEN 5
+          ELSE 1
+        END DESC,
+        p.created_at DESC
+      LIMIT 10
+    `;
 
-    // Process the results to format the images array and handle image URLs
+    const params = [searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm];
+    console.log('\nExecuting search with params:', params);
+
+    const [results] = await db.query(sqlQuery, params);
+    console.log(`\nFound ${results.length} results`);
+
+    // Process the results with better error handling
     const products = await Promise.all(results.map(async (product) => {
-      // Get the primary image
-      const [productImages] = await db.query(
-        'SELECT image_id, image_url, alt_text FROM product_images WHERE product_id = ? ORDER BY sort_order LIMIT 1',
-        [product.product_id]
-      );
-
-      let imageUrl = null;
-      if (productImages.length > 0) {
-        const image = productImages[0];
-        if (image.image_url) {
-          if (Buffer.isBuffer(image.image_url)) {
-            imageUrl = `data:image/jpeg;base64,${image.image_url.toString('base64')}`;
-          } else {
-            imageUrl = `/uploads/${image.image_url}`;
+      try {
+        // Get the primary image if not already included
+        let imageUrl = product.primary_image;
+        if (!imageUrl) {
+          const [images] = await db.query(
+            'SELECT image_url FROM product_images WHERE product_id = ? ORDER BY sort_order LIMIT 1',
+            [product.product_id]
+          );
+          if (images.length > 0) {
+            imageUrl = images[0].image_url;
           }
         }
-      }
 
-      return {
-        ...product,
-        price: Number(product.price) || Number(product.base_price) || 0,
-        image: imageUrl,
-        images: product.images ? product.images.split(',').map(img => `/uploads/${img}`) : []
-      };
+        // Handle price range
+        const minPrice = Number(product.min_price) || Number(product.price) || 0;
+        const maxPrice = Number(product.max_price) || Number(product.price) || 0;
+        const price = minPrice === maxPrice ? minPrice : { min: minPrice, max: maxPrice };
+
+        return {
+          product_id: product.product_id,
+          name: product.name,
+          description: product.description,
+          product_code: product.product_code || '',
+          category_name: product.category_name || 'Uncategorized',
+          category_id: product.category_id,
+          price: price,
+          average_rating: product.average_rating !== null ? Number(product.average_rating) : 0,
+          review_count: Number(product.review_count) || 0,
+          image: imageUrl ? `/uploads/${imageUrl}` : null,
+          stock: Number(product.stock) || 0
+        };
+      } catch (err) {
+        console.error(`Error processing product ${product.product_id}:`, err);
+        return null;
+      }
     }));
 
-    res.json(products);
+    // Filter out any null products from errors
+    const validProducts = products.filter(p => p !== null);
+    console.log('\nProcessed products to return:', validProducts);
+    console.log('=== End Debug ===\n');
+
+    res.json(validProducts);
   } catch (err) {
-    console.error('Error searching products:', err);
-    res.status(500).json({ error: 'Server error', details: err.message });
+    console.error('Error in product search:', err);
+    res.status(500).json({ 
+      error: 'Server error during product search',
+      details: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
   }
 });
 router.get('/:id', async (req, res) => {

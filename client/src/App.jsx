@@ -28,6 +28,7 @@ import Blog from './components/Blog'
 import BlogDetail from './components/BlogDetail'
 import FAQs from './components/FAQs'
 import Contact from './components/Contact'
+import Consultation from './components/Consultation'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
 
@@ -64,6 +65,7 @@ function AppContent() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password/:token" element={<ResetPassword />} />
         <Route path="/contact" element={<Contact />} />
+        <Route path="/consultation" element={<Consultation />} />
         <Route path="/social-auth-success" element={<SocialAuthSuccess />} />
         <Route path="/account" element={<Account />} />
         <Route path="/account/purchases" element={<Purchases />} />
