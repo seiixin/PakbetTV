@@ -2,10 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import './TransactionComplete.css';
 import API_BASE_URL from '../../config';
+import { useAuth } from '../../context/AuthContext';
 
 const TransactionComplete = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const [status, setStatus] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
@@ -64,11 +66,11 @@ const TransactionComplete = () => {
   }, [location.search]);
 
   const handleContinueShopping = () => {
-    navigate('/shop');
+    navigate('/shop', { replace: true });
   };
 
   const handleViewOrders = () => {
-    navigate('/purchases');
+    navigate('/purchases', { replace: true });
   };
 
   if (loading) {

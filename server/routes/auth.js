@@ -500,10 +500,12 @@ router.get('/facebook/callback',
 router.post('/forgot-password', async (req, res) => {
   try {
     const { email } = req.body;
+    console.log('Password reset requested for email:', email);
     
     // Check if user exists
     const [user] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
     if (!user.length) {
+      console.log('User not found for email:', email);
       return res.status(404).json({ message: 'User not found' });
     }
 
@@ -516,9 +518,15 @@ router.post('/forgot-password', async (req, res) => {
       'UPDATE users SET reset_token = ?, reset_token_expires = ? WHERE email = ?',
       [resetToken, resetTokenExpires, email]
     );
+    console.log('Reset token saved for user:', email);
 
-    // Create reset password URL
-    const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
+    // Get the origin from the request headers
+    const origin = req.get('origin') || process.env.CLIENT_URL || 'http://pakbettv.gghsoftwaredev.com';
+    console.log('Using origin for reset URL:', origin);
+
+    // Create reset password URL using the origin
+    const resetUrl = `${origin}/reset-password/${resetToken}`;
+    console.log('Reset URL generated:', resetUrl);
 
     // Send email
     const mailOptions = {
@@ -546,6 +554,8 @@ router.post('/forgot-password', async (req, res) => {
             </div>
             <p>If you did not request a password reset, please ignore this email or contact support if you have concerns.</p>
             <p>This link will expire in 1 hour.</p>
+            <p>Alternatively, you can copy and paste this URL into your browser:</p>
+            <p style="word-break: break-all;">${resetUrl}</p>
           </div>
           <div style="padding: 16px; text-align: center; font-size: 12px; color: #666666;">
             © 2025 PakBet TV - Feng Shui by Michael de Mesa. All rights reserved.
@@ -554,11 +564,23 @@ router.post('/forgot-password', async (req, res) => {
       `
     };
 
-    await transporter.sendMail(mailOptions);
-    res.json({ message: 'Password reset email sent' });
+    console.log('Attempting to send email with options:', {
+      from: process.env.SMTP_USER,
+      to: email,
+      subject: mailOptions.subject
+    });
+
+    try {
+      await transporter.sendMail(mailOptions);
+      console.log('Password reset email sent successfully to:', email);
+      res.json({ message: 'Password reset email sent' });
+    } catch (emailError) {
+      console.error('Error sending email:', emailError);
+      throw emailError;
+    }
   } catch (error) {
     console.error('Password reset error:', error);
-    res.status(500).json({ message: 'Error processing password reset request' });
+    res.status(500).json({ message: 'Error processing password reset request', error: error.message });
   }
 });
 
