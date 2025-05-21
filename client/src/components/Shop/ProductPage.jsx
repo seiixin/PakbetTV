@@ -124,16 +124,7 @@ const ProductPage = () => {
     <div className="shop-container">
       <NavBar />
       <div className="shop-main">
-        <div className="products-content">
-          
-          <button 
-            className={`toggle-categories ${!isCategoriesVisible ? 'collapsed' : ''}`}
-            onClick={toggleCategories}
-          >
-            {isCategoriesVisible ? 'Hide Categories' : 'Show Categories'}
-            <i className="fas fa-chevron-up"></i>
-          </button>
-
+        <div className="shop-categories">
           <div className={`shop-categories ${!isCategoriesVisible ? 'collapsed' : ''}`}>
             <div className="shop-categories-grid">
               {categories.map(category => (
@@ -142,15 +133,13 @@ const ProductPage = () => {
                   className={`shop-category-card ${selectedCategory === category.id ? 'active' : ''}`}
                   onClick={() => handleCategoryClick(category.id)}
                 >
-                  <div className="shop-category-image">
-                    <img src={category.image} alt={category.name} />
-                  </div>
                   <h3>{category.name}</h3>
                 </div>
               ))}
             </div>
           </div>
-
+        </div>
+        <div className="products-content">
           {error && <div className="error-message">{error}</div>}
           {loading ? (
             <div>Loading products...</div>
@@ -172,4 +161,4 @@ const ProductPage = () => {
   );
 };
 
-export default ProductPage; 
+export default ProductPage;

@@ -21,7 +21,8 @@
   margin-top: 100px !important;
 }
 .shop-main {
-  display: flex;
+  display: grid;
+  grid-template-columns: 0.2fr 2fr;
   max-width: 1400px;
   margin: 0 auto;
   padding: 2rem 1rem;
@@ -2278,7 +2279,15 @@
   transition: all 0.3s ease;
   padding: 1rem;
 }
-
+.shop-category-button {
+  background-color: #A2201A;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  align-items: center; 
+  justify-content: center;
+}
 .shop-category-card {
   display: flex;
   flex-direction: column;

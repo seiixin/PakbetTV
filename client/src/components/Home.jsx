@@ -2,9 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import './Home.css';
-import placeholderImages from '../assets/placeholder.js';
-import Logo from '/Logo.png';
-import Michael from '/Michael.png';
 import NavBar from './NavBar';
 import Footer from './Footer';
 import API_BASE_URL from '../config';
@@ -152,7 +149,6 @@ const Home = () => {
   return (
     <div className="home-page">
       <NavBar />
-
       <section className="home-hero-section">
         {/* The background image will display automatically via CSS */}
       </section>
