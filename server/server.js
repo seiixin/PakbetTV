@@ -9,6 +9,18 @@ const passport = require('./config/passport');
 dotenv.config();
 const { runMigrations } = require('./config/db-migrations');
 const app = express();
+const rateLimit = require('express-rate-limit');
+const helmet = require('helmet');
+
+//Express Rate Limit to avoid abuse
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, 
+  max: 100, 
+  message: 'Too many requests, please try again later.'
+});
+
+app.use(limiter);
+app.use(helmet());
 
 app.use(cors({
   origin: process.env.CLIENT_URL || ['http://localhost:3000', 'http://localhost:5173'],
@@ -18,6 +30,14 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({
+    message: 'Something went wrong!',
+    error: process.env.NODE_ENV === 'production' ? {} : err
+  });
+})
 
 // Session and Passport setup
 app.use(session({

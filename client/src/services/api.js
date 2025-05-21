@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { notify, handleApiError } from '../utils/notifications';
+import { getAuthToken, setAuthToken, removeAuthToken, removeUser } from '../utils/cookies';
 import API_BASE_URL from '../config';
 
 // Create a custom axios instance
@@ -21,7 +22,7 @@ let pendingRequests = [];
 // Add request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    const token = getAuthToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -41,85 +42,62 @@ api.interceptors.request.use(
   }
 );
 
-// Add response interceptor to handle token expiration
+// Add response interceptor to handle token expiration and refresh
 api.interceptors.response.use(
-  (response) => {
-    // Log successful responses
-    console.log('[API Response]:', {
-      status: response.status,
-      url: response.config.url,
-      data: response.data
-    });
-    return response;
-  },
+  (response) => response,
   async (error) => {
-    console.error('[API Response Error]:', {
-      status: error.response?.status,
-      url: error.config?.url,
-      message: error.message
-    });
-    
     const originalRequest = error.config;
+    const isAuthEndpoint = originalRequest.url.includes('/auth/');
+    const currentPath = window.location.pathname;
 
-    // If the error is 401 and we haven't already tried to refresh
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-
-      // Check if we should try to get a new token or just logout
-      const currentPath = window.location.pathname;
-      const isAuthEndpoint = originalRequest.url.includes('/auth/login') || 
-                          originalRequest.url.includes('/auth/signup') ||
-                          originalRequest.url.includes('/auth/refresh');
-      
-      if (!currentPath.includes('/login') && 
-          !currentPath.includes('/signup') && 
-          !isAuthEndpoint &&
-          !isRedirectingToLogin &&
-          !isRefreshingToken) {
+    // If we get a 401 and we're not already refreshing the token
+    if (error.response?.status === 401 && !isRefreshingToken && !isAuthEndpoint) {
+      try {
+        isRefreshingToken = true;
+        console.log('Token expired, attempting refresh...');
         
-        // Try to refresh the token first
-        try {
-          isRefreshingToken = true;
-          const refreshResponse = await authService.refreshToken();
+        const refreshResponse = await authService.refreshToken();
+        
+        if (refreshResponse?.data?.token) {
+          const newToken = refreshResponse.data.token;
+          setAuthToken(newToken);
           
-          if (refreshResponse?.data?.token) {
-            const newToken = refreshResponse.data.token;
-            localStorage.setItem('token', newToken);
-            
-            // Update the Authorization header for the original request
-            originalRequest.headers.Authorization = `Bearer ${newToken}`;
-            
-            // Process any pending requests with the new token
-            pendingRequests.forEach(callback => callback(newToken));
-            pendingRequests = [];
-            
-            // Retry the original request with the new token
-            isRefreshingToken = false;
-            return api(originalRequest);
-          } else {
-            throw new Error('Failed to refresh token');
-          }
-        } catch (refreshError) {
-          console.error('Token refresh failed:', refreshError);
+          // Update the original request with new token
+          originalRequest.headers.Authorization = `Bearer ${newToken}`;
           
-          isRedirectingToLogin = true;
-          isRefreshingToken = false;
+          // Retry all pending requests with new token
+          pendingRequests.forEach(cb => cb(newToken));
+          pendingRequests = [];
           
-          // Clear stored auth data
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          
-          notify.error('Your session has expired. Please log in again.');
-          
-          // Prevent page reloads from causing logout loops
-          setTimeout(() => {
-            window.location.href = '/login';
-            isRedirectingToLogin = false;
-          }, 500);
+          // Retry the original request
+          return api(originalRequest);
         }
+      } catch (refreshError) {
+        console.error('Token refresh failed:', refreshError);
+        
+        // Clear auth data and redirect to login
+        if (!isRedirectingToLogin) {
+          isRedirectingToLogin = true;
+          removeAuthToken();
+          removeUser();
+          
+          // Only redirect if not on a public route
+          const isPublicRoute = currentPath === '/' || 
+            currentPath.includes('/login') || 
+            currentPath.includes('/signup') || 
+            currentPath.includes('/shop') ||
+            currentPath.includes('/product/');
+          
+          if (!isPublicRoute) {
+            notify.error('Your session has expired. Please log in again.');
+            window.location.href = '/login';
+          }
+        }
+      } finally {
+        isRefreshingToken = false;
       }
     }
-
+    
     return Promise.reject(error);
   }
 );
@@ -139,6 +117,8 @@ export const authService = {
   login: async (credentials) => {
     try {
       const response = await api.post('/api/auth/login', credentials);
+      const { token, user } = response.data;
+      setAuthToken(token);
       notify.success('Welcome back!');
       return response;
     } catch (error) {
@@ -148,10 +128,9 @@ export const authService = {
   },
   
   refreshToken: async () => {
-    const token = localStorage.getItem('token');
+    const token = getAuthToken();
     if (!token) {
-      notify.error('No authentication token found');
-      return Promise.reject(new Error('No token to refresh'));
+      throw new Error('No token to refresh');
     }
     return api.post('/api/auth/refresh', { token });
   },
@@ -167,14 +146,7 @@ export const authService = {
   
   updateProfile: async (userData) => {
     try {
-      console.log('API Service - updateProfile - Sending data:', userData);
-      const token = localStorage.getItem('token');
-      console.log('API Service - updateProfile - Token present:', !!token);
-      const response = await api.put('/api/users/profile', userData, {
-        headers: {
-          'X-Debug': 'true'
-        }
-      });
+      const response = await api.put('/api/users/profile', userData);
       notify.success('Profile updated successfully!');
       return response;
     } catch (error) {

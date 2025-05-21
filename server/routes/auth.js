@@ -9,6 +9,7 @@ const passport = require('passport');
 const fetch = require('node-fetch');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
+const rateLimit = require('express-rate-limit');
 
 // Email configuration
 const transporter = nodemailer.createTransport({
@@ -21,8 +22,15 @@ const transporter = nodemailer.createTransport({
   }
 });
 
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  message: 'Too many login attempts. Please try again later.'
+});
+
 router.post(
   '/signup',
+  limiter,
   [
     body('username', 'Username is required').not().isEmpty(),
     body('firstname', 'First name is required').not().isEmpty(),
@@ -59,6 +67,7 @@ router.post(
 );
 router.post(
   '/login',
+  limiter,
   [
     body('email', 'Please include a valid email').isEmail(),
     body('password', 'Password is required').exists()

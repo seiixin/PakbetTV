@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getAuthToken, removeAuthToken, removeUser } from '../utils/cookies';
 
 // Create axios instance with base URL
 const api = axios.create({
@@ -8,7 +9,7 @@ const api = axios.create({
 // Add request interceptor to automatically add auth token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    const token = getAuthToken();
     
     // Log request details (remove in production)
     console.log(`API ${config.method.toUpperCase()} Request:`, config.url);
@@ -17,7 +18,7 @@ api.interceptors.request.use(
       // Use Bearer token authentication header
       config.headers['Authorization'] = `Bearer ${token}`;
     } else {
-      console.log('No token found in localStorage');
+      console.log('No token found in cookies');
     }
     
     config.headers['Accept'] = 'application/json';
@@ -52,8 +53,8 @@ api.interceptors.response.use(
         // Attempt to redirect to login page if not already there
         if (window.location.pathname !== '/login') {
           console.log('Redirecting to login page...');
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
+          removeAuthToken();
+          removeUser();
           window.location.href = '/login';
         }
       }

@@ -3,61 +3,13 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import AddressForm from '../components/Checkout/AddressForm';
 import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
+import { getCart } from '../utils/cookies';
+import { getFullImageUrl } from '../utils/imageUtils';
+import NavBar from '../components/NavBar';
+import Footer from '../components/Footer';
 import './Checkout.css';
 import API_BASE_URL from '../config';
-
-const getFullImageUrl = (url) => {
-  if (!url) {
-    return '/placeholder-product.jpg';
-  }
-  
-  // Handle case where url is an object (longblob from database)
-  if (typeof url === 'object') {
-    if (url.data) {
-      // Handle Buffer or Uint8Array data
-      if (url.data instanceof Uint8Array || Buffer.isBuffer(url.data)) {
-        return `data:${url.type || 'image/jpeg'};base64,${Buffer.from(url.data).toString('base64')}`;
-      }
-      // Handle base64 string data
-      if (typeof url.data === 'string') {
-        return `data:${url.type || 'image/jpeg'};base64,${url.data}`;
-      }
-    }
-    // If the object itself is a Buffer or Uint8Array
-    if (url instanceof Uint8Array || Buffer.isBuffer(url)) {
-      return `data:image/jpeg;base64,${Buffer.from(url).toString('base64')}`;
-    }
-    return '/placeholder-product.jpg';
-  }
-  
-  // Handle string URLs
-  if (typeof url === 'string') {
-    // Handle base64 encoded images
-    if (url.startsWith('data:')) {
-      return url; // Already a full data URL
-    }
-    
-    // Handle absolute URLs
-    if (url.startsWith('http')) {
-      return url;
-    }
-    
-    // Handle uploads paths
-    if (url.startsWith('/uploads/')) {
-      return `${API_BASE_URL}${url}`;
-    }
-    
-    // Handle other relative paths
-    if (url.startsWith('/')) {
-      return `${API_BASE_URL}${url}`;
-    }
-    
-    // Any other format
-    return `${API_BASE_URL}/uploads/${url}`;
-  }
-  
-  return '/placeholder-product.jpg';
-};
 
 const Checkout = () => {
   const navigate = useNavigate();
@@ -140,20 +92,13 @@ const Checkout = () => {
       return;
     }
     
-    // First try to get cart from localStorage to persist across refreshes
-    const savedCart = localStorage.getItem('cartItems');
-    if (savedCart) {
-      try {
-        const parsedCart = JSON.parse(savedCart);
-        if (Array.isArray(parsedCart) && parsedCart.length > 0) {
-          setCartItems(parsedCart);
-          setSelectedItems(parsedCart.map(item => item.id));
-          setLoading(false);
-          return;
-        }
-      } catch (err) {
-        console.error('Failed to parse saved cart:', err);
-      }
+    // First try to get cart from cookies to persist across refreshes
+    const savedCart = getCart(user?.id || 'guest');
+    if (savedCart && savedCart.length > 0) {
+      setCartItems(savedCart);
+      setSelectedItems(savedCart.map(item => item.id));
+      setLoading(false);
+      return;
     }
     
     // If we have items from previous page, use those
@@ -161,8 +106,6 @@ const Checkout = () => {
       const items = location.state.items;
       setCartItems(items);
       setSelectedItems(items.map(item => item.id));
-      // Save to localStorage for persistence
-      localStorage.setItem('cartItems', JSON.stringify(items));
       setLoading(false);
     } else {
       fetchCartItems();

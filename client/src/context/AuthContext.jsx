@@ -3,17 +3,15 @@ import { authService } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import axios from 'axios';
+import { getUser, setUser, removeUser, getAuthToken, setAuthToken, removeAuthToken } from '../utils/cookies';
 
 const AuthContext = createContext();
 
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(() => {
-    const storedUser = localStorage.getItem('user');
-    return storedUser ? JSON.parse(storedUser) : null;
-  });
-  const [token, setToken] = useState(() => localStorage.getItem('token'));
+  const [user, setUserState] = useState(() => getUser());
+  const [token, setTokenState] = useState(() => getAuthToken());
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -22,11 +20,11 @@ export const AuthProvider = ({ children }) => {
   // This effect runs once on mount to validate the token
   useEffect(() => {
     const validateToken = async () => {
-      const storedToken = localStorage.getItem('token');
+      const storedToken = getAuthToken();
       
       if (!storedToken) {
-        setToken(null);
-        setUser(null);
+        setTokenState(null);
+        setUserState(null);
         setInitialLoading(false);
         return;
       }
@@ -45,9 +43,9 @@ export const AuthProvider = ({ children }) => {
           userType: profileData.userType
         };
         
-        localStorage.setItem('user', JSON.stringify(updatedUserData));
-        setToken(storedToken);
         setUser(updatedUserData);
+        setUserState(updatedUserData);
+        setTokenState(storedToken);
       } catch (error) {
         console.error('Token validation failed:', error);
         
@@ -58,10 +56,10 @@ export const AuthProvider = ({ children }) => {
             setRefreshing(true);
             const refreshResponse = await authService.refreshToken();
             
-            if (refreshResponse && refreshResponse.data && refreshResponse.data.token) {
+            if (refreshResponse?.data?.token) {
               const newToken = refreshResponse.data.token;
-              localStorage.setItem('token', newToken);
-              setToken(newToken);
+              setAuthToken(newToken);
+              setTokenState(newToken);
               
               // Try to get profile with new token
               const newProfileResponse = await authService.getProfile();
@@ -75,31 +73,15 @@ export const AuthProvider = ({ children }) => {
                 userType: newProfileData.userType
               };
               
-              localStorage.setItem('user', JSON.stringify(refreshedUserData));
               setUser(refreshedUserData);
+              setUserState(refreshedUserData);
               console.log('Token refreshed successfully');
             } else {
               throw new Error('Failed to refresh token');
             }
           } catch (refreshError) {
             console.error('Token refresh failed:', refreshError);
-            // Only clear auth data if it's an auth error and refresh failed
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            setToken(null);
-            setUser(null);
-            
-            // Only navigate to login if we're not already there and not in a public route
-            const currentPath = window.location.pathname;
-            const isPublicRoute = currentPath === '/' || 
-                                  currentPath.includes('/login') || 
-                                  currentPath.includes('/signup') || 
-                                  currentPath.includes('/shop') ||
-                                  currentPath.includes('/product/');
-            
-            if (!isPublicRoute) {
-              navigate('/login');
-            }
+            handleLogout();
           } finally {
             setRefreshing(false);
           }
@@ -112,16 +94,35 @@ export const AuthProvider = ({ children }) => {
     validateToken();
   }, [navigate]);
 
+  const handleLogout = () => {
+    removeAuthToken();
+    removeUser();
+    setUserState(null);
+    setTokenState(null);
+
+    // Only navigate to login if not on a public route
+    const currentPath = window.location.pathname;
+    const isPublicRoute = currentPath === '/' || 
+                         currentPath.includes('/login') || 
+                         currentPath.includes('/signup') || 
+                         currentPath.includes('/shop') ||
+                         currentPath.includes('/product/');
+    
+    if (!isPublicRoute) {
+      navigate('/login');
+    }
+  };
+
   const login = async (credentials) => {
     try {
       setLoading(true);
       const response = await authService.login(credentials);
       const { token: newToken, user: userData } = response.data;
       
-      localStorage.setItem('token', newToken);
-      localStorage.setItem('user', JSON.stringify(userData));
-      setToken(newToken);
+      setAuthToken(newToken);
       setUser(userData);
+      setTokenState(newToken);
+      setUserState(userData);
       return { success: true };
     } catch (error) {
       return { 
@@ -149,13 +150,8 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    // Immediately clear auth data and redirect
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setUser(null);
-    setToken(null);
+    handleLogout();
     toast.success('Logged out successfully');
-    navigate('/');
   };
 
   // Add this function to check for existing email
@@ -246,8 +242,9 @@ export const AuthProvider = ({ children }) => {
     initialLoading,
     refreshing,
     login,
-    register,
     logout,
+    register,
+    checkExistingEmail,
     isAuthenticated: !!token && !!user
   };
 

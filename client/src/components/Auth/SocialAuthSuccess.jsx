@@ -1,37 +1,31 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { toast } from 'react-toastify';
+import { setAuthToken, setUser } from '../../utils/cookies';
 import coverImage from '/cover.png';
 import './SocialAuthSuccess.css';
 
 const SocialAuthSuccess = () => {
+  const [processingStatus, setProcessingStatus] = useState('Processing authentication...');
+  const [authLoading, setAuthLoading] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, loading: authLoading } = useAuth();
   const cart = useCart();
-  const [processingStatus, setProcessingStatus] = useState('Google Login Successful, redirecting now.');
 
   useEffect(() => {
     const processToken = async () => {
       try {
-        // Extract token from URL params
-        const queryParams = new URLSearchParams(location.search);
-        const token = queryParams.get('token');
+        // Get token from URL params
+        const params = new URLSearchParams(location.search);
+        const token = params.get('token');
         
         if (!token) {
-          console.error('No token found in URL');
-          toast.error('Authentication failed: No token received');
-          setProcessingStatus('No authentication token received');
-          setTimeout(() => {
-            navigate('/login?error=no_token');
-          }, 1500);
-          return;
+          throw new Error('No token received');
         }
-
-        // Store token in local storage
-        localStorage.setItem('token', token);
+        
+        // Store token in cookies
+        setAuthToken(token);
         
         // Get the current domain
         const currentDomain = window.location.origin;
@@ -46,7 +40,7 @@ const SocialAuthSuccess = () => {
         
         if (response.ok) {
           const userData = await response.json();
-          localStorage.setItem('user', JSON.stringify(userData));
+          setUser(userData);
           
           // Show success message
           toast.success('Successfully logged in!');
@@ -60,9 +54,9 @@ const SocialAuthSuccess = () => {
             }
           }
           
-          // Get the return URL from localStorage or default to home
-          const returnTo = localStorage.getItem('returnTo') || '/';
-          localStorage.removeItem('returnTo'); // Clean up
+          // Get the return URL from cookies or default to home
+          const returnTo = getCookie('returnTo') || '/';
+          removeCookie('returnTo'); // Clean up
           
           setTimeout(() => {
             navigate(returnTo);
