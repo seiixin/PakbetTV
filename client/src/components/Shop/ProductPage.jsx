@@ -116,13 +116,30 @@ const ProductPage = () => {
     return `₱${numericPrice.toFixed(2)}`;
   };
 
-  const toggleCategories = () => {
-    setIsCategoriesVisible(!isCategoriesVisible);
-  };
+  const Max_products_display = 6;
 
   return (
     <div className="shop-container">
       <NavBar />
+      <div className="shop-main-2">
+      <div className="products-content">
+        <h1>FLASH DEALS!</h1>
+          {error && <div className="error-message">{error}</div>}
+          {loading ? (
+            <div>Loading products...</div>
+          ) : filteredProducts.length === 0 ? (
+            <div className="no-products">
+              <p>No products found{searchParams.get('search') ? ' matching your search' : ' in this category'}.</p>
+            </div>
+          ) : (
+            <div className="shop-products-grid">
+              {filteredProducts.slice(0, Max_products_display).map(product => (
+                <ProductCard key={product.product_id} product={product} />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
       <div className="shop-main">
         <div className="shop-categories">
           <div className={`shop-categories ${!isCategoriesVisible ? 'collapsed' : ''}`}>
@@ -140,6 +157,8 @@ const ProductPage = () => {
           </div>
         </div>
         <div className="products-content">
+        <div className="products-content">
+        <h1>PRODUCTS</h1>
           {error && <div className="error-message">{error}</div>}
           {loading ? (
             <div>Loading products...</div>
@@ -154,6 +173,7 @@ const ProductPage = () => {
               ))}
             </div>
           )}
+        </div>
         </div>
       </div>
       <Footer forceShow={false} />

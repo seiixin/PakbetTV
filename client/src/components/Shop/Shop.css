@@ -29,8 +29,31 @@
   width: 100%;
   flex-grow: 1;
 }
+.shop-main-2 {
+  display: flex;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+  width: 100%;
+  flex-grow: 1;
+}
 .products-content {
   flex: 1;
+}
+.products-content h1{
+  font-size: 1.8rem;
+  background-image: url('/cover.png');
+  background-size: cover; 
+  background-position: center;
+  background-repeat: no-repeat;
+  color: white;
+  margin: 0;
+  text-align: center;
+  padding: 10px;
+  margin-top: 20px;
+  margin-bottom: 20px;
+  border-radius: 10px;
+
 }
 .shop-header {
   display: flex;
