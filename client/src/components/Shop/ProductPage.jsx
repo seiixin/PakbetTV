@@ -8,6 +8,7 @@ import ProductCard from '../common/ProductCard';
 
 const ProductPage = () => {
   const [products, setProducts] = useState([]);
+  const [flashDeals, setFlashDeals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchParams] = useSearchParams(); 
@@ -16,8 +17,9 @@ const ProductPage = () => {
   );
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [isCategoriesVisible, setIsCategoriesVisible] = useState(true);
+  const [currentSlide, setCurrentSlide] = useState(0);
   const navigate = useNavigate();
-  
+
   const categories = [
     { id: 'all', name: 'All Products', image: '/Categories-1.png' },
     { id: 'best-sellers', name: 'Best Sellers', image: '/Categories-1.png' },
@@ -27,6 +29,46 @@ const ProductPage = () => {
     { id: 'bracelets', name: 'Bracelets', image: '/Categories-4.png' },
     { id: 'new-arrivals', name: 'New Arrivals', image: '/Categories-2.png' }
   ];
+
+  const carouselItems = [
+    {
+      id: 1,
+      title: "New Arrivals",
+      description: "Check out our latest collection of Feng Shui items",
+      buttonText: "Shop Now",
+      buttonLink: "/shop?category=new-arrivals",
+      image: "/Aspiration-1.png" 
+    },
+    {
+      id: 2,
+      title: "Feng Shui Guide",
+      description: "Learn the art of Feng Shui from our experts",
+      buttonText: "Read More",
+      buttonLink: "/blog",
+      image: "/Aspiration-1.png"
+    },
+    {
+      id: 3,
+      title: "Special Offers",
+      description: "Get up to 50% off on selected items",
+      buttonText: "View Deals",
+      buttonLink: "/shop?category=flash-deals",
+      image: "/Aspiration-1.png"
+    }
+  ];
+
+  const nextSlide = () => {
+    setCurrentSlide((prev) => (prev === carouselItems.length - 1 ? 0 : prev + 1));
+  };
+
+  const prevSlide = () => {
+    setCurrentSlide((prev) => (prev === 0 ? carouselItems.length - 1 : prev - 1));
+  };
+
+  useEffect(() => {
+    const timer = setInterval(nextSlide, 5000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const categoryParam = searchParams.get('category');
@@ -69,16 +111,15 @@ const ProductPage = () => {
   }, [selectedCategory, products, searchParams]); 
 
   const filterProducts = () => {
-    let filtered = [...products];
     const searchQuery = searchParams.get('search')?.toLowerCase();
+    // Show all products in flash deals for now
+    setFlashDeals(products);
 
-    // Apply category filter
+    let filtered = [...products];
     if (selectedCategory && selectedCategory !== 'all') {
       filtered = filtered.filter(product => {
         if (selectedCategory === 'best-sellers') {
-          return product.items_sold > 100; // Example threshold
-        } else if (selectedCategory === 'flash-deals') {
-          return product.discount_percentage > 0;
+          return product.items_sold > 100;
         } else if (selectedCategory === 'new-arrivals') {
           const thirtyDaysAgo = new Date();
           thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -89,14 +130,13 @@ const ProductPage = () => {
       });
     }
 
-    // Apply search filter if search query exists
     if (searchQuery) {
       filtered = filtered.filter(product => {
         const name = product.name?.toLowerCase() || '';
         const description = product.description?.toLowerCase() || '';
         const category = product.category_name?.toLowerCase() || '';
         const code = product.product_code?.toLowerCase() || '';
-        
+
         return name.includes(searchQuery) ||
                description.includes(searchQuery) ||
                category.includes(searchQuery) ||
@@ -107,73 +147,96 @@ const ProductPage = () => {
     setFilteredProducts(filtered);
   };
 
-  const formatPrice = (price) => {
-    const numericPrice = Number(price);
-    if (isNaN(numericPrice)) {
-      console.warn(`Invalid price value received: ${price}`);
-      return '₱NaN';
-    }
-    return `₱${numericPrice.toFixed(2)}`;
-  };
-
   const Max_products_display = 6;
 
   return (
     <div className="shop-container">
       <NavBar />
       <div className="shop-main-2">
-      <div className="products-content">
-        <h1>FLASH DEALS!</h1>
-          {error && <div className="error-message">{error}</div>}
-          {loading ? (
-            <div>Loading products...</div>
-          ) : filteredProducts.length === 0 ? (
-            <div className="no-products">
-              <p>No products found{searchParams.get('search') ? ' matching your search' : ' in this category'}.</p>
-            </div>
-          ) : (
-            <div className="shop-products-grid">
-              {filteredProducts.slice(0, Max_products_display).map(product => (
-                <ProductCard key={product.product_id} product={product} />
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-      <div className="shop-main">
-        <div className="shop-categories">
-          <div className={`shop-categories ${!isCategoriesVisible ? 'collapsed' : ''}`}>
-            <div className="shop-categories-grid">
-              {categories.map(category => (
-                <div 
-                  key={category.id}
-                  className={`shop-category-card ${selectedCategory === category.id ? 'active' : ''}`}
-                  onClick={() => handleCategoryClick(category.id)}
-                >
-                  <h3>{category.name}</h3>
+        <div className="products-content">
+          <div className="carousel-container">
+            <div className="carousel-content" style={{ transform: `translateX(-${currentSlide * 100}%)` }}>
+              {carouselItems.map((item) => (
+                <div key={item.id} className="carousel-item">
+                  <div className="carousel-image">
+                    <div className="carousel-text">
+                      <h2>{item.title}</h2>
+                      <p>{item.description}</p>
+                      <button 
+                        className="carousel-button"
+                        onClick={() => navigate(item.buttonLink)}
+                      >
+                        {item.buttonText}
+                      </button>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
+            <button className="carousel-control prev" onClick={prevSlide}>❮</button>
+            <button className="carousel-control next" onClick={nextSlide}>❯</button>
+            <div className="carousel-indicators">
+              {carouselItems.map((_, index) => (
+                <button
+                  key={index}
+                  className={`carousel-indicator ${currentSlide === index ? 'active' : ''}`}
+                  onClick={() => setCurrentSlide(index)}
+                />
+              ))}
+            </div>
           </div>
-        </div>
-        <div className="products-content">
-        <div className="products-content">
-        <h1>PRODUCTS</h1>
+
+          <h1>FLASH DEALS</h1>
           {error && <div className="error-message">{error}</div>}
           {loading ? (
             <div>Loading products...</div>
-          ) : filteredProducts.length === 0 ? (
+          ) : flashDeals.length === 0 ? (
             <div className="no-products">
-              <p>No products found{searchParams.get('search') ? ' matching your search' : ' in this category'}.</p>
+              <p>No flash deals available at the moment.</p>
             </div>
           ) : (
             <div className="shop-products-grid">
-              {filteredProducts.map(product => (
+              {flashDeals.slice(0, Max_products_display).map(product => (
                 <ProductCard key={product.product_id} product={product} />
               ))}
             </div>
           )}
-        </div>
+
+          <div className="shop-main">
+            <div className="shop-categories">
+              <div className={`shop-categories ${!isCategoriesVisible ? 'collapsed' : ''}`}>
+                <div className="shop-categories-grid">
+                  {categories.map(category => (
+                    <div 
+                      key={category.id}
+                      className={`shop-category-card ${selectedCategory === category.id ? 'active' : ''}`}
+                      onClick={() => handleCategoryClick(category.id)}
+                    >
+                      <h3>{category.name}</h3>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="Products-content">
+              <h1>PRODUCTS</h1>
+              {error && <div className="error-message">{error}</div>}
+              {loading ? (
+                <div>Loading products...</div>
+              ) : filteredProducts.length === 0 ? (
+                <div className="no-products">
+                  <p>No products found{searchParams.get('search') ? ' matching your search' : ' in this category'}.</p>
+                </div>
+              ) : (
+                <div className="shop-products-grid">
+                  {filteredProducts.map(product => (
+                    <ProductCard key={product.product_id} product={product} />
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
       <Footer forceShow={false} />

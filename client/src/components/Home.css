@@ -1167,4 +1167,226 @@ body {
     background-image: url('/Desktop Fullscreen (1920x1080).png');
     background-size: cover;
   }
+}
+
+.home-featured-carousel {
+  width: 100%;
+  max-width: 100%;
+  padding: 0;
+  overflow: hidden;
+  height: 100%;
+}
+
+.home-carousel {
+  position: relative;
+  width: 100%;
+  height: 500px;
+  overflow: hidden;
+}
+
+.home-carousel-track {
+  display: flex;
+  transition: transform 0.5s ease-in-out;
+  height: 100%;
+}
+
+.home-carousel-slide {
+  min-width: 100%;
+  height: 100%;
+}
+
+.home-carousel-content {
+  display: flex;
+  height: 100%;
+}
+
+.home-carousel-section {
+  flex: 1;
+  position: relative;
+}
+
+.home-carousel-text-section {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding: 2rem 4rem;
+  position: relative;
+}
+
+.home-carousel-text-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1;
+}
+
+.home-carousel-text {
+  color: white;
+  max-width: 500px;
+  position: relative;
+  z-index: 2;
+}
+
+.home-carousel-text h2 {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+  font-weight: 700;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.home-carousel-text p {
+  font-size: 1.2rem;
+  margin-bottom: 2rem;
+  line-height: 1.6;
+  opacity: 0.9;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.home-carousel-button {
+  display: inline-block;
+  padding: 1rem 2rem;
+  background-color: #A2201A;
+  color: white !important;
+  text-decoration: none;
+  border-radius: 30px;
+  font-weight: 600;
+  font-size: 1.1rem;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border: 2px solid transparent;
+  position: relative;
+  z-index: 2;
+}
+
+.home-carousel-button:hover {
+  background-color: #800000;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+@media (max-width: 768px) {
+  .home-carousel {
+    height: 600px;
+  }
+
+  .home-carousel-content {
+    flex-direction: column;
+  }
+
+  .home-carousel-section,
+  .home-carousel-text-section {
+    flex: none;
+    width: 100%;
+    height: 50%;
+  }
+
+  .home-carousel-text-section {
+    padding: 1.5rem;
+  }
+
+  .home-carousel-text {
+    text-align: center;
+    padding: 0;
+    margin: 0 auto;
+  }
+
+  .home-carousel-text h2 {
+    font-size: 1.8rem;
+  }
+
+  .home-carousel-text p {
+    font-size: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .home-carousel-button {
+    padding: 0.8rem 1.5rem;
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .home-carousel {
+    height: 500px;
+  }
+
+  .home-carousel-text-section {
+    padding: 1.5rem;
+  }
+
+  .home-carousel-text h2 {
+    font-size: 1.5rem;
+  }
+
+  .home-carousel-text p {
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .home-carousel-button {
+    padding: 0.8rem 1.5rem;
+    font-size: 0.9rem;
+  }
+}
+
+.home-carousel-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: rgba(255, 255, 255, 0.3);
+  color: white;
+  border: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  z-index: 3;
+}
+
+.home-carousel-nav:hover {
+  background-color: rgba(255, 255, 255, 0.5);
+}
+
+.home-carousel-nav.prev {
+  left: 20px;
+}
+
+.home-carousel-nav.next {
+  right: 20px;
+}
+
+.home-carousel-dots {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  z-index: 3;
+}
+
+.home-carousel-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.5);
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.home-carousel-dot.active {
+  background-color: white;
+  transform: scale(1.2);
 } 

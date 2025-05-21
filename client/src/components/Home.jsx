@@ -25,9 +25,41 @@ const Home = () => {
   const [error, setError] = useState(null);
   const [blogs, setBlogs] = useState([]);
   const [blogLoading, setBlogLoading] = useState(true);
+  const [currentSlide, setCurrentSlide] = useState(0);
 
   const navigate = useNavigate();
   const { } = useCart();
+
+  // Add carousel data
+  const carouselData = [
+    {
+      title: "FENG SHUI ESSENTIALS",
+      description: "Transform your space with our authentic Feng Shui collection by Feng Shui Expert Michael De Mesa. Find the perfect items to enhance harmony and balance in your life.",
+      buttonText: "Shop Collection",
+      buttonLink: "/shop",
+      leftBackground: "url('/Carousel-1.jpg')",
+      rightColor: "linear-gradient(135deg, #db1730 100%)",
+      side: "left"
+    },
+    {
+      title: "ZODIAC COLLECTION",
+      description: "Discover items tailored to your zodiac sign. Enhance your luck and prosperity with our specially curated zodiac items.",
+      buttonText: "Find Your Sign",
+      buttonLink: "/prosper-guide",
+      leftColor: "linear-gradient(135deg, #db1730 100%)",
+      rightBackground: "url('/Zodiac-1.jpg')",
+      side: "right"
+    },
+    {
+      title: "SPECIAL OFFERS",
+      description: "Take advantage of our limited-time deals on selected Feng Shui items. Transform your space while saving.",
+      buttonText: "View Deals",
+      buttonLink: "/shop?category=flash-deals",
+      leftBackground: "url('/Carousel-2.jpg')",
+      rightColor: "linear-gradient(135deg, #db1730 100%)",
+      side: "left"
+    }
+  ];
 
   const zodiacSigns = [
     { name: 'RAT', image: '/Prosper-1.png' },
@@ -107,6 +139,26 @@ const Home = () => {
       });
   }, []);
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev === 2 ? 0 : prev + 1));
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const handlePrevSlide = () => {
+    setCurrentSlide((prev) => (prev === 0 ? 2 : prev - 1));
+  };
+
+  const handleNextSlide = () => {
+    setCurrentSlide((prev) => (prev === 2 ? 0 : prev + 1));
+  };
+
+  const handleDotClick = (index) => {
+    setCurrentSlide(index);
+  };
+
   const renderNewArrivals = () => (
     <section className="home-new-arrivals">
       <div className="home-section-header">
@@ -122,7 +174,7 @@ const Home = () => {
         <div className="error-message">{error}</div>
       ) : (
         <div className="home-new-arrivals-grid">
-          {newArrivals.map(product => (
+          {newArrivals.slice(0, max_limit_display).map(product => (
             <ProductCard key={product.product_id} product={product} />
           ))}
         </div>
@@ -146,6 +198,8 @@ const Home = () => {
     );
   };
 
+  const max_limit_display = 5;
+
   return (
     <div className="home-page">
       <NavBar />
@@ -154,6 +208,60 @@ const Home = () => {
       </section>
 
       {renderNewArrivals()}
+      
+      <section className="home-featured-carousel">
+        <div className="home-carousel">
+          <div className="home-carousel-track" style={{ transform: `translateX(-${currentSlide * 100}%)` }}>
+            {carouselData.map((slide, index) => (
+              <div className="home-carousel-slide" key={index}>
+                <div className="home-carousel-content">
+                  <div 
+                    className="home-carousel-section"
+                    style={{ 
+                      background: slide.side === "left" 
+                        ? slide.leftBackground || slide.leftColor 
+                        : slide.rightBackground || slide.rightColor,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                      order: slide.side === "left" ? 1 : 2
+                    }}
+                  />
+                  <div 
+                    className="home-carousel-text-section"
+                    style={{ 
+                      background: slide.side === "left" 
+                        ? slide.rightBackground || slide.rightColor 
+                        : slide.leftBackground || slide.leftColor,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                      order: slide.side === "left" ? 2 : 1
+                    }}
+                  >
+                    <div className="home-carousel-text">
+                      <h2>{slide.title}</h2>
+                      <p>{slide.description}</p>
+                      <Link to={slide.buttonLink} className="home-carousel-button">
+                        {slide.buttonText}
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <button className="home-carousel-nav prev" onClick={handlePrevSlide}>❮</button>
+          <button className="home-carousel-nav next" onClick={handleNextSlide}>❯</button>
+          <div className="home-carousel-dots">
+            {carouselData.map((_, index) => (
+              <span 
+                key={index}
+                className={`home-carousel-dot ${currentSlide === index ? 'active' : ''}`} 
+                onClick={() => handleDotClick(index)}
+              ></span>
+            ))}
+          </div>
+        </div>
+      </section>
 
       <section className="home-categories">
         <div className="home-section-header">
