@@ -18,7 +18,6 @@ function Account() {
     phone: '',
   });
   
-  // Keep track of original data to restore on cancel
   const [originalUserData, setOriginalUserData] = useState({
     username: '',
     firstname: '',
@@ -43,7 +42,6 @@ function Account() {
     house_number: '',
   });
   
-  // Keep track of original address to restore on cancel
   const [originalAddress, setOriginalAddress] = useState({
     address1: '',
     address2: '',
@@ -66,7 +64,6 @@ function Account() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // Fetch user profile and shipping info on component mount
   useEffect(() => {
     if (authLoading) return;
     if (!isAuthenticated) {
@@ -82,8 +79,6 @@ function Account() {
     try {
       setLoading(true);
       const response = await authService.getProfile();
-      console.log("Profile data received:", response.data);
-      
       const profileData = response.data;
       const userInfo = {
         username: profileData.username || '',
@@ -98,13 +93,9 @@ function Account() {
       
       try {
         const shippingResponse = await authService.getShippingAddresses();
-        console.log("Shipping addresses received:", shippingResponse.data);
-        
         const addresses = shippingResponse.data;
         if (addresses && addresses.length > 0) {
           const defaultAddress = addresses.find(addr => addr.is_default) || addresses[0];
-          console.log("Using default address:", defaultAddress);
-          
           const addressInfo = {
             address1: defaultAddress.address1 || '',
             address2: defaultAddress.address2 || '',
@@ -142,7 +133,6 @@ function Account() {
       setError('');
       setSuccess('');
       
-      // Convert firstname/lastname to firstName/lastName for server
       const updatedProfile = {
         firstName: userData.firstname,
         lastName: userData.lastname,
@@ -150,15 +140,10 @@ function Account() {
         phone: userData.phone
       };
       
-      console.log('Sending profile update:', updatedProfile);
       await authService.updateProfile(updatedProfile);
       setSuccess('Personal details updated successfully');
       setIsEditingPersonal(false);
-      
-      // Update original data after successful save
       setOriginalUserData({...userData});
-      
-      // Refresh the profile data to get updated information
       await fetchUserProfile();
       
       setTimeout(() => setSuccess(''), 3000);
@@ -177,7 +162,6 @@ function Account() {
       setError('');
       setSuccess('');
       
-      // Validate required fields
       const requiredFields = ['region', 'province', 'city_municipality', 'barangay', 'postcode'];
       const missingFields = requiredFields.filter(field => !shippingAddress[field]);
       
@@ -187,7 +171,6 @@ function Account() {
         return;
       }
       
-      // Format shipping address for API using the format from the server response
       const addressToSave = {
         address1: shippingAddress.address1,
         address2: shippingAddress.address2,
@@ -208,11 +191,7 @@ function Account() {
       await authService.addShippingAddress(addressToSave);
       setSuccess('Shipping details updated successfully');
       setIsEditingShipping(false);
-      
-      // Update original address after successful save
       setOriginalAddress({...shippingAddress});
-      
-      // Refresh the profile data to get updated information
       await fetchUserProfile();
       
       setTimeout(() => setSuccess(''), 3000);
@@ -226,7 +205,6 @@ function Account() {
   
   const togglePersonalEdit = () => {
     if (isEditingPersonal) {
-      // If canceling edit, restore original data
       setUserData({...originalUserData});
     }
     setIsEditingPersonal(!isEditingPersonal);
@@ -234,25 +212,21 @@ function Account() {
   
   const toggleShippingEdit = () => {
     if (isEditingShipping) {
-      // If canceling edit, restore original data
       setShippingAddress({...originalAddress});
     }
     setIsEditingShipping(!isEditingShipping);
   };
   
   const cancelPersonalEdit = () => {
-    // Reset to original values
     setUserData({...originalUserData});
     setIsEditingPersonal(false);
   };
   
   const cancelShippingEdit = () => {
-    // Reset to original values
     setShippingAddress({...originalAddress});
     setIsEditingShipping(false);
   };
 
-  // Handler for name input
   const handleNameChange = (e) => {
     const nameParts = e.target.value.split(' ');
     const firstName = nameParts[0] || '';
@@ -264,7 +238,6 @@ function Account() {
     }));
   };
 
-  // Subtle loading spinner for auth refreshing
   const refreshSpinnerStyle = {
     position: 'fixed',
     top: '10px',
@@ -276,14 +249,6 @@ function Account() {
     borderRadius: '50%',
     animation: 'spin 1s linear infinite',
     zIndex: 9999
-  };
-
-  const handleError = (err) => {
-    notify.error(err.message || 'An error occurred. Please try again.');
-  };
-
-  const handleSuccess = (message) => {
-    notify.success(message);
   };
 
   if (loading || authLoading) {
@@ -299,14 +264,11 @@ function Account() {
     );
   }
 
-  // Combine first and last name for the full name field
   const fullName = `${userData.firstname || ''} ${userData.lastname || ''}`.trim();
   
-  // For the shipping address display, using city_municipality or city
   const displayCity = shippingAddress.city_municipality || shippingAddress.city || '';
   const displayState = shippingAddress.province || shippingAddress.state || '';
   
-  // Display address for view mode
   const formattedAddress = [
     shippingAddress.address1,
     shippingAddress.address2,
@@ -323,7 +285,7 @@ function Account() {
   ].filter(Boolean).join(', ');
 
   return (
-    <div className="account-page">
+    <div className="account-background">
       {refreshing && (
         <>
           <div style={refreshSpinnerStyle}></div>
@@ -338,251 +300,248 @@ function Account() {
         </>
       )}
       <NavBar />
-      <main className="container" role="main" aria-label="My Account">
-        <section className="column" aria-labelledby="personal-details-title">
-          <div className="section-header-container">
-            <h2 id="personal-details-title" className="section-header">Personal Details</h2>
-            {!isEditingPersonal && (
-              <button 
-                type="button" 
-                className="edit-button" 
-                onClick={togglePersonalEdit}
-              >
-                Edit
-              </button>
-            )}
-          </div>
-          
-          {isEditingPersonal ? (
-            // Edit mode - Form
-            <form 
-              id="personal-details-form" 
-              aria-describedby="personal-details-desc" 
-              autoComplete="on" 
-              noValidate
-              onSubmit={handlePersonalDetailsSubmit}
-            >
-              <p id="personal-details-desc">
-                Update your name, email, and contact details here.
-              </p>
-              
-              <label htmlFor="fullname">Full Name</label>
-              <input 
-                type="text" 
-                id="fullname" 
-                name="fullname" 
-                placeholder="John Doe" 
-                required 
-                autoComplete="name"
-                value={fullName}
-                onChange={handleNameChange}
-              />
-
-              <label htmlFor="email">Email Address</label>
-              <input 
-                type="email" 
-                id="email" 
-                name="email" 
-                placeholder="john@example.com" 
-                required 
-                autoComplete="email"
-                value={userData.email || ''}
-                onChange={(e) => setUserData(prev => ({ ...prev, email: e.target.value }))}
-              />
-
-              <label htmlFor="phone">Phone Number</label>
-              <input 
-                type="tel" 
-                id="phone" 
-                name="phone" 
-                placeholder="+1 555 123 4567" 
-                autoComplete="tel" 
-                pattern="[+0-9\s\-]{7,}"
-                value={userData.phone || ''}
-                onChange={(e) => setUserData(prev => ({ ...prev, phone: e.target.value }))}
-              />
-
-              <div className="form-actions">
-                <button type="button" className="cancel-button" onClick={cancelPersonalEdit}>
-                  Cancel
+      <div className="account-content">
+        <main className="account-container" role="main" aria-label="My Account">
+          <section className="account-column" aria-labelledby="personal-details-title">
+            <div className="account-section-header-container">
+              <h2 id="personal-details-title" className="account-section-header">Personal Details</h2>
+              {!isEditingPersonal && (
+                <button 
+                  type="button" 
+                  className="account-edit-button" 
+                  onClick={togglePersonalEdit}
+                >
+                  Edit
                 </button>
-                <button type="submit" className="save-button">
-                  Save Personal Details
-                </button>
-              </div>
-            </form>
-          ) : (
-            // View mode - Display only
-            <div className="info-display">
-              <p className="info-label">Full Name</p>
-              <p className="info-value">{fullName || 'Not set'}</p>
-              
-              <p className="info-label">Email Address</p>
-              <p className="info-value">{userData.email || 'Not set'}</p>
-              
-              <p className="info-label">Phone Number</p>
-              <p className="info-value">{userData.phone || 'Not set'}</p>
+              )}
             </div>
-          )}
-        </section>
-        
-        <section className="column" aria-labelledby="shipping-details-title">
-          <div className="section-header-container">
-            <h2 id="shipping-details-title" className="section-header">Shipping Details</h2>
-            {!isEditingShipping && (
-              <button 
-                type="button" 
-                className="edit-button" 
-                onClick={toggleShippingEdit}
+            
+            {isEditingPersonal ? (
+              <form 
+                id="personal-details-form" 
+                aria-describedby="personal-details-desc" 
+                autoComplete="on" 
+                noValidate
+                onSubmit={handlePersonalDetailsSubmit}
               >
-                Edit
-              </button>
-            )}
-          </div>
-          
-          {isEditingShipping ? (
-            // Edit mode - Form
-            <form 
-              id="shipping-details-form" 
-              aria-describedby="shipping-details-desc" 
-              autoComplete="on" 
-              noValidate
-              onSubmit={handleShippingDetailsSubmit}
-            >
-              <p id="shipping-details-desc">
-                Manage your delivery address details. Fields marked with * are required.
-              </p>
-              
-              <label htmlFor="region">Region *</label>
-              <input 
-                type="text" 
-                id="region" 
-                name="region" 
-                placeholder="Region" 
-                required 
-                value={shippingAddress.region || ''}
-                onChange={(e) => setShippingAddress(prev => ({ ...prev, region: e.target.value }))}
-              />
+                <p id="personal-details-desc">
+                  Update your name, email, and contact details here.
+                </p>
+                
+                <label htmlFor="fullname">Full Name</label>
+                <input 
+                  type="text" 
+                  id="fullname" 
+                  name="fullname" 
+                  placeholder="John Doe" 
+                  required 
+                  autoComplete="name"
+                  value={fullName}
+                  onChange={handleNameChange}
+                />
 
-              <label htmlFor="province">Province *</label>
-              <input 
-                type="text" 
-                id="province" 
-                name="province" 
-                placeholder="Province" 
-                required 
-                value={shippingAddress.province || ''}
-                onChange={(e) => setShippingAddress(prev => ({ ...prev, province: e.target.value }))}
-              />
+                <label htmlFor="email">Email Address</label>
+                <input 
+                  type="email" 
+                  id="email" 
+                  name="email" 
+                  placeholder="john@example.com" 
+                  required 
+                  autoComplete="email"
+                  value={userData.email || ''}
+                  onChange={(e) => setUserData(prev => ({ ...prev, email: e.target.value }))}
+                />
 
-              <label htmlFor="city_municipality">City/Municipality *</label>
-              <input 
-                type="text" 
-                id="city_municipality" 
-                name="city_municipality" 
-                placeholder="City/Municipality" 
-                required 
-                value={shippingAddress.city_municipality || ''}
-                onChange={(e) => setShippingAddress(prev => ({ 
-                  ...prev, 
-                  city_municipality: e.target.value,
-                  city: e.target.value
-                }))}
-              />
+                <label htmlFor="phone">Phone Number</label>
+                <input 
+                  type="tel" 
+                  id="phone" 
+                  name="phone" 
+                  placeholder="+1 555 123 4567" 
+                  autoComplete="tel" 
+                  pattern="[+0-9\s\-]{7,}"
+                  value={userData.phone || ''}
+                  onChange={(e) => setUserData(prev => ({ ...prev, phone: e.target.value }))}
+                />
 
-              <label htmlFor="barangay">Barangay *</label>
-              <input 
-                type="text" 
-                id="barangay" 
-                name="barangay" 
-                placeholder="Barangay" 
-                required 
-                value={shippingAddress.barangay || ''}
-                onChange={(e) => setShippingAddress(prev => ({ ...prev, barangay: e.target.value }))}
-              />
-
-              <label htmlFor="street_name">Street Name</label>
-              <input 
-                type="text" 
-                id="street_name" 
-                name="street_name" 
-                placeholder="Street Name" 
-                value={shippingAddress.street_name || ''}
-                onChange={(e) => setShippingAddress(prev => ({ ...prev, street_name: e.target.value }))}
-              />
-
-              <label htmlFor="house_number">House Number</label>
-              <input 
-                type="text" 
-                id="house_number" 
-                name="house_number" 
-                placeholder="House Number" 
-                value={shippingAddress.house_number || ''}
-                onChange={(e) => setShippingAddress(prev => ({ ...prev, house_number: e.target.value }))}
-              />
-
-              <label htmlFor="building">Building/Floor/Unit (optional)</label>
-              <input 
-                type="text" 
-                id="building" 
-                name="building" 
-                placeholder="Building, Floor, Unit number" 
-                value={shippingAddress.building || ''}
-                onChange={(e) => setShippingAddress(prev => ({ ...prev, building: e.target.value }))}
-              />
-
-              <label htmlFor="postcode">Postal Code *</label>
-              <input 
-                type="text" 
-                id="postcode" 
-                name="postcode" 
-                placeholder="Postal Code" 
-                required 
-                value={shippingAddress.postcode || ''}
-                onChange={(e) => setShippingAddress(prev => ({ ...prev, postcode: e.target.value }))}
-              />
-
-              <label htmlFor="country">Country</label>
-              <select 
-                id="country" 
-                name="country" 
-                required 
-                value={shippingAddress.country || 'PH'}
-                onChange={(e) => setShippingAddress(prev => ({ ...prev, country: e.target.value }))}
-              >
-                <option value="PH">Philippines</option>
-                <option value="SG">Singapore</option>
-                <option value="US">United States</option>
-                <option value="CA">Canada</option>
-                <option value="GB">United Kingdom</option>
-                <option value="AU">Australia</option>
-                <option value="MY">Malaysia</option>
-              </select>
-
-              <div className="form-actions">
-                <button type="button" className="cancel-button" onClick={cancelShippingEdit}>
-                  Cancel
-                </button>
-                <button type="submit" className="save-button">
-                  Save Shipping Details
-                </button>
+                <div className="account-form-actions">
+                  <button type="button" className="account-cancel-button" onClick={cancelPersonalEdit}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="account-save-button">
+                    Save Personal Details
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="account-info-display">
+                <p className="account-info-label">Full Name</p>
+                <p className="account-info-value">{fullName || 'Not set'}</p>
+                
+                <p className="account-info-label">Email Address</p>
+                <p className="account-info-value">{userData.email || 'Not set'}</p>
+                
+                <p className="account-info-label">Phone Number</p>
+                <p className="account-info-value">{userData.phone || 'Not set'}</p>
               </div>
-            </form>
-          ) : (
-            // View mode - Display only
-            <div className="info-display">
-              <p className="info-label">Address</p>
-              <p className="info-value">
-                {formattedAddress || 'No shipping address has been set yet'}
-              </p>
+            )}
+          </section>
+          
+          <section className="account-column" aria-labelledby="shipping-details-title">
+            <div className="account-section-header-container">
+              <h2 id="shipping-details-title" className="account-section-header">Shipping Details</h2>
+              {!isEditingShipping && (
+                <button 
+                  type="button" 
+                  className="account-edit-button" 
+                  onClick={toggleShippingEdit}
+                >
+                  Edit
+                </button>
+              )}
             </div>
-          )}
-        </section>
-      </main>
-      
-      <Footer />
+            
+            {isEditingShipping ? (
+              <form 
+                id="shipping-details-form" 
+                aria-describedby="shipping-details-desc" 
+                autoComplete="on" 
+                noValidate
+                onSubmit={handleShippingDetailsSubmit}
+              >
+                <p id="shipping-details-desc">
+                  Manage your delivery address details. Fields marked with * are required.
+                </p>
+                
+                <label htmlFor="region">Region *</label>
+                <input 
+                  type="text" 
+                  id="region" 
+                  name="region" 
+                  placeholder="Region" 
+                  required 
+                  value={shippingAddress.region || ''}
+                  onChange={(e) => setShippingAddress(prev => ({ ...prev, region: e.target.value }))}
+                />
+
+                <label htmlFor="province">Province *</label>
+                <input 
+                  type="text" 
+                  id="province" 
+                  name="province" 
+                  placeholder="Province" 
+                  required 
+                  value={shippingAddress.province || ''}
+                  onChange={(e) => setShippingAddress(prev => ({ ...prev, province: e.target.value }))}
+                />
+
+                <label htmlFor="city_municipality">City/Municipality *</label>
+                <input 
+                  type="text" 
+                  id="city_municipality" 
+                  name="city_municipality" 
+                  placeholder="City/Municipality" 
+                  required 
+                  value={shippingAddress.city_municipality || ''}
+                  onChange={(e) => setShippingAddress(prev => ({ 
+                    ...prev, 
+                    city_municipality: e.target.value,
+                    city: e.target.value
+                  }))}
+                />
+
+                <label htmlFor="barangay">Barangay *</label>
+                <input 
+                  type="text" 
+                  id="barangay" 
+                  name="barangay" 
+                  placeholder="Barangay" 
+                  required 
+                  value={shippingAddress.barangay || ''}
+                  onChange={(e) => setShippingAddress(prev => ({ ...prev, barangay: e.target.value }))}
+                />
+
+                <label htmlFor="street_name">Street Name</label>
+                <input 
+                  type="text" 
+                  id="street_name" 
+                  name="street_name" 
+                  placeholder="Street Name" 
+                  value={shippingAddress.street_name || ''}
+                  onChange={(e) => setShippingAddress(prev => ({ ...prev, street_name: e.target.value }))}
+                />
+
+                <label htmlFor="house_number">House Number</label>
+                <input 
+                  type="text" 
+                  id="house_number" 
+                  name="house_number" 
+                  placeholder="House Number" 
+                  value={shippingAddress.house_number || ''}
+                  onChange={(e) => setShippingAddress(prev => ({ ...prev, house_number: e.target.value }))}
+                />
+
+                <label htmlFor="building">Building/Floor/Unit (optional)</label>
+                <input 
+                  type="text" 
+                  id="building" 
+                  name="building" 
+                  placeholder="Building, Floor, Unit number" 
+                  value={shippingAddress.building || ''}
+                  onChange={(e) => setShippingAddress(prev => ({ ...prev, building: e.target.value }))}
+                />
+
+                <label htmlFor="postcode">Postal Code *</label>
+                <input 
+                  type="text" 
+                  id="postcode" 
+                  name="postcode" 
+                  placeholder="Postal Code" 
+                  required 
+                  value={shippingAddress.postcode || ''}
+                  onChange={(e) => setShippingAddress(prev => ({ ...prev, postcode: e.target.value }))}
+                />
+
+                <label htmlFor="country">Country</label>
+                <select 
+                  id="country" 
+                  name="country" 
+                  required 
+                  value={shippingAddress.country || 'PH'}
+                  onChange={(e) => setShippingAddress(prev => ({ ...prev, country: e.target.value }))}
+                >
+                  <option value="PH">Philippines</option>
+                  <option value="SG">Singapore</option>
+                  <option value="US">United States</option>
+                  <option value="CA">Canada</option>
+                  <option value="GB">United Kingdom</option>
+                  <option value="AU">Australia</option>
+                  <option value="MY">Malaysia</option>
+                </select>
+
+                <div className="account-form-actions">
+                  <button type="button" className="account-cancel-button" onClick={cancelShippingEdit}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="account-save-button">
+                    Save Shipping Details
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="account-info-display">
+                <p className="account-info-label">Address</p>
+                <p className="account-info-value">
+                  {formattedAddress || 'No shipping address has been set yet'}
+                </p>
+              </div>
+            )}
+          </section>
+        </main>
+      </div>
+      <Footer forceShow={false} />
     </div>
   );
 }
 
-export default Account; 
+export default Account;
