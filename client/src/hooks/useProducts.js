@@ -36,7 +36,7 @@ export const useProducts = () => {
     // Try to get initial data from the products list
     initialData: () => {
       const products = queryClient.getQueryData(['products'])
-      if (products) {
+      if (products && Array.isArray(products)) {
         return products.find(product => product.id === id)
       }
       return undefined

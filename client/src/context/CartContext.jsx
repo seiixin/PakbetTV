@@ -9,45 +9,63 @@ export const useCart = () => useContext(CartContext);
 
 export const CartProvider = ({ children }) => {
   const { user } = useAuth();
-  const [cartItems, setCartItems] = useState([]);
+  const [cartItems, setCartItems] = useState(() => {
+    // Initialize cart items from storage on mount
+    try {
+      const userId = user?.id || 'guest';
+      console.log('[CartContext] Initializing cart for user:', userId);
+      const savedCart = getCart(userId);
+      console.log('[CartContext] Initial cart data:', savedCart);
+      return savedCart || [];
+    } catch (error) {
+      console.error('[CartContext] Error initializing cart:', error);
+      return [];
+    }
+  });
 
-  // Load cart from cookies whenever user changes
+  // Load cart from storage whenever user changes
   useEffect(() => {
     const loadCart = () => {
       try {
-        // Use a storage key based on user ID if logged in, or 'guest' if not
-        const storageKey = user?.id ? `cart_${user.id}` : 'cart_guest';
-        console.log('Loading cart from cookies:', storageKey);
+        const userId = user?.id || 'guest';
+        console.log('[CartContext] Loading cart for user:', userId);
+        const savedCart = getCart(userId);
+        console.log('[CartContext] Loaded cart data:', savedCart);
         
-        const savedCart = getCart(user?.id || 'guest');
-        if (savedCart && savedCart.length > 0) {
+        if (Array.isArray(savedCart) && savedCart.length > 0) {
+          console.log('[CartContext] Setting cart items:', savedCart.length, 'items');
           setCartItems(savedCart);
-          console.log('Cart loaded successfully:', savedCart.length, 'items');
         } else {
-          setCartItems([]);
-          console.log('No saved cart found');
+          console.log('[CartContext] No valid cart data found');
         }
       } catch (error) {
-        console.error('Error loading cart from cookies:', error);
-        setCartItems([]);
+        console.error('[CartContext] Error loading cart:', error);
       }
     };
     
     loadCart();
-  }, [user]); 
+  }, [user]);
 
-  // Save cart to cookies whenever cartItems or user changes
+  // Save cart to storage whenever cartItems changes
   useEffect(() => {
     try {
       const userId = user?.id || 'guest';
-      console.log('Saving cart to cookies:', userId, cartItems.length, 'items');
-      setCart(cartItems, userId);
+      console.log('[CartContext] Saving cart for user:', userId, 'Items:', cartItems);
+      
+      if (Array.isArray(cartItems)) {
+        setCart(cartItems, userId);
+        console.log('[CartContext] Cart saved successfully');
+      } else {
+        console.warn('[CartContext] Invalid cart data, not saving:', cartItems);
+      }
     } catch (error) {
-      console.error('Error saving cart to cookies:', error);
+      console.error('[CartContext] Error saving cart:', error);
     }
   }, [cartItems, user]);
 
   const addToCart = (product, quantity = 1) => {
+    console.log('[CartContext] Adding to cart:', { product, quantity });
+    
     // Ensure image URL is properly formatted before adding to cart
     const productWithProperImageUrl = {
       ...product,
@@ -55,7 +73,10 @@ export const CartProvider = ({ children }) => {
     };
     
     setCartItems(prevItems => {
-      const existingItemIndex = prevItems.findIndex(item => {
+      // Ensure prevItems is always an array
+      const currentItems = Array.isArray(prevItems) ? prevItems : [];
+      
+      const existingItemIndex = currentItems.findIndex(item => {
         if (product.variant_id && item.variant_id) {
           return item.variant_id === product.variant_id;
         }
@@ -64,16 +85,17 @@ export const CartProvider = ({ children }) => {
       
       let updatedItems;
       if (existingItemIndex >= 0) {
-        updatedItems = [...prevItems];
+        updatedItems = [...currentItems];
         updatedItems[existingItemIndex] = {
           ...updatedItems[existingItemIndex],
           quantity: updatedItems[existingItemIndex].quantity + quantity,
           selected: true
         };
       } else {
-        updatedItems = [...prevItems, { ...productWithProperImageUrl, quantity, selected: true }];
+        updatedItems = [...currentItems, { ...productWithProperImageUrl, quantity, selected: true }];
       }
       
+      console.log('[CartContext] Updated cart items:', updatedItems);
       return updatedItems;
     });
   };
