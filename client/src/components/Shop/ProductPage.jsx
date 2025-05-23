@@ -6,12 +6,12 @@ import NavBar from '../NavBar';
 import Footer from '../Footer';
 import ProductCard from '../common/ProductCard';
 import { Link } from 'react-router-dom';
+import { useProducts } from '../../hooks/useProducts';
 
 const ProductPage = () => {
-  const [products, setProducts] = useState([]);
+  const { getAllProducts } = useProducts();
+  const { data: productsData, isLoading: loading, error } = getAllProducts;
   const [flashDeals, setFlashDeals] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [searchParams] = useSearchParams(); 
   const [selectedCategory, setSelectedCategory] = useState(
     searchParams.get('category') || 'all'
@@ -72,68 +72,23 @@ const ProductPage = () => {
   }, [searchParams, categories]); 
 
   useEffect(() => {
-    fetchProducts();
     fetchCategories();
   }, []);
 
-  const fetchProducts = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await fetch(`${API_BASE_URL}/api/products`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch products');
-      }
-      const data = await response.json();
-      
-      console.log('Raw data from API:', data); // Debug log
-
-      // Process products to include discount information
-      const processedProducts = (data.products || []).map(product => {
-        // Get the original and discounted prices
-        const price = parseFloat(product.price) || 0;
-        const discountedPrice = parseFloat(product.discounted_price) || 0;
-        const discountPercentage = parseFloat(product.discount_percentage) || 0;
-
-        const processedProduct = {
-          ...product,
-          price: price,
-          discounted_price: discountedPrice,
-          discount_percentage: discountPercentage
-        };
-
-        console.log('Processed product:', processedProduct); // Debug log
-        return processedProduct;
-      });
-
-      setProducts(processedProducts);
-      
-      // Filter flash deals to show products with discounted prices
-      const validFlashDeals = processedProducts.filter(product => {
+  // Process products when data changes
+  useEffect(() => {
+    if (productsData?.products) {
+      // Process flash deals
+      const validFlashDeals = productsData.products.filter(product => {
         const hasValidDiscount = product.discounted_price > 0 && product.discount_percentage > 0;
-        console.log(`Product ${product.name} flash deal check:`, {
-          price: product.price,
-          discounted_price: product.discounted_price,
-          discount_percentage: product.discount_percentage,
-          isValid: hasValidDiscount
-        });
         return hasValidDiscount;
       });
-
-      console.log('Valid Flash Deals:', validFlashDeals); // Debug log
       setFlashDeals(validFlashDeals);
       
-      setLoading(false);
-    } catch (err) {
-      console.error('Error fetching products:', err);
-      setError('Failed to load products. Please try again later.');
-      setLoading(false);
+      // Filter products based on category and search
+      filterProducts(productsData.products);
     }
-  };
-
-  useEffect(() => {
-    console.log('Current flashDeals state:', flashDeals); // Debug log
-  }, [flashDeals]);
+  }, [productsData, selectedCategory, searchParams]);
 
   const fetchCategories = async () => {
     try {
@@ -147,7 +102,6 @@ const ProductPage = () => {
       const dbCategories = data.map(category => ({
         id: category.name.toLowerCase(),
         name: category.name,
-        // The category_image is already a complete data URL from the server
         image: category.category_image || '/Categories-1.png'
       }));
 
@@ -158,7 +112,6 @@ const ProductPage = () => {
       });
     } catch (err) {
       console.error('Error fetching categories:', err);
-      // Keep the default 'All Products' category if there's an error
     }
   };
 
@@ -167,16 +120,9 @@ const ProductPage = () => {
     setSelectedCategory(categoryId);
   };
 
-  useEffect(() => {
-    filterProducts();
-  }, [selectedCategory, products, searchParams]); 
-
-  const filterProducts = () => {
+  const filterProducts = (products) => {
     const searchQuery = searchParams.get('search')?.toLowerCase();
     
-    // Keep the existing flash deals, don't override them here
-    console.log('FilterProducts - current flashDeals:', flashDeals); // Debug log
-
     let filtered = [...products];
     if (selectedCategory && selectedCategory !== 'all') {
       filtered = filtered.filter(product => {

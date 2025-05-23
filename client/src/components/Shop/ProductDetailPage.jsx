@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
+import { useProducts } from '../../hooks/useProducts';
 import './ProductDetail.css';
 import { createGlobalStyle } from 'styled-components';
 import API_BASE_URL from '../../config';
@@ -20,9 +21,8 @@ const ProductDetailPage = () => {
   const navigate = useNavigate();
   const { addToCart } = useCart();
   const { user, token, loading: authLoading } = useAuth();
-  const [product, setProduct] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { getProduct } = useProducts();
+  const { data: product, isLoading: loading, error } = getProduct(id);
   const [quantity, setQuantity] = useState(1);
   const [addedToCart, setAddedToCart] = useState(false);
   const [selectedImageUrl, setSelectedImageUrl] = useState(null);
@@ -42,73 +42,44 @@ const ProductDetailPage = () => {
   const pageEndRef = useRef(null);
   
   useEffect(() => {
-    fetchProductDetails();
-  }, [id]);
-  useEffect(() => {
     if (product) {
-      let defaultImageUrl = null;
-      if (product.variants && product.variants.length > 0 && product.variants[0].image_url) {
-        defaultImageUrl = getFullImageUrl(product.variants[0].image_url);
-        console.log('Using first variant image as default:', defaultImageUrl);
-      }
-      else if (product.images && product.images.length > 0) {
-        defaultImageUrl = getFullImageUrl(product.images[0].url);
-        console.log('Using product image as default:', defaultImageUrl);
-      }
-      if (defaultImageUrl) {
-        setSelectedImageUrl(defaultImageUrl);
-        if (product.variants) {
-          const matchingVariant = product.variants.find(v => 
-            v.image_url && getFullImageUrl(v.image_url) === defaultImageUrl
-          );
-          if (matchingVariant && matchingVariant.attributes) {
-            setSelectedAttributes(matchingVariant.attributes);
-            console.log('Setting initial attributes from first variant:', matchingVariant.attributes);
+      // Process variants and attributes
+      if (Array.isArray(product.variants) && product.variants.length > 0) {
+        const options = {};
+        const initialSelections = {};
+        const allKeys = new Set();
+        
+        product.variants.forEach(variant => {
+          if (variant.attributes) {
+            Object.keys(variant.attributes).forEach(key => allKeys.add(key));
           }
-        }
+        });
+
+        allKeys.forEach(key => {
+          const values = [...new Set(product.variants
+            .map(variant => variant.attributes ? variant.attributes[key] : undefined)
+            .filter(value => value !== undefined && value !== null && value !== ''))];
+          
+          if (values.length > 0) {
+            options[key] = values;
+            initialSelections[key] = values[0];
+          }
+        });
+
+        setAttributeOptions(options);
+        setSelectedAttributes(initialSelections);
       }
+
+      // Set initial selected image
+      if (product.images && product.images.length > 0) {
+        setSelectedImageUrl(product.images[0].url);
+      }
+
+      // Fetch reviews
+      fetchReviews(product.product_id);
     }
   }, [product]);
-  useEffect(() => {
-    if (product && product.variants && product.variants.length > 0 && Object.keys(selectedAttributes).length > 0) {
-        console.log('[Attribute Effect] Updating variant based on selected attributes:', selectedAttributes);
-        updateSelectedVariant(); 
-    }
-  }, [product, selectedAttributes]); 
-  const updateSelectedVariant = () => {
-    if (!product || !product.variants) return;
-    console.log(`[updateSelectedVariant] Finding variant matching:`, selectedAttributes);
-    const variant = product.variants.find(v => {
-        return Object.entries(selectedAttributes).every(([key, value]) => {
-            return v.attributes && v.attributes[key] === value;
-        });
-    });
-    console.log(`[updateSelectedVariant] Found variant:`, variant);
-    if (variant) {
-      setSelectedVariant(variant); 
-      if (quantity > variant.stock) {
-        setQuantity(1);
-      }
-    } else {
-      setSelectedVariant(null); 
-      console.warn(`[updateSelectedVariant] No variant found matching attributes:`, selectedAttributes);
-    }
-  };
-  const handleAttributeChange = (attributeName, value) => {
-    console.log(`[handleAttributeChange] Setting ${attributeName} to ${value}`);
-    setSelectedAttributes(prev => ({
-      ...prev,
-      [attributeName]: value
-    }));
-  };
-  const isVariantCombinationAvailable = (currentSelections) => {
-    if (!product || !product.variants) return false;
-    return product.variants.some(v => 
-      Object.entries(currentSelections).every(([key, value]) => 
-          v.attributes && v.attributes[key] === value
-      ) && v.stock > 0
-    );
-  };
+
   useEffect(() => {
     const checkPurchaseAndReviewStatus = async () => {
       if (authLoading || !user || !token || !product?.product_id) {
@@ -156,84 +127,24 @@ const ProductDetailPage = () => {
       setHasReviewed(false);
     }
   }, [user, product, reviews, token, authLoading]);
-  const fetchProductDetails = async () => {
+
+  const fetchReviews = async (productId) => {
     try {
-      setLoading(true);
-      setError(null);
-      setReviews([]);
-      setSelectedVariant(null);
-      setAttributeOptions({});
-      setSelectedAttributes({});
-      const response = await fetch(`${API_BASE_URL}/api/products/${id}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch product details');
-      }
-      const data = await response.json();
-      console.log('Product data from API:', data);
-      const parsedProduct = {
-        ...data,
-        stock_quantity: data.stock_quantity !== undefined ? Number(data.stock_quantity) : 0,
-        average_rating: data.average_rating !== undefined ? Number(data.average_rating) : null,
-        review_count: data.review_count !== undefined ? Number(data.review_count) : 0,
-        variants: Array.isArray(data.variants) ? data.variants : []
-      };
-      if (data.images && !Array.isArray(data.images)) {
-        try {
-          parsedProduct.images = typeof data.images === 'string' ? JSON.parse(data.images) : [];
-        } catch (e) { parsedProduct.images = []; }
-      } else if (!data.images) {
-          parsedProduct.images = [];
-      }
-      if (Array.isArray(data.variants) && data.variants.length > 0) {
-        const options = {}; 
-        const initialSelections = {}; 
-        const allKeys = new Set();
-        data.variants.forEach(variant => {
-          if (variant.attributes) {
-            Object.keys(variant.attributes).forEach(key => allKeys.add(key));
-          }
-        });
-        allKeys.forEach(key => {
-          const values = [...new Set(data.variants
-            .map(variant => variant.attributes ? variant.attributes[key] : undefined)
-            .filter(value => value !== undefined && value !== null && value !== '')) 
-          ];
-          if (values.length > 0) {
-            options[key] = values; 
-            initialSelections[key] = values[0]; 
-          }
-        });
-        setAttributeOptions(options);
-        console.log('Determined Attribute Options:', options);
-        parsedProduct.variants = data.variants; 
+      const response = await fetch(`${API_BASE_URL}/api/reviews/product/${productId}`);
+      if (response.ok) {
+        const reviewsData = await response.json();
+        setReviews(reviewsData);
+        console.log('Reviews fetched:', reviewsData);
       } else {
-        parsedProduct.variants = [];
-      }
-      setProduct(parsedProduct);
-      const productIdForReviews = parsedProduct.product_id || parsedProduct.id; 
-      if (productIdForReviews) {
-        try {
-          const reviewsResponse = await fetch(`${API_BASE_URL}/api/reviews/product/${productIdForReviews}`);
-          if (reviewsResponse.ok) {
-            const reviewsData = await reviewsResponse.json();
-            setReviews(reviewsData);
-             console.log('Reviews fetched:', reviewsData);
-          } else {
-            console.error('Failed to fetch reviews:', reviewsResponse.status);
-            setReviews([]); 
-          }
-        } catch (err) {
-          console.error('Error fetching reviews:', err);
-          setReviews([]);
-        }
+        console.error('Failed to fetch reviews:', response.status);
+        setReviews([]); 
       }
     } catch (err) {
-      console.error('Error in fetchProductDetails:', err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
+      console.error('Error fetching reviews:', err);
+      setReviews([]);
     }
   };
+
   const incrementQuantity = () => {
     if (selectedVariant) {
       if (quantity < selectedVariant.stock) {
@@ -243,17 +154,20 @@ const ProductDetailPage = () => {
       setQuantity(prev => prev + 1);
     }
   };
+
   const decrementQuantity = () => {
     if (quantity > 1) {
       setQuantity(prev => prev - 1);
     }
   };
+
   const handleQuantityChange = (e) => {
     const value = parseInt(e.target.value);
     if (!isNaN(value) && value >= 1 && product && value <= product.stock_quantity) {
       setQuantity(value);
     }
   };
+
   const handleAddToCart = () => {
     if (product.variants && product.variants.length > 0) {
       if (!selectedVariant) {
@@ -301,6 +215,7 @@ const ProductDetailPage = () => {
       console.error(err);
     }
   };
+
   const handleBuyNow = () => {
     if (product.variants && product.variants.length > 0) {
       if (!selectedVariant) {
@@ -318,17 +233,21 @@ const ProductDetailPage = () => {
     handleAddToCart();
     navigate('/checkout');
   };
+
   const goBack = () => {
     navigate(-1);
   };
+
   const formatPrice = (price) => {
     if (!price) return '0.00';
     return Number(price).toFixed(2);
   };
+
   const calculateDiscountedPrice = (price, discount) => {
     if (!discount) return price;
     return (price - (price * discount / 100)).toFixed(2);
   };
+
   const getFullImageUrl = (url) => {
     if (!url) {
       console.warn('[getFullImageUrl] URL is missing, returning placeholder.');
@@ -358,6 +277,7 @@ const ProductDetailPage = () => {
     // Any other format
     return `${API_BASE_URL}/${url}`;
   };
+
   const renderStars = (rating) => {
     const stars = [];
     const numRating = Number(rating) || 0;
@@ -373,6 +293,7 @@ const ProductDetailPage = () => {
     }
     return stars;
   };
+
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
@@ -382,6 +303,7 @@ const ProductDetailPage = () => {
       day: 'numeric' 
     });
   };
+
   const handleReviewSubmit = async (e) => {
     e.preventDefault();
     if (newRating === 0) {
@@ -413,7 +335,7 @@ const ProductDetailPage = () => {
       setShowReviewForm(false);
       setNewRating(0);
       setNewComment('');
-      fetchProductDetails();
+      fetchReviews(product.product_id);
       setHasReviewed(true);
     } catch (err) {
       console.error('Error submitting review:', err);
@@ -458,7 +380,7 @@ const ProductDetailPage = () => {
     return (
       <div className="error-container">
         <h2>Error</h2>
-        <p>{error}</p>
+        <p>{error.message}</p>
         <button onClick={goBack} className="back-button">
           <i className="fas fa-arrow-left"></i> Go Back
         </button>
