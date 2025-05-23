@@ -255,8 +255,8 @@ function Account() {
     return (
       <div className="account-page">
         <NavBar />
-        <div className="loading-container">
-          <div className="loading-spinner"></div>
+        <div className="account-loading-container">
+          <div className="account-loading-spinner"></div>
           <p>Loading your account information...</p>
         </div>
         <Footer />
@@ -285,13 +285,13 @@ function Account() {
   ].filter(Boolean).join(', ');
 
   return (
-    <div className="account-background">
+    <div className="account-background account-page">
       {refreshing && (
         <>
           <div style={refreshSpinnerStyle}></div>
           <style>
             {`
-              @keyframes spin {
+              @keyframes account-spin {
                 0% { transform: rotate(0deg); }
                 100% { transform: rotate(360deg); }
               }

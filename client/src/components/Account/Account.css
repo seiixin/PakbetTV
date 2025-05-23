@@ -3,21 +3,20 @@
   box-sizing: border-box;
 }
 
-body {
+.account-page-body {
   margin: 0;
   font-family: 'ZCOOL XiaoWei', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
- 
   color: #333;
 }
 
-h2 {
+.account-page h2 {
   font-weight: 600;
   margin-bottom: 12px;
   color: #222;
   font-family: 'ZCOOL XiaoWei', serif;
 }
 
-label {
+.account-page label {
   display: block;
   margin-bottom: 6px;
   font-weight: 600;
@@ -25,7 +24,9 @@ label {
   color: #555;
 }
 
-input, select, textarea {
+.account-page input, 
+.account-page select, 
+.account-page textarea {
   width: 100%;
   padding: 10px 12px;
   margin-bottom: 15px;
@@ -38,7 +39,9 @@ input, select, textarea {
   font-family: 'ZCOOL XiaoWei', sans-serif;
 }
 
-input:focus, select:focus, textarea:focus {
+.account-page input:focus, 
+.account-page select:focus, 
+.account-page textarea:focus {
   outline: none;
   border-color: #800000;
   box-shadow: 0 0 4px rgba(128, 0, 0, 0.4);
@@ -117,7 +120,7 @@ input:focus, select:focus, textarea:focus {
   word-break: break-word;
 }
 
-.loading-container {
+.account-loading-container {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -127,23 +130,23 @@ input:focus, select:focus, textarea:focus {
   text-align: center;
 }
 
-.loading-spinner {
+.account-loading-spinner {
   width: 40px;
   height: 40px;
   border: 3px solid rgba(128, 0, 0, 0.1);
   border-radius: 50%;
   border-top: 3px solid #800000;
-  animation: spin 1s linear infinite;
+  animation: account-spin 1s linear infinite;
   margin-bottom: 15px;
 }
 
-@keyframes spin {
+@keyframes account-spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
 
-.error-message,
-.success-message {
+.account-error-message,
+.account-success-message {
   padding: 12px 20px;
   border-radius: 6px;
   margin: 20px auto;
@@ -151,16 +154,58 @@ input:focus, select:focus, textarea:focus {
   text-align: center;
 }
 
-.error-message {
+.account-error-message {
   background-color: #fef2f2;
   color: #800000;
   border: 1px solid #fecaca;
 }
 
-.success-message {
+.account-success-message {
   background-color: #f0fdf4;
   color: #166534;
   border: 1px solid #dcfce7;
+}
+
+.account-edit-button {
+  background-color: #800000;
+  color: white;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.account-edit-button:hover {
+  background-color: #6f0000;
+}
+
+.account-save-button {
+  background-color: #800000;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.account-save-button:hover {
+  background-color: #6f0000;
+}
+
+.account-cancel-button {
+  background-color: #e5e5e5;
+  color: #333;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.account-cancel-button:hover {
+  background-color: #d5d5d5;
 }
 
 @media (max-width: 720px) {
@@ -188,8 +233,8 @@ input:focus, select:focus, textarea:focus {
     flex-direction: column;
   }
   
-  .error-message,
-  .success-message {
+  .account-error-message,
+  .account-success-message {
     margin: 15px;
   }
 }

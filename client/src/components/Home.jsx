@@ -206,7 +206,41 @@ const Home = () => {
       <section className="home-hero-section">
         {/* The background image will display automatically via CSS */}
       </section>
-
+        <div className="why-consult-section">
+          <h1>Why Consult with Master Michael De Mesa</h1>
+          <div className="why-consult-grid">
+            <div className="why-consult-item">
+              <img src="/Icons-1.png" alt="Icons-1" className="why-consult-icon" />
+              <h3>International Feng Shui Affiliate Member</h3>
+              <p>Extensive international expertise in Feng Shui consultations across diverse cultures and environments.</p>
+            </div>
+            <div className="why-consult-item">
+              <img src="/Icons-2.png" alt="Icons-2.png" className="why-consult-icon" />
+              <h3>Realistic Solution</h3>
+              <p>Tailored Feng Shui solutions that integrate both traditional wisdom and modern lifestyle needs.</p>
+            </div>
+            <div className="why-consult-item">
+              <img src="/Icons-3.png" alt="Icons-3.png" className="why-consult-icon" />
+              <h3>Over 96% Customer Satisfaction</h3>
+              <p>Custom recommendations based on your specific goals, space, and personal circumstances.</p>
+            </div>
+            <div className="why-consult-item">
+              <img src="/Icons-4.png" alt="Icons-4.png" className="why-consult-icon" />
+              <h3>Comprehensive Advices</h3>
+              <p>Track record of successful transformations in both residential and commercial spaces.</p>
+            </div>
+            <div className="why-consult-item">
+              <img src="/Icons-5.png" alt="Icons-5.png" className="why-consult-icon" />
+              <h3>Expert Team</h3>
+              <p>Clear, practical advice that makes Feng Shui principles easy to understand and implement.</p>
+            </div>
+            <div className="why-consult-item">
+              <img src="/Icons-6.png" alt="Icons-6.png" className="why-consult-icon" />
+              <h3>Reasonable Pricing</h3>
+              <p>Dedicated to helping clients achieve harmony, prosperity, and well-being in their spaces.</p>
+            </div>
+          </div>
+        </div>
       {renderNewArrivals()}
       
       <section className="home-featured-carousel">

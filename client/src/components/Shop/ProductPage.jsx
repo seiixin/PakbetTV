@@ -19,6 +19,9 @@ const ProductPage = () => {
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [isCategoriesVisible, setIsCategoriesVisible] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [categories, setCategories] = useState([
+    { id: 'all', name: 'All Products', image: '/Categories-1.png' }
+  ]);
   const navigate = useNavigate();
 
   const carouselData = [
@@ -51,16 +54,6 @@ const ProductPage = () => {
     }
   ];
 
-  const categories = [
-    { id: 'all', name: 'All Products', image: '/Categories-1.png' },
-    { id: 'best-sellers', name: 'Best Sellers', image: '/Categories-1.png' },
-    { id: 'flash-deals', name: 'Flash Deals', image: '/Categories-2.png' },
-    { id: 'books', name: 'Books', image: '/Categories-3.png' },
-    { id: 'amulets', name: 'Amulets', image: '/Categories-5.png' },
-    { id: 'bracelets', name: 'Bracelets', image: '/Categories-4.png' },
-    { id: 'new-arrivals', name: 'New Arrivals', image: '/Categories-2.png' }
-  ];
-
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentSlide((prev) => (prev === 2 ? 0 : prev + 1));
@@ -76,10 +69,11 @@ const ProductPage = () => {
     } else {
       setSelectedCategory('all');
     }
-  }, [searchParams]); 
+  }, [searchParams, categories]); 
 
   useEffect(() => {
     fetchProducts();
+    fetchCategories();
   }, []);
 
   const fetchProducts = async () => {
@@ -100,6 +94,33 @@ const ProductPage = () => {
     }
   };
 
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/categories`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch categories');
+      }
+      const data = await response.json();
+      
+      // Transform database categories to match our format
+      const dbCategories = data.map(category => ({
+        id: category.name.toLowerCase(),
+        name: category.name,
+        // The category_image is already a complete data URL from the server
+        image: category.category_image || '/Categories-1.png'
+      }));
+
+      // Combine 'All Products' with database categories
+      setCategories(prevCategories => {
+        const allProductsCategory = prevCategories.find(cat => cat.id === 'all');
+        return [allProductsCategory, ...dbCategories];
+      });
+    } catch (err) {
+      console.error('Error fetching categories:', err);
+      // Keep the default 'All Products' category if there's an error
+    }
+  };
+
   const handleCategoryClick = (categoryId) => {
     navigate(`/shop?category=${categoryId}`);
     setSelectedCategory(categoryId);
@@ -117,15 +138,7 @@ const ProductPage = () => {
     let filtered = [...products];
     if (selectedCategory && selectedCategory !== 'all') {
       filtered = filtered.filter(product => {
-        if (selectedCategory === 'best-sellers') {
-          return product.items_sold > 100;
-        } else if (selectedCategory === 'new-arrivals') {
-          const thirtyDaysAgo = new Date();
-          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-          return new Date(product.created_at) > thirtyDaysAgo;
-        } else {
           return product.category_name?.toLowerCase() === selectedCategory.toLowerCase();
-        }
       });
     }
 
@@ -243,6 +256,9 @@ const ProductPage = () => {
                       className={`shop-category-card ${selectedCategory === category.id ? 'active' : ''}`}
                       onClick={() => handleCategoryClick(category.id)}
                     >
+                      <div className="shop-category-icon">
+                        <img src={category.image} alt={`${category.name} icon`} />
+                      </div>
                       <h3>{category.name}</h3>
                     </div>
                   ))}
