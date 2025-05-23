@@ -7,10 +7,13 @@ import Footer from '../Footer';
 import ProductCard from '../common/ProductCard';
 import { Link } from 'react-router-dom';
 import { useProducts } from '../../hooks/useProducts';
+import { useCategories } from '../../hooks/useCategories';
 
 const ProductPage = () => {
   const { getAllProducts } = useProducts();
-  const { data: productsData, isLoading: loading, error } = getAllProducts;
+  const { getAllCategories } = useCategories();
+  const { data: productsData, isLoading: productsLoading, error: productsError } = getAllProducts;
+  const { data: categoriesData, isLoading: categoriesLoading } = getAllCategories;
   const [flashDeals, setFlashDeals] = useState([]);
   const [searchParams] = useSearchParams(); 
   const [selectedCategory, setSelectedCategory] = useState(
@@ -69,11 +72,25 @@ const ProductPage = () => {
     } else {
       setSelectedCategory('all');
     }
-  }, [searchParams, categories]); 
+  }, [searchParams, categories]);
 
+  // Process categories when data changes
   useEffect(() => {
-    fetchCategories();
-  }, []);
+    if (categoriesData) {
+      // Transform database categories to match our format
+      const dbCategories = categoriesData.map(category => ({
+        id: category.name.toLowerCase(),
+        name: category.name,
+        image: category.category_image || '/Categories-1.png'
+      }));
+
+      // Combine 'All Products' with database categories
+      setCategories(prevCategories => {
+        const allProductsCategory = prevCategories.find(cat => cat.id === 'all');
+        return [allProductsCategory, ...dbCategories];
+      });
+    }
+  }, [categoriesData]);
 
   // Process products when data changes
   useEffect(() => {
@@ -89,31 +106,6 @@ const ProductPage = () => {
       filterProducts(productsData.products);
     }
   }, [productsData, selectedCategory, searchParams]);
-
-  const fetchCategories = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/categories`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch categories');
-      }
-      const data = await response.json();
-      
-      // Transform database categories to match our format
-      const dbCategories = data.map(category => ({
-        id: category.name.toLowerCase(),
-        name: category.name,
-        image: category.category_image || '/Categories-1.png'
-      }));
-
-      // Combine 'All Products' with database categories
-      setCategories(prevCategories => {
-        const allProductsCategory = prevCategories.find(cat => cat.id === 'all');
-        return [allProductsCategory, ...dbCategories];
-      });
-    } catch (err) {
-      console.error('Error fetching categories:', err);
-    }
-  };
 
   const handleCategoryClick = (categoryId) => {
     navigate(`/shop?category=${categoryId}`);
@@ -219,12 +211,12 @@ const ProductPage = () => {
           </div>
 
           <h1>FLASH DEALS</h1>
-          {error && <div className="error-message">{error}</div>}
-          {loading ? (
+          {productsError && <div className="error-message">{productsError}</div>}
+          {productsLoading ? (
             <div>Loading products...</div>
           ) : (
             <>
-              {console.log('Rendering flash deals section:', { flashDeals, loading, error })}
+              {console.log('Rendering flash deals section:', { flashDeals, productsLoading, productsError })}
               {(!flashDeals || flashDeals.length === 0) ? (
                 <div className="no-products">
                   <p>No flash deals available at the moment.</p>
@@ -274,8 +266,8 @@ const ProductPage = () => {
 
             <div className="Products-content">
               <h1>PRODUCTS</h1>
-              {error && <div className="error-message">{error}</div>}
-              {loading ? (
+              {productsError && <div className="error-message">{productsError}</div>}
+              {productsLoading ? (
                 <div>Loading products...</div>
               ) : filteredProducts.length === 0 ? (
                 <div className="no-products">

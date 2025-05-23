@@ -8,6 +8,7 @@ import './ProductManagement.css';
 import API_BASE_URL from '../../config';
 import { notify } from '../../utils/notifications';
 import { useProducts } from '../../hooks/useProducts';
+import { useCategories } from '../../hooks/useCategories';
 const ModalContent = styled.div`
   .read-only-field {
     background-color: #f0f0f0;
@@ -105,14 +106,15 @@ const ProductRow = memo(({ product, onEdit, onDelete }) => {
 });
 const ProductManagement = () => {
   const { getAllProducts, createProduct, updateProduct, deleteProduct } = useProducts();
+  const { getAllCategories } = useCategories();
   const { data: productsData, isLoading: loading, error } = getAllProducts;
+  const { data: categoriesData, isLoading: categoriesLoading } = getAllCategories;
   const [isEditing, setIsEditing] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deleteInProgress, setDeleteInProgress] = useState(false);
   const [userInitiatedSubmit, setUserInitiatedSubmit] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
-  const [categories, setCategories] = useState([]);
   const [includeVariants, setIncludeVariants] = useState(false);
   const [variants, setVariants] = useState([]);
   const [variantAttributes, setVariantAttributes] = useState([]); 
@@ -145,50 +147,19 @@ const ProductManagement = () => {
   const [selectedImages, setSelectedImages] = useState([]);
   useEffect(() => {
     resetForm();
-    fetchCategories();
   }, []);
-  const fetchCategories = async () => {
-    try {
-      const response = await fetch(`${API_URL}/api/categories`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch categories');
-      }
-      const data = await response.json();
-      const fetchedCategories = Array.isArray(data) ? data : [];
-      console.log("Fetched categories:", fetchedCategories);
-      setCategories(fetchedCategories);
-    } catch (err) {
-      console.error('Error fetching categories:', err);
-      setCategories([
-        { id: 1, name: 'books', code: 'BK' },
-        { id: 2, name: 'amulets', code: 'AM' },
-        { id: 3, name: 'bracelets', code: 'BR' }
-      ]);
-    }
-  };
   const generateProductCode = (categoryId) => {
-    console.log('[generateProductCode] Received categoryId:', categoryId, typeof categoryId);
-    if (!categoryId || isNaN(categoryId)) { 
-      console.log('[generateProductCode] Invalid or missing categoryId.');
+    if (!categoryId || isNaN(categoryId)) {
       return '';
-    } 
-    console.log('[generateProductCode] Categories available:', categories);
-    const category = categories.find(cat => cat.category_id === categoryId); 
-    console.log('[generateProductCode] Found category:', category);
+    }
+    const category = categoriesData?.find(cat => cat.category_id === categoryId);
     if (!category) {
-      console.log('[generateProductCode] Category object not found.');
       return '';
-    } 
-    const prefix = category.code || category.name.substring(0, 3).toUpperCase(); 
-    console.log('[generateProductCode] Calculated prefix:', prefix);
-    console.log('[generateProductCode] Existing products state:', productsData);
-    const existingProducts = productsData.filter(p => parseInt(p.category_id) === categoryId);
-    console.log('[generateProductCode] Filtered existing products in category:', existingProducts);
+    }
+    const prefix = category.code || category.name.substring(0, 3).toUpperCase();
+    const existingProducts = productsData?.filter(p => parseInt(p.category_id) === categoryId) || [];
     const nextNumber = (existingProducts.length + 1).toString().padStart(3, '0');
-    console.log('[generateProductCode] Calculated next number:', nextNumber);
-    const finalCode = `${prefix}${nextNumber}`;
-    console.log('[generateProductCode] Returning final code:', finalCode);
-    return finalCode;
+    return `${prefix}${nextNumber}`;
   };
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -618,7 +589,7 @@ const ProductManagement = () => {
                   required
                 >
                   <option key="placeholder" value="">Select a category</option>
-                  {categories.map((category) => (
+                  {categoriesData.map((category) => (
                     <option key={category.category_id} value={category.category_id}>
                       {category.name}
                     </option>
