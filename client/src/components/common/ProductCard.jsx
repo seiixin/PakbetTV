@@ -1,9 +1,14 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useCart } from '../../context/CartContext';
+import { toast } from 'react-toastify';
 import API_BASE_URL from '../../config';
 import './ProductCard.css';
 
 const ProductCard = ({ product }) => {
+  const [isAdded, setIsAdded] = useState(false);
+  const { addToCart } = useCart();
+
   // Debug product data
   useEffect(() => {
     if (product) {
@@ -127,6 +132,35 @@ const ProductCard = ({ product }) => {
     return stars;
   };
 
+  const handleAddToCart = (e) => {
+    e.preventDefault(); // Prevent navigation to product page
+    
+    try {
+      const itemToAdd = {
+        product_id: product.product_id,
+        id: product.product_id,
+        name: product.name,
+        price: product.discounted_price > 0 ? product.discounted_price : product.price,
+        image_url: getPrimaryImage(),
+        stock_quantity: product.stock_quantity || 0,
+        category_id: product.category_id,
+        category_name: product.category_name,
+        product_code: product.product_code
+      };
+
+      addToCart(itemToAdd, 1);
+      toast.success(`${product.name} added to cart successfully!`);
+      
+      // Show visual feedback
+      setIsAdded(true);
+      setTimeout(() => setIsAdded(false), 1500);
+
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      toast.error('Failed to add item to cart');
+    }
+  };
+
   return (
     <Link to={`/product/${product.product_id}`} className="product-card">
       <div className="product-card-image-container">
@@ -142,7 +176,7 @@ const ProductCard = ({ product }) => {
           loading="lazy"
         />
         {product.discount_percentage > 0 && (
-          <div className="discount-tag">-{product.discount_percentage}%</div>
+          <div className="discount-tag">-{(product.discount_percentage <= 1 ? product.discount_percentage * 100 : product.discount_percentage).toFixed(0)}%</div>
         )}
         {product.is_preferred && (
           <div className="preferred-tag">Preferred</div>
@@ -166,6 +200,13 @@ const ProductCard = ({ product }) => {
           ) : (
             <span className="regular-price">{getDisplayPrice()}</span>
           )}
+          <button 
+            className={`add-to-cart-icon ${isAdded ? 'added' : ''}`}
+            onClick={handleAddToCart}
+            disabled={product.stock_quantity <= 0}
+          >
+            <i className={`fas ${isAdded ? 'fa-check' : 'fa-shopping-cart'}`}></i>
+          </button>
         </div>
 
         <div className="product-card-meta">
