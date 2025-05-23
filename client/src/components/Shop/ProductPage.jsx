@@ -85,7 +85,44 @@ const ProductPage = () => {
         throw new Error('Failed to fetch products');
       }
       const data = await response.json();
-      setProducts(data.products || []);
+      
+      console.log('Raw data from API:', data); // Debug log
+
+      // Process products to include discount information
+      const processedProducts = (data.products || []).map(product => {
+        // Get the original and discounted prices
+        const price = parseFloat(product.price) || 0;
+        const discountedPrice = parseFloat(product.discounted_price) || 0;
+        const discountPercentage = parseFloat(product.discount_percentage) || 0;
+
+        const processedProduct = {
+          ...product,
+          price: price,
+          discounted_price: discountedPrice,
+          discount_percentage: discountPercentage
+        };
+
+        console.log('Processed product:', processedProduct); // Debug log
+        return processedProduct;
+      });
+
+      setProducts(processedProducts);
+      
+      // Filter flash deals to show products with discounted prices
+      const validFlashDeals = processedProducts.filter(product => {
+        const hasValidDiscount = product.discounted_price > 0 && product.discount_percentage > 0;
+        console.log(`Product ${product.name} flash deal check:`, {
+          price: product.price,
+          discounted_price: product.discounted_price,
+          discount_percentage: product.discount_percentage,
+          isValid: hasValidDiscount
+        });
+        return hasValidDiscount;
+      });
+
+      console.log('Valid Flash Deals:', validFlashDeals); // Debug log
+      setFlashDeals(validFlashDeals);
+      
       setLoading(false);
     } catch (err) {
       console.error('Error fetching products:', err);
@@ -93,6 +130,10 @@ const ProductPage = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    console.log('Current flashDeals state:', flashDeals); // Debug log
+  }, [flashDeals]);
 
   const fetchCategories = async () => {
     try {
@@ -132,13 +173,14 @@ const ProductPage = () => {
 
   const filterProducts = () => {
     const searchQuery = searchParams.get('search')?.toLowerCase();
-    // Show all products in flash deals for now
-    setFlashDeals(products);
+    
+    // Keep the existing flash deals, don't override them here
+    console.log('FilterProducts - current flashDeals:', flashDeals); // Debug log
 
     let filtered = [...products];
     if (selectedCategory && selectedCategory !== 'all') {
       filtered = filtered.filter(product => {
-          return product.category_name?.toLowerCase() === selectedCategory.toLowerCase();
+        return product.category_name?.toLowerCase() === selectedCategory.toLowerCase();
       });
     }
 
@@ -234,16 +276,34 @@ const ProductPage = () => {
           {error && <div className="error-message">{error}</div>}
           {loading ? (
             <div>Loading products...</div>
-          ) : flashDeals.length === 0 ? (
-            <div className="no-products">
-              <p>No flash deals available at the moment.</p>
-            </div>
           ) : (
-            <div className="shop-products-grid">
-              {flashDeals.slice(0, Max_products_display).map(product => (
-                <ProductCard key={product.product_id} product={product} />
-              ))}
-            </div>
+            <>
+              {console.log('Rendering flash deals section:', { flashDeals, loading, error })}
+              {(!flashDeals || flashDeals.length === 0) ? (
+                <div className="no-products">
+                  <p>No flash deals available at the moment.</p>
+                </div>
+              ) : (
+                <div className="shop-products-grid">
+                  {flashDeals.slice(0, Max_products_display).map(product => {
+                    console.log('Rendering flash deal product:', product);
+                    return (
+                      <ProductCard 
+                        key={product.product_id} 
+                        product={{
+                          ...product,
+                          price: product.price,
+                          originalPrice: product.price,
+                          discountedPrice: product.discounted_price,
+                          discount_percentage: product.discount_percentage,
+                          isDiscountValid: true
+                        }} 
+                      />
+                    );
+                  })}
+                </div>
+              )}
+            </>
           )}
 
           <div className="shop-main">
@@ -278,7 +338,17 @@ const ProductPage = () => {
               ) : (
                 <div className="shop-products-grid">
                   {filteredProducts.map(product => (
-                    <ProductCard key={product.product_id} product={product} />
+                    <ProductCard 
+                      key={product.product_id} 
+                      product={{
+                        ...product,
+                        price: product.price,
+                        originalPrice: product.originalPrice,
+                        discountedPrice: product.discounted_price,
+                        discount_percentage: product.discount_percentage,
+                        isDiscountValid: product.isDiscountValid
+                      }} 
+                    />
                   ))}
                 </div>
               )}

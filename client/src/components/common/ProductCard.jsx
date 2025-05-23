@@ -25,6 +25,22 @@ const ProductCard = ({ product }) => {
     return `₱${numPrice.toFixed(2)}`;
   };
 
+  // Get the display price (either discounted or original)
+  const getDisplayPrice = () => {
+    if (product.discounted_price && product.discounted_price > 0) {
+      return formatPrice(product.discounted_price);
+    }
+    return formatPrice(product.price || 0);
+  };
+
+  // Get the original price for display when there's a discount
+  const getOriginalPrice = () => {
+    if (product.discounted_price && product.discounted_price > 0) {
+      return formatPrice(product.price || 0);
+    }
+    return null;
+  };
+
   const getPriceDisplay = () => {
     // First check if we have variants with valid prices
     if (product.variants && product.variants.length > 0) {
@@ -140,15 +156,15 @@ const ProductCard = ({ product }) => {
         <h3 className="product-card-name">{product.name}</h3>
         
         <div className="product-card-price">
-          {product.discount_percentage > 0 ? (
+          {product.discounted_price > 0 ? (
             <div className="price-with-discount">
               <span className="discounted-price">
-                {getPriceDisplay()}
+                {getDisplayPrice()}
               </span>
-              <span className="original-price">{formatPrice(product.price)}</span>
+              <span className="original-price">{getOriginalPrice()}</span>
             </div>
           ) : (
-            <span className="regular-price">{getPriceDisplay()}</span>
+            <span className="regular-price">{getDisplayPrice()}</span>
           )}
         </div>
 

@@ -278,6 +278,8 @@ router.get('/', async (req, res) => {
         p.price as base_price,
         p.average_rating,
         p.review_count,
+        p.discounted_price,
+        p.discount_percentage,
         COALESCE(SUM(pv.stock), 0) as stock,
         GROUP_CONCAT(DISTINCT pv.image_url) as variant_images
       FROM products p
@@ -297,7 +299,7 @@ router.get('/', async (req, res) => {
       countQueryParams.push(category);
     }
 
-    productQuery += ' GROUP BY p.product_id, p.name, p.product_code, p.description, p.category_id, p.created_at, p.updated_at, c.name, p.price';
+    productQuery += ' GROUP BY p.product_id, p.name, p.product_code, p.description, p.category_id, p.created_at, p.updated_at, c.name, p.price, p.discounted_price, p.discount_percentage';
     productQuery += ' ORDER BY p.created_at DESC LIMIT ? OFFSET ?';
     queryParams.push(limit, offset);
 
@@ -314,15 +316,24 @@ router.get('/', async (req, res) => {
 
       console.log(`Found ${products.length} products out of ${totalProducts} total`);
 
-      // For each product, get the primary image from product_images table
+      // Process each product
       for (const product of products) {
-        // Get variants for each product to display the correct price range
+        // Ensure numeric values are properly formatted
+        product.price = Number(product.base_price) || 0;
+        product.discounted_price = Number(product.discounted_price) || 0;
+        product.discount_percentage = Number(product.discount_percentage) || 0;
+        product.average_rating = product.average_rating !== null ? Number(product.average_rating) : 0;
+        product.review_count = Number(product.review_count) || 0;
+        product.stock = Number(product.stock) || 0;
+
+        delete product.base_price;
+
+        // Get variants and process them
         const [productVariants] = await db.query(
           'SELECT variant_id, sku, price, stock, image_url, attributes FROM product_variants WHERE product_id = ?',
           [product.product_id]
         );
         
-        // Process variants and set price correctly
         if (productVariants && productVariants.length > 0) {
           product.variants = productVariants.map(variant => ({
             ...variant,
@@ -330,29 +341,11 @@ router.get('/', async (req, res) => {
             stock: Number(variant.stock) || 0,
             attributes: variant.attributes ? JSON.parse(variant.attributes) : {}
           }));
-
-          // Calculate price from variants if available
-          const validPrices = productVariants
-            .map(v => Number(v.price))
-            .filter(p => !isNaN(p) && p > 0);
-            
-          if (validPrices.length > 0) {
-            product.price = Math.min(...validPrices);
-          } else {
-            product.price = Number(product.base_price) || 0;
-          }
         } else {
-          product.price = Number(product.base_price) || 0;
           product.variants = [];
         }
-        
-        delete product.base_price;
 
-        // Ensure rating data is properly formatted
-        product.average_rating = product.average_rating !== null ? Number(product.average_rating) : 0;
-        product.review_count = Number(product.review_count) || 0;
-
-        // First check if we have product_images records
+        // Process images
         const [productImages] = await db.query(
           'SELECT image_id, image_url, alt_text, sort_order FROM product_images WHERE product_id = ? ORDER BY sort_order LIMIT 1', 
           [product.product_id]
@@ -360,7 +353,6 @@ router.get('/', async (req, res) => {
         
         if (productImages.length > 0) {
           const image = productImages[0];
-          // Check if image_url is a Buffer (BLOB)
           if (image.image_url && Buffer.isBuffer(image.image_url)) {
             product.images = [{
               id: image.image_id,
@@ -376,33 +368,18 @@ router.get('/', async (req, res) => {
               order: image.sort_order
             }];
           }
-        } 
-        // If no product_images, use variant images
-        else if (product.variant_images) {
+        } else if (product.variant_images) {
           const imageUrls = product.variant_images.split(',').filter(url => url);
-          console.log(`Processing variant images for product ${product.product_id}:`, imageUrls);
-          
-          // For variant images, we're assuming they're not BLOB data but file paths
-          product.images = imageUrls.map((url, index) => {
-            let imageUrl = url.trim();
-            // Check if it's already a path
-            if (!imageUrl.startsWith('/')) {
-              imageUrl = `/uploads/${path.basename(imageUrl)}`;
-            }
-            console.log(`Formatted image URL: ${imageUrl}`);
-            return {
-              url: imageUrl,
-              alt: `${product.name} - Variant ${index + 1}`,
-              order: index
-            };
-          });
+          product.images = imageUrls.map((url, index) => ({
+            url: url.startsWith('/') ? url : `/uploads/${url}`,
+            alt: `${product.name} - Variant ${index + 1}`,
+            order: index
+          }));
         } else {
           product.images = [];
         }
 
-        // Ensure price and stock are numbers
-        product.stock = Number(product.stock) || 0;
-        delete product.variant_images; // Remove the raw variant_images field
+        delete product.variant_images;
       }
 
       res.json({
