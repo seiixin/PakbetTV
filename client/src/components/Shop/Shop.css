@@ -2341,6 +2341,10 @@
   object-fit: contain;
 }
 
+.shop-category-card.active .shop-category-icon img {
+  filter: brightness(0) invert(1);
+}
+
 .shop-category-card h3 {
   color: #A2201A;
   font-weight: 600;

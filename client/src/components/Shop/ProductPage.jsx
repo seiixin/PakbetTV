@@ -23,7 +23,7 @@ const ProductPage = () => {
   const [isCategoriesVisible, setIsCategoriesVisible] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [categories, setCategories] = useState([
-    { id: 'all', name: 'All Products', image: '/Categories-1.png' }
+    { id: 'all', name: 'All Products', image: '/All-Products.svg' }
   ]);
   const navigate = useNavigate();
 
@@ -81,12 +81,16 @@ const ProductPage = () => {
       const dbCategories = categoriesData.map(category => ({
         id: category.name.toLowerCase(),
         name: category.name,
-        image: category.category_image || '/Categories-1.png'
+        image: category.category_image || '/All-products.svg'
       }));
 
       // Combine 'All Products' with database categories
       setCategories(prevCategories => {
-        const allProductsCategory = prevCategories.find(cat => cat.id === 'all');
+        const allProductsCategory = {
+          id: 'all',
+          name: 'All Products',
+          image: '/All-products.svg'
+        };
         return [allProductsCategory, ...dbCategories];
       });
     }
