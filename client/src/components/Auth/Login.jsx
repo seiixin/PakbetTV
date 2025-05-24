@@ -9,16 +9,13 @@ import './Auth.css';
 function Login() {
   const navigate = useNavigate();
   const location = useLocation();
-  const authContext = useAuth();
+  const { login, mergeGuestCartWithUserCart } = useAuth();
   const cart = useCart();
-  console.log('Auth context in Login:', authContext);
+  console.log('Auth context in Login:', login);
   console.log('Cart context in Login:', cart);
   
-  const { login } = authContext || {};
-  const { mergeGuestCartWithUserCart } = cart || {};
-  
   const [formData, setFormData] = useState({
-    email: '',
+    emailOrUsername: '',
     password: ''
   });
   const [error, setError] = useState('');
@@ -53,7 +50,7 @@ function Login() {
     setError('');
     setLoading(true);
 
-    if (!formData.email || !formData.password) {
+    if (!formData.emailOrUsername || !formData.password) {
       setError('Please fill in all fields');
       toast.error('Please fill in all fields');
       setLoading(false);
@@ -70,7 +67,6 @@ function Login() {
     const result = await login(formData);
     if (result.success) {
       toast.success('Login successful! Welcome back!');
-      // Only merge carts if the function is available
       if (mergeGuestCartWithUserCart) {
         try {
           setTimeout(() => {
@@ -103,14 +99,14 @@ function Login() {
         </div>
         {error && <div className="error-message">{error}</div>}
         <div className="form-group">
-          <label htmlFor="email">Email</label>
+          <label htmlFor="emailOrUsername">Email or Username</label>
           <input
-            type="email"
-            id="email"
-            name="email"
-            value={formData.email}
+            type="text"
+            id="emailOrUsername"
+            name="emailOrUsername"
+            value={formData.emailOrUsername}
             onChange={handleChange}
-            placeholder="Enter your email"
+            placeholder="Enter your email or username"
             required
             disabled={loading}
           />

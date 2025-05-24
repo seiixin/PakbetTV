@@ -69,7 +69,7 @@ router.post(
   '/login',
   limiter,
   [
-    body('email', 'Please include a valid email').isEmail(),
+    body('emailOrUsername', 'Email or username is required').exists(),
     body('password', 'Password is required').exists()
   ],
   async (req, res) => {
@@ -77,11 +77,11 @@ router.post(
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
-    const { email, password } = req.body;
+    const { emailOrUsername, password } = req.body;
     try {
       const [users] = await db.query(
-        'SELECT user_id, first_name, last_name, email, password, user_type, status FROM users WHERE email = ?',
-        [email]
+        'SELECT user_id, username, first_name, last_name, email, password, user_type, status FROM users WHERE email = ? OR username = ?',
+        [emailOrUsername, emailOrUsername]
       );
       if (users.length === 0) {
         return res.status(400).json({ message: 'Invalid credentials' });
@@ -110,6 +110,7 @@ router.post(
             token,
             user: {
               id: user.user_id,
+              username: user.username,
               firstName: user.first_name,
               lastName: user.last_name,
               email: user.email,
@@ -140,7 +141,7 @@ router.get('/me', auth, async (req, res) => {
     
     try {
       const [users] = await connection.query(
-        'SELECT user_id, first_name, last_name, email, phone, address, user_type, status FROM users WHERE user_id = ?',
+        'SELECT user_id, username, first_name, last_name, email, phone, address, user_type, status FROM users WHERE user_id = ?',
         [userId]
       );
       
@@ -157,6 +158,7 @@ router.get('/me', auth, async (req, res) => {
       
       res.json({
         id: user.user_id,
+        username: user.username,
         firstName: user.first_name,
         lastName: user.last_name,
         email: user.email,
@@ -212,7 +214,7 @@ router.post('/refresh', async (req, res) => {
     
     // Fetch latest user info from database
     const [users] = await db.query(
-      'SELECT user_id, first_name, last_name, email, user_type, status FROM users WHERE user_id = ?',
+      'SELECT user_id, username, first_name, last_name, email, user_type, status FROM users WHERE user_id = ?',
       [decoded.user.id]
     );
     
@@ -241,11 +243,12 @@ router.post('/refresh', async (req, res) => {
           return res.status(500).json({ message: 'Error refreshing token' });
         }
         
-        // Return the new token
+        // Return the token and user data
         res.json({
           token: newToken,
           user: {
             id: user.user_id,
+            username: user.username,
             firstName: user.first_name,
             lastName: user.last_name,
             email: user.email,

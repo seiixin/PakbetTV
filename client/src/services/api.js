@@ -150,7 +150,11 @@ export const authService = {
       notify.success('Profile updated successfully!');
       return response;
     } catch (error) {
-      handleApiError(error);
+      if (error.response?.data?.message) {
+        notify.error(error.response.data.message);
+      } else {
+        notify.error('Failed to update profile');
+      }
       throw error;
     }
   },
@@ -190,6 +194,31 @@ export const authService = {
     try {
       const response = await api.delete(`/api/users/shipping-address/${addressId}`);
       notify.success('Shipping address deleted successfully!');
+      return response;
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
+  },
+  
+  updateUsername: async (username) => {
+    try {
+      const response = await api.put('/api/users/update-username', { username });
+      notify.success('Username updated successfully!');
+      return response;
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
+  },
+
+  updatePassword: async (currentPassword, newPassword) => {
+    try {
+      const response = await api.put('/api/users/update-password', {
+        currentPassword,
+        newPassword
+      });
+      notify.success('Password updated successfully!');
       return response;
     } catch (error) {
       handleApiError(error);

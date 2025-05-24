@@ -40,7 +40,8 @@ export const AuthProvider = ({ children }) => {
           firstName: profileData.firstName,
           lastName: profileData.lastName,
           email: profileData.email,
-          userType: profileData.userType
+          userType: profileData.userType,
+          username: profileData.username
         };
         
         setUser(updatedUserData);
@@ -70,7 +71,8 @@ export const AuthProvider = ({ children }) => {
                 firstName: newProfileData.firstName,
                 lastName: newProfileData.lastName,
                 email: newProfileData.email,
-                userType: newProfileData.userType
+                userType: newProfileData.userType,
+                username: newProfileData.username
               };
               
               setUser(refreshedUserData);

@@ -86,134 +86,57 @@ router.get('/shipping-addresses', auth, async (req, res) => {
 });
 
 // Update user profile - IMPORTANT: This must come BEFORE the /:id route
-router.put('/profile', auth, async (req, res) => {
+router.put('/profile', auth, [
+  body('firstName', 'First name is required').notEmpty(),
+  body('lastName', 'Last name is required').notEmpty(),
+  body('email', 'Please include a valid email').isEmail(),
+  body('username', 'Username is required').notEmpty()
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  const { firstName, lastName, email, phone, username } = req.body;
+
   try {
-    console.log('=== PROFILE UPDATE ATTEMPT ===');
-    console.log('Headers:', req.headers);
-    console.log('User:', req.user);
-    console.log('Body:', req.body);
-    
-    const userId = req.user.id;
-    
-    if (!userId) {
-      console.error('Profile Update - Error: Invalid user ID:', userId);
-      return res.status(401).json({ message: 'Invalid user token structure' });
-    }
-    
-    const { firstName, lastName, email, phone } = req.body;
-    
-    // Validate inputs
-    if (!firstName && !lastName && !email && !phone) {
-      console.error('Profile Update - Error: No update data provided');
-      return res.status(400).json({ message: 'No update data provided' });
-    }
-    
-    console.log('Updating profile for user:', userId, 'with data:', { firstName, lastName, email, phone });
-    
-    let connection;
-    try {
-      connection = await db.getConnection();
-      
-      await connection.beginTransaction();
-      
-      // First check if the user exists
-      const [checkUser] = await connection.query(
-        'SELECT user_id, user_type FROM users WHERE user_id = ?',
-        [userId]
-      );
-      
-      if (checkUser.length === 0) {
-        await connection.rollback();
-        return res.status(404).json({ message: 'User not found' });
-      }
-      
-      // Build update query dynamically based on provided fields
-      const updates = [];
-      const values = [];
-      
-      if (firstName !== undefined) {
-        updates.push('first_name = ?');
-        values.push(firstName);
-      }
-      if (lastName !== undefined) {
-        updates.push('last_name = ?');
-        values.push(lastName);
-      }
-      if (email !== undefined) {
-        updates.push('email = ?');
-        values.push(email);
-      }
-      if (phone !== undefined) {
-        updates.push('phone = ?');
-        values.push(phone);
-      }
-      
-      updates.push('updated_at = NOW()');
-      values.push(userId);
-      
-      const updateQuery = `
-        UPDATE users 
-        SET ${updates.join(', ')}
-        WHERE user_id = ?
-      `;
-      
-      console.log('Profile Update - Query:', { sql: updateQuery, values });
-      
-      const [updateResult] = await connection.query(updateQuery, values);
-      
-      if (updateResult.affectedRows === 0) {
-        await connection.rollback();
-        return res.status(404).json({ message: 'User update failed' });
-      }
-      
-      await connection.commit();
-      
-      // Fetch updated user data
-      const [users] = await connection.query(
-        'SELECT user_id, username, first_name, last_name, email, phone FROM users WHERE user_id = ?',
-        [userId]
-      );
-      
-      if (users.length === 0) {
-        throw new Error('User not found after update');
-      }
-      
-      const updatedUser = users[0];
-      console.log('Profile Update - Success:', updatedUser);
-      
-      res.json({
-        message: 'Profile updated successfully',
-        user: {
-          id: updatedUser.user_id,
-          username: updatedUser.username,
-          firstName: updatedUser.first_name,
-          lastName: updatedUser.last_name,
-          email: updatedUser.email,
-          phone: updatedUser.phone || ''
-        }
+    // Check if email or username already exists for other users
+    const [existingUsers] = await db.query(
+      'SELECT user_id FROM users WHERE (email = ? OR username = ?) AND user_id != ?',
+      [email, username, req.user.id]
+    );
+
+    if (existingUsers.length > 0) {
+      return res.status(400).json({ 
+        message: 'Email or username is already taken by another user' 
       });
-      
-    } catch (dbError) {
-      if (connection) {
-        await connection.rollback();
-      }
-      throw dbError;
-    } finally {
-      if (connection) {
-        connection.release();
-      }
     }
-  } catch (err) {
-    console.error('Profile Update - Error:', err);
-    
-    if (err.code === 'ER_DUP_ENTRY') {
-      return res.status(400).json({ message: 'Email already in use' });
-    }
-    
-    res.status(500).json({ 
-      message: 'Failed to update profile',
-      error: process.env.NODE_ENV === 'development' ? err.message : 'Server error'
+
+    // Update user profile
+    await db.query(
+      `UPDATE users 
+       SET first_name = ?, 
+           last_name = ?, 
+           email = ?, 
+           phone = ?,
+           username = ?
+       WHERE user_id = ?`,
+      [firstName, lastName, email, phone || null, username, req.user.id]
+    );
+
+    res.json({ 
+      message: 'Profile updated successfully',
+      user: {
+        firstName,
+        lastName,
+        email,
+        phone,
+        username
+      }
     });
+  } catch (err) {
+    console.error('Error updating profile:', err);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
@@ -753,6 +676,89 @@ router.post('/update-shipping', auth, async (req, res) => {
       message: 'Failed to update shipping details',
       error: error.message 
     });
+  }
+});
+
+// Update username
+router.put('/update-username', auth, [
+  body('username', 'Username is required').not().isEmpty()
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  try {
+    const { username } = req.body;
+    
+    // Check if username is already taken
+    const [existingUsers] = await db.query(
+      'SELECT user_id FROM users WHERE username = ? AND user_id != ?',
+      [username, req.user.id]
+    );
+
+    if (existingUsers.length > 0) {
+      return res.status(400).json({ message: 'Username is already taken' });
+    }
+
+    // Update username
+    await db.query(
+      'UPDATE users SET username = ? WHERE user_id = ?',
+      [username, req.user.id]
+    );
+
+    res.json({ message: 'Username updated successfully' });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Update password
+router.put('/update-password', auth, [
+  body('currentPassword', 'Current password is required').exists(),
+  body('newPassword', 'Please enter a new password with 6 or more characters').isLength({ min: 6 })
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    // Get user's current password
+    const [users] = await db.query(
+      'SELECT password FROM users WHERE user_id = ?',
+      [req.user.id]
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const user = users[0];
+
+    // Verify current password
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Current password is incorrect' });
+    }
+
+    // Hash new password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    // Update password
+    await db.query(
+      'UPDATE users SET password = ? WHERE user_id = ?',
+      [hashedPassword, req.user.id]
+    );
+
+    res.json({ message: 'Password updated successfully' });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 

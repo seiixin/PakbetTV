@@ -58,30 +58,46 @@ function Account() {
     house_number: '',
   });
   
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmNewPassword: ''
+  });
+  
   const [isEditingPersonal, setIsEditingPersonal] = useState(false);
   const [isEditingShipping, setIsEditingShipping] = useState(false);
+  const [isEditingPassword, setIsEditingPassword] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
   useEffect(() => {
-    if (authLoading) return;
-    if (!isAuthenticated) {
-      navigate('/login');
-      return;
-    }
-    if (isAuthenticated && user) {
+    if (!authLoading && isAuthenticated && user) {
+      // Initialize the userData state with user data from context
+      const initialUserData = {
+        username: user.username || '',
+        firstname: user.firstName || '',
+        lastname: user.lastName || '',
+        email: user.email || '',
+        phone: user.phone || '',
+      };
+      setUserData(initialUserData);
+      setOriginalUserData(initialUserData);
+      
+      // Then fetch the complete profile
       fetchUserProfile();
+    } else if (!authLoading && !isAuthenticated) {
+      navigate('/login');
     }
   }, [user, isAuthenticated, authLoading, navigate]);
   
   const fetchUserProfile = async () => {
     try {
-      setLoading(true);
+      setError('');
       const response = await authService.getProfile();
       const profileData = response.data;
       const userInfo = {
-        username: profileData.username || '',
+        username: profileData.username || user?.username || '',
         firstname: profileData.firstName || '',
         lastname: profileData.lastName || '',
         email: profileData.email || '',
@@ -129,11 +145,11 @@ function Account() {
   const handlePersonalDetailsSubmit = async (e) => {
     e.preventDefault();
     try {
-      setLoading(true);
       setError('');
       setSuccess('');
       
       const updatedProfile = {
+        username: userData.username,
         firstName: userData.firstname,
         lastName: userData.lastname,
         email: userData.email,
@@ -141,17 +157,16 @@ function Account() {
       };
       
       await authService.updateProfile(updatedProfile);
+      
+      // Update the originalUserData to reflect the new values
+      setOriginalUserData({...userData});
       setSuccess('Personal details updated successfully');
       setIsEditingPersonal(false);
-      setOriginalUserData({...userData});
-      await fetchUserProfile();
       
       setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
       console.error('Error updating profile:', error);
       setError(error.response?.data?.message || 'Failed to update personal details');
-    } finally {
-      setLoading(false);
     }
   };
   
@@ -238,6 +253,50 @@ function Account() {
     }));
   };
 
+  const handlePasswordChange = (e) => {
+    setPasswordForm({
+      ...passwordForm,
+      [e.target.name]: e.target.value
+    });
+  };
+
+  const handlePasswordSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    if (passwordForm.newPassword !== passwordForm.confirmNewPassword) {
+      setError('New passwords do not match');
+      setLoading(false);
+      return;
+    }
+
+    if (passwordForm.newPassword.length < 6) {
+      setError('New password must be at least 6 characters long');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      await authService.updatePassword(
+        passwordForm.currentPassword,
+        passwordForm.newPassword
+      );
+      setSuccess('Password updated successfully');
+      setIsEditingPassword(false);
+      setPasswordForm({
+        currentPassword: '',
+        newPassword: '',
+        confirmNewPassword: ''
+      });
+    } catch (error) {
+      setError(error.response?.data?.message || 'Failed to update password');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const refreshSpinnerStyle = {
     position: 'fixed',
     top: '10px',
@@ -317,72 +376,169 @@ function Account() {
             </div>
             
             {isEditingPersonal ? (
-              <form 
-                id="personal-details-form" 
-                aria-describedby="personal-details-desc" 
-                autoComplete="on" 
-                noValidate
-                onSubmit={handlePersonalDetailsSubmit}
-              >
-                <p id="personal-details-desc">
-                  Update your name, email, and contact details here.
-                </p>
-                
-                <label htmlFor="fullname">Full Name</label>
-                <input 
-                  type="text" 
-                  id="fullname" 
-                  name="fullname" 
-                  placeholder="John Doe" 
-                  required 
-                  autoComplete="name"
-                  value={fullName}
-                  onChange={handleNameChange}
-                />
+              <form onSubmit={handlePersonalDetailsSubmit}>
+                <div className="form-group">
+                  <label htmlFor="username">Username</label>
+                  <input 
+                    type="text" 
+                    id="username" 
+                    name="username" 
+                    value={userData.username} 
+                    onChange={(e) => setUserData(prev => ({ ...prev, username: e.target.value }))}
+                    placeholder="Enter username"
+                    required
+                  />
+                </div>
 
-                <label htmlFor="email">Email Address</label>
-                <input 
-                  type="email" 
-                  id="email" 
-                  name="email" 
-                  placeholder="john@example.com" 
-                  required 
-                  autoComplete="email"
-                  value={userData.email || ''}
-                  onChange={(e) => setUserData(prev => ({ ...prev, email: e.target.value }))}
-                />
+                <div className="form-group">
+                  <label htmlFor="fullname">Full Name</label>
+                  <input 
+                    type="text" 
+                    id="fullname" 
+                    name="fullname" 
+                    value={fullName}
+                    onChange={handleNameChange}
+                    placeholder="Enter full name"
+                    required
+                  />
+                </div>
 
-                <label htmlFor="phone">Phone Number</label>
-                <input 
-                  type="tel" 
-                  id="phone" 
-                  name="phone" 
-                  placeholder="+1 555 123 4567" 
-                  autoComplete="tel" 
-                  pattern="[+0-9\s\-]{7,}"
-                  value={userData.phone || ''}
-                  onChange={(e) => setUserData(prev => ({ ...prev, phone: e.target.value }))}
-                />
+                <div className="form-group">
+                  <label htmlFor="email">Email Address</label>
+                  <input 
+                    type="email" 
+                    id="email" 
+                    name="email" 
+                    value={userData.email} 
+                    onChange={(e) => setUserData(prev => ({ ...prev, email: e.target.value }))}
+                    placeholder="Enter email"
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="phone">Phone Number</label>
+                  <input 
+                    type="tel" 
+                    id="phone" 
+                    name="phone" 
+                    value={userData.phone} 
+                    onChange={(e) => setUserData(prev => ({ ...prev, phone: e.target.value }))}
+                    placeholder="Enter phone number"
+                  />
+                </div>
 
                 <div className="account-form-actions">
                   <button type="button" className="account-cancel-button" onClick={cancelPersonalEdit}>
                     Cancel
                   </button>
                   <button type="submit" className="account-save-button">
-                    Save Personal Details
+                    Save Changes
                   </button>
                 </div>
               </form>
             ) : (
               <div className="account-info-display">
-                <p className="account-info-label">Full Name</p>
-                <p className="account-info-value">{fullName || 'Not set'}</p>
+                <div>
+                  <p className="account-info-label">Username</p>
+                  <p className="account-info-value">{userData.username || 'Not set'}</p>
+                </div>
                 
-                <p className="account-info-label">Email Address</p>
-                <p className="account-info-value">{userData.email || 'Not set'}</p>
+                <div>
+                  <p className="account-info-label">Full Name</p>
+                  <p className="account-info-value">{fullName || 'Not set'}</p>
+                </div>
                 
-                <p className="account-info-label">Phone Number</p>
-                <p className="account-info-value">{userData.phone || 'Not set'}</p>
+                <div>
+                  <p className="account-info-label">Email Address</p>
+                  <p className="account-info-value">{userData.email || 'Not set'}</p>
+                </div>
+                
+                <div>
+                  <p className="account-info-label">Phone Number</p>
+                  <p className="account-info-value">{userData.phone || 'Not set'}</p>
+                </div>
+              </div>
+            )}
+          </section>
+          
+          <section className="account-column" aria-labelledby="password-details-title">
+            <div className="account-section-header-container">
+              <h2 id="password-details-title" className="account-section-header">Password Settings</h2>
+              {!isEditingPassword && (
+                <button 
+                  type="button" 
+                  className="account-edit-button" 
+                  onClick={() => setIsEditingPassword(true)}
+                >
+                  Change Password
+                </button>
+              )}
+            </div>
+            
+            {isEditingPassword ? (
+              <form onSubmit={handlePasswordSubmit}>
+                <div className="form-group">
+                  <label htmlFor="currentPassword">Current Password</label>
+                  <input 
+                    type="password" 
+                    id="currentPassword" 
+                    name="currentPassword" 
+                    value={passwordForm.currentPassword} 
+                    onChange={handlePasswordChange}
+                    placeholder="Enter current password"
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="newPassword">New Password</label>
+                  <input 
+                    type="password" 
+                    id="newPassword" 
+                    name="newPassword" 
+                    value={passwordForm.newPassword} 
+                    onChange={handlePasswordChange}
+                    placeholder="Enter new password"
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="confirmNewPassword">Confirm New Password</label>
+                  <input 
+                    type="password" 
+                    id="confirmNewPassword" 
+                    name="confirmNewPassword" 
+                    value={passwordForm.confirmNewPassword} 
+                    onChange={handlePasswordChange}
+                    placeholder="Confirm new password"
+                    required
+                  />
+                </div>
+
+                <div className="account-form-actions">
+                  <button type="button" className="account-cancel-button" onClick={() => {
+                    setIsEditingPassword(false);
+                    setPasswordForm({
+                      currentPassword: '',
+                      newPassword: '',
+                      confirmNewPassword: ''
+                    });
+                  }}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="account-save-button">
+                    Update Password
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="account-info-display">
+                <div>
+                  <p className="account-info-label">Password</p>
+                  <p className="account-info-value">••••••••</p>
+                </div>
               </div>
             )}
           </section>
@@ -538,6 +694,9 @@ function Account() {
             )}
           </section>
         </main>
+
+        {error && <div className="account-error-message">{error}</div>}
+        {success && <div className="account-success-message">{success}</div>}
       </div>
       <Footer forceShow={false} />
     </div>
