@@ -24,9 +24,9 @@
   color: #555;
 }
 
-.account-page input, 
-.account-page select, 
-.account-page textarea {
+.account-page .account-container input, 
+.account-page .account-container select, 
+.account-page .account-container textarea {
   width: 100%;
   padding: 10px 12px;
   margin-bottom: 15px;
@@ -39,9 +39,9 @@
   font-family: 'ZCOOL XiaoWei', sans-serif;
 }
 
-.account-page input:focus, 
-.account-page select:focus, 
-.account-page textarea:focus {
+.account-page .account-container input:focus, 
+.account-page .account-container select:focus, 
+.account-page .account-container textarea:focus {
   outline: none;
   border-color: #800000;
   box-shadow: 0 0 4px rgba(128, 0, 0, 0.4);
