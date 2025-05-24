@@ -1,14 +1,11 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import './Footer.css';
-import GoogleMap from './common/GoogleMap';
 
 const Footer = ({ forceShow = true }) => {
   return (
     <footer className={`modern-footer ${!forceShow ? 'scroll-visible' : ''}`}>
-
       <div className="footer-content">
-        
         <div className="footer-section">
           <h3>FAQ</h3>
           <ul>
@@ -21,7 +18,6 @@ const Footer = ({ forceShow = true }) => {
             <li><Link to="/faqs?category=services">Gift Wrapping Services</Link></li>
           </ul>
         </div>
-        
 
         <div className="footer-section">
           <h3>VISIT US</h3>
@@ -37,7 +33,6 @@ const Footer = ({ forceShow = true }) => {
             </div>
           </div>
         </div>
-        
 
         <div className="footer-section">
           <h3>FOLLOW US</h3>
@@ -57,16 +52,8 @@ const Footer = ({ forceShow = true }) => {
             <p><i className="far fa-envelope"></i> admin@pakbettv.com</p>
             <p><i className="fas fa-phone-alt"></i> 0976 120 3535</p>
           </div>
-
-          
-        </div>
-
-        <div className='footer-section'>
-          <GoogleMap />
         </div>
       </div>
-
- 
 
       <div className="footer-bottom">
         <div className="footer-bottom-content">
