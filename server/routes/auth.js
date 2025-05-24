@@ -649,4 +649,60 @@ router.post('/reset-password/:token', async (req, res) => {
   }
 });
 
+// Update password
+router.put('/update-password', auth, [
+  body('currentPassword', 'Current password is required').exists(),
+  body('newPassword', 'Please enter a new password with 6 or more characters').isLength({ min: 6 })
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      console.log('Validation errors:', errors.array());
+      return res.status(400).json({ message: errors.array()[0].msg });
+    }
+
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user.id;
+    
+    // Log the attempt (without sensitive data)
+    console.log('Password update attempt for user:', userId);
+    
+    // Get user's current password
+    const [users] = await db.query(
+      'SELECT user_id, password FROM users WHERE user_id = ?',
+      [userId]
+    );
+
+    if (users.length === 0) {
+      console.log('User not found for password update:', userId);
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const user = users[0];
+
+    // Verify current password
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      console.log('Invalid current password for user:', userId);
+      return res.status(400).json({ message: 'Current password is incorrect' });
+    }
+
+    // Hash new password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    // Update password
+    await db.query(
+      'UPDATE users SET password = ? WHERE user_id = ?',
+      [hashedPassword, userId]
+    );
+
+    console.log('Password updated successfully for user:', userId);
+    res.json({ message: 'Password updated successfully' });
+  } catch (err) {
+    console.error('Password update error for user:', req.user.id, err);
+    res.status(500).json({ message: 'Server error while updating password' });
+  }
+});
+
 module.exports = router; 

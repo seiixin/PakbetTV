@@ -68,8 +68,6 @@ function Account() {
   const [isEditingShipping, setIsEditingShipping] = useState(false);
   const [isEditingPassword, setIsEditingPassword] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
   useEffect(() => {
     if (!authLoading && isAuthenticated && user) {
@@ -93,7 +91,6 @@ function Account() {
   
   const fetchUserProfile = async () => {
     try {
-      setError('');
       const response = await authService.getProfile();
       const profileData = response.data;
       const userInfo = {
@@ -136,7 +133,6 @@ function Account() {
       }
     } catch (error) {
       console.error('Error fetching user profile:', error);
-      setError('Failed to load profile information');
     } finally {
       setLoading(false);
     }
@@ -145,9 +141,6 @@ function Account() {
   const handlePersonalDetailsSubmit = async (e) => {
     e.preventDefault();
     try {
-      setError('');
-      setSuccess('');
-      
       const updatedProfile = {
         username: userData.username,
         firstName: userData.firstname,
@@ -160,13 +153,9 @@ function Account() {
       
       // Update the originalUserData to reflect the new values
       setOriginalUserData({...userData});
-      setSuccess('Personal details updated successfully');
       setIsEditingPersonal(false);
-      
-      setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
       console.error('Error updating profile:', error);
-      setError(error.response?.data?.message || 'Failed to update personal details');
     }
   };
   
@@ -174,14 +163,12 @@ function Account() {
     e.preventDefault();
     try {
       setLoading(true);
-      setError('');
-      setSuccess('');
       
       const requiredFields = ['region', 'province', 'city_municipality', 'barangay', 'postcode'];
       const missingFields = requiredFields.filter(field => !shippingAddress[field]);
       
       if (missingFields.length > 0) {
-        setError(`Please fill in all required fields: ${missingFields.join(', ')}`);
+        console.error(`Please fill in all required fields: ${missingFields.join(', ')}`);
         setLoading(false);
         return;
       }
@@ -204,15 +191,11 @@ function Account() {
       };
       
       await authService.addShippingAddress(addressToSave);
-      setSuccess('Shipping details updated successfully');
       setIsEditingShipping(false);
       setOriginalAddress({...shippingAddress});
       await fetchUserProfile();
-      
-      setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
       console.error('Error updating shipping address:', error);
-      setError(error.response?.data?.message || 'Failed to update shipping details');
     } finally {
       setLoading(false);
     }
@@ -263,17 +246,15 @@ function Account() {
   const handlePasswordSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
-    setSuccess('');
 
     if (passwordForm.newPassword !== passwordForm.confirmNewPassword) {
-      setError('New passwords do not match');
+      notify.error('New passwords do not match');
       setLoading(false);
       return;
     }
 
     if (passwordForm.newPassword.length < 6) {
-      setError('New password must be at least 6 characters long');
+      notify.error('New password must be at least 6 characters long');
       setLoading(false);
       return;
     }
@@ -283,7 +264,6 @@ function Account() {
         passwordForm.currentPassword,
         passwordForm.newPassword
       );
-      setSuccess('Password updated successfully');
       setIsEditingPassword(false);
       setPasswordForm({
         currentPassword: '',
@@ -291,7 +271,8 @@ function Account() {
         confirmNewPassword: ''
       });
     } catch (error) {
-      setError(error.response?.data?.message || 'Failed to update password');
+      // Error notification is already handled in authService.updatePassword
+      console.error('Error updating password:', error);
     } finally {
       setLoading(false);
     }
@@ -694,9 +675,6 @@ function Account() {
             )}
           </section>
         </main>
-
-        {error && <div className="account-error-message">{error}</div>}
-        {success && <div className="account-success-message">{success}</div>}
       </div>
       <Footer forceShow={false} />
     </div>

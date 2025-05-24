@@ -17,7 +17,11 @@ export default defineConfig({
               method: req.method,
               path: req.url,
               target: `${options.target}${req.url}`,
-              headers: proxyReq.getHeaders()
+              headers: {
+                ...proxyReq.getHeaders(),
+                // Don't log the full auth token
+                authorization: proxyReq.getHeader('authorization') ? 'Bearer [token]' : undefined
+              }
             });
           });
           proxy.on('proxyRes', (proxyRes, req, res) => {
@@ -29,6 +33,16 @@ export default defineConfig({
           });
           proxy.on('error', (err, req, res) => {
             console.error('Proxy error:', err);
+            // Send a more helpful error response
+            if (!res.headersSent) {
+              res.writeHead(500, {
+                'Content-Type': 'application/json'
+              });
+              res.end(JSON.stringify({ 
+                message: 'Proxy error occurred',
+                error: err.message 
+              }));
+            }
           });
         }
       }

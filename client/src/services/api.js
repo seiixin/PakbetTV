@@ -214,14 +214,36 @@ export const authService = {
 
   updatePassword: async (currentPassword, newPassword) => {
     try {
-      const response = await api.put('/api/users/update-password', {
+      // Verify token exists before making request
+      const token = getAuthToken();
+      if (!token) {
+        notify.error('You must be logged in to update your password');
+        window.location.href = '/login';
+        throw new Error('No authentication token');
+      }
+
+      const response = await api.put('/api/auth/update-password', {
         currentPassword,
         newPassword
       });
       notify.success('Password updated successfully!');
       return response;
     } catch (error) {
-      handleApiError(error);
+      console.error('Password update error:', error.response?.data || error.message);
+      
+      // Handle specific error cases
+      if (error.response?.status === 401) {
+        notify.error('Your session has expired. Please log in again.');
+        removeAuthToken();
+        removeUser();
+        window.location.href = '/login';
+      } else if (error.response?.status === 403) {
+        notify.error('Not authorized to update password. Please try again or contact support.');
+      } else if (error.response?.data?.message) {
+        notify.error(error.response.data.message);
+      } else {
+        notify.error('Failed to update password. Please try again.');
+      }
       throw error;
     }
   }

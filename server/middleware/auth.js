@@ -103,4 +103,4 @@ const admin = (req, res, next) => {
   }
 };
 
-module.exports = { auth, admin }; 
+module.exports = { auth, admin };
