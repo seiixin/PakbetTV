@@ -18,7 +18,7 @@ function OrderConfirmation() {
     const fetchOrderDetails = async () => {
       try {
         setLoading(true);
-        const response = await api.get(`/api/orders/${orderId}`);
+        const response = await api.get(`/orders/${orderId}`);
         setOrder(response.data);
         setLoading(false);
       } catch (err) {

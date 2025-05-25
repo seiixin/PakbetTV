@@ -38,7 +38,7 @@ function Purchases() {
           throw new Error('No authentication token found');
         }
 
-        const response = await api.get('/api/orders');
+        const response = await api.get('/orders');
         
         // Check if response is valid JSON
         if (typeof response.data === 'string') {

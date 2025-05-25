@@ -92,7 +92,7 @@ router.post(
   [
     auth,
     body('address', 'Shipping address is required').notEmpty(),
-    body('payment_method', 'Payment method is required').isIn(['credit_card', 'paypal', 'bank_transfer', 'cod'])
+    body('payment_method', 'Payment method is required').isIn(['credit_card', 'paypal', 'bank_transfer', 'cod', 'dragonpay'])
   ],
   async (req, res) => {
     const errors = validationResult(req);
@@ -157,51 +157,8 @@ router.post(
             item.sku || null
           ]
         );
-        if (item.variant_id) {
-          const [variantStock] = await connection.query(
-            'SELECT stock FROM product_variants WHERE variant_id = ?',
-            [item.variant_id]
-          );
-          if (variantStock.length === 0) {
-            await connection.rollback();
-            return res.status(400).json({ message: `Variant not found for ${item.name}` });
-          }
-          const newStock = variantStock[0].stock - item.quantity;
-          if (newStock < 0) {
-            await connection.rollback();
-            return res.status(400).json({ message: `Not enough stock for ${item.name} ${item.size || ''} ${item.color || ''}` });
-          }
-          await connection.query(
-            'UPDATE product_variants SET stock = ? WHERE variant_id = ?',
-            [newStock, item.variant_id]
-          );
-          await connection.query(
-            'INSERT INTO inventory (variant_id, change_type, quantity, reason) VALUES (?, ?, ?, ?)',
-            [item.variant_id, 'remove', item.quantity, `Order ${orderId}`]
-          );
-        } else {
-          const [variants] = await connection.query(
-            'SELECT variant_id, stock FROM product_variants WHERE product_id = ? ORDER BY stock DESC LIMIT 1',
-            [item.product_id]
-          );
-          if (variants.length > 0) {
-            const variantId = variants[0].variant_id;
-            const newStock = variants[0].stock - item.quantity;
-            if (newStock < 0) {
-              await connection.rollback();
-              return res.status(400).json({ message: `Not enough stock for ${item.name}` });
-            }
-            await connection.query(
-              'UPDATE product_variants SET stock = ? WHERE variant_id = ?',
-              [newStock, variantId]
-            );
-            await connection.query(
-              'INSERT INTO inventory (variant_id, change_type, quantity, reason) VALUES (?, ?, ?, ?)',
-              [variantId, 'remove', item.quantity, `Order ${orderId}`]
-            );
-          }
-        }
       }
+
       await connection.query(
         'INSERT INTO shipping (order_id, user_id, address, status) VALUES (?, ?, ?, ?)',
         [orderId, userId, address, 'pending']
@@ -225,7 +182,7 @@ router.post(
         'INSERT INTO payments (order_id, user_id, amount, payment_method, status) VALUES (?, ?, ?, ?, ?)',
         [orderId, userId, totalPrice, payment_method, 'pending']
       );
-      await connection.query('DELETE FROM cart WHERE user_id = ?', [userId]);
+
       await connection.commit();
       let deliveryInfo = null;
       if (payment_method === 'cod' || payment_method === 'credit_card') {
