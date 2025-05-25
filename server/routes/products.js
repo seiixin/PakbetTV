@@ -274,6 +274,7 @@ router.get('/', async (req, res) => {
         p.category_id, 
         p.created_at, 
         p.updated_at,
+        p.is_featured,
         c.name AS category_name,
         p.price as base_price,
         p.average_rating,
@@ -299,7 +300,7 @@ router.get('/', async (req, res) => {
       countQueryParams.push(category);
     }
 
-    productQuery += ' GROUP BY p.product_id, p.name, p.product_code, p.description, p.category_id, p.created_at, p.updated_at, c.name, p.price, p.discounted_price, p.discount_percentage';
+    productQuery += ' GROUP BY p.product_id, p.name, p.product_code, p.description, p.category_id, p.created_at, p.updated_at, c.name, p.price, p.discounted_price, p.discount_percentage, p.is_featured';
     productQuery += ' ORDER BY p.created_at DESC LIMIT ? OFFSET ?';
     queryParams.push(limit, offset);
 

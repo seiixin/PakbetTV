@@ -47,7 +47,7 @@ export const prefetchProducts = async () => {
       const { data } = await axios.get(`${API_URL}/api/products`)
       const allProducts = Array.isArray(data?.products) ? data.products : [];
       const bestSellers = allProducts
-        .filter(product => product.is_best_seller)
+        .filter(product => product.is_featured)
         .slice(0, MAX_PRODUCTS);
       
       return bestSellers;
