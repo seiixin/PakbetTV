@@ -3,11 +3,13 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
 import SocialLogin from './SocialLogin';
+import { PrivacyPolicy } from '../Legal/PrivacyPolicy';
 import './Auth.css';
 
 function Signup() {
   const navigate = useNavigate();
   const { register } = useAuth();
+  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
   const [formData, setFormData] = useState({
     username: '',
     firstname: '',
@@ -81,6 +83,25 @@ function Signup() {
     } else {
       setShowConfirmPassword(!showConfirmPassword);
     }
+  };
+
+  const PrivacyPolicyModal = () => {
+    if (!showPrivacyPolicy) return null;
+
+    return (
+      <div className="modal-overlay" onClick={() => setShowPrivacyPolicy(false)}>
+        <div className="modal-content" onClick={e => e.stopPropagation()}>
+          <button 
+            className="modal-close" 
+            onClick={() => setShowPrivacyPolicy(false)}
+            aria-label="Close privacy policy"
+          >
+            ×
+          </button>
+          <PrivacyPolicy />
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -234,8 +255,23 @@ function Signup() {
           </div>
         </div>
         <div>
-          
-          <p>By signing up, you agree to our <a href="/terms">Terms of Service</a> and <a href="/privacy">Privacy Policy</a>.</p>
+          <p>
+            By signing up, you agree to our{' '}
+            <span 
+              className="privacy-policy-link"
+              onClick={() => setShowPrivacyPolicy(true)}
+              role="button"
+              tabIndex={0}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  setShowPrivacyPolicy(true);
+                }
+              }}
+            >
+              Privacy Policy
+            </span>
+            .
+          </p>
         </div>
         <button 
           type="submit" 
@@ -252,6 +288,8 @@ function Signup() {
           <Link to="/login">Log In</Link>
         </div>
       </form>
+
+      <PrivacyPolicyModal />
     </div>
   );
 }

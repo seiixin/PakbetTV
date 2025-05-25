@@ -177,9 +177,28 @@ input:-webkit-autofill:active {
   text-decoration: underline;
   color: #811b16 !important;
 }
+
 .auth-links a{
   color: #A2201A !important;
 }
+
+.auth-form p {
+  font-size: 0.75rem;
+  color: #666;
+  text-align: center;
+  margin: 0.5rem 0;
+}
+
+.auth-form p a {
+  color: #A2201A;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.auth-form p a:hover {
+  text-decoration: underline;
+}
+
 .error-message {
   background-color: rgba(231, 76, 60, 0.1);
   color: #e74c3c;
@@ -339,4 +358,185 @@ input:-webkit-autofill:active {
   font-size: 1.1rem;
   margin-top: 15px;
   color: #4a5568;
+}
+
+/* Privacy Policy Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.75);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: 1rem;
+  backdrop-filter: blur(4px);
+}
+
+.modal-content {
+  background: white;
+  padding: 2.5rem;
+  border-radius: 12px;
+  max-width: 800px;
+  width: 95%;
+  max-height: 85vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  margin: 20px;
+}
+
+.modal-content h1 {
+  color: #A2201A;
+  font-size: 1.8rem;
+  margin-bottom: 1rem;
+  text-align: center;
+  font-weight: 600;
+}
+
+.modal-content .effective-date {
+  text-align: center;
+  color: #666;
+  font-style: italic;
+  margin-bottom: 2rem;
+}
+
+.modal-content section {
+  margin-bottom: 2rem;
+}
+
+.modal-content h2 {
+  color: #A2201A;
+  font-size: 1.3rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+.modal-content p {
+  color: #333;
+  line-height: 1.6;
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+}
+
+.modal-content ul {
+  margin-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.modal-content li {
+  color: #333;
+  margin-bottom: 0.5rem;
+  line-height: 1.5;
+  font-size: 0.95rem;
+}
+
+.modal-content strong {
+  color: #A2201A;
+  font-weight: 600;
+}
+
+.modal-close {
+  position: absolute;
+  top: 1.2rem;
+  right: 1.2rem;
+  background: rgba(162, 32, 26, 0.1);
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #A2201A;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  padding: 0;
+  line-height: 1;
+}
+
+.modal-close:hover {
+  background: rgba(162, 32, 26, 0.2);
+  transform: rotate(90deg);
+}
+
+.privacy-policy-link {
+  color: #A2201A;
+  text-decoration: none;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.privacy-policy-link:hover {
+  text-decoration: underline;
+  opacity: 0.8;
+}
+
+/* Custom Scrollbar for Modal */
+.modal-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modal-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.modal-content::-webkit-scrollbar-thumb {
+  background: #A2201A;
+  border-radius: 4px;
+}
+
+.modal-content::-webkit-scrollbar-thumb:hover {
+  background: #800000;
+}
+
+@media (max-width: 768px) {
+  .modal-content {
+    padding: 2rem;
+    margin: 1rem;
+    width: 90%;
+  }
+
+  .modal-content h1 {
+    font-size: 1.5rem;
+  }
+
+  .modal-content h2 {
+    font-size: 1.2rem;
+  }
+
+  .modal-content p,
+  .modal-content li {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .modal-content {
+    padding: 1.5rem;
+    margin: 0.5rem;
+    width: 95%;
+  }
+
+  .modal-content h1 {
+    font-size: 1.3rem;
+  }
+
+  .modal-content h2 {
+    font-size: 1.1rem;
+  }
+
+  .modal-close {
+    top: 0.8rem;
+    right: 0.8rem;
+    width: 32px;
+    height: 32px;
+    font-size: 1.2rem;
+  }
 } 

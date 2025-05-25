@@ -31,6 +31,7 @@ import Contact from './components/Contact'
 import Consultation from './components/Consultation'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
+import PrivacyPolicy from './components/Legal/PrivacyPolicy'
 
 function AppContent() {
   const location = useLocation();
@@ -84,6 +85,7 @@ function AppContent() {
         <Route path="/blog" element={<Blog />} />
         <Route path="/blog/:blogID" element={<BlogDetail />} />
         <Route path="/faqs" element={<FAQs />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
       </Routes>
     </>
   );
