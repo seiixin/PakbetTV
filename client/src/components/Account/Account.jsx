@@ -10,6 +10,8 @@ import { notify } from '../../utils/notifications';
 function Account() {
   const { user, isAuthenticated, loading: authLoading, refreshing } = useAuth();
   const navigate = useNavigate();
+  
+  // All useState hooks grouped together
   const [userData, setUserData] = useState({
     username: '',
     firstname: '',
@@ -17,6 +19,11 @@ function Account() {
     email: '',
     phone: '',
   });
+  
+  const [regions, setRegions] = useState([]);
+  const [provinces, setProvinces] = useState([]);
+  const [cities, setCities] = useState([]);
+  const [loadingLocations, setLoadingLocations] = useState(false);
   
   const [originalUserData, setOriginalUserData] = useState({
     username: '',
@@ -34,8 +41,11 @@ function Account() {
     postcode: '',
     country: 'PH',
     region: '',
+    region_id: '',
     province: '',
+    province_id: '',
     city_municipality: '',
+    city_id: '',
     barangay: '',
     street_name: '',
     building: '',
@@ -69,10 +79,110 @@ function Account() {
   const [isEditingPassword, setIsEditingPassword] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
+  // Location data fetching functions
+  const fetchRegions = async () => {
+    try {
+      setLoadingLocations(true);
+      const response = await authService.getRegions();
+      if (response.data) {
+        setRegions(response.data);
+        // If we have an existing region_id, pre-fetch provinces
+        if (shippingAddress.region_id) {
+          await fetchProvinces(shippingAddress.region_id);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching regions:', error);
+      notify.error('Failed to load regions');
+    } finally {
+      setLoadingLocations(false);
+    }
+  };
+
+  const fetchProvinces = async (regionId) => {
+    if (!regionId) return;
+    try {
+      setLoadingLocations(true);
+      const response = await authService.getProvinces(regionId);
+      if (response.data) {
+        setProvinces(response.data);
+        // If we have an existing province_id, pre-fetch cities
+        if (shippingAddress.province_id) {
+          await fetchCities(shippingAddress.province_id);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching provinces:', error);
+      notify.error('Failed to load provinces');
+    } finally {
+      setLoadingLocations(false);
+    }
+  };
+
+  const fetchCities = async (provinceId) => {
+    if (!provinceId) return;
+    try {
+      setLoadingLocations(true);
+      const response = await authService.getCities(provinceId);
+      if (response.data) {
+        setCities(response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching cities:', error);
+      notify.error('Failed to load cities');
+    } finally {
+      setLoadingLocations(false);
+    }
+  };
+
+  // Location change handlers
+  const handleRegionChange = (e) => {
+    const selectedRegion = regions.find(r => r.region_id === Number(e.target.value));
+    setShippingAddress(prev => ({
+      ...prev,
+      region_id: selectedRegion?.region_id || '',
+      region: selectedRegion?.region_name || '',
+      province: '',
+      province_id: '',
+      city_municipality: '',
+      city_id: ''
+    }));
+    setProvinces([]);
+    setCities([]);
+    if (selectedRegion?.region_id) {
+      fetchProvinces(selectedRegion.region_id);
+    }
+  };
+
+  const handleProvinceChange = (e) => {
+    const selectedProvince = provinces.find(p => p.province_id === Number(e.target.value));
+    setShippingAddress(prev => ({
+      ...prev,
+      province_id: selectedProvince?.province_id || '',
+      province: selectedProvince?.province_name || '',
+      city_municipality: '',
+      city_id: ''
+    }));
+    setCities([]);
+    if (selectedProvince?.province_id) {
+      fetchCities(selectedProvince.province_id);
+    }
+  };
+
+  const handleCityChange = (e) => {
+    const selectedCity = cities.find(c => c.city_id === Number(e.target.value));
+    setShippingAddress(prev => ({
+      ...prev,
+      city_id: selectedCity?.city_id || '',
+      city_municipality: selectedCity?.city_name || ''
+    }));
+  };
+
+  // All useEffect hooks grouped together
   useEffect(() => {
     if (!authLoading && isAuthenticated && user) {
-      // Initialize the userData state with user data from context
       const initialUserData = {
         username: user.username || '',
         firstname: user.firstName || '',
@@ -82,14 +192,18 @@ function Account() {
       };
       setUserData(initialUserData);
       setOriginalUserData(initialUserData);
-      
-      // Then fetch the complete profile
       fetchUserProfile();
     } else if (!authLoading && !isAuthenticated) {
       navigate('/login');
     }
   }, [user, isAuthenticated, authLoading, navigate]);
-  
+
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      fetchRegions();
+    }
+  }, [isAuthenticated, authLoading]);
+
   const fetchUserProfile = async () => {
     try {
       const response = await authService.getProfile();
@@ -118,8 +232,11 @@ function Account() {
             postcode: defaultAddress.postcode || '',
             country: defaultAddress.country || 'PH',
             region: defaultAddress.region || '',
+            region_id: defaultAddress.region_id || '',
             province: defaultAddress.province || '',
+            province_id: defaultAddress.province_id || '',
             city_municipality: defaultAddress.city_municipality || '',
+            city_id: defaultAddress.city_id || '',
             barangay: defaultAddress.barangay || '',
             street_name: defaultAddress.street_name || '',
             building: defaultAddress.building || '',
@@ -128,6 +245,17 @@ function Account() {
           
           setShippingAddress(addressInfo);
           setOriginalAddress(addressInfo);
+          
+          // Pre-fetch location data if we have region_id
+          if (defaultAddress.region_id) {
+            await fetchRegions();
+            if (defaultAddress.province_id) {
+              await fetchProvinces(defaultAddress.region_id);
+              if (defaultAddress.city_id) {
+                await fetchCities(defaultAddress.province_id);
+              }
+            }
+          }
         }
       } catch (addressError) {
         console.error("Error fetching shipping addresses:", addressError);
@@ -163,14 +291,13 @@ function Account() {
   const handleShippingDetailsSubmit = async (e) => {
     e.preventDefault();
     try {
-      setLoading(true);
+      setIsSaving(true);
       
-      const requiredFields = ['region', 'province', 'city_municipality', 'barangay', 'postcode'];
+      const requiredFields = ['region_id', 'province_id', 'city_id', 'barangay', 'postcode'];
       const missingFields = requiredFields.filter(field => !shippingAddress[field]);
       
       if (missingFields.length > 0) {
-        console.error(`Please fill in all required fields: ${missingFields.join(', ')}`);
-        setLoading(false);
+        notify.error(`Please fill in all required fields: ${missingFields.map(field => field.replace('_id', '')).join(', ')}`);
         return;
       }
       
@@ -184,6 +311,9 @@ function Account() {
         postcode: shippingAddress.postcode,
         country: shippingAddress.country || 'PH',
         region: shippingAddress.region,
+        region_id: shippingAddress.region_id,
+        province_id: shippingAddress.province_id,
+        city_id: shippingAddress.city_id,
         barangay: shippingAddress.barangay,
         street_name: shippingAddress.street_name,
         building: shippingAddress.building,
@@ -192,13 +322,15 @@ function Account() {
       };
       
       await authService.addShippingAddress(addressToSave);
-      setIsEditingShipping(false);
       setOriginalAddress({...shippingAddress});
+      notify.success('Shipping address updated successfully');
       await fetchUserProfile();
+      setIsEditingShipping(false);
     } catch (error) {
       console.error('Error updating shipping address:', error);
+      notify.error('Failed to update shipping address');
     } finally {
-      setLoading(false);
+      setIsSaving(false);
     }
   };
   
@@ -209,9 +341,35 @@ function Account() {
     setIsEditingPersonal(!isEditingPersonal);
   };
   
-  const toggleShippingEdit = () => {
+  const toggleShippingEdit = async () => {
     if (isEditingShipping) {
       setShippingAddress({...originalAddress});
+      setProvinces([]);
+      setCities([]);
+    } else {
+      try {
+        setLoadingLocations(true);
+        // First fetch regions
+        const regionsResponse = await authService.getRegions();
+        setRegions(regionsResponse.data || []);
+        
+        // If we have a region_id, fetch provinces
+        if (shippingAddress.region_id) {
+          const provincesResponse = await authService.getProvinces(shippingAddress.region_id);
+          setProvinces(provincesResponse.data || []);
+          
+          // If we have a province_id, fetch cities
+          if (shippingAddress.province_id) {
+            const citiesResponse = await authService.getCities(shippingAddress.province_id);
+            setCities(citiesResponse.data || []);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading location data:', error);
+        notify.error('Failed to load location data');
+      } finally {
+        setLoadingLocations(false);
+      }
     }
     setIsEditingShipping(!isEditingShipping);
   };
@@ -556,46 +714,95 @@ function Account() {
                 noValidate
                 onSubmit={handleShippingDetailsSubmit}
               >
-                <p id="shipping-details-desc">
+                <p id="shipping-details-desc" className={loadingLocations ? 'loading-text' : ''}>
                   Manage your delivery address details. Fields marked with * are required.
+                  {loadingLocations && ' Loading location data...'}
                 </p>
                 
-                <label htmlFor="region">Region *</label>
-                <input 
-                  type="text" 
-                  id="region" 
-                  name="region" 
-                  placeholder="Region" 
-                  required 
-                  value={shippingAddress.region || ''}
-                  onChange={(e) => setShippingAddress(prev => ({ ...prev, region: e.target.value }))}
-                />
+                <div className="form-group">
+                  <label htmlFor="region">
+                    Region * 
+                    <span className="current-value">
+                      {shippingAddress.region ? ` (Current: ${shippingAddress.region})` : ''}
+                    </span>
+                  </label>
+                  <select 
+                    id="region" 
+                    name="region" 
+                    required 
+                    value={shippingAddress.region_id || ''}
+                    onChange={handleRegionChange}
+                    disabled={isSaving || loadingLocations}
+                    className={loadingLocations ? 'loading' : ''}
+                  >
+                    <option value="">
+                      {loadingLocations ? 'Loading regions...' : 'Select region'}
+                    </option>
+                    {regions.map(region => (
+                      <option key={region.region_id} value={region.region_id}>
+                        {region.region_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-                <label htmlFor="province">Province *</label>
-                <input 
-                  type="text" 
-                  id="province" 
-                  name="province" 
-                  placeholder="Province" 
-                  required 
-                  value={shippingAddress.province || ''}
-                  onChange={(e) => setShippingAddress(prev => ({ ...prev, province: e.target.value }))}
-                />
+                <div className="form-group">
+                  <label htmlFor="province">
+                    Province * 
+                    <span className="current-value">
+                      {shippingAddress.province ? ` (Current: ${shippingAddress.province})` : ''}
+                    </span>
+                  </label>
+                  <select 
+                    id="province" 
+                    name="province" 
+                    required 
+                    value={shippingAddress.province_id || ''}
+                    onChange={handleProvinceChange}
+                    disabled={isSaving || loadingLocations || !shippingAddress.region_id}
+                    className={loadingLocations ? 'loading' : ''}
+                  >
+                    <option value="">
+                      {loadingLocations ? 'Loading provinces...' : 
+                       !shippingAddress.region_id ? 'Please select a region first' : 
+                       'Select province'}
+                    </option>
+                    {provinces.map(province => (
+                      <option key={province.province_id} value={province.province_id}>
+                        {province.province_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-                <label htmlFor="city_municipality">City/Municipality *</label>
-                <input 
-                  type="text" 
-                  id="city_municipality" 
-                  name="city_municipality" 
-                  placeholder="City/Municipality" 
-                  required 
-                  value={shippingAddress.city_municipality || ''}
-                  onChange={(e) => setShippingAddress(prev => ({ 
-                    ...prev, 
-                    city_municipality: e.target.value,
-                    city: e.target.value
-                  }))}
-                />
+                <div className="form-group">
+                  <label htmlFor="city_municipality">
+                    City/Municipality * 
+                    <span className="current-value">
+                      {shippingAddress.city_municipality ? ` (Current: ${shippingAddress.city_municipality})` : ''}
+                    </span>
+                  </label>
+                  <select 
+                    id="city_municipality" 
+                    name="city_municipality" 
+                    required 
+                    value={shippingAddress.city_id || ''}
+                    onChange={handleCityChange}
+                    disabled={isSaving || loadingLocations || !shippingAddress.province_id}
+                    className={loadingLocations ? 'loading' : ''}
+                  >
+                    <option value="">
+                      {loadingLocations ? 'Loading cities...' : 
+                       !shippingAddress.province_id ? 'Please select a province first' : 
+                       'Select city/municipality'}
+                    </option>
+                    {cities.map(city => (
+                      <option key={city.city_id} value={city.city_id}>
+                        {city.city_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
                 <label htmlFor="barangay">Barangay *</label>
                 <input 
@@ -606,6 +813,7 @@ function Account() {
                   required 
                   value={shippingAddress.barangay || ''}
                   onChange={(e) => setShippingAddress(prev => ({ ...prev, barangay: e.target.value }))}
+                  disabled={isSaving}
                 />
 
                 <label htmlFor="street_name">Street Name</label>
@@ -616,6 +824,7 @@ function Account() {
                   placeholder="Street Name" 
                   value={shippingAddress.street_name || ''}
                   onChange={(e) => setShippingAddress(prev => ({ ...prev, street_name: e.target.value }))}
+                  disabled={isSaving}
                 />
 
                 <label htmlFor="house_number">House Number</label>
@@ -626,6 +835,7 @@ function Account() {
                   placeholder="House Number" 
                   value={shippingAddress.house_number || ''}
                   onChange={(e) => setShippingAddress(prev => ({ ...prev, house_number: e.target.value }))}
+                  disabled={isSaving}
                 />
 
                 <label htmlFor="building">Building/Floor/Unit (optional)</label>
@@ -636,6 +846,7 @@ function Account() {
                   placeholder="Building, Floor, Unit number" 
                   value={shippingAddress.building || ''}
                   onChange={(e) => setShippingAddress(prev => ({ ...prev, building: e.target.value }))}
+                  disabled={isSaving}
                 />
 
                 <label htmlFor="postcode">Postal Code *</label>
@@ -647,6 +858,7 @@ function Account() {
                   required 
                   value={shippingAddress.postcode || ''}
                   onChange={(e) => setShippingAddress(prev => ({ ...prev, postcode: e.target.value }))}
+                  disabled={isSaving}
                 />
 
                 <label htmlFor="country">Country</label>
@@ -667,20 +879,55 @@ function Account() {
                 </select>
 
                 <div className="account-form-actions">
-                  <button type="button" className="account-cancel-button" onClick={cancelShippingEdit}>
+                  <button 
+                    type="button" 
+                    className="account-cancel-button" 
+                    onClick={cancelShippingEdit}
+                    disabled={isSaving}
+                  >
                     Cancel
                   </button>
-                  <button type="submit" className="account-save-button">
-                    Save Shipping Details
+                  <button 
+                    type="submit" 
+                    className="account-save-button"
+                    disabled={isSaving || loadingLocations}
+                  >
+                    {isSaving ? 'Saving...' : 'Save Shipping Details'}
                   </button>
                 </div>
               </form>
             ) : (
               <div className="account-info-display">
-                <p className="account-info-label">Address</p>
-                <p className="account-info-value">
-                  {formattedAddress || 'No shipping address has been set yet'}
-                </p>
+                <div>
+                  <p className="account-info-label">Region</p>
+                  <p className="account-info-value">{shippingAddress.region || 'Not set'}</p>
+                </div>
+                <div>
+                  <p className="account-info-label">Province</p>
+                  <p className="account-info-value">{shippingAddress.province || 'Not set'}</p>
+                </div>
+                <div>
+                  <p className="account-info-label">City/Municipality</p>
+                  <p className="account-info-value">{shippingAddress.city_municipality || 'Not set'}</p>
+                </div>
+                <div>
+                  <p className="account-info-label">Barangay</p>
+                  <p className="account-info-value">{shippingAddress.barangay || 'Not set'}</p>
+                </div>
+                <div>
+                  <p className="account-info-label">Street Address</p>
+                  <p className="account-info-value">
+                    {[
+                      shippingAddress.house_number,
+                      shippingAddress.building,
+                      shippingAddress.street_name
+                    ].filter(Boolean).join(', ') || 'Not set'}
+                  </p>
+                </div>
+                <div>
+                  <p className="account-info-label">Postal Code</p>
+                  <p className="account-info-value">{shippingAddress.postcode || 'Not set'}</p>
+                </div>
               </div>
             )}
           </section>

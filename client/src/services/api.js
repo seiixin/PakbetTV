@@ -257,6 +257,33 @@ export const authService = {
       handleApiError(error);
       throw error;
     }
+  },
+
+  getRegions: async () => {
+    try {
+      return await api.get('/api/locations/regions');
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
+  },
+  
+  getProvinces: async (regionId) => {
+    try {
+      return await api.get(`/api/locations/provinces/${regionId}`);
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
+  },
+  
+  getCities: async (provinceId) => {
+    try {
+      return await api.get(`/api/locations/cities/${provinceId}`);
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
   }
 };
 
