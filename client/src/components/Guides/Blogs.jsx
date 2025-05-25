@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import './Blogs.css';
+import NavBar from '../NavBar';
 
 const Navbar = () => {
   return (
@@ -63,6 +64,7 @@ const App = () => {
           <Card imgSrc="https://storage.googleapis.com/a1aa/image/599544c6-113c-4e77-ec6e-686350b4f67d.jpg" altText="Hand holding a smoking stick with blurred background of a room" title="Horoscope For Today February 20, 2023" />
         </section>
       </main>
+      <Footer forceShow={false} />
     </>
   );
 };

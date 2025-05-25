@@ -47,7 +47,7 @@ const Blog = () => {
   }, []);
   
   return (
-    <div className="blog-page">
+    <>
       <NavBar />
       <Hero />
       
@@ -98,9 +98,8 @@ const Blog = () => {
           </div>
         )}
       </div>
-      
-      <Footer />
-    </div>
+      <Footer forceShow={false} />
+    </>
   );
 };
 
