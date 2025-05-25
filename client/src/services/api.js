@@ -246,6 +246,17 @@ export const authService = {
       }
       throw error;
     }
+  },
+
+  deleteAccount: async () => {
+    try {
+      const response = await api.post('/api/users/delete-account');
+      notify.success('Account deleted successfully');
+      return response;
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
   }
 };
 

@@ -714,4 +714,43 @@ router.put('/update-username', auth, [
   }
 });
 
+// Soft delete user's own account
+router.post('/delete-account', auth, async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?.user?.id;
+    if (!userId) {
+      return res.status(401).json({ message: 'Invalid user token structure' });
+    }
+
+    const connection = await db.getConnection();
+    try {
+      await connection.beginTransaction();
+
+      // Update user status to 'Inactive' instead of deleting
+      await connection.query(
+        'UPDATE users SET status = ?, deleted_at = NOW() WHERE user_id = ?',
+        ['Inactive', userId]
+      );
+
+      // Optionally, you can also mark related data as inactive or handle them as needed
+      // For example, marking shipping addresses as inactive
+      await connection.query(
+        'UPDATE user_shipping_details SET is_active = 0 WHERE user_id = ?',
+        [userId]
+      );
+
+      await connection.commit();
+      res.json({ message: 'Account deleted successfully' });
+    } catch (err) {
+      await connection.rollback();
+      throw err;
+    } finally {
+      connection.release();
+    }
+  } catch (err) {
+    console.error('Error deleting account:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 module.exports = router; 

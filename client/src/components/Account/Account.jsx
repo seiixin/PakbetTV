@@ -68,6 +68,7 @@ function Account() {
   const [isEditingShipping, setIsEditingShipping] = useState(false);
   const [isEditingPassword, setIsEditingPassword] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
 
   useEffect(() => {
     if (!authLoading && isAuthenticated && user) {
@@ -275,6 +276,15 @@ function Account() {
       console.error('Error updating password:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    try {
+      await authService.deleteAccount();
+      navigate('/login');
+    } catch (error) {
+      console.error('Error deleting account:', error);
     }
   };
 
@@ -674,8 +684,50 @@ function Account() {
               </div>
             )}
           </section>
+
+          <section className="account-column" aria-labelledby="danger-zone-title">
+            <div className="account-section-header-container">
+              <h2 id="danger-zone-title" className="account-section-header">Danger Zone</h2>
+            </div>
+            <div className="account-danger-zone">
+              <p className="account-danger-text">
+                Once you delete your account, there is no going back. Please be certain.
+              </p>
+              <button 
+                type="button" 
+                className="account-delete-button"
+                onClick={() => setShowDeleteConfirmation(true)}
+              >
+                Delete Account
+              </button>
+            </div>
+          </section>
         </main>
       </div>
+
+      {showDeleteConfirmation && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h2>Delete Account</h2>
+            <p>Are you sure you want to delete your account? This action cannot be undone.</p>
+            <div className="modal-actions">
+              <button 
+                className="modal-cancel-button"
+                onClick={() => setShowDeleteConfirmation(false)}
+              >
+                Cancel
+              </button>
+              <button 
+                className="modal-delete-button"
+                onClick={handleDeleteAccount}
+              >
+                Yes, Delete My Account
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Footer forceShow={false} />
     </div>
   );
