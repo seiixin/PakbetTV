@@ -6,9 +6,10 @@ import './Account.css';
 import Footer from '../Footer';
 import NavBar from '../NavBar';
 import { notify } from '../../utils/notifications';
+import ConfirmationModal from '../common/ConfirmationModal';
 
 function Account() {
-  const { user, isAuthenticated, loading: authLoading, refreshing } = useAuth();
+  const { user, isAuthenticated, loading: authLoading, refreshing, logout } = useAuth();
   const navigate = useNavigate();
   
   // All useState hooks grouped together
@@ -80,6 +81,8 @@ function Account() {
   const [loading, setLoading] = useState(true);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [canDelete, setCanDelete] = useState(false);
+  const [checkingDeleteStatus, setCheckingDeleteStatus] = useState(true);
 
   // Location data fetching functions
   const fetchRegions = async () => {
@@ -193,6 +196,7 @@ function Account() {
       setUserData(initialUserData);
       setOriginalUserData(initialUserData);
       fetchUserProfile();
+      checkCanDelete();
     } else if (!authLoading && !isAuthenticated) {
       navigate('/login');
     }
@@ -439,10 +443,35 @@ function Account() {
 
   const handleDeleteAccount = async () => {
     try {
+      setLoading(true);
       await authService.deleteAccount();
-      navigate('/login');
+      notify.success('Account deleted successfully');
+      // First logout the user
+      await logout();
+      // Then navigate to login page
+      navigate('/login', { replace: true });
     } catch (error) {
       console.error('Error deleting account:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to delete account. Please try again later.';
+      notify.error(errorMessage);
+      // Close the modal only if there's an error
+      setShowDeleteConfirmation(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const checkCanDelete = async () => {
+    try {
+      setCheckingDeleteStatus(true);
+      const response = await authService.canDeleteAccount();
+      setCanDelete(response.canDelete);
+    } catch (error) {
+      console.error('Error checking delete status:', error);
+      // Default to false if there's an error
+      setCanDelete(false);
+    } finally {
+      setCheckingDeleteStatus(false);
     }
   };
 
@@ -939,13 +968,19 @@ function Account() {
             <div className="account-danger-zone">
               <p className="account-danger-text">
                 Once you delete your account, there is no going back. Please be certain.
+                {!canDelete && !checkingDeleteStatus && (
+                  <span className="account-warning-text">
+                    <br />You cannot delete your account while you have active orders.
+                  </span>
+                )}
               </p>
               <button 
                 type="button" 
                 className="account-delete-button"
                 onClick={() => setShowDeleteConfirmation(true)}
+                disabled={!canDelete || checkingDeleteStatus}
               >
-                Delete Account
+                {checkingDeleteStatus ? 'Checking...' : 'Delete Account'}
               </button>
             </div>
           </section>
@@ -953,26 +988,17 @@ function Account() {
       </div>
 
       {showDeleteConfirmation && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <h2>Delete Account</h2>
-            <p>Are you sure you want to delete your account? This action cannot be undone.</p>
-            <div className="modal-actions">
-              <button 
-                className="modal-cancel-button"
-                onClick={() => setShowDeleteConfirmation(false)}
-              >
-                Cancel
-              </button>
-              <button 
-                className="modal-delete-button"
-                onClick={handleDeleteAccount}
-              >
-                Yes, Delete My Account
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmationModal
+          isOpen={showDeleteConfirmation}
+          onClose={() => setShowDeleteConfirmation(false)}
+          onConfirm={handleDeleteAccount}
+          title="Delete Account"
+          message="Are you sure you want to delete your account? This action cannot be undone."
+          confirmText={loading ? "Deleting..." : "Yes, Delete My Account"}
+          cancelText="Cancel"
+          confirmButtonClass="danger"
+          loading={loading}
+        />
       )}
 
       <Footer forceShow={false} />

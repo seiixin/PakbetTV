@@ -716,39 +716,111 @@ router.put('/update-username', auth, [
 
 // Soft delete user's own account
 router.post('/delete-account', auth, async (req, res) => {
+  const connection = await db.getConnection();
   try {
-    const userId = req.user?.id || req.user?.user?.id;
+    const userId = req.user.id;
     if (!userId) {
       return res.status(401).json({ message: 'Invalid user token structure' });
     }
 
-    const connection = await db.getConnection();
-    try {
-      await connection.beginTransaction();
+    await connection.beginTransaction();
 
-      // Update user status to 'Inactive' instead of deleting
+    // Update user status to 'Inactive'
+    await connection.query(
+      'UPDATE users SET status = ? WHERE user_id = ?',
+      ['Inactive', userId]
+    );
+
+    // Delete shipping addresses for this user
+    await connection.query(
+      'DELETE FROM user_shipping_details WHERE user_id = ?',
+      [userId]
+    );
+
+    // Update reviews to set status as 'Inactive' if such column exists
+    try {
       await connection.query(
-        'UPDATE users SET status = ?, deleted_at = NOW() WHERE user_id = ?',
+        'UPDATE reviews SET status = ? WHERE user_id = ?',
         ['Inactive', userId]
       );
+    } catch (error) {
+      // If the column doesn't exist, log and continue
+      console.log('Note: Could not update reviews status - column may not exist');
+    }
 
-      // Optionally, you can also mark related data as inactive or handle them as needed
-      // For example, marking shipping addresses as inactive
+    // Mark user orders as cancelled if they are in pending/processing state
+    await connection.query(
+      `UPDATE orders 
+       SET order_status = 'cancelled', 
+           updated_at = NOW()
+       WHERE user_id = ? 
+       AND order_status IN ('pending_payment', 'processing', 'for_packing')`,
+      [userId]
+    );
+
+    // Delete any sessions for this user if the table exists
+    try {
       await connection.query(
-        'UPDATE user_shipping_details SET is_active = 0 WHERE user_id = ?',
+        'DELETE FROM user_sessions WHERE user_id = ?',
         [userId]
       );
-
-      await connection.commit();
-      res.json({ message: 'Account deleted successfully' });
-    } catch (err) {
-      await connection.rollback();
-      throw err;
-    } finally {
-      connection.release();
+    } catch (error) {
+      // If the table doesn't exist, log and continue
+      console.log('Note: Could not delete user sessions - table may not exist');
     }
+
+    await connection.commit();
+    res.json({ message: 'Account deleted successfully' });
   } catch (err) {
+    await connection.rollback();
     console.error('Error deleting account:', err);
+    res.status(500).json({ message: 'Failed to delete account. Please try again later.' });
+  } finally {
+    connection.release();
+  }
+});
+
+// Check if user can delete account
+router.get('/can-delete-account', auth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    if (!userId) {
+      return res.status(401).json({ message: 'Invalid user token structure' });
+    }
+
+    // First verify the user exists and is active
+    const [users] = await db.query(
+      'SELECT status FROM users WHERE user_id = ?',
+      [userId]
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (users[0].status !== 'Active') {
+      return res.status(400).json({ message: 'Account is already inactive' });
+    }
+
+    // Check for orders that are not in final states
+    const [activeOrders] = await db.query(
+      `SELECT COUNT(*) as count 
+       FROM orders 
+       WHERE user_id = ? 
+       AND order_status NOT IN ('delivered', 'completed', 'cancelled', 'returned')`,
+      [userId]
+    );
+
+    const canDelete = activeOrders[0].count === 0;
+    
+    res.json({ 
+      canDelete,
+      message: canDelete ? 
+        'Account can be deleted' : 
+        'Cannot delete account while there are active orders. Please wait until all orders are delivered or cancelled.'
+    });
+  } catch (err) {
+    console.error('Error checking account deletion status:', err);
     res.status(500).json({ message: 'Server error' });
   }
 });

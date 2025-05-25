@@ -1,7 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+// In development, use relative paths to leverage Vite's proxy
+const isDevelopment = process.env.NODE_ENV === 'development';
+const API_URL = isDevelopment ? '/api' : (import.meta.env.VITE_API_URL || 'http://localhost:3001');
 
 export const useProducts = () => {
   const queryClient = useQueryClient()
@@ -10,7 +12,7 @@ export const useProducts = () => {
   const getAllProducts = useQuery({
     queryKey: ['products'],
     queryFn: async () => {
-      const { data } = await axios.get(`${API_URL}/api/products`)
+      const { data } = await axios.get(`${API_URL}/products`)
       return data
     },
     // Keep the data fresh for 5 minutes
@@ -29,7 +31,7 @@ export const useProducts = () => {
   const getProduct = (id) => useQuery({
     queryKey: ['products', id],
     queryFn: async () => {
-      const { data } = await axios.get(`${API_URL}/api/products/${id}`)
+      const { data } = await axios.get(`${API_URL}/products/${id}`)
       return data
     },
     enabled: !!id,
@@ -50,7 +52,7 @@ export const useProducts = () => {
   // Create product mutation
   const createProduct = useMutation({
     mutationFn: async (newProduct) => {
-      const { data } = await axios.post(`${API_URL}/api/products`, newProduct)
+      const { data } = await axios.post(`${API_URL}/products`, newProduct)
       return data
     },
     onSuccess: (newProduct) => {

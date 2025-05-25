@@ -3,7 +3,9 @@ export const FACEBOOK_CONFIG = {
   appId: import.meta.env.VITE_FACEBOOK_APP_ID || '',
   cookie: true,
   xfbml: true,
-  version: 'v18.0'
+  version: 'v18.0',
+  // Only enable status check in HTTPS environments
+  status: window.location.protocol === 'https:'
 };
 
 // Initialize Facebook SDK

@@ -369,6 +369,13 @@
   font-size: 0.95rem;
 }
 
+.account-warning-text {
+  color: #b91c1c;
+  font-weight: 500;
+  display: block;
+  margin-top: 8px;
+}
+
 .account-delete-button {
   background-color: #dc2626;
   color: white;
@@ -377,12 +384,18 @@
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.9rem;
-  transition: background-color 0.2s ease;
+  transition: background-color 0.2s ease, opacity 0.2s ease;
   width: 100%;
 }
 
-.account-delete-button:hover {
+.account-delete-button:hover:not(:disabled) {
   background-color: #b91c1c;
+}
+
+.account-delete-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: #dc2626;
 }
 
 /* Modal Styles */

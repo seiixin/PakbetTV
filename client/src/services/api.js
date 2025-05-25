@@ -5,7 +5,7 @@ import API_BASE_URL from '../config';
 
 // Create a custom axios instance
 const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: '/api',  // Use relative path to trigger the proxy
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json'
@@ -50,12 +50,24 @@ api.interceptors.response.use(
     const isAuthEndpoint = originalRequest.url.includes('/auth/');
     const currentPath = window.location.pathname;
 
+    // Log the error for debugging
+    console.log('[API Error]:', {
+      status: error.response?.status,
+      url: originalRequest.url,
+      message: error.response?.data?.message
+    });
+
     // If we get a 401 and we're not already refreshing the token
     if (error.response?.status === 401 && !isRefreshingToken && !isAuthEndpoint) {
       try {
         isRefreshingToken = true;
         console.log('Token expired, attempting refresh...');
         
+        // Create a new promise that will be resolved with the new token
+        const tokenRefreshPromise = new Promise((resolve, reject) => {
+          pendingRequests.push(resolve);
+        });
+
         const refreshResponse = await authService.refreshToken();
         
         if (refreshResponse?.data?.token) {
@@ -65,36 +77,54 @@ api.interceptors.response.use(
           // Update the original request with new token
           originalRequest.headers.Authorization = `Bearer ${newToken}`;
           
-          // Retry all pending requests with new token
+          // Resolve all pending requests with new token
           pendingRequests.forEach(cb => cb(newToken));
           pendingRequests = [];
           
           // Retry the original request
           return api(originalRequest);
+        } else {
+          throw new Error('Token refresh failed - no token in response');
         }
       } catch (refreshError) {
         console.error('Token refresh failed:', refreshError);
+        pendingRequests.forEach(cb => cb(null));
+        pendingRequests = [];
         
-        // Clear auth data and redirect to login
+        // Clear auth data
+        removeAuthToken();
+        removeUser();
+        
+        // Only redirect if not on a public route and not already redirecting
         if (!isRedirectingToLogin) {
           isRedirectingToLogin = true;
-          removeAuthToken();
-          removeUser();
-          
-          // Only redirect if not on a public route
-          const isPublicRoute = currentPath === '/' || 
-            currentPath.includes('/login') || 
-            currentPath.includes('/signup') || 
-            currentPath.includes('/shop') ||
-            currentPath.includes('/product/');
+          const isPublicRoute = [
+            '/',
+            '/login',
+            '/signup',
+            '/shop',
+            '/product'
+          ].some(route => currentPath.startsWith(route));
           
           if (!isPublicRoute) {
             notify.error('Your session has expired. Please log in again.');
             window.location.href = '/login';
           }
         }
+        
+        // Reject the original request
+        return Promise.reject(error);
       } finally {
         isRefreshingToken = false;
+      }
+    }
+
+    // Handle 403 errors specifically
+    if (error.response?.status === 403) {
+      console.error('Access forbidden:', error.response?.data?.message);
+      // Don't show error for canDeleteAccount endpoint as it's an expected state
+      if (!originalRequest.url.includes('/users/can-delete-account')) {
+        notify.error('You do not have permission to perform this action');
       }
     }
     
@@ -105,7 +135,7 @@ api.interceptors.response.use(
 export const authService = {
   signup: async (userData) => {
     try {
-      const response = await api.post('/api/auth/signup', userData);
+      const response = await api.post('/auth/signup', userData);
       notify.success('Account created successfully! Please log in.');
       return response;
     } catch (error) {
@@ -116,7 +146,7 @@ export const authService = {
   
   login: async (credentials) => {
     try {
-      const response = await api.post('/api/auth/login', credentials);
+      const response = await api.post('/auth/login', credentials);
       const { token, user } = response.data;
       setAuthToken(token);
       notify.success('Welcome back!');
@@ -132,12 +162,12 @@ export const authService = {
     if (!token) {
       throw new Error('No token to refresh');
     }
-    return api.post('/api/auth/refresh', { token });
+    return api.post('/auth/refresh', { token });
   },
   
   getProfile: async () => {
     try {
-      return await api.get('/api/auth/me');
+      return await api.get('/auth/me');
     } catch (error) {
       handleApiError(error);
       throw error;
@@ -146,7 +176,7 @@ export const authService = {
   
   updateProfile: async (userData) => {
     try {
-      const response = await api.put('/api/users/profile', userData);
+      const response = await api.put('/users/profile', userData);
       notify.success('Profile updated successfully!');
       return response;
     } catch (error) {
@@ -161,7 +191,7 @@ export const authService = {
   
   getShippingAddresses: async () => {
     try {
-      return await api.get('/api/users/shipping-addresses');
+      return await api.get('/users/shipping-addresses');
     } catch (error) {
       handleApiError(error);
       throw error;
@@ -170,7 +200,7 @@ export const authService = {
   
   addShippingAddress: async (addressData) => {
     try {
-      const response = await api.post('/api/users/shipping-address', addressData);
+      const response = await api.post('/users/shipping-address', addressData);
       notify.success('Shipping address added successfully!');
       return response;
     } catch (error) {
@@ -181,7 +211,7 @@ export const authService = {
   
   updateShippingAddress: async (addressId, addressData) => {
     try {
-      const response = await api.put(`/api/users/shipping-address/${addressId}`, addressData);
+      const response = await api.put(`/users/shipping-address/${addressId}`, addressData);
       notify.success('Shipping address updated successfully!');
       return response;
     } catch (error) {
@@ -192,7 +222,7 @@ export const authService = {
   
   deleteShippingAddress: async (addressId) => {
     try {
-      const response = await api.delete(`/api/users/shipping-address/${addressId}`);
+      const response = await api.delete(`/users/shipping-address/${addressId}`);
       notify.success('Shipping address deleted successfully!');
       return response;
     } catch (error) {
@@ -203,7 +233,7 @@ export const authService = {
   
   updateUsername: async (username) => {
     try {
-      const response = await api.put('/api/users/update-username', { username });
+      const response = await api.put('/users/update-username', { username });
       notify.success('Username updated successfully!');
       return response;
     } catch (error) {
@@ -222,7 +252,7 @@ export const authService = {
         throw new Error('No authentication token');
       }
 
-      const response = await api.put('/api/auth/update-password', {
+      const response = await api.put('/auth/update-password', {
         currentPassword,
         newPassword
       });
@@ -250,8 +280,9 @@ export const authService = {
 
   deleteAccount: async () => {
     try {
-      const response = await api.post('/api/users/delete-account');
-      notify.success('Account deleted successfully');
+      const response = await api.delete('/users/account');
+      removeAuthToken();
+      removeUser();
       return response;
     } catch (error) {
       handleApiError(error);
@@ -259,9 +290,28 @@ export const authService = {
     }
   },
 
+  canDeleteAccount: async () => {
+    try {
+      const response = await api.get('/users/can-delete-account');
+      return response.data;
+    } catch (error) {
+      // Log the error for debugging
+      console.error('Error checking if account can be deleted:', {
+        status: error.response?.status,
+        message: error.response?.data?.message
+      });
+      
+      // Don't show error notification for 403 as it's an expected state
+      if (!error.response?.status === 403) {
+        handleApiError(error);
+      }
+      throw error;
+    }
+  },
+
   getRegions: async () => {
     try {
-      return await api.get('/api/locations/regions');
+      return await api.get('/locations/regions');
     } catch (error) {
       handleApiError(error);
       throw error;
@@ -270,7 +320,7 @@ export const authService = {
   
   getProvinces: async (regionId) => {
     try {
-      return await api.get(`/api/locations/provinces/${regionId}`);
+      return await api.get(`/locations/provinces/${regionId}`);
     } catch (error) {
       handleApiError(error);
       throw error;
@@ -279,7 +329,7 @@ export const authService = {
   
   getCities: async (provinceId) => {
     try {
-      return await api.get(`/api/locations/cities/${provinceId}`);
+      return await api.get(`/locations/cities/${provinceId}`);
     } catch (error) {
       handleApiError(error);
       throw error;
