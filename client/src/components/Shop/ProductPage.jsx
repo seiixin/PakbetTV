@@ -81,7 +81,7 @@ const ProductPage = () => {
       const dbCategories = categoriesData.map(category => ({
         id: category.name.toLowerCase(),
         name: category.name,
-        image: category.category_image || '/All-products.svg'
+        image: category.category_image || null
       }));
 
       // Combine 'All Products' with database categories
@@ -89,7 +89,7 @@ const ProductPage = () => {
         const allProductsCategory = {
           id: 'all',
           name: 'All Products',
-          image: '/All-products.svg'
+          image: null
         };
         return [allProductsCategory, ...dbCategories];
       });
@@ -258,9 +258,11 @@ const ProductPage = () => {
                       className={`shop-category-card ${selectedCategory === category.id ? 'active' : ''}`}
                       onClick={() => handleCategoryClick(category.id)}
                     >
-                      <div className="shop-category-icon">
-                        <img src={category.image} alt={`${category.name} icon`} />
-                      </div>
+                      {category.image && (
+                        <div className="shop-category-icon">
+                          <img src={category.image} alt={`${category.name} icon`} />
+                        </div>
+                      )}
                       <h3>{category.name}</h3>
                     </div>
                   ))}

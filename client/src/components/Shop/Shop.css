@@ -2305,7 +2305,6 @@
 .shop-category-card {
   display: flex;
   align-items: center;
-  gap: 1rem;
   cursor: pointer;
   text-align: left;
   transition: all 0.3s ease;
@@ -2313,6 +2312,8 @@
   padding: 15px;
   border-radius: 10px;
   border: 1px solid #eee;
+  min-height: 70px;
+  position: relative;
 }
 
 .shop-category-card:hover {
@@ -2333,6 +2334,8 @@
   align-items: center;
   justify-content: center;
   background-color: transparent;
+  margin-right: 10px;
+  flex-shrink: 0;
 }
 
 .shop-category-icon img {
@@ -2351,6 +2354,17 @@
   font-size: 1rem;
   margin: 0;
   transition: color 0.3s ease;
+  flex-grow: 1;
+  text-align: left;
+}
+
+/* Add styles for cards without icons */
+.shop-category-card:not(:has(.shop-category-icon img)) {
+  justify-content: center;
+}
+
+.shop-category-card:not(:has(.shop-category-icon img)) h3 {
+  text-align: center;
 }
 
 .shop-category-card.active h3 {
