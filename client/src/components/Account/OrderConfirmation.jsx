@@ -303,36 +303,72 @@ function OrderConfirmation() {
                       <p><strong>Delivery Address:</strong></p>
                       {order.shipping?.full_address ? (
                         <>
-                          <p className="address-line">{order.shipping.full_address.address_line1}</p>
+                          {order.shipping.full_address.address_line1 && (
+                            <p className="address-line">{order.shipping.full_address.address_line1}</p>
+                          )}
                           {order.shipping.full_address.address_line2 && (
                             <p className="address-line">{order.shipping.full_address.address_line2}</p>
                           )}
                           {order.shipping.full_address.area && (
                             <p className="address-line">{order.shipping.full_address.area}</p>
                           )}
+                          {order.shipping.full_address.city && (
+                            <p className="address-line">
+                              {order.shipping.full_address.city}
+                              {order.shipping.full_address.state && `, ${order.shipping.full_address.state}`}
+                            </p>
+                          )}
+                          {order.shipping.full_address.postal_code && (
+                            <p className="address-line">{order.shipping.full_address.postal_code}</p>
+                          )}
                           <p className="address-line">
-                            {order.shipping.full_address.city}
-                            {order.shipping.full_address.state && `, ${order.shipping.full_address.state}`}
-                          </p>
-                          <p className="address-line">{order.shipping.full_address.postal_code}</p>
-                          <p className="address-line">{order.shipping.full_address.country === 'PH' ? 'Philippines' : 
-                                                      order.shipping.full_address.country === 'MY' ? 'Malaysia' : 
-                                                      order.shipping.full_address.country === 'SG' ? 'Singapore' : 
-                                                      order.shipping.full_address.country}
+                            {order.shipping.full_address.country === 'PH' ? 'Philippines' : 
+                             order.shipping.full_address.country === 'MY' ? 'Malaysia' : 
+                             order.shipping.full_address.country === 'SG' ? 'Singapore' : 
+                             order.shipping.full_address.country}
                           </p>
                         </>
                       ) : order.shipping?.address_details ? (
                         <>
-                          <p className="address-line">{order.shipping.address_details.address1}</p>
-                          {order.shipping.address_details.address2 && (
-                            <p className="address-line">{order.shipping.address_details.address2}</p>
+                          {order.shipping.address_details.house_number && (
+                            <p className="address-line">Block {order.shipping.address_details.house_number}</p>
+                          )}
+                          {order.shipping.address_details.building && (
+                            <p className="address-line">{order.shipping.address_details.building}</p>
+                          )}
+                          {order.shipping.address_details.street_name && (
+                            <p className="address-line">{order.shipping.address_details.street_name}</p>
+                          )}
+                          {order.shipping.address_details.barangay && (
+                            <p className="address-line">{order.shipping.address_details.barangay}</p>
+                          )}
+                          {order.shipping.address_details.city_municipality && (
+                            <p className="address-line">{order.shipping.address_details.city_municipality}</p>
+                          )}
+                          {order.shipping.address_details.province && (
+                            <p className="address-line">{order.shipping.address_details.province}</p>
+                          )}
+                          {order.shipping.address_details.region && (
+                            <p className="address-line">{order.shipping.address_details.region}</p>
+                          )}
+                          {order.shipping.address_details.postcode && (
+                            <p className="address-line">{order.shipping.address_details.postcode}</p>
                           )}
                           <p className="address-line">
-                            {order.shipping.address_details.city}
-                            {order.shipping.address_details.state && `, ${order.shipping.address_details.state}`}
+                            {(() => {
+                              const country = order.shipping.address_details.country;
+                              switch(country) {
+                                case 'PH': return 'Philippines';
+                                case 'MY': return 'Malaysia';
+                                case 'SG': return 'Singapore';
+                                case 'US': return 'United States';
+                                case 'CA': return 'Canada';
+                                case 'GB': return 'United Kingdom';
+                                case 'AU': return 'Australia';
+                                default: return country;
+                              }
+                            })()}
                           </p>
-                          <p className="address-line">{order.shipping.address_details.postcode}</p>
-                          <p className="address-line">{order.shipping.address_details.country}</p>
                         </>
                       ) : order.shipping?.address ? (
                         <p className="address-line">{order.shipping.address}</p>

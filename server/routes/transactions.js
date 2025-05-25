@@ -480,7 +480,7 @@ router.post('/postback', async (req, res) => {
 
         // Create or update shipping record with complete address
         const addressParts = [];
-        if (shipping.house_number) addressParts.push(`Block${shipping.house_number}`);
+        if (shipping.house_number) addressParts.push(`Block ${shipping.house_number}`);
         if (shipping.street_name) addressParts.push(shipping.street_name);
         if (shipping.building) addressParts.push(shipping.building);
         if (shipping.barangay) addressParts.push(shipping.barangay);
@@ -517,6 +517,66 @@ router.post('/postback', async (req, res) => {
           await connection.query(
             'UPDATE shipping SET address = ?, updated_at = NOW() WHERE order_id = ?',
             [fullAddress, orderId]
+          );
+        }
+
+        // Create or update shipping_details record
+        const [existingShippingDetails] = await connection.query(
+          'SELECT * FROM shipping_details WHERE order_id = ?',
+          [orderId]
+        );
+
+        if (existingShippingDetails.length === 0) {
+          // Create new shipping_details record
+          await connection.query(
+            `INSERT INTO shipping_details (
+              order_id, address1, address2, area, city, state, postcode, country,
+              region, province, city_municipality, barangay, house_number, building, street_name,
+              created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+            [
+              orderId,
+              shipping.address1 || '',
+              shipping.address2 || '',
+              shipping.area || '',
+              shipping.city_municipality || shipping.city || '',
+              shipping.province || shipping.state || '',
+              shipping.postcode || '',
+              shipping.country || 'PH',
+              shipping.region || '',
+              shipping.province || '',
+              shipping.city_municipality || '',
+              shipping.barangay || '',
+              shipping.house_number || '',
+              shipping.building || '',
+              shipping.street_name || ''
+            ]
+          );
+        } else {
+          // Update existing shipping_details record
+          await connection.query(
+            `UPDATE shipping_details SET
+              address1 = ?, address2 = ?, area = ?, city = ?, state = ?, postcode = ?, country = ?,
+              region = ?, province = ?, city_municipality = ?, barangay = ?, house_number = ?,
+              building = ?, street_name = ?, updated_at = NOW()
+            WHERE order_id = ?`,
+            [
+              shipping.address1 || '',
+              shipping.address2 || '',
+              shipping.area || '',
+              shipping.city_municipality || shipping.city || '',
+              shipping.province || shipping.state || '',
+              shipping.postcode || '',
+              shipping.country || 'PH',
+              shipping.region || '',
+              shipping.province || '',
+              shipping.city_municipality || '',
+              shipping.barangay || '',
+              shipping.house_number || '',
+              shipping.building || '',
+              shipping.street_name || '',
+              orderId
+            ]
           );
         }
 
