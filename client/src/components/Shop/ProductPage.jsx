@@ -10,10 +10,12 @@ import { useProducts } from '../../hooks/useProducts';
 import { useCategories } from '../../hooks/useCategories';
 
 const ProductPage = () => {
-  const { getAllProducts } = useProducts();
+  const { getAllProducts, getNewArrivals, getBestSellers } = useProducts();
   const { getAllCategories } = useCategories();
   const { data: productsData, isLoading: productsLoading, error: productsError } = getAllProducts;
   const { data: categoriesData, isLoading: categoriesLoading } = getAllCategories;
+  const { data: newArrivals = [], isLoading: newArrivalsLoading, error: newArrivalsError } = getNewArrivals;
+  const { data: bestSellers = [], isLoading: bestSellersLoading, error: bestSellersError } = getBestSellers;
   const [flashDeals, setFlashDeals] = useState([]);
   const [searchParams] = useSearchParams(); 
   const [selectedCategory, setSelectedCategory] = useState(
@@ -143,7 +145,7 @@ const ProductPage = () => {
     setFilteredProducts(filtered);
   };
 
-  const Max_products_display = 6;
+  const MAX_DISPLAY_PRODUCTS = 12;
 
   const handlePrevSlide = () => {
     setCurrentSlide((prev) => (prev === 0 ? 2 : prev - 1));
@@ -227,7 +229,7 @@ const ProductPage = () => {
                 </div>
               ) : (
                 <div className="shop-products-grid">
-                  {flashDeals.slice(0, Max_products_display).map(product => {
+                  {flashDeals.slice(0, MAX_DISPLAY_PRODUCTS).map(product => {
                     console.log('Rendering flash deal product:', product);
                     return (
                       <ProductCard 
@@ -246,6 +248,46 @@ const ProductPage = () => {
                 </div>
               )}
             </>
+          )}
+
+          <h1>NEW ARRIVALS</h1>
+          {newArrivalsLoading ? (
+            <div>Loading new arrivals...</div>
+          ) : newArrivalsError ? (
+            <div className="error-message">{newArrivalsError.message}</div>
+          ) : newArrivals.length === 0 ? (
+            <div className="no-products">
+              <p>No new arrivals at the moment.</p>
+            </div>
+          ) : (
+            <div className="shop-products-grid">
+              {newArrivals.slice(0, MAX_DISPLAY_PRODUCTS).map(product => (
+                <ProductCard 
+                  key={product.product_id} 
+                  product={product} 
+                />
+              ))}
+            </div>
+          )}
+
+          <h1>BEST SELLERS</h1>
+          {bestSellersLoading ? (
+            <div>Loading best sellers...</div>
+          ) : bestSellersError ? (
+            <div className="error-message">{bestSellersError.message}</div>
+          ) : bestSellers.length === 0 ? (
+            <div className="no-products">
+              <p>No best sellers available at the moment.</p>
+            </div>
+          ) : (
+            <div className="shop-products-grid">
+              {bestSellers.slice(0, MAX_DISPLAY_PRODUCTS).map(product => (
+                <ProductCard 
+                  key={product.product_id} 
+                  product={product} 
+                />
+              ))}
+            </div>
           )}
 
           <div className="shop-main">

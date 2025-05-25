@@ -7,6 +7,32 @@ const API_URL = isDevelopment ? '/api' : (import.meta.env.VITE_API_URL || 'http:
 
 export const useProducts = () => {
   const queryClient = useQueryClient()
+  const MAX_PRODUCTS = 12;
+
+  // Fetch new arrivals with optimizations
+  const getNewArrivals = useQuery({
+    queryKey: ['products', 'new-arrivals'],
+    queryFn: async () => {
+      const { data } = await axios.get(`${API_URL}/products?limit=20`)
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const allProducts = Array.isArray(data?.products) ? data.products : [];
+      const newArrivals = allProducts
+        .filter(product => new Date(product.created_at) > thirtyDaysAgo)
+        .slice(0, MAX_PRODUCTS);
+      
+      return newArrivals;
+    },
+    // Keep the data fresh for 10 minutes
+    staleTime: 1000 * 60 * 10,
+    // Cache the data for 1 hour
+    cacheTime: 1000 * 60 * 60,
+    // Show cached data while revalidating
+    refetchOnMount: false,
+    // Prefetch on hover
+    refetchOnWindowFocus: false
+  })
 
   // Fetch all products with optimizations
   const getAllProducts = useQuery({
@@ -47,6 +73,24 @@ export const useProducts = () => {
     initialDataUpdatedAt: () => {
       return queryClient.getQueryState(['products'])?.dataUpdatedAt
     }
+  })
+
+  // Fetch best sellers with optimizations
+  const getBestSellers = useQuery({
+    queryKey: ['products', 'best-sellers'],
+    queryFn: async () => {
+      const { data } = await axios.get(`${API_URL}/products`)
+      const allProducts = Array.isArray(data?.products) ? data.products : [];
+      const bestSellers = allProducts
+        .filter(product => product.is_best_seller)
+        .slice(0, MAX_PRODUCTS);
+      
+      return bestSellers;
+    },
+    staleTime: 1000 * 60 * 10, // 10 minutes
+    cacheTime: 1000 * 60 * 60, // 1 hour
+    refetchOnMount: false,
+    refetchOnWindowFocus: false
   })
 
   // Create product mutation
@@ -98,6 +142,8 @@ export const useProducts = () => {
     getProduct,
     createProduct,
     updateProduct,
-    deleteProduct
+    deleteProduct,
+    getNewArrivals,
+    getBestSellers
   }
 } 

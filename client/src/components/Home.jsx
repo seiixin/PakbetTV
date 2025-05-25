@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
+import { useProducts } from '../hooks/useProducts';
 import './Home.css';
 import NavBar from './NavBar';
 import Footer from './Footer';
@@ -20,7 +21,6 @@ const constructUrl = (baseUrl, path) => {
 };
 
 const Home = () => {
-  const [newArrivals, setNewArrivals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [blogs, setBlogs] = useState([]);
@@ -29,6 +29,14 @@ const Home = () => {
 
   const navigate = useNavigate();
   const { } = useCart();
+  
+  // Use the optimized new arrivals query
+  const { getNewArrivals } = useProducts();
+  const { 
+    data: newArrivals = [], 
+    isLoading: newArrivalsLoading,
+    error: newArrivalsError 
+  } = getNewArrivals;
 
   // Add carousel data
   const carouselData = [
@@ -96,32 +104,6 @@ const Home = () => {
   ];
 
   useEffect(() => {
-    const fetchNewArrivals = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`${API_BASE_URL}/api/products?limit=20`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch products for new arrivals');
-        }
-        const data = await response.json();
-        const allProducts = Array.isArray(data?.products) ? data.products : [];
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        const filteredArrivals = allProducts.filter(product => new Date(product.created_at) > thirtyDaysAgo);
-        setNewArrivals(filteredArrivals.slice(0, 10));
-      } catch (error) {
-        console.error('Error fetching new arrivals:', error);
-        setError('Error fetching new arrivals');
-        setNewArrivals([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchNewArrivals();
-  }, []);
-
-  useEffect(() => {
     setBlogLoading(true);
     axios.get(`/api/cms/blogs`)
       .then(res => {
@@ -164,17 +146,19 @@ const Home = () => {
       <div className="home-section-header">
         <h2>New Arrivals</h2>
       </div>
-      {loading ? (
+      {newArrivalsLoading ? (
         <div className="home-new-arrivals-loading-container">
           <div className="spinner-border" role="status">
             <span className="visually-hidden">Loading...</span>
           </div>
         </div>
-      ) : error ? (
-        <div className="error-message">{error}</div>
+      ) : newArrivalsError ? (
+        <div className="error-message">{newArrivalsError.message}</div>
+      ) : newArrivals.length === 0 ? (
+        <div className="no-products">No new arrivals at the moment.</div>
       ) : (
         <div className="home-new-arrivals-grid">
-          {newArrivals.slice(0, max_limit_display).map(product => (
+          {newArrivals.map(product => (
             <ProductCard key={product.product_id} product={product} />
           ))}
         </div>

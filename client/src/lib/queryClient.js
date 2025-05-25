@@ -1,17 +1,16 @@
 import { QueryClient } from '@tanstack/react-query'
 import axios from 'axios'
+import API_URL from '../config'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const MAX_PRODUCTS = 12;
 
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      cacheTime: 1000 * 60 * 30, // 30 minutes
       refetchOnWindowFocus: false,
-      retry: 1,
-    },
-  },
+      retry: 1
+    }
+  }
 })
 
 // Prefetch products function
@@ -22,5 +21,36 @@ export const prefetchProducts = async () => {
       const { data } = await axios.get(`${API_URL}/api/products`)
       return data
     },
+  })
+
+  // Prefetch new arrivals
+  await queryClient.prefetchQuery({
+    queryKey: ['products', 'new-arrivals'],
+    queryFn: async () => {
+      const { data } = await axios.get(`${API_URL}/api/products?limit=20`)
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const allProducts = Array.isArray(data?.products) ? data.products : [];
+      const newArrivals = allProducts
+        .filter(product => new Date(product.created_at) > thirtyDaysAgo)
+        .slice(0, MAX_PRODUCTS);
+      
+      return newArrivals;
+    }
+  })
+
+  // Prefetch best sellers
+  await queryClient.prefetchQuery({
+    queryKey: ['products', 'best-sellers'],
+    queryFn: async () => {
+      const { data } = await axios.get(`${API_URL}/api/products`)
+      const allProducts = Array.isArray(data?.products) ? data.products : [];
+      const bestSellers = allProducts
+        .filter(product => product.is_best_seller)
+        .slice(0, MAX_PRODUCTS);
+      
+      return bestSellers;
+    }
   })
 } 
