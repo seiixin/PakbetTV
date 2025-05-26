@@ -291,7 +291,7 @@ router.get('/verify', async (req, res) => {
             [item.variant_id]
           );
           if (variantStock.length === 0) {
-            await connection.rollback();
+        await connection.rollback();
             return res.status(400).json({ message: `Variant not found for order item` });
           }
           const newStock = variantStock[0].stock - item.quantity;
@@ -299,15 +299,15 @@ router.get('/verify', async (req, res) => {
             await connection.rollback();
             return res.status(400).json({ message: `Not enough stock for variant` });
           }
-          await connection.query(
+      await connection.query(
             'UPDATE product_variants SET stock = ? WHERE variant_id = ?',
             [newStock, item.variant_id]
           );
-          await connection.query(
+        await connection.query(
             'INSERT INTO inventory (variant_id, change_type, quantity, reason) VALUES (?, ?, ?, ?)',
             [item.variant_id, 'remove', item.quantity, `Order ${orderId} payment confirmed`]
-          );
-        } else {
+        );
+      } else {
           const [variants] = await connection.query(
             'SELECT variant_id, stock FROM product_variants WHERE product_id = ? ORDER BY stock DESC LIMIT 1',
             [item.product_id]
@@ -316,14 +316,14 @@ router.get('/verify', async (req, res) => {
             const variantId = variants[0].variant_id;
             const newStock = variants[0].stock - item.quantity;
             if (newStock < 0) {
-              await connection.rollback();
+        await connection.rollback();
               return res.status(400).json({ message: `Not enough stock for product` });
             }
-            await connection.query(
+        await connection.query(
               'UPDATE product_variants SET stock = ? WHERE variant_id = ?',
               [newStock, variantId]
-            );
-            await connection.query(
+        );
+        await connection.query(
               'INSERT INTO inventory (variant_id, change_type, quantity, reason) VALUES (?, ?, ?, ?)',
               [variantId, 'remove', item.quantity, `Order ${orderId} payment confirmed`]
             );
@@ -355,28 +355,28 @@ router.get('/verify', async (req, res) => {
 
     } else if (status === 'F') {
       // Handle failed payment
-      await connection.query(
+            await connection.query(
         'UPDATE orders SET order_status = ?, payment_status = ?, updated_at = NOW() WHERE order_id = ?',
         ['cancelled', 'failed', orderId]
-      );
-      await connection.query(
+            );
+            await connection.query(
         'UPDATE payments SET status = ?, reference_number = ?, updated_at = NOW() WHERE order_id = ?',
         ['failed', refNo, orderId]
-      );
+            );
       await connection.commit();
     } else {
       // Handle pending or other statuses
-      await connection.query(
+            await connection.query(
         'UPDATE payments SET status = ?, reference_number = ?, updated_at = NOW() WHERE order_id = ?',
         ['pending', refNo, orderId]
-      );
-      await connection.commit();
+            );
+            await connection.commit();
     }
 
     res.json({
       status: status === 'S' ? 'success' : status === 'F' ? 'failed' : 'pending',
       message: status === 'S' ? 'Payment successful' : status === 'F' ? 'Payment failed' : 'Payment pending',
-      order: {
+        order: {
         ...order,
         shipping: shipping.length > 0 ? shipping[0] : null
       }
@@ -384,13 +384,13 @@ router.get('/verify', async (req, res) => {
 
   } catch (err) {
     if (connection) {
-      await connection.rollback();
+        await connection.rollback();
     }
     console.error('Error verifying transaction:', err);
     res.status(500).json({ message: 'Server error during verification' });
   } finally {
     if (connection) {
-      connection.release();
+        connection.release();
     }
   }
 });
