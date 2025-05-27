@@ -9,6 +9,7 @@ import { createGlobalStyle } from 'styled-components';
 import API_BASE_URL from '../../config';
 import NavBar from '../NavBar';
 import Footer from '../Footer';
+import { sanitizeHtml } from '../../utils/sanitize';
 
 const GlobalStyle = createGlobalStyle`
   body {
@@ -597,7 +598,7 @@ const ProductDetailPage = () => {
               <h2 className="section-title">Product Specifications</h2>
             </div>
             <div className="product-description-container">
-              {product.description && <div dangerouslySetInnerHTML={{ __html: product.description }} />}
+              {product.description && <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(product.description) }} />}
               
               {product.specs && (
                 <div className="product-specs">

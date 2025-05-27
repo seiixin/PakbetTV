@@ -6,6 +6,7 @@ import './BlogDetail.css';
 import NavBar from './NavBar';
 import Footer from './Footer';
 import API_BASE_URL from '../config';
+import { sanitizeHtml } from '../utils/sanitize';
 
 const BlogDetail = () => {
   const { blogID } = useParams();
@@ -98,7 +99,7 @@ const BlogDetail = () => {
           </div>
           <div className="col-lg-6">
             <div className="blog-content">
-              {blog.content.split('\n').map((paragraph, i) => (
+              {sanitizeHtml(blog.content).split('\n').map((paragraph, i) => (
                 paragraph.trim() && <p key={i}>{paragraph.trim()}</p>
               ))}
             </div>
@@ -109,7 +110,7 @@ const BlogDetail = () => {
                 <a href={`https://www.facebook.com/sharer/sharer.php?u=${window.location.href}`} target="_blank" rel="noopener noreferrer" className="social-icon facebook">
                   <i className="bi bi-facebook"></i>
                 </a>
-                <a href={`https://twitter.com/intent/tweet?url=${window.location.href}&text=${blog.title}`} target="_blank" rel="noopener noreferrer" className="social-icon twitter">
+                <a href={`https://twitter.com/intent/tweet?url=${window.location.href}&text=${encodeURIComponent(blog.title)}`} target="_blank" rel="noopener noreferrer" className="social-icon twitter">
                   <i className="bi bi-twitter"></i>
                 </a>
                 <a href={`https://www.linkedin.com/shareArticle?mini=true&url=${window.location.href}`} target="_blank" rel="noopener noreferrer" className="social-icon linkedin">

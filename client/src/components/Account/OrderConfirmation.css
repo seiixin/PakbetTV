@@ -1,440 +1,370 @@
-/* Order Confirmation Styling */
-
-/* Outermost page container for Order Confirmation */
-.order-confirmation-page {
+.order-page {
   min-height: 100vh;
-  background-color: var(--background-color);
-  color: var(--text-color);
-}
-
-/* Wrapper for the main content section */
-.order-confirmation-wrapper {
-  max-width: 1000px;
-  margin: 0 auto;
-  padding: 2rem;
-}
-
-.account-title {
-  color: var(--primary-color);
-  font-size: 2rem;
-  margin-bottom: 2rem;
-  text-align: center;
-}
-
-.order-confirmation-container {
-  background: var(--white-color);
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  padding: 2rem;
-}
-
-/* Order Header */
-.order-header {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 2rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  flex-direction: column;
+  background-color: #fff;
 }
 
-.order-info {
-  flex: 1;
-}
-
-.order-number, .order-date {
-  margin-bottom: 0.5rem;
-  font-size: 1.1rem;
-}
-
-.order-number span, .order-date span {
-  font-weight: 600;
-  color: var(--primary-color);
-}
-
-.order-status {
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  font-weight: 600;
+.hero-banner {
+  margin-top: 80px;
+  background-color: var(--primary-color);
+  background-image: url('/cover.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  padding: 2rem;
   text-align: center;
-  border: 1px solid;
-  min-width: 120px;
-}
-
-/* Order Progress Tracker */
-.order-progress-tracker {
-  margin: 2rem 0;
+  color: white !important;
   position: relative;
+  width: 100%;
 }
 
-/* Progress Line */
-.progress-line {
+.hero-banner::before {
+  content: '';
   position: absolute;
-  top: 25px;
+  top: 0;
   left: 0;
   right: 0;
-  height: 2px;
-  background-color: rgba(162, 32, 26, 0.1);
-  z-index: 1;
+  bottom: 0;
+  background-color: rgba(162, 32, 26, 0.85);
+  color: white !important;
 }
 
-.progress-line-filled {
-  height: 100%;
-  background-color: var(--primary-color);
-  transition: width 0.3s ease;
-}
-
-/* Progress Steps */
-.progress-step {
-  position: relative;
-  z-index: 2;
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  width: 20%;
-  text-align: center;
-}
-
-.step-icon {
-  width: 50px;
-  height: 50px;
-  background-color: var(--white-color);
-  border: 2px solid rgba(162, 32, 26, 0.3);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 0.5rem;
-  color: rgba(162, 32, 26, 0.3);
-}
-
-.step-label {
-  font-size: 0.9rem;
-  color: var(--text-color);
-  font-weight: 500;
-}
-
-/* Active Step */
-.progress-step.active .step-icon {
-  background-color: var(--primary-color);
-  border-color: var(--primary-color);
-  color: var(--white-color);
-}
-
-.progress-step.active .step-label {
-  color: var(--primary-color);
+.hero-banner h1 {
+  font-size: 2rem;
   font-weight: 600;
+  margin: 0;
+  position: relative;
+  z-index: 1;
+  color: white !important;
 }
 
-/* Completed Step */
-.progress-step.completed .step-icon {
-  background-color: var(--primary-color);
-  border-color: var(--primary-color);
-  color: var(--white-color);
-}
-
-.progress-step.completed .step-label {
+.shop-more-btn {
+  background-color: white;
   color: var(--primary-color);
-}
-
-/* Order Details - Updated for row layout */
-.order-details {
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
-  margin-top: 2rem;
-}
-
-/* Order Items Section */
-.order-items {
-  background-color: var(--white-color);
-  border-radius: 8px;
-  padding: 1.5rem;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-}
-
-.order-item {
-  padding: 1rem;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-}
-
-.order-item:last-child {
-  border-bottom: none;
-}
-
-.item-details h4 {
-  color: var(--primary-color);
-  margin-bottom: 0.5rem;
-  font-size: 1.1rem;
-}
-
-.item-code, .item-variants {
+  border: none;
+  padding: 0.75rem 2rem;
+  border-radius: 30px;
+  font-weight: 600;
   font-size: 0.9rem;
-  color: #666;
-  margin-bottom: 0.5rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  z-index: 1;
+  margin-top: 1rem;
 }
 
-.item-price-qty {
+.shop-more-btn:hover {
+  background-color: #f8f8f8;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.order-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+  width: 100%;
+}
+
+.order-header {
   display: flex;
   align-items: center;
   gap: 1rem;
-  margin-top: 0.5rem;
+  margin-bottom: 2rem;
 }
 
-.item-price {
-  font-weight: 600;
+.back-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #666;
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.back-link:hover {
   color: var(--primary-color);
 }
 
-.item-quantity {
+.order-header h2 {
+  font-size: 1.5rem;
+  color: #333;
+  margin: 0;
+  font-weight: 600;
+}
+
+.order-card {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #eee;
+}
+
+.section-title {
+  color: var(--primary-color);
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 1.5rem;
+  border-bottom: 1px solid #eee;
+}
+
+.order-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  padding: 1.5rem;
+  border-bottom: 1px solid #eee;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.info-item .label {
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.info-item .value {
+  color: #333;
+  font-weight: 500;
+}
+
+.details-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+  padding: 1.5rem;
+  border-bottom: 1px solid #eee;
+}
+
+.shipping-section h3,
+.payment-section h3 {
+  color: var(--primary-color);
+  font-size: 1.1rem;
+  margin: 0 0 1.5rem 0;
+  font-weight: 600;
+}
+
+.details-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.detail-row {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 1rem;
+  align-items: baseline;
+}
+
+.detail-row .label {
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.detail-row .value {
+  color: #333;
+}
+
+.order-items-section {
+  padding: 1.5rem;
+}
+
+.order-items-section h3 {
+  color: var(--primary-color);
+  font-size: 1.1rem;
+  margin: 0 0 1.5rem 0;
+  font-weight: 600;
+}
+
+.items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.item-row {
+  display: flex;
+  align-items: center;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 4px;
+  gap: 1rem;
+}
+
+.item-image {
+  width: 80px;
+  height: 80px;
+  flex-shrink: 0;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid #eee;
+  background-color: #fff;
+  position: relative;
+}
+
+.item-image img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background-color: #fff;
+  transition: transform 0.3s ease;
+}
+
+.item-image img[src="/placeholder-product.jpg"] {
+  padding: 8px;
+  opacity: 0.5;
+}
+
+.item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.item-info h4 {
+  color: #333;
+  font-size: 1rem;
+  margin: 0 0 0.5rem 0;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.product-code {
+  color: #666;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.item-pricing {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+
+.price, .quantity {
   color: #666;
 }
 
-.item-total {
-  margin-left: auto;
+.total {
   font-weight: 600;
   color: var(--primary-color);
 }
 
-/* Order Summary */
-.order-summary-inline {
-  margin-top: 1.5rem;
+.order-summary {
+  margin-top: 2rem;
   padding-top: 1.5rem;
-  border-top: 1px solid rgba(0, 0, 0, 0.1);
-}
-
-.summary-details {
-  margin-left: auto;
-  width: 100%;
+  border-top: 1px solid #eee;
   max-width: 300px;
+  margin-left: auto;
 }
 
 .summary-row {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 0.5rem;
-  font-size: 1.1rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  color: #666;
 }
 
 .summary-row.total {
+  color: #333;
   font-weight: 600;
-  color: var(--primary-color);
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   margin-top: 1rem;
   padding-top: 1rem;
-  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  border-top: 1px solid #eee;
 }
 
-/* Customer Info Section */
-.customer-info {
-  background-color: var(--white-color);
-  border-radius: 8px;
-  padding: 1.5rem;
-  margin-bottom: 2rem;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-}
-
-.info-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2rem;
-}
-
-.shipping-info, .payment-info {
-  background-color: var(--white-color);
-  padding: 0;
-  border-radius: 0;
-  margin-bottom: 0;
-}
-
-.shipping-info h4, .payment-info h4 {
+.summary-row.total span:last-child {
   color: var(--primary-color);
-  margin-bottom: 1rem;
-  font-size: 1.1rem;
-  font-weight: 600;
 }
 
-.address-details {
-  margin: 1rem 0;
-  padding: 0.5rem 0;
-  border-top: 1px solid rgba(0, 0, 0, 0.1);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-}
-
-.address-line {
-  margin: 0.25rem 0;
-  color: var(--text-color);
-}
-
-.info-content p {
-  margin-bottom: 0.75rem;
-  line-height: 1.5;
-}
-
-.info-content strong {
-  color: var(--primary-color);
-  margin-right: 0.5rem;
-}
-
-/* Order Actions */
-.order-actions {
+/* Loading and Error States */
+.order-loading,
+.order-error {
   display: flex;
-  gap: 1rem;
-  margin-top: 2rem;
-  justify-content: flex-end;
-}
-
-.back-button, .track-order-button {
-  padding: 0.75rem 1.5rem;
-  border-radius: 4px;
-  font-weight: 600;
-  text-decoration: none;
-  transition: all 0.2s;
-}
-
-.back-button {
-  background-color: #A2201A !important;
-  color: #FEC16E !important;
-  padding: 0.75rem 1.5rem;
-  border-radius: 4px;
-  text-decoration: none;
-  font-weight: 500;
-  transition: background-color 0.2s ease;
-  border: none;
-  cursor: pointer;
-  display: inline-block;
-}
-
-.back-button:hover {
-  background-color: #8B0000;
-  color: white;
-}
-
-.track-order-button {
-  background-color: var(--primary-color);
-  color: var(--white-color);
-  border: 1px solid var(--primary-color);
-}
-
-.back-button:hover, .track-order-button:hover {
-  opacity: 0.9;
-  transform: translateY(-1px);
-}
-
-/* Payment Status */
-.payment-status {
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.9rem;
-  margin-left: 0.5rem;
-}
-
-.payment-status.completed {
-  background-color: rgba(34, 139, 34, 0.1);
-  color: #228B22;
-}
-
-.payment-status.pending {
-  background-color: rgba(254, 193, 110, 0.15);
-  color: var(--primary-color);
-}
-
-.payment-status.failed {
-  background-color: rgba(220, 20, 60, 0.1);
-  color: #DC143C;
-}
-
-/* Tracking Number Display */
-.tracking-number-display {
-  margin-top: 1rem;
-  padding: 0.75rem;
-  background-color: rgba(254, 193, 110, 0.1);
-  border-radius: 4px;
-  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 1rem;
+  justify-content: center;
+  min-height: 400px;
+  color: #666;
 }
 
-.tracking-label {
-  font-weight: 600;
-  color: var(--primary-color);
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
 }
 
-.tracking-value, .tracking-value-inline {
-  font-family: monospace;
-  background-color: #fff;
-  padding: 4px 8px;
-  border-radius: 4px;
-  border: 1px solid #dee2e6;
-  color: var(--primary-color);
-}
-
-.tracking-value-inline {
-  padding: 2px 6px;
-  margin-left: 8px;
-}
-
-.copy-tracking-btn {
-  background: none;
-  border: none;
-  color: var(--primary-color);
-  cursor: pointer;
-  padding: 0.25rem;
-  transition: opacity 0.2s;
-}
-
-.copy-tracking-btn:hover {
-  opacity: 0.8;
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 /* Responsive Design */
 @media (max-width: 768px) {
-  .order-confirmation-wrapper {
+  .order-content {
     padding: 1rem;
   }
 
-  .order-header {
-    flex-direction: column;
-    gap: 1rem;
+  .hero-banner {
+    padding: 1.5rem 1rem;
   }
 
-  .order-status {
-    width: 100%;
+  .hero-banner h1 {
+    font-size: 1.5rem;
   }
 
-  .progress-step {
-    font-size: 0.8rem;
-  }
-
-  .step-icon {
-    width: 40px;
-    height: 40px;
-  }
-
-  .summary-details {
-    max-width: 100%;
-  }
-
-  .order-actions {
-    flex-direction: column;
-  }
-
-  .back-button, .track-order-button {
-    width: 100%;
-    text-align: center;
-  }
-
-  .info-grid {
+  .order-info-grid {
     grid-template-columns: 1fr;
-    gap: 1.5rem;
   }
-  
-  .shipping-info, .payment-info {
-    padding: 0;
+
+  .details-container {
+    grid-template-columns: 1fr;
   }
-  
-  .shipping-info {
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-    padding-bottom: 1.5rem;
+
+  .detail-row {
+    grid-template-columns: 100px 1fr;
+  }
+
+  .item-row {
+    flex-wrap: wrap;
+  }
+
+  .item-image {
+    width: 60px;
+    height: 60px;
+  }
+
+  .item-info {
+    width: calc(100% - 80px);
+  }
+
+  .item-pricing {
+    width: 100%;
+    justify-content: flex-end;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid #eee;
+  }
+
+  .order-summary {
+    max-width: 100%;
   }
 } 

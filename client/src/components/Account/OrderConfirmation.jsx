@@ -6,10 +6,60 @@ import './OrderConfirmation.css';
 import NavBar from '../NavBar';
 import Footer from '../Footer';
 import { notify } from '../../utils/notifications';
+import { FaArrowLeft } from 'react-icons/fa';
+import API_BASE_URL from '../../config';
+
+// Define placeholder image path as a constant to ensure consistency
+const PLACEHOLDER_IMAGE = `${API_BASE_URL}/placeholder-product.jpg`;
+
+const getFullImageUrl = (url) => {
+  if (!url) return PLACEHOLDER_IMAGE;
+  
+  // Handle case where url is an object (longblob from database)
+  if (typeof url === 'object') {
+    if (url.data) {
+      // Handle Buffer or Uint8Array data
+      if (url.data instanceof Uint8Array || Buffer.isBuffer(url.data)) {
+        return `data:${url.type || 'image/jpeg'};base64,${Buffer.from(url.data).toString('base64')}`;
+      }
+      // Handle base64 string data
+      if (typeof url.data === 'string') {
+        return `data:${url.type || 'image/jpeg'};base64,${url.data}`;
+      }
+    }
+    // If the object itself is a Buffer or Uint8Array
+    if (url instanceof Uint8Array || Buffer.isBuffer(url)) {
+      return `data:image/jpeg;base64,${Buffer.from(url).toString('base64')}`;
+    }
+    return PLACEHOLDER_IMAGE;
+  }
+  
+  // Handle string URLs
+  if (typeof url === 'string') {
+    // Handle base64 encoded images
+    if (url.startsWith('data:')) {
+      return url; // Already a full data URL
+    }
+    
+    // Handle absolute URLs
+    if (url.startsWith('http')) return url;
+    
+    // Handle uploads paths
+    if (url.startsWith('/uploads/')) return `${API_BASE_URL}${url}`;
+    
+    // Handle other relative paths
+    if (url.startsWith('/')) return `${API_BASE_URL}${url}`;
+    
+    // Any other format
+    return `${API_BASE_URL}/uploads/${url}`;
+  }
+  
+  return PLACEHOLDER_IMAGE;
+};
 
 function OrderConfirmation() {
   const { orderId } = useParams();
-  const { isAuthenticated, refreshing } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -19,6 +69,21 @@ function OrderConfirmation() {
       try {
         setLoading(true);
         const response = await api.get(`/orders/${orderId}`);
+        
+        // Process image data in items if needed
+        if (response.data && response.data.items) {
+          response.data.items = response.data.items.map(item => {
+            console.log('Item image data:', item.image_url);
+            return {
+              ...item,
+              // If image_url is null, try to use product code to construct a fallback path
+              image_url: item.image_url || (item.product_code 
+                ? `/uploads/products/product-${item.product_code}.jpg`
+                : null)
+            };
+          });
+        }
+        
         setOrder(response.data);
         setLoading(false);
       } catch (err) {
@@ -45,424 +110,155 @@ function OrderConfirmation() {
     return new Date(dateString).toLocaleString('en-US', options);
   };
 
-  const getStatusColor = (status) => {
-    const statusColors = {
-      'pending_payment': 'var(--secondary-color)', // Using theme gold color
-      'processing': 'var(--primary-color)', // Using theme primary color
-      'for_packing': 'var(--primary-color)',
-      'packed': 'var(--primary-color)',
-      'for_shipping': 'var(--primary-color)',
-      'shipped': 'var(--primary-color)',
-      'picked_up': 'var(--primary-color)',
-      'delivered': '#228B22',
-      'completed': '#228B22',
-      'returned': 'var(--primary-color)',
-      'cancelled': 'var(--primary-color)'
-    };
-    return statusColors[status.toLowerCase()] || '#757575';
-  };
-
-  const getStatusBgColor = (status) => {
-    const statusBgColors = {
-      'pending_payment': 'rgba(254, 193, 110, 0.15)', // Using theme secondary color with transparency
-      'processing': 'rgba(162, 32, 26, 0.1)', // Using theme primary color with transparency
-      'for_packing': 'rgba(162, 32, 26, 0.1)',
-      'packed': 'rgba(162, 32, 26, 0.1)',
-      'for_shipping': 'rgba(162, 32, 26, 0.1)',
-      'shipped': 'rgba(162, 32, 26, 0.1)',
-      'picked_up': 'rgba(162, 32, 26, 0.1)',
-      'delivered': 'rgba(34, 139, 34, 0.1)',
-      'completed': 'rgba(34, 139, 34, 0.1)',
-      'returned': 'rgba(162, 32, 26, 0.1)',
-      'cancelled': 'rgba(162, 32, 26, 0.1)'
-    };
-    return statusBgColors[status.toLowerCase()] || 'rgba(117, 117, 117, 0.1)';
-  };
-
-  // Helper function to determine step status
-  const getStepStatus = (currentStatus, stepName) => {
-    const orderSteps = {
-      'pending_payment': 0,
-      'processing': 1,
-      'for_packing': 2,
-      'packed': 2,
-      'for_shipping': 3,
-      'shipped': 3,
-      'picked_up': 3,
-      'delivered': 4,
-      'completed': 5
-    };
-    
-    const stepOrder = {
-      'processing': 1,
-      'packing': 2,
-      'shipping': 3,
-      'delivery': 4,
-      'completed': 5
-    };
-    
-    const currentStepValue = orderSteps[currentStatus?.toLowerCase()] || 0;
-    const thisStepValue = stepOrder[stepName];
-    
-    if (currentStepValue > thisStepValue) {
-      return 'completed';
-    } else if (currentStepValue === thisStepValue) {
-      return 'active';
-    } else {
-      return '';
-    }
-  };
-
-  // Subtle loading spinner for auth refreshing
-  const refreshSpinnerStyle = {
-    position: 'fixed',
-    top: '10px',
-    right: '10px',
-    width: '20px',
-    height: '20px',
-    border: '2px solid rgba(128, 0, 0, 0.1)',
-    borderTop: '2px solid #800000',
-    borderRadius: '50%',
-    animation: 'spin 1s linear infinite',
-    zIndex: 9999
-  };
-
-  const handleError = (err) => {
-    notify.error(err.message || 'An error occurred while loading the order. Please try again.');
-    return (
-      <div className="account-container">
-        <NavBar />
-        <div className="account-wrapper">
-          <Link to="/account/purchases" className="back-button">
-            Back to Orders
-          </Link>
-        </div>
-        <Footer />
-      </div>
-    );
-  };
-
   if (loading) {
     return (
-      <div className="account-container">
+      <div className="order-page">
         <NavBar />
-        <div className="account-wrapper">
-          <div className="loading">
+        <div className="order-loading">
             <p>Loading order details...</p>
-          </div>
         </div>
-        <Footer />
+        <Footer forceShow={false} />
       </div>
     );
   }
 
-  if (error) {
-    return handleError(error);
-  }
-
-  if (!order) {
-    return handleError('Order not found.');
+  if (error || !order) {
+    return (
+      <div className="order-page">
+        <NavBar />
+        <div className="order-error">
+            <p>{error || 'Order not found.'}</p>
+          <Link to="/account/purchases" className="back-link">
+              <FaArrowLeft /> Back to Orders
+            </Link>
+        </div>
+        <Footer forceShow={false} />
+      </div>
+    );
   }
 
   return (
-    <div className="order-confirmation-page">
-      {refreshing && (
-        <>
-          <div style={refreshSpinnerStyle}></div>
-          <style>
-            {`
-              @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-              }
-            `}
-          </style>
-        </>
-      )}
+    <div className="order-page">
       <NavBar />
-      <div className="order-confirmation-wrapper">
-        <h1 className="account-title">Order Details</h1>
-        
-        <div className="order-confirmation-container">
+      <div className="hero-banner">
+        <h1>Order Details</h1>
+        <Link to="/shop">
+          <button className="shop-more-btn">SHOP MORE NOW</button>
+        </Link>
+      </div>
+
+      <div className="order-content">
           <div className="order-header">
-            <div className="order-info">
-              <div className="order-number">
-                <span>Order Code:</span> {order.order_code || order.order_id}
+          <Link to="/account/purchases" className="back-link">
+            <FaArrowLeft /> Back to Orders
+          </Link>
               </div>
-              <div className="order-date">
-                <span>Order Date:</span> {formatDate(order.created_at)}
-              </div>
-              {order.tracking_number && (
-                <div className="tracking-number-display">
-                  <span className="tracking-label">Tracking Number:</span>
-                  <span className="tracking-value">{order.tracking_number}</span>
-                  <button 
-                    className="copy-tracking-btn"
-                    onClick={() => {
-                      navigator.clipboard.writeText(order.tracking_number);
-                      alert('Tracking number copied to clipboard!');
-                    }}
-                  >
-                    <i className="fas fa-copy"></i>
-                  </button>
-                </div>
-              )}
+
+        <div className="order-card">
+          <div className="section-title">ORDER INFORMATION</div>
+          <div className="order-info-grid">
+            <div className="info-item">
+              <span className="label">Order Code</span>
+              <span className="value">{order.order_code || order.order_id}</span>
             </div>
-            <div 
-              className="order-status"
-              style={{ 
-                color: getStatusColor(order.order_status),
-                backgroundColor: getStatusBgColor(order.order_status),
-                borderColor: getStatusColor(order.order_status),
-                width: '120px', // Fixed width for uniform appearance
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center'
-              }}
-            >
-              {order.order_status.charAt(0).toUpperCase() + order.order_status.slice(1).replace(/_/g, ' ')}
+            <div className="info-item">
+              <span className="label">Order Date</span>
+              <span className="value">{formatDate(order.created_at)}</span>
+            </div>
+            {order.tracking_number && (
+              <div className="info-item">
+                <span className="label">Tracking Number</span>
+                <span className="value">{order.tracking_number}</span>
+              </div>
+            )}
+            </div>
+            
+          <div className="details-container">
+            <div className="shipping-section">
+              <h3>Shipping Details</h3>
+              <div className="details-content">
+                <div className="detail-row">
+                  <span className="label">Name</span>
+                  <span className="value">{order.shipping?.name || `${order.first_name} ${order.last_name}` || 'Not provided'}</span>
+                </div>
+                <div className="detail-row">
+                  <span className="label">Phone</span>
+                  <span className="value">{order.shipping?.phone || order.phone || 'Not provided'}</span>
+                </div>
+                <div className="detail-row">
+                  <span className="label">Email</span>
+                  <span className="value">{order.shipping?.email || order.email || 'Not provided'}</span>
+              </div>
+                <div className="detail-row">
+                  <span className="label">Delivery Address</span>
+                  <span className="value">{order.shipping?.address || order.address || 'Not provided'}</span>
+            </div>
+              </div>
+            </div>
+            
+            <div className="payment-section">
+              <h3>Payment Details</h3>
+              <div className="details-content">
+                <div className="detail-row">
+                  <span className="label">Method</span>
+                  <span className="value">{order.payment?.payment_method || 'Not provided'}</span>
+              </div>
+                <div className="detail-row">
+                  <span className="label">Transaction ID</span>
+                  <span className="value">{order.payment?.transaction_id || 'Pending'}</span>
+            </div>
+              </div>
             </div>
           </div>
 
-          {/* Order Progress Tracker */}
-          <div className="order-progress-tracker">
-            <div className="progress-line">
-              <div 
-                className="progress-line-filled" 
-                style={{ 
-                  width: (() => {
-                    const statusMap = {
-                      'pending_payment': '0%',
-                      'processing': '20%',
-                      'for_packing': '40%',
-                      'packed': '40%',
-                      'for_shipping': '60%',
-                      'shipped': '60%',
-                      'picked_up': '60%',
-                      'delivered': '80%',
-                      'completed': '100%'
-                    };
-                    return statusMap[order.order_status.toLowerCase()] || '0%';
-                  })()
-                }}
-              />
-            </div>
-            
-            {/* Processing Step */}
-            <div className={`progress-step ${getStepStatus(order.order_status, 'processing')}`}>
-              <div className="step-icon">
-                <i className="fas fa-dollar-sign"></i>
-              </div>
-              <div className="step-label">Processing</div>
-            </div>
-            
-            {/* Packing Step */}
-            <div className={`progress-step ${getStepStatus(order.order_status, 'packing')}`}>
-              <div className="step-icon">
-                <i className="fas fa-box"></i>
-              </div>
-              <div className="step-label">Packing</div>
-            </div>
-            
-            {/* Shipping Step */}
-            <div className={`progress-step ${getStepStatus(order.order_status, 'shipping')}`}>
-              <div className="step-icon">
-                <i className="fas fa-truck"></i>
-              </div>
-              <div className="step-label">Shipping</div>
-            </div>
-            
-            {/* Delivery Step */}
-            <div className={`progress-step ${getStepStatus(order.order_status, 'delivery')}`}>
-              <div className="step-icon">
-                <i className="fas fa-home"></i>
-              </div>
-              <div className="step-label">Delivery</div>
-            </div>
-            
-            {/* Completed Step */}
-            <div className={`progress-step ${getStepStatus(order.order_status, 'completed')}`}>
-              <div className="step-icon">
-                <i className="fas fa-check"></i>
-              </div>
-              <div className="step-label">Completed</div>
-            </div>
-          </div>
-
-          <div className="order-details">
-            <div className="customer-info">
-              <h3>Order Information</h3>
-              <div className="info-grid">
-                <div className="shipping-info">
-                  <h4>Shipping Details</h4>
-                  <div className="info-content">
-                    <p><strong>Name:</strong> {order.shipping?.name || order.first_name && order.last_name ? `${order.first_name} ${order.last_name}` : order.name || 'Not provided'}</p>
-                    <p><strong>Phone:</strong> {order.shipping?.phone || order.phone || 'Not provided'}</p>
-                    <p><strong>Email:</strong> {order.shipping?.email || order.email || 'Not provided'}</p>
-                    <div className="address-details">
-                      <p><strong>Delivery Address:</strong></p>
-                      {order.shipping?.full_address ? (
-                        <>
-                          {order.shipping.full_address.address_line1 && (
-                            <p className="address-line">{order.shipping.full_address.address_line1}</p>
-                          )}
-                          {order.shipping.full_address.address_line2 && (
-                            <p className="address-line">{order.shipping.full_address.address_line2}</p>
-                          )}
-                          {order.shipping.full_address.area && (
-                            <p className="address-line">{order.shipping.full_address.area}</p>
-                          )}
-                          {order.shipping.full_address.city && (
-                            <p className="address-line">
-                              {order.shipping.full_address.city}
-                              {order.shipping.full_address.state && `, ${order.shipping.full_address.state}`}
-                            </p>
-                          )}
-                          {order.shipping.full_address.postal_code && (
-                            <p className="address-line">{order.shipping.full_address.postal_code}</p>
-                          )}
-                          <p className="address-line">
-                            {order.shipping.full_address.country === 'PH' ? 'Philippines' : 
-                             order.shipping.full_address.country === 'MY' ? 'Malaysia' : 
-                             order.shipping.full_address.country === 'SG' ? 'Singapore' : 
-                             order.shipping.full_address.country}
-                          </p>
-                        </>
-                      ) : order.shipping?.address_details ? (
-                        <>
-                          {order.shipping.address_details.house_number && (
-                            <p className="address-line">Block {order.shipping.address_details.house_number}</p>
-                          )}
-                          {order.shipping.address_details.building && (
-                            <p className="address-line">{order.shipping.address_details.building}</p>
-                          )}
-                          {order.shipping.address_details.street_name && (
-                            <p className="address-line">{order.shipping.address_details.street_name}</p>
-                          )}
-                          {order.shipping.address_details.barangay && (
-                            <p className="address-line">{order.shipping.address_details.barangay}</p>
-                          )}
-                          {order.shipping.address_details.city_municipality && (
-                            <p className="address-line">{order.shipping.address_details.city_municipality}</p>
-                          )}
-                          {order.shipping.address_details.province && (
-                            <p className="address-line">{order.shipping.address_details.province}</p>
-                          )}
-                          {order.shipping.address_details.region && (
-                            <p className="address-line">{order.shipping.address_details.region}</p>
-                          )}
-                          {order.shipping.address_details.postcode && (
-                            <p className="address-line">{order.shipping.address_details.postcode}</p>
-                          )}
-                          <p className="address-line">
-                            {(() => {
-                              const country = order.shipping.address_details.country;
-                              switch(country) {
-                                case 'PH': return 'Philippines';
-                                case 'MY': return 'Malaysia';
-                                case 'SG': return 'Singapore';
-                                case 'US': return 'United States';
-                                case 'CA': return 'Canada';
-                                case 'GB': return 'United Kingdom';
-                                case 'AU': return 'Australia';
-                                default: return country;
-                              }
-                            })()}
-                          </p>
-                        </>
-                      ) : order.shipping?.address ? (
-                        <p className="address-line">{order.shipping.address}</p>
-                      ) : (
-                        <p className="address-line">{order.address || 'Address not provided'}</p>
-                      )}
+          <div className="order-items-section">
+            <h3>Order Items</h3>
+            <div className="items-list">
+              {order.items && order.items.map((item, index) => (
+                <div key={index} className="item-row">
+                  <div className="item-image">
+                    <img 
+                      src={getFullImageUrl(item.image_url)} 
+                      alt={item.product_name}
+                      onError={(e) => { 
+                        console.error('Image load error:', e.target.src); 
+                        e.target.onerror = null; // Prevent infinite loop
+                        e.target.src = PLACEHOLDER_IMAGE; 
+                      }}
+                      loading="lazy"
+                    />
+                  </div>
+                  <div className="item-info">
+                    <h4>{item.product_name}</h4>
+                    <p className="product-code">Product Code: {item.product_code}</p>
                     </div>
-                    {order.shipping?.shipping_method && <p><strong>Shipping Method:</strong> {order.shipping.shipping_method}</p>}
-                    {order.shipping?.estimated_delivery && <p><strong>Estimated Delivery:</strong> {order.shipping.estimated_delivery}</p>}
+                  <div className="item-pricing">
+                    <span className="price">₱{parseFloat(item.price).toFixed(2)}</span>
+                    <span className="quantity">× {item.quantity}</span>
+                    <span className="total">₱{(parseFloat(item.price) * item.quantity).toFixed(2)}</span>
                   </div>
                 </div>
-
-                <div className="payment-info">
-                  <h4>Payment Details</h4>
-                  <div className="info-content">
-                    {order.payment && (
-                      <>
-                        <p><strong>Method:</strong> {order.payment.payment_method}</p>
-                        <p><strong>Transaction ID:</strong> {order.payment.transaction_id || 'Pending'}</p>
-                      </>
-                    )}
-                    {order.tracking_number && (
-                      <p>
-                        <strong>Tracking Number:</strong>
-                        <span className="tracking-value-inline">{order.tracking_number}</span>
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="order-items">
-              <h3>Order Items</h3>
-              <div className="items-list">
-                {order.items && order.items.map((item, index) => (
-                  <div key={index} className="order-item">
-                    <div className="item-details">
-                      <h4>{item.product_name}</h4>
-                      <p className="item-code">Product Code: {item.product_code}</p>
-                      {item.variant_attributes && (
-                        <p className="item-variants">
-                          {Object.entries(item.variant_attributes)
-                            .map(([key, value]) => `${key}: ${value}`)
-                            .join(', ')}
-                        </p>
-                      )}
-                      <div className="item-price-qty">
-                        <span className="item-price">₱{parseFloat(item.price).toFixed(2)}</span>
-                        <span className="item-quantity">× {item.quantity}</span>
-                        <span className="item-total">
-                          ₱{(parseFloat(item.price) * item.quantity).toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+              ))}
               </div>
               
-              <div className="order-summary-inline">
-                <div className="summary-details">
+            <div className="order-summary">
                   <div className="summary-row">
-                    <span>Subtotal:</span>
+                    <span>Subtotal</span>
                     <span>₱{parseFloat(order.total_price).toFixed(2)}</span>
                   </div>
                   <div className="summary-row">
-                    <span>Shipping:</span>
+                    <span>Shipping</span>
                     <span>₱0.00</span>
                   </div>
                   <div className="summary-row total">
-                    <span>Total:</span>
+                    <span>Total</span>
                     <span>₱{parseFloat(order.total_price).toFixed(2)}</span>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-
-          <div className="order-actions">
-            <Link to="/account/purchases" className="back-button">
-              Back to Purchases
-            </Link>
-            {order.tracking_number && (
-              <Link 
-                to={`/account/tracking/${order.order_id}`}
-                className="track-order-button"
-              >
-                Track Order
-              </Link>
-            )}
-          </div>
-        </div>
-      </div>
-      <Footer />
+      <Footer forceShow={false} />
     </div>
   );
 }
