@@ -3,12 +3,10 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import { toast } from 'react-toastify';
 import { setAuthToken, setUser } from '../../utils/cookies';
-import coverImage from '/cover.png';
 import './SocialAuthSuccess.css';
 
 const SocialAuthSuccess = () => {
   const [processingStatus, setProcessingStatus] = useState('Processing authentication...');
-  const [authLoading, setAuthLoading] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
   const cart = useCart();
@@ -54,13 +52,10 @@ const SocialAuthSuccess = () => {
             }
           }
           
-          // Get the return URL from cookies or default to home
-          const returnTo = getCookie('returnTo') || '/';
-          removeCookie('returnTo'); // Clean up
-          
+          // Navigate to home or previous page
           setTimeout(() => {
-            navigate(returnTo);
-          }, 2000);
+            navigate('/');
+          }, 1500);
         } else {
           throw new Error('Failed to fetch user profile');
         }
@@ -74,14 +69,13 @@ const SocialAuthSuccess = () => {
       }
     };
 
-    if (!authLoading) {
-      processToken();
-    }
-  }, [location, navigate, cart, authLoading]);
+    processToken();
+  }, [location, navigate, cart]);
 
   return (
-    <div className="social-auth-success">
-      <div className="processing-status">
+    <div className="social-auth-success-container">
+      <div className="social-auth-success-content">
+        <div className="spinner"></div>
         <h2>{processingStatus}</h2>
       </div>
     </div>
