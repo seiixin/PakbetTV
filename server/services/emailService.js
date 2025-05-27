@@ -54,7 +54,7 @@ const sendOrderConfirmationEmail = async (orderDetails) => {
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
         .header { text-align: center; margin-bottom: 30px; }
-        .logo { max-width: 200px; }
+        .header img { width: 100%; max-width: 600px; height: auto; }
         .order-details { margin-bottom: 30px; }
         .tracking-info { background-color: #f9f9f9; padding: 15px; margin: 20px 0; }
         .footer { text-align: center; margin-top: 30px; font-size: 12px; color: #666; }
@@ -63,7 +63,7 @@ const sendOrderConfirmationEmail = async (orderDetails) => {
     <body>
       <div class="container">
         <div class="header">
-          <img src="cid:logoImage" alt="Logo" class="logo"/>
+          <img src="cid:emailHeader" alt="Email Header"/>
           <h2>Order Confirmation</h2>
         </div>
         
@@ -107,14 +107,9 @@ const sendOrderConfirmationEmail = async (orderDetails) => {
       html: emailHtml,
       attachments: [
         {
-          filename: 'logo.png',
-          path: path.join(__dirname, '../../client/public/Logo.png'),
-          cid: 'logoImage'
-        },
-        {
-          filename: 'cover.png',
-          path: path.join(__dirname, '../../client/public/cover.png'),
-          cid: 'coverImage'
+          filename: 'emailheader.png',
+          path: path.join(__dirname, '../../client/public/Emailheader.png'),
+          cid: 'emailHeader'
         }
       ]
     });
