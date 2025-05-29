@@ -233,19 +233,29 @@ const Checkout = () => {
     setError(null);
     
     try {
+      console.log('[Checkout] Starting order process for user:', user.id);
+      console.log('[Checkout] Selected items:', selectedItems.length);
+      
       // Create the order
       const orderResult = await createOrder(user.id);
+      console.log('[Checkout] Order created:', orderResult);
       
       // Process payment with DragonPay
       const paymentResult = await processPayment(
         orderResult.order_id, 
         user.email || 'customer@example.com'
       );
+      console.log('[Checkout] Payment processing result:', paymentResult);
       
-      window.location.href = paymentResult.payment_url;
+      if (paymentResult.payment_url) {
+        console.log('[Checkout] Redirecting to DragonPay:', paymentResult.payment_url);
+        window.location.href = paymentResult.payment_url;
+      } else {
+        throw new Error('No payment URL received');
+      }
     } catch (err) {
+      console.error('[Checkout] Error during checkout:', err);
       handleError(err);
-      console.error('Checkout error:', err);
     } finally {
       setLoading(false);
     }

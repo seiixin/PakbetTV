@@ -13,7 +13,7 @@ const BASE_URL = process.env.NODE_ENV === 'production'
 const SECRET_KEY_SHA256 = process.env.DRAGONPAY_SECRET_KEY_SHA256 || 'test_sha256_key';
 const { sendOrderConfirmationEmail } = require('../services/emailService');
 
-router.post('/orders', async (req, res) => {
+router.post('/orders', auth, async (req, res) => {
   const connection = await db.getConnection();
   console.log('Starting order creation process...');
   console.log('Database connection acquired');
@@ -151,7 +151,7 @@ router.post('/orders', async (req, res) => {
     connection.release();
   }
 });
-router.post('/payment', async (req, res) => {
+router.post('/payment', auth, async (req, res) => {
   try {
     const { order_id, payment_method, payment_details } = req.body;
     const [orders] = await db.query(
@@ -218,7 +218,7 @@ router.post('/payment', async (req, res) => {
     res.status(500).json({ message: error.message || 'Failed to process payment' });
   }
 });
-router.get('/verify', async (req, res) => {
+router.get('/verify', auth, async (req, res) => {
   let connection;
   try {
     const { txnId, refNo, status } = req.query;

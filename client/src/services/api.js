@@ -337,4 +337,57 @@ export const authService = {
   }
 };
 
+// Order and Transaction Services
+export const orderService = {
+  createOrder: async (orderData) => {
+    try {
+      const response = await api.post('/transactions/orders', orderData);
+      return response;
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
+  },
+
+  processPayment: async (paymentData) => {
+    try {
+      const response = await api.post('/transactions/payment', paymentData);
+      return response;
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
+  },
+
+  verifyTransaction: async (txnId, refNo, status) => {
+    try {
+      const response = await api.get('/transactions/verify', {
+        params: { txnId, refNo, status }
+      });
+      return response;
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
+  },
+
+  getOrders: async () => {
+    try {
+      return await api.get('/orders');
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
+  },
+
+  getOrderById: async (orderId) => {
+    try {
+      return await api.get(`/orders/${orderId}`);
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
+  }
+};
+
 export default api; 

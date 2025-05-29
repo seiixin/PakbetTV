@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { getFullImageUrl } from '../utils/imageUtils';
-import { getCart, setCart, removeCart } from '../utils/cookies';
+import { getCart, setCart, removeCart, getAuthToken } from '../utils/cookies';
+import axios from 'axios';
+import API_BASE_URL from '../config';
 
 const CartContext = createContext();
 
@@ -112,6 +114,10 @@ export const CartProvider = ({ children }) => {
     });
   };
 
+  const removeSelectedItems = () => {
+    setCartItems(prevItems => prevItems.filter(item => !item.selected));
+  };
+
   const updateQuantity = (productId, quantity, variantId = null) => {
     if (quantity <= 0) {
       removeFromCart(productId, variantId);
@@ -180,6 +186,89 @@ export const CartProvider = ({ children }) => {
     }
   };
 
+  // Create order function - using the transactions API instead of orders
+  const createOrder = async (userId) => {
+    try {
+      const selectedItems = cartItems.filter(item => item.selected);
+      if (selectedItems.length === 0) {
+        throw new Error('No items selected for order');
+      }
+
+      // Transform cart items for the backend
+      const orderItems = selectedItems.map(item => ({
+        product_id: item.id || item.product_id,
+        variant_id: item.variant_id || null,
+        quantity: item.quantity,
+        price: item.price,
+        variant_attributes: item.variant_attributes || {}
+      }));
+
+      const orderData = {
+        user_id: userId,
+        items: orderItems,
+        total_amount: getTotalPrice()
+      };
+
+      const token = getAuthToken(); // Get token from cookies
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      console.log('[CartContext] Creating order with data:', orderData);
+
+      const response = await axios.post('/api/transactions/orders', orderData, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log('[CartContext] Order created successfully:', response.data);
+      
+      return response.data;
+    } catch (error) {
+      console.error('[CartContext] Error creating order:', error);
+      throw error;
+    }
+  };
+
+  // Process payment with DragonPay
+  const processPayment = async (orderId, userEmail) => {
+    try {
+      const token = getAuthToken();
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      const paymentData = {
+        order_id: orderId,
+        payment_method: 'dragonpay',
+        payment_details: {
+          email: userEmail
+        }
+      };
+
+      console.log('[CartContext] Processing payment with data:', paymentData);
+
+      const response = await axios.post('/api/transactions/payment', paymentData, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log('[CartContext] Payment processing response:', response.data);
+
+      // Clear selected items from cart after successful payment initiation
+      setCartItems(prevItems => prevItems.filter(item => !item.selected));
+      
+      return response.data;
+    } catch (error) {
+      console.error('[CartContext] Error processing payment:', error);
+      throw error;
+    }
+  };
+
   const getTotalPrice = () => {
     return cartItems
       .filter(item => item.selected)
@@ -204,6 +293,7 @@ export const CartProvider = ({ children }) => {
       cartItems,
       addToCart,
       removeFromCart,
+      removeSelectedItems,
       updateQuantity,
       clearCart,
       getTotalPrice,
@@ -211,7 +301,9 @@ export const CartProvider = ({ children }) => {
       toggleItemSelection,
       toggleSelectAll,
       getSelectedCount,
-      mergeGuestCartWithUserCart
+      mergeGuestCartWithUserCart,
+      createOrder,
+      processPayment
     }}>
       {children}
     </CartContext.Provider>
