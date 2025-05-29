@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import { toast } from 'react-toastify';
 import API_BASE_URL from '../../config';
+import { getFullImageUrl } from '../../utils/imageUtils';
 import './ProductCard.css';
 
 const ProductCard = ({ product }) => {
@@ -69,27 +70,6 @@ const ProductCard = ({ product }) => {
     
     // If no variants or no valid variant prices, use the product price
     return formatPrice(product.price);
-  };
-
-  const getFullImageUrl = (url) => {
-    if (!url) return '/placeholder-product.jpg';
-    
-    // Handle base64 encoded images
-    if (url.startsWith('data:')) {
-      return url; // Already a full data URL
-    }
-    
-    // Handle absolute URLs
-    if (url.startsWith('http')) return url;
-    
-    // Handle uploads paths
-    if (url.startsWith('/uploads/')) return `${API_BASE_URL}${url}`;
-    
-    // Handle other relative paths
-    if (url.startsWith('/')) return `${API_BASE_URL}${url}`;
-    
-    // Any other format
-    return `${API_BASE_URL}/uploads/${url}`;
   };
 
   // Get the primary image URL

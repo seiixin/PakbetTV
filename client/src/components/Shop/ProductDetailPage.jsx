@@ -10,6 +10,7 @@ import API_BASE_URL from '../../config';
 import NavBar from '../NavBar';
 import Footer from '../Footer';
 import { sanitizeHtml } from '../../utils/sanitize';
+import { getFullImageUrl } from '../../utils/imageUtils';
 
 const GlobalStyle = createGlobalStyle`
   body {
@@ -42,6 +43,47 @@ const ProductDetailPage = () => {
   const [isFooterVisible, setIsFooterVisible] = useState(false);
   const pageEndRef = useRef(null);
   
+  // Function to check if a variant combination is available
+  const isVariantCombinationAvailable = useCallback((attributes) => {
+    if (!product || !product.variants) return false;
+    
+    return product.variants.some(variant => {
+      if (!variant.attributes) return false;
+      
+      return Object.entries(attributes).every(([key, value]) => 
+        variant.attributes[key] === value
+      );
+    });
+  }, [product]);
+
+  // Function to find the matching variant based on selected attributes
+  const findMatchingVariant = useCallback((attributes) => {
+    if (!product || !product.variants) return null;
+    
+    return product.variants.find(variant => 
+      variant.attributes &&
+      Object.entries(attributes).every(([key, value]) => 
+        variant.attributes[key] === value
+      )
+    );
+  }, [product]);
+
+  // Handle attribute selection
+  const handleAttributeChange = useCallback((attributeName, value) => {
+    const newAttributes = {
+      ...selectedAttributes,
+      [attributeName]: value
+    };
+    setSelectedAttributes(newAttributes);
+    
+    // Find and set the matching variant
+    const matchingVariant = findMatchingVariant(newAttributes);
+    setSelectedVariant(matchingVariant);
+    
+    // Reset quantity if variant changes
+    setQuantity(1);
+  }, [selectedAttributes, findMatchingVariant]);
+
   useEffect(() => {
     if (product) {
       // Process variants and attributes
@@ -249,36 +291,6 @@ const ProductDetailPage = () => {
     return (price - (price * discount / 100)).toFixed(2);
   };
 
-  const getFullImageUrl = (url) => {
-    if (!url) {
-      console.warn('[getFullImageUrl] URL is missing, returning placeholder.');
-      return '/placeholder-product.jpg';
-    }
-    
-    if (typeof url !== 'string') {
-      console.warn('[getFullImageUrl] URL is not a string:', url);
-      return '/placeholder-product.jpg';
-    }
-    
-    // Handle base64 encoded images
-    if (url.startsWith('data:')) {
-      return url; // Already a full data URL
-    }
-    
-    // Handle absolute URLs
-    if (url.startsWith('http')) {
-      return url;
-    }
-    
-    // Handle relative paths
-    if (url.startsWith('/')) {
-      return `${API_BASE_URL}${url}`;
-    }
-    
-    // Any other format
-    return `${API_BASE_URL}/${url}`;
-  };
-
   const renderStars = (rating) => {
     const stars = [];
     const numRating = Number(rating) || 0;
@@ -416,7 +428,7 @@ const ProductDetailPage = () => {
                 {product.images && product.images.length > 0 && product.images.map((image, index) => (
                   <div 
                     key={index}
-                    className={`thumbnail-item ${getFullImageUrl(image.url) === selectedImageUrl ? 'active' : ''}`}
+                    className={`thumbnail-item ${selectedImageUrl === getFullImageUrl(image.url) ? 'active' : ''}`}
                     onClick={() => setSelectedImageUrl(getFullImageUrl(image.url))}
                   >
                     <img src={getFullImageUrl(image.url)} alt={`${product.name} thumbnail ${index + 1}`} />
@@ -424,11 +436,21 @@ const ProductDetailPage = () => {
                 ))}
                 {product.variants && product.variants.length > 0 && 
                   product.variants
-                    .filter(v => v.image_url && (!product.images || !product.images.some(img => getFullImageUrl(img.url) === getFullImageUrl(v.image_url))))
+                    .filter(variant => {
+                      if (!variant.image_url) return false;
+                      // Skip variants whose images are already in the product.images array
+                      if (product.images) {
+                        const variantFullUrl = getFullImageUrl(variant.image_url);
+                        return !product.images.some(img => 
+                          getFullImageUrl(img.url) === variantFullUrl
+                        );
+                      }
+                      return true;
+                    })
                     .map((variant, index) => (
                       <div 
                         key={`variant-${index}`}
-                        className={`thumbnail-item ${getFullImageUrl(variant.image_url) === selectedImageUrl ? 'active' : ''}`}
+                        className={`thumbnail-item ${selectedImageUrl === getFullImageUrl(variant.image_url) ? 'active' : ''}`}
                         onClick={() => {
                           setSelectedImageUrl(getFullImageUrl(variant.image_url));
                           if (variant.attributes) {
