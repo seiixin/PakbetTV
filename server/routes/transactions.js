@@ -31,17 +31,17 @@ router.post('/orders', auth, async (req, res) => {
     const orderCode = uuidv4();
     console.log(`Generated order_code: ${orderCode}`);
     
-    // Create the order record using order_code as order_id
+    // Create the order record - let MySQL auto-increment the order_id
     console.log('Creating order record with data:', { user_id, total_amount, order_code: orderCode });
     const [orderResult] = await connection.query(
       `INSERT INTO orders 
-       (order_id, user_id, total_price, order_status, payment_status, order_code, created_at, updated_at) 
-       VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-      [orderCode, user_id, total_amount, 'processing', 'pending', orderCode]
+       (user_id, total_price, order_status, payment_status, order_code, created_at, updated_at) 
+       VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
+      [user_id, total_amount, 'processing', 'pending', orderCode]
     );
     
-    const orderId = orderCode;
-    console.log(`Order record created with ID: ${orderId}`);
+    const orderId = orderResult.insertId; // Use the auto-increment ID
+    console.log(`Order record created with ID: ${orderId}, order_code: ${orderCode}`);
 
     // Process order items
     console.log('Processing order items:', items);
@@ -218,37 +218,33 @@ router.post('/payment', auth, async (req, res) => {
     res.status(500).json({ message: error.message || 'Failed to process payment' });
   }
 });
-router.get('/verify', auth, async (req, res) => {
-  let connection;
+router.get('/verify', async (req, res) => {
   try {
     const { txnId, refNo, status } = req.query;
     console.log('Verifying transaction:', { txnId, refNo, status });
 
-    if (!txnId && !refNo) {
-      return res.status(400).json({ message: 'Transaction ID or reference number is required' });
+    if (!txnId || !refNo || !status) {
+      return res.status(400).json({ message: 'Missing required parameters' });
     }
 
-    connection = await db.getConnection();
-    await connection.beginTransaction();
-
-    // Get payment and order details
-    const [payments] = await connection.query(
-      'SELECT p.*, o.user_id, o.order_status, o.payment_status FROM payments p JOIN orders o ON p.order_id = o.order_id WHERE p.reference_number = ?',
-      [txnId || refNo]
-    );
-
-    if (payments.length === 0) {
-      await connection.rollback();
-      return res.status(404).json({ message: 'Payment not found' });
+    // Extract order_code from txnId (format: order_{orderCode}_{timestamp})
+    const orderCodeMatch = txnId.match(/order_(.+?)_\d+$/);
+    if (!orderCodeMatch || !orderCodeMatch[1]) {
+      console.error('Invalid transaction ID format:', txnId);
+      return res.status(400).json({ message: 'Invalid transaction ID format' });
     }
+    const orderCode = orderCodeMatch[1];
+    console.log('Extracted order_code:', orderCode);
 
-    const payment = payments[0];
-    const orderId = payment.order_id;
+    const connection = await db.getConnection();
 
-    // Get order details
+    try {
+      await connection.beginTransaction();
+
+      // Find order by order_code
     const [orders] = await connection.query(
-      'SELECT o.*, s.address as shipping_address FROM orders o LEFT JOIN shipping s ON o.order_id = s.order_id WHERE o.order_id = ?',
-      [orderId]
+        'SELECT * FROM orders WHERE order_code = ?',
+        [orderCode]
     );
 
     if (orders.length === 0) {
@@ -257,6 +253,8 @@ router.get('/verify', auth, async (req, res) => {
     }
 
     const order = orders[0];
+      const orderId = order.order_id; // Now this is the auto-increment ID
+      console.log('Found order:', { order_id: orderId, order_code: orderCode });
 
     // Get shipping details
     const [shipping] = await connection.query(
@@ -273,13 +271,9 @@ router.get('/verify', auth, async (req, res) => {
       [order.user_id]
     );
 
-    // If status is success, update order status and subtract stock
+      // If status is success, update order status and payment status
     if (status === 'S') {
       console.log('Payment successful, updating order status');
-      
-      // For DragonPay payments, stock is already deducted during order creation
-      // So we only need to update the order status, not deduct stock again
-      console.log('Skipping stock deduction as it was already done during order creation');
       
       // Update order status and payment status
       await connection.query(
@@ -300,334 +294,146 @@ router.get('/verify', auth, async (req, res) => {
       await connection.commit();
       console.log('Payment and order status updated successfully');
 
-      // Create shipping order and send confirmation email
-      try {
-        console.log('Creating shipping order for order:', orderId);
-        const shippingResult = await deliveryRouter.createShippingOrder(orderId);
-        
-        if (shippingResult && shippingResult.tracking_number) {
-          // Update orders table with tracking number
-          await db.query(
-            'UPDATE orders SET tracking_number = ? WHERE order_id = ?',
-            [shippingResult.tracking_number, orderId]
-          );
-          console.log('Tracking number updated:', shippingResult.tracking_number);
+        // Create shipping order and send confirmation email
+        try {
+          console.log('Creating shipping order for order:', orderId);
+          const shippingResult = await deliveryRouter.createShippingOrder(orderId);
+          
+          if (shippingResult && shippingResult.tracking_number) {
+            // Update orders table with tracking number using a new connection
+            const [updateResult] = await db.query(
+              'UPDATE orders SET tracking_number = ? WHERE order_id = ?',
+              [shippingResult.tracking_number, orderId]
+            );
+            console.log('Tracking number updated:', shippingResult.tracking_number);
+            console.log('Update result:', updateResult);
+          }
+          
+          console.log('Shipping order creation completed');
+        } catch (shippingError) {
+          // Don't fail the transaction if shipping creation fails
+          console.error('Failed to create shipping order (non-critical):', shippingError.message);
         }
-        
-        console.log('Shipping order creation completed');
-      } catch (shippingError) {
-        // Don't fail the transaction if shipping creation fails
-        console.error('Failed to create shipping order (non-critical):', shippingError.message);
-      }
 
     } else if (status === 'F') {
       // Handle failed payment
-      await connection.query(
+            await connection.query(
         'UPDATE orders SET order_status = ?, payment_status = ?, updated_at = NOW() WHERE order_id = ?',
         ['cancelled', 'failed', orderId]
-      );
-      await connection.query(
+            );
+            await connection.query(
         'UPDATE payments SET status = ?, reference_number = ?, updated_at = NOW() WHERE order_id = ?',
         ['failed', refNo, orderId]
-      );
+            );
       await connection.commit();
     } else {
       // Handle pending or other statuses
-      await connection.query(
+            await connection.query(
         'UPDATE payments SET status = ?, reference_number = ?, updated_at = NOW() WHERE order_id = ?',
         ['pending', refNo, orderId]
-      );
-      await connection.commit();
+            );
+            await connection.commit();
     }
 
     res.json({
       status: status === 'S' ? 'success' : status === 'F' ? 'failed' : 'pending',
       message: status === 'S' ? 'Payment successful' : status === 'F' ? 'Payment failed' : 'Payment pending',
-      order: {
+        order: {
         ...order,
         shipping: shipping.length > 0 ? shipping[0] : null
       }
     });
 
-  } catch (err) {
-    if (connection) {
-      await connection.rollback();
-    }
-    console.error('Error verifying transaction:', err);
-    res.status(500).json({ message: 'Server error during verification' });
+    } catch (error) {
+        await connection.rollback();
+      throw error;
   } finally {
-    if (connection) {
-      connection.release();
+        connection.release();
     }
+
+  } catch (error) {
+    console.error('Error in verify endpoint:', error);
+    res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 });
 router.post('/postback', async (req, res) => {
   try {
     const { txnid, refno, status, message, digest } = req.body;
     
-    // Extract order_id from txnid
-    const orderId = txnid.split('order_')[1].split('_')[0];
-    if (!orderId) {
+    // Extract order_code from txnid (format: order_{orderCode}_{timestamp})
+    const orderCodeMatch = txnid.match(/order_(.+?)_\d+$/);
+    if (!orderCodeMatch || !orderCodeMatch[1]) {
       console.error('Invalid transaction ID format:', txnid);
       return res.status(400).send('result=Invalid transaction ID');
     }
+    const orderCode = orderCodeMatch[1];
+    console.log('Postback - Extracted order_code:', orderCode);
 
     const connection = await db.getConnection();
 
     try {
       await connection.beginTransaction();
 
-      // Get order details to get user_id
+      // Find order by order_code
       const [orders] = await connection.query(
-        `SELECT o.*, p.reference_number, p.status AS payment_status,
-         s.address as shipping_address, s.tracking_number
-         FROM orders o 
-         LEFT JOIN payments p ON o.order_id = p.order_id 
-         LEFT JOIN shipping s ON o.order_id = s.order_id
-         WHERE o.order_id = ?`,
-        [orderId]
+        'SELECT * FROM orders WHERE order_code = ?',
+        [orderCode]
       );
 
       if (orders.length === 0) {
         await connection.rollback();
-        return res.status(404).send('result=Order not found');
+        return res.status(400).send('result=Order not found');
       }
 
       const order = orders[0];
-      console.log('Found order:', orderId, 'User ID:', order.user_id);
-
-      // Get user shipping details
-      const [userShippingDetails] = await connection.query(
-        `SELECT usd.*, u.first_name, u.last_name, u.email, u.phone
-         FROM user_shipping_details usd
-         JOIN users u ON usd.user_id = u.user_id
-         WHERE usd.user_id = ? AND usd.is_default = 1
-         ORDER BY usd.created_at DESC LIMIT 1`,
-        [order.user_id]
-      );
-
-      if (!userShippingDetails.length) {
-        console.error('No default user shipping details found for user:', order.user_id);
-        
-        // Try to get any shipping details, even if not default
-        const [anyShippingDetails] = await connection.query(
-          `SELECT usd.*, u.first_name, u.last_name, u.email, u.phone
-           FROM user_shipping_details usd
-           JOIN users u ON usd.user_id = u.user_id
-           WHERE usd.user_id = ?
-           ORDER BY usd.created_at DESC LIMIT 1`,
-          [order.user_id]
-        );
-        
-        if (!anyShippingDetails.length) {
-          console.error('No shipping details found for user at all');
-          await connection.rollback();
-          return res.status(400).send('result=No shipping details');
-        }
-        
-        console.log('Found non-default shipping details', anyShippingDetails[0]);
-        var shipping = anyShippingDetails[0];
-      } else {
-        console.log('Found default shipping details:', userShippingDetails[0]);
-        var shipping = userShippingDetails[0];
-      }
-
-      // Update payment status
-      await connection.query(
-        'UPDATE payments SET status = ?, reference_number = ? WHERE order_id = ?',
-        [mapDragonpayStatus(status), refno, orderId]
-      );
+      const orderId = order.order_id; // Auto-increment ID
+      console.log('Postback - Found order:', { order_id: orderId, order_code: orderCode });
 
       if (status === 'S') {
-        // Update order status
+        // Update order status to for_packing and payment status to paid
         await connection.query(
           'UPDATE orders SET order_status = ?, payment_status = ?, updated_at = NOW() WHERE order_id = ?',
           ['for_packing', 'paid', orderId]
         );
 
-        // Create or update shipping record with complete address
-        const addressParts = [];
-        if (shipping.house_number) addressParts.push(`Block ${shipping.house_number}`);
-        if (shipping.street_name) addressParts.push(shipping.street_name);
-        if (shipping.building) addressParts.push(shipping.building);
-        if (shipping.barangay) addressParts.push(shipping.barangay);
-        if (shipping.city_municipality) addressParts.push(shipping.city_municipality);
-        if (shipping.province) addressParts.push(shipping.province);
-        if (shipping.region) addressParts.push(shipping.region);
-        if (shipping.postcode) addressParts.push(shipping.postcode);
-        if (shipping.country) addressParts.push(shipping.country);
-
-        const fullAddress = addressParts.join(', ');
-        console.log('Constructed shipping address:', fullAddress);
-
-        if (!fullAddress) {
-          console.error('Could not construct valid shipping address from details:', shipping);
-          await connection.rollback();
-          return res.status(400).json({ message: 'Could not construct valid shipping address' });
-        }
-
-        console.log('Creating/updating shipping record with address:', fullAddress);
-
-        const [existingShipping] = await connection.query(
-          'SELECT * FROM shipping WHERE order_id = ?',
-          [orderId]
+        // Update payment record
+        await connection.query(
+          'UPDATE payments SET status = ?, reference_number = ?, updated_at = NOW() WHERE order_id = ?',
+          ['completed', refno, orderId]
         );
 
-        if (existingShipping.length === 0) {
-          // Create new shipping record
-          await connection.query(
-            'INSERT INTO shipping (order_id, user_id, address, status, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())',
-            [orderId, order.user_id, fullAddress, 'pending']
-          );
-        } else {
-          // Update existing shipping record
-          await connection.query(
-            'UPDATE shipping SET address = ?, updated_at = NOW() WHERE order_id = ?',
-            [fullAddress, orderId]
-          );
-        }
+        // Empty cart
+        await connection.query('DELETE FROM cart WHERE user_id = ?', [order.user_id]);
 
-        // Create or update shipping_details record
-        const [existingShippingDetails] = await connection.query(
-          'SELECT * FROM shipping_details WHERE order_id = ?',
-          [orderId]
+        console.log(`Postback - Payment successful for order ${orderId}`);
+      } else if (status === 'F') {
+        // Update order status to cancelled and payment status to failed
+          await connection.query(
+          'UPDATE orders SET order_status = ?, payment_status = ?, updated_at = NOW() WHERE order_id = ?',
+          ['cancelled', 'failed', orderId]
         );
 
-        if (existingShippingDetails.length === 0) {
-          // Create new shipping_details record
           await connection.query(
-            `INSERT INTO shipping_details (
-              order_id, address1, address2, area, city, state, postcode, country,
-              region, province, city_municipality, barangay, house_number, building, street_name,
-              created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-            [
-              orderId,
-              shipping.address1 || '',
-              shipping.address2 || '',
-              shipping.area || '',
-              shipping.city_municipality || shipping.city || '',
-              shipping.province || shipping.state || '',
-              shipping.postcode || '',
-              shipping.country || 'PH',
-              shipping.region || '',
-              shipping.province || '',
-              shipping.city_municipality || '',
-              shipping.barangay || '',
-              shipping.house_number || '',
-              shipping.building || '',
-              shipping.street_name || ''
-            ]
+          'UPDATE payments SET status = ?, reference_number = ?, updated_at = NOW() WHERE order_id = ?',
+          ['failed', refno, orderId]
           );
-        } else {
-          // Update existing shipping_details record
-          await connection.query(
-            `UPDATE shipping_details SET
-              address1 = ?, address2 = ?, area = ?, city = ?, state = ?, postcode = ?, country = ?,
-              region = ?, province = ?, city_municipality = ?, barangay = ?, house_number = ?,
-              building = ?, street_name = ?, updated_at = NOW()
-            WHERE order_id = ?`,
-            [
-              shipping.address1 || '',
-              shipping.address2 || '',
-              shipping.area || '',
-              shipping.city_municipality || shipping.city || '',
-              shipping.province || shipping.state || '',
-              shipping.postcode || '',
-              shipping.country || 'PH',
-              shipping.region || '',
-              shipping.province || '',
-              shipping.city_municipality || '',
-              shipping.barangay || '',
-              shipping.house_number || '',
-              shipping.building || '',
-              shipping.street_name || '',
-              orderId
-            ]
-          );
-        }
 
-        // Create NinjaVan shipping order
-        try {
-          console.log('Creating NinjaVan shipping order with details:', {
-            orderId,
-            address: fullAddress,
-            customerName: `${shipping.first_name} ${shipping.last_name}`,
-            customerEmail: shipping.email,
-            customerPhone: shipping.phone
-          });
-
-          const shippingResult = await deliveryRouter.createShippingOrder(orderId);
-          
-          if (shippingResult && shippingResult.tracking_number) {
-            // Update shipping tracking number
-            await connection.query(
-              'UPDATE shipping SET tracking_number = ?, status = ?, updated_at = NOW() WHERE order_id = ?',
-              [shippingResult.tracking_number, 'pending', orderId]
-            );
-
-            // Update orders table tracking number
-            await connection.query(
-              'UPDATE orders SET tracking_number = ? WHERE order_id = ?',
-              [shippingResult.tracking_number, orderId]
-            );
-
-            // Create tracking event
-            await connection.query(
-              'INSERT INTO tracking_events (tracking_number, order_id, status, description, created_at) VALUES (?, ?, ?, ?, NOW())',
-              [shippingResult.tracking_number, orderId, 'pending', 'Shipping order created']
-            );
-
-            // Send confirmation email
-            const emailDetails = {
-              orderNumber: orderId,
-              customerName: `${shipping.first_name} ${shipping.last_name}`,
-              customerEmail: shipping.email,
-              customerPhone: shipping.phone,
-              totalAmount: order.total_price,
-              shippingAddress: fullAddress,
-              paymentMethod: 'DragonPay',
-              paymentReference: refno,
-              trackingNumber: shippingResult.tracking_number
-            };
-
-            try {
-              await sendOrderConfirmationEmail(emailDetails);
-              console.log('Order confirmation email sent with tracking number');
-            } catch (emailError) {
-              console.error('Failed to send order confirmation email:', emailError);
-            }
-          } else {
-            console.error('No tracking number received from NinjaVan');
-          }
-        } catch (shippingError) {
-          console.error('Failed to create shipping order:', shippingError);
-          // Log detailed error for debugging
-          console.error('Shipping error details:', {
-            error: shippingError.message,
-            stack: shippingError.stack,
-            orderId,
-            address: fullAddress
-          });
+        console.log(`Postback - Payment failed for order ${orderId}`);
         }
 
         await connection.commit();
-        return res.send('result=OK');
-      } else {
-        // For non-success statuses, just update the payment status
-        await connection.commit();
-        return res.send('result=OK');
-      }
+      res.send('result=OK');
+
     } catch (error) {
       await connection.rollback();
-      console.error('Transaction error:', error);
-      return res.status(500).send('result=Error');
+      throw error;
     } finally {
       connection.release();
     }
+
   } catch (error) {
     console.error('Postback error:', error);
-    return res.status(500).send('result=Error');
+    res.status(500).send('result=Error');
   }
 });
 function mapDragonpayStatus(dpStatus) {
