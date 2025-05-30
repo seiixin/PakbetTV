@@ -3,7 +3,7 @@ import axios from 'axios'
 
 // In development, use relative paths to leverage Vite's proxy
 const isDevelopment = process.env.NODE_ENV === 'development';
-const API_URL = isDevelopment ? '/api' : (import.meta.env.VITE_API_URL || 'http://localhost:3001');
+const API_URL = isDevelopment ? '/api' : (import.meta.env.VITE_API_URL || '/api');
 
 export const useCategories = () => {
   const queryClient = useQueryClient()

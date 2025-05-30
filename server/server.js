@@ -22,8 +22,22 @@ const limiter = rateLimit({
 app.use(limiter);
 app.use(helmet());
 
+// Configure CORS origins based on environment
+const getAllowedOrigins = () => {
+  const clientUrl = process.env.CLIENT_URL;
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  
+  if (isDevelopment) {
+    // In development, allow multiple localhost ports
+    return ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5174'];
+  } else {
+    // In production, use the specific client URL
+    return clientUrl ? [clientUrl] : ['https://pakbettv.gghsoftware.dev.com'];
+  }
+};
+
 app.use(cors({
-  origin: process.env.CLIENT_URL || ['http://localhost:3000', 'http://localhost:5173'],
+  origin: getAllowedOrigins(),
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
