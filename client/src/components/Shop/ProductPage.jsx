@@ -13,7 +13,7 @@ const ProductPage = () => {
   const { getAllProducts, getNewArrivals, getBestSellers } = useProducts();
   const { getAllCategories } = useCategories();
   const { data: productsData, isLoading: productsLoading, error: productsError } = getAllProducts;
-  const { data: categoriesData, isLoading: categoriesLoading } = getAllCategories;
+  const { data: categoriesData, isLoading: categoriesLoading, error: categoriesError } = getAllCategories;
   const { data: newArrivals = [], isLoading: newArrivalsLoading, error: newArrivalsError } = getNewArrivals;
   const { data: bestSellers = [], isLoading: bestSellersLoading, error: bestSellersError } = getBestSellers;
   const [flashDeals, setFlashDeals] = useState([]);
@@ -28,6 +28,55 @@ const ProductPage = () => {
     { id: 'all', name: 'All Products', image: '/All-Products.svg' }
   ]);
   const navigate = useNavigate();
+
+  // Debug categories data
+  console.log('Categories Debug:', {
+    categoriesData,
+    categoriesLoading,
+    categoriesError,
+    categories,
+    localCategoriesLength: categories.length,
+    getAllCategoriesQueryState: getAllCategories
+  });
+
+  // Additional debugging for categories hook
+  console.log('useCategories hook details:', {
+    hookResult: getAllCategories,
+    isIdle: getAllCategories.isIdle,
+    isLoading: getAllCategories.isLoading,
+    isError: getAllCategories.isError,
+    isFetching: getAllCategories.isFetching,
+    dataUpdatedAt: getAllCategories.dataUpdatedAt
+  });
+
+  // Test categories API directly
+  useEffect(() => {
+    const testCategoriesAPI = async () => {
+      try {
+        const isDev = process.env.NODE_ENV === 'development';
+        const apiUrl = isDev 
+          ? '/api' 
+          : 'https://pakbettv.gghsoftwaredev.com/api';
+        
+        console.log('Testing categories API directly:', `${apiUrl}/categories`);
+        const response = await fetch(`${apiUrl}/categories`);
+        console.log('Direct API response status:', response.status);
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Direct API response data:', data);
+        } else {
+          console.error('Direct API response failed:', response.statusText);
+          const errorText = await response.text();
+          console.error('Error details:', errorText);
+        }
+      } catch (error) {
+        console.error('Direct API test failed:', error);
+      }
+    };
+    
+    testCategoriesAPI();
+  }, []);
 
   const carouselData = [
     {
@@ -78,7 +127,7 @@ const ProductPage = () => {
 
   // Process categories when data changes
   useEffect(() => {
-    if (categoriesData) {
+    if (categoriesData && Array.isArray(categoriesData)) {
       // Transform database categories to match our format
       const dbCategories = categoriesData.map(category => ({
         id: category.name.toLowerCase(),
@@ -100,7 +149,7 @@ const ProductPage = () => {
 
   // Process products when data changes
   useEffect(() => {
-    if (productsData?.products) {
+    if (productsData?.products && Array.isArray(productsData.products)) {
       // Process flash deals
       const validFlashDeals = productsData.products.filter(product => {
         const hasValidDiscount = product.discounted_price > 0 && product.discount_percentage > 0;
@@ -110,6 +159,10 @@ const ProductPage = () => {
       
       // Filter products based on category and search
       filterProducts(productsData.products);
+    } else {
+      // Set empty arrays as fallback
+      setFlashDeals([]);
+      setFilteredProducts([]);
     }
   }, [productsData, selectedCategory, searchParams]);
 
@@ -223,13 +276,13 @@ const ProductPage = () => {
           ) : (
             <>
               {console.log('Rendering flash deals section:', { flashDeals, productsLoading, productsError })}
-              {(!flashDeals || flashDeals.length === 0) ? (
+              {(!Array.isArray(flashDeals) || flashDeals.length === 0) ? (
                 <div className="no-products">
                   <p>No flash deals available at the moment.</p>
                 </div>
               ) : (
                 <div className="shop-products-grid">
-                  {flashDeals.slice(0, MAX_DISPLAY_PRODUCTS).map(product => {
+                  {Array.isArray(flashDeals) ? flashDeals.slice(0, MAX_DISPLAY_PRODUCTS).map(product => {
                     console.log('Rendering flash deal product:', product);
                     return (
                       <ProductCard 
@@ -244,7 +297,7 @@ const ProductPage = () => {
                         }} 
                       />
                     );
-                  })}
+                  }) : null}
                 </div>
               )}
             </>
@@ -255,18 +308,18 @@ const ProductPage = () => {
             <div>Loading new arrivals...</div>
           ) : newArrivalsError ? (
             <div className="error-message">{newArrivalsError.message}</div>
-          ) : newArrivals.length === 0 ? (
+          ) : !Array.isArray(newArrivals) || newArrivals.length === 0 ? (
             <div className="no-products">
               <p>No new arrivals at the moment.</p>
             </div>
           ) : (
             <div className="shop-products-grid">
-              {newArrivals.slice(0, MAX_DISPLAY_PRODUCTS).map(product => (
+              {Array.isArray(newArrivals) ? newArrivals.slice(0, MAX_DISPLAY_PRODUCTS).map(product => (
                 <ProductCard 
                   key={product.product_id} 
                   product={product} 
                 />
-              ))}
+              )) : null}
             </div>
           )}
 
@@ -275,40 +328,51 @@ const ProductPage = () => {
             <div>Loading best sellers...</div>
           ) : bestSellersError ? (
             <div className="error-message">{bestSellersError.message}</div>
-          ) : bestSellers.length === 0 ? (
+          ) : !Array.isArray(bestSellers) || bestSellers.length === 0 ? (
             <div className="no-products">
               <p>No best sellers available at the moment.</p>
             </div>
           ) : (
             <div className="shop-products-grid">
-              {bestSellers.slice(0, MAX_DISPLAY_PRODUCTS).map(product => (
+              {Array.isArray(bestSellers) ? bestSellers.slice(0, MAX_DISPLAY_PRODUCTS).map(product => (
                 <ProductCard 
                   key={product.product_id} 
                   product={product} 
                 />
-              ))}
+              )) : null}
             </div>
           )}
 
           <div className="shop-main">
             <div className="shop-categories">
               <div className={`shop-categories ${!isCategoriesVisible ? 'collapsed' : ''}`}>
-                <div className="shop-categories-grid">
-                  {categories.map(category => (
-                    <div 
-                      key={category.id}
-                      className={`shop-category-card ${selectedCategory === category.id ? 'active' : ''}`}
-                      onClick={() => handleCategoryClick(category.id)}
-                    >
-                      {category.image && (
-                        <div className="shop-category-icon">
-                          <img src={category.image} alt={`${category.name} icon`} />
-                        </div>
-                      )}
-                      <h3>{category.name}</h3>
-                    </div>
-                  ))}
-                </div>
+                {categoriesError && (
+                  <div className="error-message">
+                    Error loading categories: {categoriesError.message || categoriesError}
+                  </div>
+                )}
+                {categoriesLoading ? (
+                  <div>Loading categories...</div>
+                ) : (
+                  <div className="shop-categories-grid">
+                    {Array.isArray(categories) ? categories.map(category => (
+                      <div 
+                        key={category.id}
+                        className={`shop-category-card ${selectedCategory === category.id ? 'active' : ''}`}
+                        onClick={() => handleCategoryClick(category.id)}
+                      >
+                        {category.image && (
+                          <div className="shop-category-icon">
+                            <img src={category.image} alt={`${category.name} icon`} />
+                          </div>
+                        )}
+                        <h3>{category.name}</h3>
+                      </div>
+                    )) : (
+                      <div>No categories available</div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -317,13 +381,13 @@ const ProductPage = () => {
               {productsError && <div className="error-message">{productsError}</div>}
               {productsLoading ? (
                 <div>Loading products...</div>
-              ) : filteredProducts.length === 0 ? (
+              ) : !Array.isArray(filteredProducts) || filteredProducts.length === 0 ? (
                 <div className="no-products">
                   <p>No products found{searchParams.get('search') ? ' matching your search' : ' in this category'}.</p>
                 </div>
               ) : (
                 <div className="shop-products-grid">
-                  {filteredProducts.map(product => (
+                  {Array.isArray(filteredProducts) ? filteredProducts.map(product => (
                     <ProductCard 
                       key={product.product_id} 
                       product={{
@@ -335,7 +399,7 @@ const ProductPage = () => {
                         isDiscountValid: product.isDiscountValid
                       }} 
                     />
-                  ))}
+                  )) : null}
                 </div>
               )}
             </div>

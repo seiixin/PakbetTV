@@ -24,7 +24,7 @@ app.use(helmet());
 
 // Configure CORS origins based on environment
 const getAllowedOrigins = () => {
-  const clientUrl = process.env.CLIENT_URL;
+  const clientUrl = process.env.CLIENT_URL || process.env.FRONTEND_URL;
   const isDevelopment = process.env.NODE_ENV === 'development';
   
   if (isDevelopment) {
@@ -32,7 +32,7 @@ const getAllowedOrigins = () => {
     return ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5174'];
   } else {
     // In production, use the specific client URL
-    return clientUrl ? [clientUrl] : ['https://pakbettv.gghsoftware.dev.com'];
+    return clientUrl ? [clientUrl] : ['https://pakbettv.gghsoftwaredev.com'];
   }
 };
 

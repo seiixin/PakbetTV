@@ -49,7 +49,7 @@ const ProductCard = ({ product }) => {
 
   const getPriceDisplay = () => {
     // First check if we have variants with valid prices
-    if (product.variants && product.variants.length > 0) {
+    if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
       const prices = product.variants
         .map(v => parseFloat(v.price))
         .filter(price => !isNaN(price) && price > 0);

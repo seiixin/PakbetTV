@@ -3,7 +3,11 @@ import axios from 'axios'
 
 // In development, use relative paths to leverage Vite's proxy
 const isDevelopment = process.env.NODE_ENV === 'development';
-const API_URL = isDevelopment ? '/api' : (import.meta.env.VITE_API_URL || '/api');
+const API_URL = isDevelopment 
+  ? '/api' 
+  : 'https://pakbettv.gghsoftwaredev.com/api';
+
+console.log('useProducts API_URL:', API_URL, 'isDevelopment:', isDevelopment);
 
 export const useProducts = () => {
   const queryClient = useQueryClient()
@@ -39,7 +43,23 @@ export const useProducts = () => {
     queryKey: ['products'],
     queryFn: async () => {
       const { data } = await axios.get(`${API_URL}/products`)
-      return data
+      // Ensure we return proper structure with products array
+      if (!data || typeof data !== 'object') {
+        return { products: [] }
+      }
+      // If data.products exists, ensure it's an array
+      if (data.products) {
+        return {
+          ...data,
+          products: Array.isArray(data.products) ? data.products : []
+        }
+      }
+      // If data is directly an array, wrap it in products structure
+      if (Array.isArray(data)) {
+        return { products: data }
+      }
+      // Fallback to empty products array
+      return { products: [] }
     },
     // Keep the data fresh for 5 minutes
     staleTime: 1000 * 60 * 5,
@@ -49,7 +69,12 @@ export const useProducts = () => {
     refetchOnMount: false,
     // Use any prefetched data
     initialData: () => {
-      return queryClient.getQueryData(['products'])
+      const cached = queryClient.getQueryData(['products'])
+      // Ensure cached data has proper structure
+      if (!cached) return { products: [] }
+      if (Array.isArray(cached)) return { products: cached }
+      if (cached.products && Array.isArray(cached.products)) return cached
+      return { products: [] }
     }
   })
 
@@ -101,7 +126,21 @@ export const useProducts = () => {
     },
     onSuccess: (newProduct) => {
       // Optimistically update the cache
-      queryClient.setQueryData(['products'], (old) => [...(old || []), newProduct])
+      queryClient.setQueryData(['products'], (old = { products: [] }) => {
+        // Ensure old has proper structure
+        if (!old || typeof old !== 'object') return { products: [newProduct] }
+        if (old.products && Array.isArray(old.products)) {
+          return {
+            ...old,
+            products: [...old.products, newProduct]
+          }
+        }
+        // If old is directly an array (for backward compatibility)
+        if (Array.isArray(old)) {
+          return { products: [...old, newProduct] }
+        }
+        return { products: [newProduct] }
+      })
       queryClient.invalidateQueries({ queryKey: ['products'] })
     }
   })
@@ -109,15 +148,19 @@ export const useProducts = () => {
   // Update product mutation
   const updateProduct = useMutation({
     mutationFn: async ({ id, ...updateData }) => {
-      const { data } = await axios.put(`${API_URL}/api/products/${id}`, updateData)
+      const { data } = await axios.put(`${API_URL}/products/${id}`, updateData)
       return data
     },
     onSuccess: (updatedProduct, variables) => {
       // Optimistically update the cache
-      queryClient.setQueryData(['products'], (old) => 
-        old?.map(product => product.id === variables.id ? updatedProduct : product)
-      )
-      queryClient.setQueryData(['products', variables.id], updatedProduct)
+      queryClient.setQueryData(['products'], (old = { products: [] }) => {
+        // Ensure we have proper structure and products is an array
+        const currentProducts = Array.isArray(old?.products) ? old.products : []
+        return {
+          ...old,
+          products: currentProducts.map(product => product.id === variables.id ? updatedProduct : product)
+        }
+      })
       queryClient.invalidateQueries({ queryKey: ['products'] })
     }
   })
@@ -125,13 +168,25 @@ export const useProducts = () => {
   // Delete product mutation
   const deleteProduct = useMutation({
     mutationFn: async (id) => {
-      await axios.delete(`${API_URL}/api/products/${id}`)
+      await axios.delete(`${API_URL}/products/${id}`)
     },
     onSuccess: (_, deletedId) => {
       // Optimistically update the cache
-      queryClient.setQueryData(['products'], (old) => 
-        old?.filter(product => product.id !== deletedId)
-      )
+      queryClient.setQueryData(['products'], (old = { products: [] }) => {
+        // Ensure old has proper structure before filtering
+        if (!old || typeof old !== 'object') return { products: [] }
+        if (old.products && Array.isArray(old.products)) {
+          return {
+            ...old,
+            products: old.products.filter(product => product.id !== deletedId)
+          }
+        }
+        // If old is directly an array (for backward compatibility)
+        if (Array.isArray(old)) {
+          return { products: old.filter(product => product.id !== deletedId) }
+        }
+        return { products: [] }
+      })
       queryClient.removeQueries(['products', deletedId])
       queryClient.invalidateQueries({ queryKey: ['products'] })
     }

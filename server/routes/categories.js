@@ -46,6 +46,10 @@ router.post(
   }
 );
 router.get('/', async (req, res) => {
+  console.log('Incoming Request: GET /api/categories');
+  console.log('Headers:', req.headers);
+  console.log('Query params:', req.query);
+  
   try {
     const parent_id = req.query.parent_id;
     let query = 'SELECT category_id, name, description, parent_id, category_image FROM categories';
@@ -59,7 +63,14 @@ router.get('/', async (req, res) => {
       }
     }
     query += ' ORDER BY name ASC';
+    
+    console.log('Executing categories query:', query);
+    console.log('Query params:', params);
+    
     const [categories] = await db.query(query, params);
+    
+    console.log('Raw categories from database:', categories);
+    console.log('Number of categories found:', categories.length);
 
     // Convert BLOB data to base64 string with MIME type
     const processedCategories = categories.map(category => {
@@ -70,9 +81,13 @@ router.get('/', async (req, res) => {
       return category;
     });
 
+    console.log('Processed categories:', processedCategories);
+    console.log('Sending categories response with', processedCategories.length, 'categories');
+
     res.json(processedCategories);
   } catch (err) {
-    console.error(err.message);
+    console.error('Categories API Error:', err.message);
+    console.error('Full error:', err);
     res.status(500).json({ message: 'Server error' });
   }
 });

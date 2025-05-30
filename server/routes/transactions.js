@@ -176,7 +176,7 @@ router.post('/payment', auth, async (req, res) => {
       const amount = parseFloat(order.total_price).toFixed(2);
       const description = `Order #${order_id}`;
       const email = payment_details.email || order.email;
-      const returnUrl = `${process.env.CLIENT_URL || process.env.FRONTEND_URL || 'https://pakbettv.gghsoftware.dev.com'}/transaction-complete`;
+      const returnUrl = `${process.env.CLIENT_URL || process.env.FRONTEND_URL || 'https://pakbettv.gghsoftwaredev.com'}/transaction-complete`;
       const merchantIdUpper = MERCHANT_ID.toUpperCase();
       const digestString = merchantIdUpper + ':' + txnId + ':' + amount + ':PHP:' + description + ':' + email + ':' + SECRET_KEY;
       console.log('Digest string format (without actual secret key):', 
