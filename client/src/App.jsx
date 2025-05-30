@@ -22,6 +22,7 @@ import ProsperGuide from './components/Guides/ProsperGuide'
 import Horoscope from './components/Horoscope/Horoscope'
 import OrderTracking from './pages/OrderTracking'
 import SocialAuthSuccess from './components/Auth/SocialAuthSuccess'
+import BaziCalculator from './components/BaziCalculator/BaziCalculator'
 import { AuthProvider } from './context/AuthContext'
 import { CartProvider } from './context/CartContext'
 import Blog from './components/Blog'
@@ -86,6 +87,7 @@ function AppContent() {
         <Route path="/blog/:blogID" element={<BlogDetail />} />
         <Route path="/faqs" element={<FAQs />} />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/bazi-calculator" element={<BaziCalculator />} />
       </Routes>
     </>
   );

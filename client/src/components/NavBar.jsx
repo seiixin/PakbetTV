@@ -265,7 +265,7 @@ const NavBar = () => {
               <Link to="/contact" className="navbar-navbar-link">Contact Us</Link>
             </li>
             <li className="navbar-navbar-item">
-              <Link to="/blog/:slug" className="navbar-navbar-link">Free Tools</Link>
+              <Link to="/bazi-calculator" className="navbar-navbar-link">BaZi Calculator</Link>
             </li>
           </ul>
           <div className="navbar-navbar-actions">

@@ -315,6 +315,72 @@ router.get('/verify', async (req, res) => {
           console.error('Failed to create shipping order (non-critical):', shippingError.message);
         }
 
+        // Send order confirmation email
+        try {
+          console.log('Sending order confirmation email for order:', orderId);
+          
+          // Get user details
+          const [userDetails] = await db.query(
+            'SELECT u.first_name, u.last_name, u.email, u.phone FROM users u ' +
+            'WHERE u.user_id = ?',
+            [order.user_id]
+          );
+
+          // Get order items for email
+          const [orderItems] = await db.query(
+            'SELECT oi.*, p.name FROM order_items oi ' +
+            'JOIN products p ON oi.product_id = p.product_id ' +
+            'WHERE oi.order_id = ?',
+            [orderId]
+          );
+
+          // Get payment details
+          const [paymentDetails] = await db.query(
+            'SELECT * FROM payments WHERE order_id = ? ORDER BY payment_id DESC LIMIT 1',
+            [orderId]
+          );
+
+          // Get shipping address
+          let shippingAddress = 'Address not available';
+          if (shipping.length > 0 && shipping[0].address) {
+            shippingAddress = shipping[0].address;
+          } else if (userShippingDetails.length > 0) {
+            const userShipping = userShippingDetails[0];
+            shippingAddress = `${userShipping.address1}, ${userShipping.address2 || ''}, ${userShipping.city}, ${userShipping.state}, ${userShipping.postcode}, ${userShipping.country}`.trim().replace(/, ,/g, ',').replace(/,$/g, '');
+          }
+
+          if (userDetails.length > 0) {
+            const user = userDetails[0];
+            const payment = paymentDetails.length > 0 ? paymentDetails[0] : {};
+            
+            // Prepare email details
+            const emailDetails = {
+              orderNumber: order.order_code || orderId,
+              customerName: `${user.first_name} ${user.last_name}`,
+              customerEmail: user.email,
+              customerPhone: user.phone,
+              items: orderItems.map(item => ({
+                name: item.name,
+                quantity: item.quantity,
+                price: item.price
+              })),
+              totalAmount: order.total_price,
+              shippingFee: 0, // You can add shipping fee logic here if needed
+              shippingAddress: shippingAddress,
+              paymentMethod: payment.payment_method || 'DragonPay',
+              paymentReference: refNo,
+              trackingNumber: order.tracking_number || null
+            };
+
+            // Send the email
+            await sendOrderConfirmationEmail(emailDetails);
+            console.log('Order confirmation email sent successfully to:', user.email);
+          }
+        } catch (emailError) {
+          // Don't fail the transaction if email fails
+          console.error('Failed to send order confirmation email (non-critical):', emailError.message);
+        }
+
     } else if (status === 'F') {
       // Handle failed payment
             await connection.query(
@@ -406,6 +472,85 @@ router.post('/postback', async (req, res) => {
         await connection.query('DELETE FROM cart WHERE user_id = ?', [order.user_id]);
 
         console.log(`Postback - Payment successful for order ${orderId}`);
+
+        // Send order confirmation email for successful payment
+        try {
+          console.log('Postback - Sending order confirmation email for order:', orderId);
+          
+          // Get user details
+          const [userDetails] = await connection.query(
+            'SELECT u.first_name, u.last_name, u.email, u.phone FROM users u ' +
+            'WHERE u.user_id = ?',
+            [order.user_id]
+          );
+
+          // Get order items for email
+          const [orderItems] = await connection.query(
+            'SELECT oi.*, p.name FROM order_items oi ' +
+            'JOIN products p ON oi.product_id = p.product_id ' +
+            'WHERE oi.order_id = ?',
+            [orderId]
+          );
+
+          // Get payment details
+          const [paymentDetails] = await connection.query(
+            'SELECT * FROM payments WHERE order_id = ? ORDER BY payment_id DESC LIMIT 1',
+            [orderId]
+          );
+
+          // Get shipping details
+          const [shippingDetails] = await connection.query(
+            'SELECT * FROM shipping WHERE order_id = ?',
+            [orderId]
+          );
+
+          // Get user shipping details
+          const [userShippingDetails] = await connection.query(
+            'SELECT * FROM user_shipping_details WHERE user_id = ? AND is_default = 1',
+            [order.user_id]
+          );
+
+          // Get shipping address
+          let shippingAddress = 'Address not available';
+          if (shippingDetails.length > 0 && shippingDetails[0].address) {
+            shippingAddress = shippingDetails[0].address;
+          } else if (userShippingDetails.length > 0) {
+            const userShipping = userShippingDetails[0];
+            shippingAddress = `${userShipping.address1}, ${userShipping.address2 || ''}, ${userShipping.city}, ${userShipping.state}, ${userShipping.postcode}, ${userShipping.country}`.trim().replace(/, ,/g, ',').replace(/,$/g, '');
+          }
+
+          if (userDetails.length > 0) {
+            const user = userDetails[0];
+            const payment = paymentDetails.length > 0 ? paymentDetails[0] : {};
+            
+            // Prepare email details
+            const emailDetails = {
+              orderNumber: order.order_code || orderId,
+              customerName: `${user.first_name} ${user.last_name}`,
+              customerEmail: user.email,
+              customerPhone: user.phone,
+              items: orderItems.map(item => ({
+                name: item.name,
+                quantity: item.quantity,
+                price: item.price
+              })),
+              totalAmount: order.total_price,
+              shippingFee: 0, // You can add shipping fee logic here if needed
+              shippingAddress: shippingAddress,
+              paymentMethod: payment.payment_method || 'DragonPay',
+              paymentReference: refno,
+              trackingNumber: order.tracking_number || null
+            };
+
+            // Send the email
+            await sendOrderConfirmationEmail(emailDetails);
+            console.log('Postback - Order confirmation email sent successfully to:', user.email);
+          }
+        } catch (emailError) {
+          // Don't fail the transaction if email fails
+          console.error('Postback - Failed to send order confirmation email (non-critical):', emailError.message);
+        }
+
       } else if (status === 'F') {
         // Update order status to cancelled and payment status to failed
           await connection.query(
@@ -496,6 +641,77 @@ router.post('/simulate-payment', async (req, res) => {
         'UPDATE orders SET order_status = ?, payment_status = ? WHERE order_id = ?',
         ['for_packing', 'paid', orderId]
       );
+      
+      // Send order confirmation email for simulated successful payment
+      try {
+        console.log('Simulate-payment - Sending order confirmation email for order:', orderId);
+        
+        // Get user details
+        const [userDetails] = await db.query(
+          'SELECT u.first_name, u.last_name, u.email, u.phone FROM users u ' +
+          'WHERE u.user_id = ?',
+          [orders[0].user_id]
+        );
+
+        // Get order items for email
+        const [orderItems] = await db.query(
+          'SELECT oi.*, p.name FROM order_items oi ' +
+          'JOIN products p ON oi.product_id = p.product_id ' +
+          'WHERE oi.order_id = ?',
+          [orderId]
+        );
+
+        // Get shipping details
+        const [shippingDetails] = await db.query(
+          'SELECT * FROM shipping WHERE order_id = ?',
+          [orderId]
+        );
+
+        // Get user shipping details
+        const [userShippingDetails] = await db.query(
+          'SELECT * FROM user_shipping_details WHERE user_id = ? AND is_default = 1',
+          [orders[0].user_id]
+        );
+
+        // Get shipping address
+        let shippingAddress = 'Address not available';
+        if (shippingDetails.length > 0 && shippingDetails[0].address) {
+          shippingAddress = shippingDetails[0].address;
+        } else if (userShippingDetails.length > 0) {
+          const userShipping = userShippingDetails[0];
+          shippingAddress = `${userShipping.address1}, ${userShipping.address2 || ''}, ${userShipping.city}, ${userShipping.state}, ${userShipping.postcode}, ${userShipping.country}`.trim().replace(/, ,/g, ',').replace(/,$/g, '');
+        }
+
+        if (userDetails.length > 0) {
+          const user = userDetails[0];
+          
+          // Prepare email details
+          const emailDetails = {
+            orderNumber: orders[0].order_code || orderId,
+            customerName: `${user.first_name} ${user.last_name}`,
+            customerEmail: user.email,
+            customerPhone: user.phone,
+            items: orderItems.map(item => ({
+              name: item.name,
+              quantity: item.quantity,
+              price: item.price
+            })),
+            totalAmount: orders[0].total_price,
+            shippingFee: 0, // You can add shipping fee logic here if needed
+            shippingAddress: shippingAddress,
+            paymentMethod: 'DragonPay (Simulated)',
+            paymentReference: refno,
+            trackingNumber: orders[0].tracking_number || null
+          };
+
+          // Send the email
+          await sendOrderConfirmationEmail(emailDetails);
+          console.log('Simulate-payment - Order confirmation email sent successfully to:', user.email);
+        }
+      } catch (emailError) {
+        // Don't fail the transaction if email fails
+        console.error('Simulate-payment - Failed to send order confirmation email (non-critical):', emailError.message);
+      }
       
       try {
         console.log(`Creating NinjaVan shipping order for order ${orderId}`);
