@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { getFullImageUrl } from '../utils/imageUtils';
 import { getCart, setCart, removeCart, getAuthToken } from '../utils/cookies';
-import axios from 'axios';
+import api from '../services/axiosConfig';
 import API_BASE_URL from '../config';
 
 const CartContext = createContext();
@@ -216,7 +216,7 @@ export const CartProvider = ({ children }) => {
 
       console.log('[CartContext] Creating order with data:', orderData);
 
-      const response = await axios.post('/api/transactions/orders', orderData, {
+      const response = await api.post('/transactions/orders', orderData, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -250,7 +250,7 @@ export const CartProvider = ({ children }) => {
 
       console.log('[CartContext] Processing payment with data:', paymentData);
 
-      const response = await axios.post('/api/transactions/payment', paymentData, {
+      const response = await api.post('/transactions/payment', paymentData, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

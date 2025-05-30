@@ -277,59 +277,9 @@ router.get('/verify', auth, async (req, res) => {
     if (status === 'S') {
       console.log('Payment successful, updating order status');
       
-      // Get order items to update stock
-      const [orderItems] = await connection.query(
-        'SELECT * FROM order_items WHERE order_id = ?',
-        [orderId]
-      );
-
-      // Update stock for each item
-      for (const item of orderItems) {
-        if (item.variant_id) {
-          const [variantStock] = await connection.query(
-            'SELECT stock FROM product_variants WHERE variant_id = ?',
-            [item.variant_id]
-          );
-          if (variantStock.length === 0) {
-        await connection.rollback();
-            return res.status(400).json({ message: `Variant not found for order item` });
-          }
-          const newStock = variantStock[0].stock - item.quantity;
-          if (newStock < 0) {
-            await connection.rollback();
-            return res.status(400).json({ message: `Not enough stock for variant` });
-          }
-      await connection.query(
-            'UPDATE product_variants SET stock = ? WHERE variant_id = ?',
-            [newStock, item.variant_id]
-          );
-        await connection.query(
-            'INSERT INTO inventory (variant_id, change_type, quantity, reason) VALUES (?, ?, ?, ?)',
-            [item.variant_id, 'remove', item.quantity, `Order ${orderId} payment confirmed`]
-        );
-      } else {
-          const [variants] = await connection.query(
-            'SELECT variant_id, stock FROM product_variants WHERE product_id = ? ORDER BY stock DESC LIMIT 1',
-            [item.product_id]
-          );
-          if (variants.length > 0) {
-            const variantId = variants[0].variant_id;
-            const newStock = variants[0].stock - item.quantity;
-            if (newStock < 0) {
-        await connection.rollback();
-              return res.status(400).json({ message: `Not enough stock for product` });
-            }
-        await connection.query(
-              'UPDATE product_variants SET stock = ? WHERE variant_id = ?',
-              [newStock, variantId]
-        );
-        await connection.query(
-              'INSERT INTO inventory (variant_id, change_type, quantity, reason) VALUES (?, ?, ?, ?)',
-              [variantId, 'remove', item.quantity, `Order ${orderId} payment confirmed`]
-            );
-          }
-        }
-      }
+      // For DragonPay payments, stock is already deducted during order creation
+      // So we only need to update the order status, not deduct stock again
+      console.log('Skipping stock deduction as it was already done during order creation');
       
       // Update order status and payment status
       await connection.query(
@@ -350,33 +300,50 @@ router.get('/verify', auth, async (req, res) => {
       await connection.commit();
       console.log('Payment and order status updated successfully');
 
-      // Rest of the shipping and email logic...
-      // [Previous shipping and email code remains unchanged]
+      // Create shipping order and send confirmation email
+      try {
+        console.log('Creating shipping order for order:', orderId);
+        const shippingResult = await deliveryRouter.createShippingOrder(orderId);
+        
+        if (shippingResult && shippingResult.tracking_number) {
+          // Update orders table with tracking number
+          await db.query(
+            'UPDATE orders SET tracking_number = ? WHERE order_id = ?',
+            [shippingResult.tracking_number, orderId]
+          );
+          console.log('Tracking number updated:', shippingResult.tracking_number);
+        }
+        
+        console.log('Shipping order creation completed');
+      } catch (shippingError) {
+        // Don't fail the transaction if shipping creation fails
+        console.error('Failed to create shipping order (non-critical):', shippingError.message);
+      }
 
     } else if (status === 'F') {
       // Handle failed payment
-            await connection.query(
+      await connection.query(
         'UPDATE orders SET order_status = ?, payment_status = ?, updated_at = NOW() WHERE order_id = ?',
         ['cancelled', 'failed', orderId]
-            );
-            await connection.query(
+      );
+      await connection.query(
         'UPDATE payments SET status = ?, reference_number = ?, updated_at = NOW() WHERE order_id = ?',
         ['failed', refNo, orderId]
-            );
+      );
       await connection.commit();
     } else {
       // Handle pending or other statuses
-            await connection.query(
+      await connection.query(
         'UPDATE payments SET status = ?, reference_number = ?, updated_at = NOW() WHERE order_id = ?',
         ['pending', refNo, orderId]
-            );
-            await connection.commit();
+      );
+      await connection.commit();
     }
 
     res.json({
       status: status === 'S' ? 'success' : status === 'F' ? 'failed' : 'pending',
       message: status === 'S' ? 'Payment successful' : status === 'F' ? 'Payment failed' : 'Payment pending',
-        order: {
+      order: {
         ...order,
         shipping: shipping.length > 0 ? shipping[0] : null
       }
@@ -384,13 +351,13 @@ router.get('/verify', auth, async (req, res) => {
 
   } catch (err) {
     if (connection) {
-        await connection.rollback();
+      await connection.rollback();
     }
     console.error('Error verifying transaction:', err);
     res.status(500).json({ message: 'Server error during verification' });
   } finally {
     if (connection) {
-        connection.release();
+      connection.release();
     }
   }
 });

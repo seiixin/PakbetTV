@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import './TransactionComplete.css';
 import API_BASE_URL from '../../config';
 import { useAuth } from '../../context/AuthContext';
+import { getAuthToken } from '../../utils/cookies';
 
 const TransactionComplete = () => {
   const location = useLocation();
@@ -18,9 +19,10 @@ const TransactionComplete = () => {
     const verifyTransaction = async (txnId, refNo, status) => {
       try {
         console.log('Verifying transaction:', { txnId, refNo, status });
+        const token = getAuthToken();
         const response = await fetch(`${API_BASE_URL}/api/transactions/verify?txnId=${txnId}&refNo=${refNo}&status=${status}`, {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
+            'Authorization': `Bearer ${token}`
           }
         });
 
