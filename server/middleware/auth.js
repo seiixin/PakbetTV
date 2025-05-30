@@ -55,7 +55,13 @@ const auth = (req, res, next) => {
     // Set user object with consistent structure
     req.user = {
       id: userId,
-      userType: (userType || 'Customer').charAt(0).toUpperCase() + (userType || 'Customer').slice(1).toLowerCase() // Normalize case to 'Customer'
+      userType: userType || 'customer' // Default to customer if not provided
+    };
+    
+    // Also set the legacy structure for backward compatibility
+    req.user.user = {
+      id: userId,
+      userType: userType || 'customer'
     };
     
     console.log('Token verified successfully:', {
@@ -103,4 +109,4 @@ const admin = (req, res, next) => {
   }
 };
 
-module.exports = { auth, admin }; 
+module.exports = { auth, admin };

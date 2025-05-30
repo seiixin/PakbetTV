@@ -97,34 +97,34 @@ const ProsperGuide = () => {
     }
 
     return (
-        <div className="prosper-guide-sections">
-          <div className="guide-section">
-            <h3>Overview</h3>
-            <div className="section-content">
+      <div className="prosper-guide-sections">
+        <div className="guide-section">
+          <h3>Overview</h3>
+          <div className="section-content">
             <p>{guideData.overview || 'Not available.'}</p>
-            </div>
           </div>
-          <div className="guide-section">
-            <h3>Career</h3>
-            <div className="section-content">
+        </div>
+        <div className="guide-section">
+          <h3>Career</h3>
+          <div className="section-content">
             <p>{guideData.career || 'Not available.'}</p>
-            </div>
           </div>
-          <div className="guide-section">
-            <h3>Health</h3>
-            <div className="section-content">
+        </div>
+        <div className="guide-section">
+          <h3>Health</h3>
+          <div className="section-content">
             <p>{guideData.health || 'Not available.'}</p>
-            </div>
           </div>
-          <div className="guide-section">
-            <h3>Love</h3>
-            <div className="section-content">
+        </div>
+        <div className="guide-section">
+          <h3>Love</h3>
+          <div className="section-content">
             <p>{guideData.love || 'Not available.'}</p>
-            </div>
           </div>
-          <div className="guide-section">
-            <h3>Wealth</h3>
-            <div className="section-content">
+        </div>
+        <div className="guide-section">
+          <h3>Wealth</h3>
+          <div className="section-content">
             <p>{guideData.wealth || 'Not available.'}</p>
           </div>
         </div>
@@ -143,8 +143,8 @@ const ProsperGuide = () => {
           </div>
           {renderContent()}
         </div>
-          </div>
-      <Footer />
+      </div>
+      <Footer forceShow={false} />
     </div>
   );
 };

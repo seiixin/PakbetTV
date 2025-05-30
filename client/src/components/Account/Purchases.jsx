@@ -38,7 +38,7 @@ function Purchases() {
           throw new Error('No authentication token found');
         }
 
-        const response = await api.get('/api/orders');
+        const response = await api.get('/orders');
         
         // Check if response is valid JSON
         if (typeof response.data === 'string') {
@@ -72,17 +72,43 @@ function Purchases() {
   useEffect(() => {
     if (activeFilter === 'all') {
       setFilteredOrders(orders);
-    } else {
-      const filtered = orders.filter(order => {
-        // Special case for "Packing" which includes multiple statuses
-        if (activeFilter === 'for_packing') {
-          return ['for_packing', 'packed'].includes(order.order_status.toLowerCase());
-        }
-        // Otherwise just match the status
-        return order.order_status.toLowerCase() === activeFilter;
-      });
-      setFilteredOrders(filtered);
+      return;
     }
+
+    // Debug log to see what statuses we're getting
+    console.log('Current orders and their statuses:', orders.map(order => ({
+      id: order.order_id,
+      status: order.order_status,
+      normalizedStatus: order.order_status?.toLowerCase()
+    })));
+    console.log('Active filter:', activeFilter);
+
+    const filtered = orders.filter(order => {
+      // Safely handle potential undefined/null status
+      const status = (order.order_status || '').toLowerCase().trim();
+      
+      // Debug log for each filter operation
+      console.log(`Checking order ${order.order_id} with status "${status}" against filter "${activeFilter}"`);
+      
+      // Define status groups
+      const statusGroups = {
+        processing: ['processing', 'pending_payment', 'pending'],
+        for_packing: ['for_packing', 'packed', 'for_shipping', 'ready_to_ship'],
+        shipped: ['shipped', 'picked_up', 'in_transit', 'out_for_delivery'],
+        delivered: ['delivered', 'received'],
+        completed: ['completed', 'finished']
+      };
+
+      // Check if the order status belongs to the selected filter group
+      return statusGroups[activeFilter]?.includes(status) || false;
+    });
+
+    console.log('Filtered orders:', filtered.map(order => ({
+      id: order.order_id,
+      status: order.order_status
+    })));
+    
+    setFilteredOrders(filtered);
   }, [activeFilter, orders]);
 
   const formatDate = (dateString) => {
@@ -177,13 +203,13 @@ function Purchases() {
           }
           
           return (
-            <div className="purchase-order-item-card" key={order.order_id}>
+            <div className="purchase-order-item-card" key={`${order.order_id}-${order.created_at}`}>
               <div className="purchase-order-header">
                 <div className="purchase-order-date">
                   <span>Order Placed:</span> {formatDate(order.created_at)}
                 </div>
                 <div className="purchase-order-id">
-                  <span>Order ID:</span> {order.order_id}
+                  <span>Order Code:</span> {order.order_code || order.order_id}
                 </div>
               </div>
               <div className="purchase-order-details">

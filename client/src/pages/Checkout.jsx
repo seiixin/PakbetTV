@@ -3,7 +3,13 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import AddressForm from '../components/Checkout/AddressForm';
 import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
+import { getCart } from '../utils/cookies';
+import { getFullImageUrl } from '../utils/imageUtils';
+import NavBar from '../components/NavBar';
+import Footer from '../components/Footer';
 import './Checkout.css';
+import API_BASE_URL from '../config';
 
 const Checkout = () => {
   const navigate = useNavigate();
@@ -32,17 +38,74 @@ const Checkout = () => {
   });
   const [addressValid, setAddressValid] = useState(false);
   
-  // Get cart items on component mount
+  // Shipping details state
+  const [shippingDetails, setShippingDetails] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    address: '',
+    city: '',
+    state: '',
+    postal_code: '',
+  });
+  
+  // Pre-fill user information when component mounts or user changes
+  useEffect(() => {
+    if (user) {
+      console.log('User data for checkout:', user);
+      setShippingDetails(prev => ({
+        ...prev,
+        name: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.name || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        address: user.address || '',
+        city: user.city || '',
+        state: user.state || '',
+        postal_code: user.postal_code || ''
+      }));
+      
+      // Also set the AddressForm initial values if user has address info
+      if (user.address) {
+        setAddress({
+          address1: user.address || '',
+          address2: '',
+          area: '',
+          city: user.city || '',
+          state: user.state || '',
+          postcode: user.postal_code || '',
+          country: user.country || 'PH', // Default to Philippines
+          address_type: 'home'
+        });
+        
+        // Set address validity after a short delay to allow the form to initialize
+        setTimeout(() => {
+          setAddressValid(true);
+        }, 100);
+      }
+    }
+  }, [user]);
+  
+  // Get cart items on component mount and handle persistence
   useEffect(() => {
     if (!user) {
       navigate('/login', { state: { from: '/checkout' } });
       return;
     }
     
+    // First try to get cart from cookies to persist across refreshes
+    const savedCart = getCart(user?.id || 'guest');
+    if (savedCart && savedCart.length > 0) {
+      setCartItems(savedCart);
+      setSelectedItems(savedCart.map(item => item.id));
+      setLoading(false);
+      return;
+    }
+    
     // If we have items from previous page, use those
     if (location.state && location.state.items) {
-      setCartItems(location.state.items);
-      setSelectedItems(location.state.items.map(item => item.id));
+      const items = location.state.items;
+      setCartItems(items);
+      setSelectedItems(items.map(item => item.id));
       setLoading(false);
     } else {
       fetchCartItems();
@@ -93,32 +156,97 @@ const Checkout = () => {
       .toFixed(2);
   };
   
-  const handlePlaceOrder = async () => {
-    if (!addressValid) {
-      setError('Please fill in all required address fields.');
-      return;
+  const handleShippingDetailsChange = (e) => {
+    const { name, value } = e.target;
+    setShippingDetails(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    
+    // Sync with address form for relevant fields
+    if (name === 'address') {
+      setAddress(prev => ({ ...prev, address1: value }));
+    } else if (name === 'city') {
+      setAddress(prev => ({ ...prev, city: value }));
+    } else if (name === 'state') {
+      setAddress(prev => ({ ...prev, state: value }));
+    } else if (name === 'postal_code') {
+      setAddress(prev => ({ ...prev, postcode: value }));
+    }
+  };
+  
+  // Validate shipping details
+  const validateShippingDetails = () => {
+    const required = ['name', 'phone', 'email', 'address', 'city', 'state', 'postal_code'];
+    const missing = required.filter(field => !shippingDetails[field]);
+    
+    if (missing.length > 0) {
+      setError(`Please fill in all required fields: ${missing.join(', ')}`);
+      return false;
     }
     
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(shippingDetails.email)) {
+      setError('Please enter a valid email address');
+      return false;
+    }
+    
+    // Validate phone number (basic validation)
+    const phoneRegex = /^[0-9+\-\s()]{8,}$/;
+    if (!phoneRegex.test(shippingDetails.phone)) {
+      setError('Please enter a valid phone number');
+      return false;
+    }
+    
+    return true;
+  };
+  
+  const handlePlaceOrder = async () => {
+    if (!validateShippingDetails()) {
+      return;
+    }
+
+    if (!addressValid) {
+      setError('Please fill in all required address fields correctly');
+      return;
+    }
+
     try {
       setProcessingOrder(true);
       setError(null);
       
-      const token = localStorage.getItem('token');
-      const response = await axios.post('/api/orders', 
-        {
-          address: address, // Send the structured address object
-          payment_method: paymentMethod
+      // Combine shipping details with address form data
+      const combinedAddress = {
+        address_line1: address.address1,
+        address_line2: address.address2 || '',
+        area: address.area || '',
+        city: address.city,
+        state: address.state,
+        postal_code: address.postcode,
+        country: address.country,
+        address_type: address.address_type
+      };
+      
+      const orderData = {
+        shipping_details: {
+          ...shippingDetails,
+          full_address: combinedAddress
         },
-        {
-          headers: {
-            'x-auth-token': token,
-            'Content-Type': 'application/json'
-          }
+        items: cartItems,
+        payment_method: paymentMethod
+      };
+
+      console.log('Placing order with data:', orderData);
+
+      const response = await axios.post('/api/orders', orderData, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
         }
-      );
+      });
       
       setSuccess('Order placed successfully!');
-      // Redirect to order confirmation page
       setTimeout(() => {
         navigate(`/orders/${response.data.order.order_id}`);
       }, 2000);
@@ -174,11 +302,55 @@ const Checkout = () => {
       <div className="checkout-grid">
         <div className="checkout-form">
           <div className="checkout-section">
-            <h2>Shipping Address</h2>
-            <AddressForm 
-              onChange={handleAddressChange}
-              initialAddress={address}
-            />
+            <h2>Shipping Details</h2>
+            <div className="shipping-form">
+              <div className="form-group">
+                <label htmlFor="name">Full Name *</label>
+                <input
+                  type="text"
+                  id="name"
+                  name="name"
+                  value={shippingDetails.name}
+                  onChange={handleShippingDetailsChange}
+                  required
+                  placeholder="Enter your full name"
+                  className={!shippingDetails.name ? 'error' : ''}
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="phone">Contact Number *</label>
+                <input
+                  type="tel"
+                  id="phone"
+                  name="phone"
+                  value={shippingDetails.phone}
+                  onChange={handleShippingDetailsChange}
+                  required
+                  placeholder="Enter your contact number"
+                  className={!shippingDetails.phone ? 'error' : ''}
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="email">Email *</label>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  value={shippingDetails.email}
+                  onChange={handleShippingDetailsChange}
+                  required
+                  placeholder="Enter your email address"
+                  className={!shippingDetails.email ? 'error' : ''}
+                />
+              </div>
+
+              <AddressForm 
+                onChange={handleAddressChange}
+                initialAddress={address}
+              />
+            </div>
           </div>
           
           <div className="checkout-section">
@@ -229,6 +401,16 @@ const Checkout = () => {
           <div className="summary-items">
             {cartItems.map(item => (
               <div key={item.id} className="summary-item">
+                <img 
+                  src={getFullImageUrl(item.image_url)} 
+                  alt={item.name}
+                  className="item-image"
+                  onError={(e) => {
+                    console.error('Image load error:', e.target.src);
+                    e.target.onerror = null; // Prevent infinite loop
+                    e.target.src = '/placeholder-product.jpg'; 
+                  }}
+                />
                 <div className="item-info">
                   <span className="item-name">{item.name}</span>
                   <span className="item-variant">

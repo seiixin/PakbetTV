@@ -81,4 +81,114 @@ router.get('/zodiacs/:zodiacID', async (req, res) => {
   }
 });
 
+// Search zodiacs
+router.get('/zodiacs', async (req, res) => {
+  try {
+    const searchQuery = req.query.search;
+    console.log('Zodiac search query received:', searchQuery);
+    
+    if (!searchQuery) {
+      return res.json([]);
+    }
+
+    const searchTerm = `%${searchQuery.toLowerCase()}%`;
+    const [results] = await db.query(
+      `SELECT zodiacID, overview, career, health, love, wealth, status
+       FROM prosper_guides 
+       WHERE zodiacID IN ('Rat', 'Ox', 'Tiger', 'Rabbit', 'Dragon', 'Snake', 'Horse', 'Goat', 'Monkey', 'Rooster', 'Dog', 'Pig')
+       AND status = 'published'
+       AND (LOWER(zodiacID) LIKE ? 
+         OR LOWER(overview) LIKE ? 
+         OR LOWER(career) LIKE ? 
+         OR LOWER(health) LIKE ? 
+         OR LOWER(love) LIKE ? 
+         OR LOWER(wealth) LIKE ?)
+       ORDER BY 
+         CASE 
+           WHEN LOWER(zodiacID) LIKE ? THEN 1
+           WHEN LOWER(overview) LIKE ? THEN 2
+           ELSE 3
+         END`,
+      [searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm]
+    );
+
+    console.log(`Found ${results.length} zodiac results`);
+    
+    res.json(results);
+  } catch (err) {
+    console.error('Error searching zodiacs:', err);
+    res.status(500).json({ 
+      error: 'Server error during zodiac search',
+      details: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
+  }
+});
+
+// Search blogs
+router.get('/blogs/search', async (req, res) => {
+  try {
+    const searchQuery = req.query.query;
+    console.log('Blog search query received:', searchQuery);
+    
+    if (!searchQuery) {
+      return res.json([]);
+    }
+
+    const searchTerm = `%${searchQuery}%`;
+    const [results] = await db.query(
+      `SELECT blogID, title, category, tags, content, publish_date, status, created_at, updated_at, cover_image 
+       FROM blogs 
+       WHERE (LOWER(title) LIKE LOWER(?) 
+          OR LOWER(content) LIKE LOWER(?) 
+          OR LOWER(category) LIKE LOWER(?) 
+          OR LOWER(tags) LIKE LOWER(?))
+       AND status = 'published'
+       ORDER BY 
+         CASE 
+           WHEN LOWER(title) LIKE LOWER(?) THEN 1
+           WHEN LOWER(category) LIKE LOWER(?) THEN 2
+           ELSE 3
+         END,
+         publish_date DESC 
+       LIMIT 5`,
+      [searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm]
+    );
+
+    console.log(`Found ${results.length} blog results`);
+
+    // Convert cover images to base64 and handle errors gracefully
+    const blogs = results.map(blog => {
+      try {
+        if (blog.cover_image) {
+          if (Buffer.isBuffer(blog.cover_image)) {
+            blog.cover_image = `data:image/jpeg;base64,${blog.cover_image.toString('base64')}`;
+          } else if (typeof blog.cover_image === 'string') {
+            // If it's already a string (URL), use it as is
+            blog.cover_image = blog.cover_image.startsWith('/') ? blog.cover_image : `/${blog.cover_image}`;
+          }
+        }
+        return {
+          ...blog,
+          tags: blog.tags ? blog.tags.split(',').map(tag => tag.trim()) : []
+        };
+      } catch (err) {
+        console.error(`Error processing blog ${blog.blogID}:`, err);
+        return {
+          ...blog,
+          cover_image: null,
+          tags: []
+        };
+      }
+    });
+
+    res.json(blogs);
+  } catch (err) {
+    console.error('Error searching blogs:', err);
+    res.status(500).json({ 
+      error: 'Server error during blog search',
+      details: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
+  }
+});
+
 module.exports = router;

@@ -7,19 +7,6 @@ import API_BASE_URL from '../../config';
 import NavBar from '../NavBar';
 import Footer from '../Footer';
 
-const getFullImageUrl = (url) => {
-  if (!url) {
-    return '/placeholder-product.jpg'; 
-  }
-  if (url.startsWith('http')) {
-    return url;
-  }
-  if (url.startsWith('/')) {
-    return `${API_BASE_URL}${url}`;
-  }
-  return `${API_BASE_URL}${url}`;
-};
-
 const Cart = () => {
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -39,8 +26,53 @@ const Cart = () => {
     processPayment
   } = useCart();
 
+  const getFullImageUrl = (url) => {
+    if (!url) return '/placeholder-product.jpg';
+    
+    // Type check to prevent errors
+    if (typeof url !== 'string') {
+      console.warn('URL is not a string:', url);
+      return '/placeholder-product.jpg';
+    }
+    
+    // Handle base64 encoded images (longblob from database)
+    if (url.startsWith('data:')) {
+      return url; // Already a full data URL
+    }
+    
+    // Handle absolute URLs
+    if (url.startsWith('http')) {
+      return url;
+    }
+    
+    // Handle uploads paths
+    if (url.startsWith('/uploads/')) {
+      return `${API_BASE_URL}${url}`;
+    }
+    
+    // Handle other relative paths
+    if (url.startsWith('/')) {
+      return `${API_BASE_URL}${url}`;
+    }
+    
+    // Any other format
+    return `${API_BASE_URL}/uploads/${url}`;
+  };
+
   useEffect(() => {
     console.log('Cart items in Cart component:', cartItems.length, 'items');
+    
+    // If cartItems is empty but localStorage has items, this will ensure they're loaded
+    if (cartItems.length === 0) {
+      try {
+        const savedCart = localStorage.getItem('cartItems');
+        if (savedCart) {
+          console.log('Found saved cart in localStorage, length:', JSON.parse(savedCart).length);
+        }
+      } catch (err) {
+        console.error('Error checking localStorage cart:', err);
+      }
+    }
   }, [cartItems]);
 
   const formatPrice = (price) => {
@@ -68,8 +100,19 @@ const Cart = () => {
       return;
     }
     
-    // Navigate to the checkout page instead of creating an order directly
-    navigate('/checkout');
+    // Get only selected items for checkout
+    const selectedItems = cartItems.filter(item => item.selected);
+    console.log('Selected items for checkout:', selectedItems.length);
+    
+    // Save selected items to localStorage for persistence during checkout
+    try {
+      localStorage.setItem('checkoutItems', JSON.stringify(selectedItems));
+    } catch (err) {
+      console.error('Failed to save checkout items:', err);
+    }
+    
+    // Navigate to the checkout page
+    navigate('/checkout', { state: { items: selectedItems } });
   };
 
   const handleContinueShopping = () => {
@@ -157,9 +200,13 @@ const Cart = () => {
                   <div className="cart-item-product-new">
                     <img 
                       src={getFullImageUrl(item.image_url)} 
-                      alt={item.name} 
+                      alt={item.name}
                       className="cart-item-image-new"
-                      onError={(e) => e.target.src = '/placeholder-product.jpg'}
+                      onError={(e) => {
+                        console.log('Image failed to load:', e.target.src);
+                        e.target.onerror = null; // Prevent infinite loop
+                        e.target.src = '/placeholder-product.jpg'; 
+                      }}
                     />
                     <div className="cart-item-details-new">
                       <p className="cart-item-name-new">{item.name}</p>

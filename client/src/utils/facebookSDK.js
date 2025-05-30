@@ -17,7 +17,7 @@ export const initFacebookSDK = () => {
         version: 'v18.0'
       });
 
-      // Only check login status if we're on HTTPS or localhost
+      // Check login status if we're on HTTPS or localhost
       if (window.location.protocol === 'https:' || window.location.hostname === 'localhost') {
         FB.getLoginStatus(function(response) {
           console.log('FB Login Status:', response.status);
@@ -34,23 +34,45 @@ export const initFacebookSDK = () => {
 export const handleFacebookLoginStatus = async (response) => {
   const { status, authResponse } = response;
 
+  if (!authResponse) {
+    console.log('No auth response received from Facebook');
+    return;
+  }
+
   switch (status) {
     case 'connected':
       // User is logged into Facebook and has authorized your app
       try {
-        // Send the access token to your backend
-        const result = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/facebook?access_token=${authResponse.accessToken}`, {
-          credentials: 'include'
+        // Send the access token to your backend using the current domain
+        console.log('Sending FB access token to backend:', authResponse.accessToken);
+        const currentDomain = window.location.origin;
+        const result = await fetch(`${currentDomain}/api/auth/facebook?access_token=${authResponse.accessToken}`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Accept': 'application/json'
+          }
         });
         
         if (result.ok) {
           const data = await result.json();
           // Store the JWT token from your backend
           localStorage.setItem('token', data.token);
+          
+          // Also store user data if available
+          if (data.user) {
+            localStorage.setItem('user', JSON.stringify(data.user));
+          }
+          
           // Redirect to home or dashboard if not already there
           if (window.location.pathname === '/login' || window.location.pathname === '/signup') {
             window.location.href = '/';
+          } else {
+            // Force a page refresh to update the auth state
+            window.location.reload();
           }
+        } else {
+          console.error('Backend returned error:', await result.text());
         }
       } catch (error) {
         console.error('Error authenticating with backend:', error);
@@ -77,6 +99,7 @@ export const initiateFacebookLogin = () => {
     }
 
     window.FB.login(response => {
+      console.log('Facebook login response:', response);
       handleFacebookLoginStatus(response);
       resolve(response);
     }, {

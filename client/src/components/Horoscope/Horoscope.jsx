@@ -280,7 +280,7 @@ const Horoscope = () => {
           </div>
         )}
       </div>
-      <Footer />
+      <Footer forceShow={false} />
     </div>
   );
 };

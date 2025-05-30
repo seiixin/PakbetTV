@@ -1,0 +1,372 @@
+/* General Styles */
+.consultation-page {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  color: #333;
+  background-color: #f9f9f9;
+}
+
+/* Hero Section - using the blog-hero class */
+.blog-hero {
+  position: relative;
+  height: 400px;
+  background-image: url('/cover.png');
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: white;
+  padding: 4rem 2rem;
+}
+
+.blog-hero::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(139, 29, 14, 0.75);
+  z-index: 1;
+}
+
+.blog-hero-text {
+  position: relative;
+  z-index: 2;
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 2rem;
+  max-width: 800px;
+}
+
+.blog-hero-button {
+  position: relative;
+  z-index: 2;
+  background: white;
+  color: #8b1d0e;
+  border: none;
+  padding: 1rem 2.5rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.blog-hero-button:hover {
+  background-color: #f8f8f8;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* Consultation Container */
+.consultation-container {
+  max-width: 1200px;
+  margin: 4rem auto;
+  padding: 0 1.5rem;
+}
+
+/* Header Section */
+.consultation-header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.consultation-header h1 {
+  font-size: 2.5rem;
+  color: #333;
+  margin-bottom: 1rem;
+}
+
+.consultation-header p {
+  font-size: 1.2rem;
+  color: #666;
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+/* Benefits Section */
+.consultation-benefits {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2rem;
+  margin-bottom: 4rem;
+}
+
+.benefit-item {
+  background-color: white;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  text-align: center;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.benefit-item:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+}
+
+.benefit-item i {
+  font-size: 2.5rem;
+  color: #8b1d0e;
+  margin-bottom: 1.5rem;
+}
+
+.benefit-item h3 {
+  font-size: 1.3rem;
+  margin-bottom: 0.5rem;
+  color: #333;
+}
+
+.benefit-item p {
+  color: #666;
+  font-size: 1rem;
+}
+
+/* Service Cards */
+.consultation-services {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2.5rem;
+  margin-bottom: 4rem;
+}
+
+.service-card {
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.service-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+}
+
+.service-image {
+  height: 250px;
+  overflow: hidden;
+}
+
+.service-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+}
+
+.service-card:hover .service-image img {
+  transform: scale(1.05);
+}
+
+.service-details {
+  padding: 2rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.service-details h3 {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+.service-description {
+  color: #666;
+  margin-bottom: 1.5rem;
+  flex: 1;
+  line-height: 1.6;
+}
+
+.service-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.service-duration {
+  color: #666;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+}
+
+.service-duration i {
+  margin-right: 0.5rem;
+}
+
+.service-price {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: #8b1d0e;
+}
+
+.book-button {
+  background-color: #8b1d0e;
+  color: white;
+  border: none;
+  padding: 1rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.book-button:hover {
+  background-color: #6d1700;
+}
+
+/* Consultation Process */
+.consultation-process {
+  text-align: center;
+  margin-bottom: 4rem;
+}
+
+.consultation-process h2 {
+  font-size: 2rem;
+  margin-bottom: 2.5rem;
+  color: #333;
+}
+
+.process-steps {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2rem;
+}
+
+.process-step {
+  position: relative;
+  padding: 2rem;
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  transition: transform 0.3s ease;
+}
+
+.process-step:hover {
+  transform: translateY(-5px);
+}
+
+.step-number {
+  width: 50px;
+  height: 50px;
+  background-color: #8b1d0e;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0 auto 1.5rem;
+}
+
+.process-step h3 {
+  font-size: 1.3rem;
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+.process-step p {
+  color: #666;
+  font-size: 1rem;
+}
+
+/* CTA Section */
+.consultation-cta {
+  text-align: center;
+  background-color: #8b1d0e;
+  padding: 4rem 2rem;
+  border-radius: 12px;
+  color: white;
+}
+
+.consultation-cta h2 {
+  font-size: 2.2rem;
+  margin-bottom: 1rem;
+}
+
+.consultation-cta p {
+  font-size: 1.2rem;
+  margin-bottom: 2rem;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.cta-button {
+  background-color: white;
+  color: #8b1d0e;
+  border: none;
+  padding: 1.2rem 3rem;
+  font-size: 1.2rem;
+  font-weight: 600;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.cta-button:hover {
+  background-color: #f8f8f8;
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .consultation-benefits,
+  .process-steps {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .consultation-services {
+    grid-template-columns: 1fr;
+  }
+  
+  .blog-hero-text {
+    font-size: 2rem;
+  }
+  
+  .consultation-header h1 {
+    font-size: 2rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .consultation-benefits,
+  .process-steps {
+    grid-template-columns: 1fr;
+  }
+  
+  .blog-hero {
+    height: 300px;
+    padding: 2rem 1rem;
+  }
+  
+  .blog-hero-text {
+    font-size: 1.5rem;
+  }
+  
+  .blog-hero-button {
+    padding: 0.8rem 2rem;
+    font-size: 1rem;
+  }
+  
+  .consultation-header h1 {
+    font-size: 1.8rem;
+  }
+  
+  .service-image {
+    height: 200px;
+  }
+} 

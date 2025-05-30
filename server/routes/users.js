@@ -86,134 +86,57 @@ router.get('/shipping-addresses', auth, async (req, res) => {
 });
 
 // Update user profile - IMPORTANT: This must come BEFORE the /:id route
-router.put('/profile', auth, async (req, res) => {
+router.put('/profile', auth, [
+  body('firstName', 'First name is required').notEmpty(),
+  body('lastName', 'Last name is required').notEmpty(),
+  body('email', 'Please include a valid email').isEmail(),
+  body('username', 'Username is required').notEmpty()
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  const { firstName, lastName, email, phone, username } = req.body;
+
   try {
-    console.log('=== PROFILE UPDATE ATTEMPT ===');
-    console.log('Headers:', req.headers);
-    console.log('User:', req.user);
-    console.log('Body:', req.body);
-    
-    const userId = req.user.id;
-    
-    if (!userId) {
-      console.error('Profile Update - Error: Invalid user ID:', userId);
-      return res.status(401).json({ message: 'Invalid user token structure' });
-    }
-    
-    const { firstName, lastName, email, phone } = req.body;
-    
-    // Validate inputs
-    if (!firstName && !lastName && !email && !phone) {
-      console.error('Profile Update - Error: No update data provided');
-      return res.status(400).json({ message: 'No update data provided' });
-    }
-    
-    console.log('Updating profile for user:', userId, 'with data:', { firstName, lastName, email, phone });
-    
-    let connection;
-    try {
-      connection = await db.getConnection();
-      
-      await connection.beginTransaction();
-      
-      // First check if the user exists
-      const [checkUser] = await connection.query(
-        'SELECT user_id, user_type FROM users WHERE user_id = ?',
-        [userId]
-      );
-      
-      if (checkUser.length === 0) {
-        await connection.rollback();
-        return res.status(404).json({ message: 'User not found' });
-      }
-      
-      // Build update query dynamically based on provided fields
-      const updates = [];
-      const values = [];
-      
-      if (firstName !== undefined) {
-        updates.push('first_name = ?');
-        values.push(firstName);
-      }
-      if (lastName !== undefined) {
-        updates.push('last_name = ?');
-        values.push(lastName);
-      }
-      if (email !== undefined) {
-        updates.push('email = ?');
-        values.push(email);
-      }
-      if (phone !== undefined) {
-        updates.push('phone = ?');
-        values.push(phone);
-      }
-      
-      updates.push('updated_at = NOW()');
-      values.push(userId);
-      
-      const updateQuery = `
-        UPDATE users 
-        SET ${updates.join(', ')}
-        WHERE user_id = ?
-      `;
-      
-      console.log('Profile Update - Query:', { sql: updateQuery, values });
-      
-      const [updateResult] = await connection.query(updateQuery, values);
-      
-      if (updateResult.affectedRows === 0) {
-        await connection.rollback();
-        return res.status(404).json({ message: 'User update failed' });
-      }
-      
-      await connection.commit();
-      
-      // Fetch updated user data
-      const [users] = await connection.query(
-        'SELECT user_id, username, first_name, last_name, email, phone FROM users WHERE user_id = ?',
-        [userId]
-      );
-      
-      if (users.length === 0) {
-        throw new Error('User not found after update');
-      }
-      
-      const updatedUser = users[0];
-      console.log('Profile Update - Success:', updatedUser);
-      
-      res.json({
-        message: 'Profile updated successfully',
-        user: {
-          id: updatedUser.user_id,
-          username: updatedUser.username,
-          firstName: updatedUser.first_name,
-          lastName: updatedUser.last_name,
-          email: updatedUser.email,
-          phone: updatedUser.phone || ''
-        }
+    // Check if email or username already exists for other users
+    const [existingUsers] = await db.query(
+      'SELECT user_id FROM users WHERE (email = ? OR username = ?) AND user_id != ?',
+      [email, username, req.user.id]
+    );
+
+    if (existingUsers.length > 0) {
+      return res.status(400).json({ 
+        message: 'Email or username is already taken by another user' 
       });
-      
-    } catch (dbError) {
-      if (connection) {
-        await connection.rollback();
-      }
-      throw dbError;
-    } finally {
-      if (connection) {
-        connection.release();
-      }
     }
-  } catch (err) {
-    console.error('Profile Update - Error:', err);
-    
-    if (err.code === 'ER_DUP_ENTRY') {
-      return res.status(400).json({ message: 'Email already in use' });
-    }
-    
-    res.status(500).json({ 
-      message: 'Failed to update profile',
-      error: process.env.NODE_ENV === 'development' ? err.message : 'Server error'
+
+    // Update user profile
+    await db.query(
+      `UPDATE users 
+       SET first_name = ?, 
+           last_name = ?, 
+           email = ?, 
+           phone = ?,
+           username = ?
+       WHERE user_id = ?`,
+      [firstName, lastName, email, phone || null, username, req.user.id]
+    );
+
+    res.json({ 
+      message: 'Profile updated successfully',
+      user: {
+        firstName,
+        lastName,
+        email,
+        phone,
+        username
+      }
     });
+  } catch (err) {
+    console.error('Error updating profile:', err);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
@@ -753,6 +676,152 @@ router.post('/update-shipping', auth, async (req, res) => {
       message: 'Failed to update shipping details',
       error: error.message 
     });
+  }
+});
+
+// Update username
+router.put('/update-username', auth, [
+  body('username', 'Username is required').not().isEmpty()
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  try {
+    const { username } = req.body;
+    
+    // Check if username is already taken
+    const [existingUsers] = await db.query(
+      'SELECT user_id FROM users WHERE username = ? AND user_id != ?',
+      [username, req.user.id]
+    );
+
+    if (existingUsers.length > 0) {
+      return res.status(400).json({ message: 'Username is already taken' });
+    }
+
+    // Update username
+    await db.query(
+      'UPDATE users SET username = ? WHERE user_id = ?',
+      [username, req.user.id]
+    );
+
+    res.json({ message: 'Username updated successfully' });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Soft delete user's own account
+router.post('/delete-account', auth, async (req, res) => {
+  const connection = await db.getConnection();
+  try {
+    const userId = req.user.id;
+    if (!userId) {
+      return res.status(401).json({ message: 'Invalid user token structure' });
+    }
+
+    await connection.beginTransaction();
+
+    // Update user status to 'Inactive'
+    await connection.query(
+      'UPDATE users SET status = ? WHERE user_id = ?',
+      ['Inactive', userId]
+    );
+
+    // Delete shipping addresses for this user
+    await connection.query(
+      'DELETE FROM user_shipping_details WHERE user_id = ?',
+      [userId]
+    );
+
+    // Update reviews to set status as 'Inactive' if such column exists
+    try {
+      await connection.query(
+        'UPDATE reviews SET status = ? WHERE user_id = ?',
+        ['Inactive', userId]
+      );
+    } catch (error) {
+      // If the column doesn't exist, log and continue
+      console.log('Note: Could not update reviews status - column may not exist');
+    }
+
+    // Mark user orders as cancelled if they are in pending/processing state
+    await connection.query(
+      `UPDATE orders 
+       SET order_status = 'cancelled', 
+           updated_at = NOW()
+       WHERE user_id = ? 
+       AND order_status IN ('pending_payment', 'processing', 'for_packing')`,
+      [userId]
+    );
+
+    // Delete any sessions for this user if the table exists
+    try {
+      await connection.query(
+        'DELETE FROM user_sessions WHERE user_id = ?',
+        [userId]
+      );
+    } catch (error) {
+      // If the table doesn't exist, log and continue
+      console.log('Note: Could not delete user sessions - table may not exist');
+    }
+
+    await connection.commit();
+    res.json({ message: 'Account deleted successfully' });
+  } catch (err) {
+    await connection.rollback();
+    console.error('Error deleting account:', err);
+    res.status(500).json({ message: 'Failed to delete account. Please try again later.' });
+  } finally {
+    connection.release();
+  }
+});
+
+// Check if user can delete account
+router.get('/can-delete-account', auth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    if (!userId) {
+      return res.status(401).json({ message: 'Invalid user token structure' });
+    }
+
+    // First verify the user exists and is active
+    const [users] = await db.query(
+      'SELECT status FROM users WHERE user_id = ?',
+      [userId]
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (users[0].status !== 'Active') {
+      return res.status(400).json({ message: 'Account is already inactive' });
+    }
+
+    // Check for orders that are not in final states
+    const [activeOrders] = await db.query(
+      `SELECT COUNT(*) as count 
+       FROM orders 
+       WHERE user_id = ? 
+       AND order_status NOT IN ('delivered', 'completed', 'cancelled', 'returned')`,
+      [userId]
+    );
+
+    const canDelete = activeOrders[0].count === 0;
+    
+    res.json({ 
+      canDelete,
+      message: canDelete ? 
+        'Account can be deleted' : 
+        'Cannot delete account while there are active orders. Please wait until all orders are delivered or cancelled.'
+    });
+  } catch (err) {
+    console.error('Error checking account deletion status:', err);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 

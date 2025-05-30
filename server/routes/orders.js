@@ -5,6 +5,7 @@ const db = require('../config/db');
 const { auth, admin } = require('../middleware/auth');
 const axios = require('axios');
 const config = require('../config/keys');
+const { v4: uuidv4 } = require('uuid');
 const API_BASE_URL = config.NINJAVAN_API_URL || 'https://api.ninjavan.co';
 const COUNTRY_CODE = config.NINJAVAN_COUNTRY_CODE || 'SG';
 const CLIENT_ID = config.NINJAVAN_CLIENT_ID;
@@ -91,7 +92,7 @@ router.post(
   [
     auth,
     body('address', 'Shipping address is required').notEmpty(),
-    body('payment_method', 'Payment method is required').isIn(['credit_card', 'paypal', 'bank_transfer', 'cod'])
+    body('payment_method', 'Payment method is required').isIn(['credit_card', 'paypal', 'bank_transfer', 'cod', 'dragonpay'])
   ],
   async (req, res) => {
     const errors = validationResult(req);
@@ -125,10 +126,22 @@ router.post(
       cartItems.forEach(item => {
         totalPrice += parseFloat(item.price) * item.quantity;
       });
-      const [orderResult] = await connection.query(
-        'INSERT INTO orders (user_id, total_price, order_status) VALUES (?, ?, ?)',
-        [userId, totalPrice, 'pending']
+      
+      // Generate a unique order_code using UUID
+      const orderCode = uuidv4();
+      
+      // Get the last order_id for this user
+      const [lastOrder] = await connection.query(
+        'SELECT order_id FROM orders WHERE user_id = ? ORDER BY order_id DESC LIMIT 1',
+        [userId]
       );
+      
+      // Insert the order with order_code
+      const [orderResult] = await connection.query(
+        'INSERT INTO orders (user_id, total_price, order_status, payment_status, order_code, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NOW(), NOW())',
+        [userId, totalPrice, 'pending', 'pending', orderCode]
+      );
+      
       const orderId = orderResult.insertId;
       for (const item of cartItems) {
         await connection.query(
@@ -144,60 +157,32 @@ router.post(
             item.sku || null
           ]
         );
-        if (item.variant_id) {
-          const [variantStock] = await connection.query(
-            'SELECT stock FROM product_variants WHERE variant_id = ?',
-            [item.variant_id]
-          );
-          if (variantStock.length === 0) {
-            await connection.rollback();
-            return res.status(400).json({ message: `Variant not found for ${item.name}` });
-          }
-          const newStock = variantStock[0].stock - item.quantity;
-          if (newStock < 0) {
-            await connection.rollback();
-            return res.status(400).json({ message: `Not enough stock for ${item.name} ${item.size || ''} ${item.color || ''}` });
-          }
-          await connection.query(
-            'UPDATE product_variants SET stock = ? WHERE variant_id = ?',
-            [newStock, item.variant_id]
-          );
-          await connection.query(
-            'INSERT INTO inventory (variant_id, change_type, quantity, reason) VALUES (?, ?, ?, ?)',
-            [item.variant_id, 'remove', item.quantity, `Order ${orderId}`]
-          );
-        } else {
-          const [variants] = await connection.query(
-            'SELECT variant_id, stock FROM product_variants WHERE product_id = ? ORDER BY stock DESC LIMIT 1',
-            [item.product_id]
-          );
-          if (variants.length > 0) {
-            const variantId = variants[0].variant_id;
-            const newStock = variants[0].stock - item.quantity;
-            if (newStock < 0) {
-              await connection.rollback();
-              return res.status(400).json({ message: `Not enough stock for ${item.name}` });
-            }
-            await connection.query(
-              'UPDATE product_variants SET stock = ? WHERE variant_id = ?',
-              [newStock, variantId]
-            );
-            await connection.query(
-              'INSERT INTO inventory (variant_id, change_type, quantity, reason) VALUES (?, ?, ?, ?)',
-              [variantId, 'remove', item.quantity, `Order ${orderId}`]
-            );
-          }
-        }
       }
+
       await connection.query(
         'INSERT INTO shipping (order_id, user_id, address, status) VALUES (?, ?, ?, ?)',
         [orderId, userId, address, 'pending']
       );
+
+      // Create shipping_details record with structured address
+      const addressParts = address.split(',').map(part => part.trim());
+      const address1 = addressParts[0] || '';
+      const postcode = address.match(/\d{5,6}/) ? address.match(/\d{5,6}/)[0] : '';
+      const city = addressParts.length > 2 ? addressParts[addressParts.length - 2] : '';
+      const state = addressParts.length > 1 ? addressParts[addressParts.length - 1] : '';
+
+      await connection.query(
+        `INSERT INTO shipping_details (
+          order_id, address1, city, state, postcode, country, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+        [orderId, address1, city, state, postcode, 'MY']
+      );
+
       await connection.query(
         'INSERT INTO payments (order_id, user_id, amount, payment_method, status) VALUES (?, ?, ?, ?, ?)',
         [orderId, userId, totalPrice, payment_method, 'pending']
       );
-      await connection.query('DELETE FROM cart WHERE user_id = ?', [userId]);
+
       await connection.commit();
       let deliveryInfo = null;
       if (payment_method === 'cod' || payment_method === 'credit_card') {
@@ -221,6 +206,7 @@ router.post(
         message: 'Order created successfully',
         order: {
           order_id: orderId,
+          order_code: orderCode,
           total_price: totalPrice,
           items: cartItems,
           tracking: deliveryInfo ? {
@@ -250,7 +236,7 @@ router.get('/', auth, async (req, res) => {
     }
 
     let query = `
-      SELECT o.order_id, o.user_id, o.total_price, o.order_status, o.created_at, o.updated_at,
+      SELECT o.order_id, o.order_code, o.user_id, o.total_price, o.order_status, o.created_at, o.updated_at,
              u.first_name, u.last_name, u.email,
              (SELECT COUNT(*) FROM order_items WHERE order_id = o.order_id) AS item_count,
              (SELECT status FROM payments WHERE order_id = o.order_id LIMIT 1) AS payment_status,
@@ -290,9 +276,13 @@ router.get('/:id', auth, async (req, res) => {
 
     let query = `
       SELECT o.*, u.first_name, u.last_name, u.email, u.phone,
-             (SELECT tracking_number FROM shipping WHERE order_id = o.order_id LIMIT 1) AS shipping_tracking_number
+             (SELECT tracking_number FROM shipping WHERE order_id = o.order_id LIMIT 1) AS shipping_tracking_number,
+             s.address as shipping_address,
+             sd.address1, sd.address2, sd.city, sd.state, sd.postcode, sd.country
       FROM orders o
       JOIN users u ON o.user_id = u.user_id
+      LEFT JOIN shipping s ON o.order_id = s.order_id
+      LEFT JOIN shipping_details sd ON o.order_id = sd.order_id
       WHERE o.order_id = ?
     `;
     if (!isAdmin) {
@@ -338,7 +328,17 @@ router.get('/:id', auth, async (req, res) => {
     res.json({
       ...order,
       items,
-      shipping: shipping.length > 0 ? shipping[0] : null,
+      shipping: shipping.length > 0 ? {
+        ...shipping[0],
+        address_details: {
+          address1: order.address1,
+          address2: order.address2,
+          city: order.city,
+          state: order.state,
+          postcode: order.postcode,
+          country: order.country
+        }
+      } : null,
       payment: payments.length > 0 ? payments[0] : null
     });
   } catch (err) {

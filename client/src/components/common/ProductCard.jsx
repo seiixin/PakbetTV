@@ -1,19 +1,75 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useCart } from '../../context/CartContext';
+import { toast } from 'react-toastify';
 import API_BASE_URL from '../../config';
+import { getFullImageUrl } from '../../utils/imageUtils';
 import './ProductCard.css';
 
 const ProductCard = ({ product }) => {
+  const [isAdded, setIsAdded] = useState(false);
+  const { addToCart } = useCart();
+
+  // Debug product data
+  useEffect(() => {
+    if (product) {
+      console.log(`ProductCard for ${product.name}:`, {
+        product_id: product.product_id,
+        price: product.price,
+        variants: product.variants,
+        images: product.images
+      });
+    }
+  }, [product]);
+
   const formatPrice = (price) => {
-    if (!price) return '₱0.00';
-    return `₱${Number(price).toFixed(2)}`;
+    // Ensure we have a valid number to format
+    const numPrice = parseFloat(price);
+    if (isNaN(numPrice) || numPrice === undefined || numPrice === null) {
+      return '₱0.00';
+    }
+    return `₱${numPrice.toFixed(2)}`;
   };
 
-  const getFullImageUrl = (url) => {
-    if (!url) return '/placeholder-product.jpg';
-    if (url.startsWith('http')) return url;
-    if (url.startsWith('/')) return `${API_BASE_URL}${url}`;
-    return `${API_BASE_URL}/${url}`;
+  // Get the display price (either discounted or original)
+  const getDisplayPrice = () => {
+    if (product.discounted_price && product.discounted_price > 0) {
+      return formatPrice(product.discounted_price);
+    }
+    return formatPrice(product.price || 0);
+  };
+
+  // Get the original price for display when there's a discount
+  const getOriginalPrice = () => {
+    if (product.discounted_price && product.discounted_price > 0) {
+      return formatPrice(product.price || 0);
+    }
+    return null;
+  };
+
+  const getPriceDisplay = () => {
+    // First check if we have variants with valid prices
+    if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
+      const prices = product.variants
+        .map(v => parseFloat(v.price))
+        .filter(price => !isNaN(price) && price > 0);
+      
+      if (prices.length > 0) {
+        const minPrice = Math.min(...prices);
+        const maxPrice = Math.max(...prices);
+        
+        // If min and max are the same, show just one price
+        if (minPrice === maxPrice) {
+          return formatPrice(minPrice);
+        }
+        
+        // Otherwise show a price range
+        return `₱${minPrice.toFixed(2)} - ₱${maxPrice.toFixed(2)}`;
+      }
+    }
+    
+    // If no variants or no valid variant prices, use the product price
+    return formatPrice(product.price);
   };
 
   // Get the primary image URL
@@ -37,13 +93,52 @@ const ProductCard = ({ product }) => {
   const rating = Number(product.average_rating) || 0;
   const ratingCount = Number(product.review_count) || 0;
 
-  // Render single star based on rating
+  // Render stars based on rating (5-star system)
   const renderStars = () => {
-    return (
-      <i 
-        className={`fas fa-star ${rating > 0 ? 'filled' : 'empty'}`}
-      />
-    );
+    const stars = [];
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 >= 0.5;
+    
+    for (let i = 1; i <= 5; i++) {
+      if (i <= fullStars) {
+        stars.push(<i key={i} className="fas fa-star filled" />);
+      } else if (i === fullStars + 1 && hasHalfStar) {
+        stars.push(<i key={i} className="fas fa-star-half-alt filled" />);
+      } else {
+        stars.push(<i key={i} className="far fa-star empty" />);
+      }
+    }
+    
+    return stars;
+  };
+
+  const handleAddToCart = (e) => {
+    e.preventDefault(); // Prevent navigation to product page
+    
+    try {
+      const itemToAdd = {
+        product_id: product.product_id,
+        id: product.product_id,
+        name: product.name,
+        price: product.discounted_price > 0 ? product.discounted_price : product.price,
+        image_url: getPrimaryImage(),
+        stock_quantity: product.stock_quantity || 0,
+        category_id: product.category_id,
+        category_name: product.category_name,
+        product_code: product.product_code
+      };
+
+      addToCart(itemToAdd, 1);
+      toast.success(`${product.name} added to cart successfully!`);
+      
+      // Show visual feedback
+      setIsAdded(true);
+      setTimeout(() => setIsAdded(false), 1500);
+
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      toast.error('Failed to add item to cart');
+    }
   };
 
   return (
@@ -53,10 +148,15 @@ const ProductCard = ({ product }) => {
           src={getPrimaryImage()} 
           alt={product.name}
           className="product-card-image"
-          onError={(e) => { e.target.onerror = null; e.target.src = '/placeholder-product.jpg'; }}
+          onError={(e) => { 
+            console.error('Image load error:', e.target.src); 
+            e.target.onerror = null; // Prevent infinite loop
+            e.target.src = '/placeholder-product.jpg'; 
+          }}
+          loading="lazy"
         />
         {product.discount_percentage > 0 && (
-          <div className="discount-tag">-{product.discount_percentage}%</div>
+          <div className="discount-tag">-{(product.discount_percentage <= 1 ? product.discount_percentage * 100 : product.discount_percentage).toFixed(0)}%</div>
         )}
         {product.is_preferred && (
           <div className="preferred-tag">Preferred</div>
@@ -70,27 +170,30 @@ const ProductCard = ({ product }) => {
         <h3 className="product-card-name">{product.name}</h3>
         
         <div className="product-card-price">
-          {product.discount_percentage > 0 ? (
+          {product.discounted_price > 0 ? (
             <div className="price-with-discount">
               <span className="discounted-price">
-                {formatPrice(product.price - (product.price * product.discount_percentage / 100))}
+                {getDisplayPrice()}
               </span>
-              <span className="original-price">{formatPrice(product.price)}</span>
+              <span className="original-price">{getOriginalPrice()}</span>
             </div>
           ) : (
-            <span className="regular-price">{formatPrice(product.price)}</span>
+            <span className="regular-price">{getDisplayPrice()}</span>
           )}
+          <button 
+            className={`add-to-cart-icon ${isAdded ? 'added' : ''}`}
+            onClick={handleAddToCart}
+            disabled={product.stock_quantity <= 0}
+          >
+            <i className={`fas ${isAdded ? 'fa-check' : 'fa-shopping-cart'}`}></i>
+          </button>
         </div>
 
         <div className="product-card-meta">
           <div className="rating-container">
-            {rating > 0 && (
-              <>
-                <span className="rating-value">{rating.toFixed(1)}</span>
-                <div className="rating-stars">{renderStars()}</div>
-                <span className="review-count">({ratingCount})</span>
-              </>
-            )}
+            <span className="rating-value">{rating.toFixed(1)}</span>
+            <div className="rating-stars">{renderStars()}</div>
+            <span className="review-count">({ratingCount})</span>
           </div>
           <span className="items-sold">{displayItemsSold}</span>
         </div>

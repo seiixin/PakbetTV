@@ -13,28 +13,30 @@
 
 /* Main Layout */
 .product-detail-page-container {
-  max-width: 1440px;
+  max-width: 1200px;
   width: 100%;
   margin: 0 auto;
-  padding: 0 2rem;
+  padding: 0 1.6rem;
   font-family: 'Open Sans', sans-serif;
   color: var(--dark-gray);
+  margin-top: 5rem;
+  background-image: "/cover.png";
 }
 
 .back-button {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.4rem;
   color: var(--maroon);
   font-weight: 600;
-  margin: 1.5rem 0;
+  margin: 1.2rem 0;
   text-decoration: none;
   transition: color 0.2s;
   background: none;
   border: none;
   cursor: pointer;
-  padding: 0.5rem 1rem;
-  font-size: 1rem;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.9rem;
 }
 
 .back-button:hover {
@@ -43,9 +45,8 @@
 
 /* Container Styles */
 .product-container {
-  margin-bottom: 2rem;
-  border-radius: var(--border-radius);
-  width: 100%;
+  margin-bottom: 1.6rem;
+  border-radius: 6px;
 }
 
 /* Container 1: Product Overview */
@@ -58,10 +59,10 @@
 .product-detail-main-layout {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 3rem;
+  gap: 2.4rem;
   background-color: var(--white);
   border-radius: var(--border-radius);
-  padding: 2rem;
+  padding: 1.6rem;
   box-shadow: var(--box-shadow);
   width: 100%;
 }
@@ -79,7 +80,7 @@
   border-radius: var(--border-radius);
   overflow: hidden;
   background-color: var(--white);
-  height: 500px;
+  height: 400px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -96,15 +97,15 @@
 
 .thumbnail-container {
   display: flex;
-  gap: 0.75rem;
+  gap: 0.6rem;
   overflow-x: auto;
-  padding: 0.5rem 0;
+  padding: 0.4rem 0;
 }
 
 .thumbnail-item {
-  width: 70px;
-  height: 70px;
-  border-radius: var(--border-radius);
+  width: 56px;
+  height: 56px;
+  border-radius: 6px;
   overflow: hidden;
   border: 2px solid transparent;
   cursor: pointer;
@@ -139,7 +140,7 @@
 }
 
 .product-detail-name {
-  font-size: 2.5rem;
+  font-size: 2rem;
   font-weight: 700;
   margin: 0;
   color: var(--dark-gray);
@@ -155,13 +156,13 @@
 .product-detail-price-section {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  margin-top: 0.75rem;
-  font-size: 1.5rem;
+  gap: 0.8rem;
+  margin-top: 0.6rem;
+  font-size: 1.2rem;
 }
 
 .regular-price, .discounted-price {
-  font-size: 1.75rem;
+  font-size: 1.4rem;
   font-weight: 700;
   color: var(--dark-gray);
   display: flex;
@@ -169,7 +170,7 @@
 }
 
 .price-currency {
-  font-size: 1.25rem;
+  font-size: 1rem;
   margin-right: 0.2rem;
   position: relative;
   top: -0.05rem;
@@ -177,7 +178,7 @@
 }
 
 .original-price {
-  font-size: 1.25rem;
+  font-size: 1rem;
   color: #888;
   text-decoration: line-through;
   opacity: 0.7;
@@ -186,15 +187,15 @@
 }
 
 .original-price .price-currency {
-  font-size: 1rem;
+  font-size: 0.8rem;
 }
 
 .discount-badge {
   background-color: var(--maroon);
   color: var(--white);
-  padding: 0.25rem 0.5rem;
+  padding: 0.2rem 0.4rem;
   border-radius: 4px;
-  font-size: 0.875rem;
+  font-size: 0.7rem;
   font-weight: 600;
 }
 
@@ -235,6 +236,7 @@
   padding: 1.5rem 0;
   border-top: 1px solid var(--medium-gray);
   border-bottom: 1px solid var(--medium-gray);
+  gap: 0.8rem;
 }
 
 .variant-options {
@@ -244,19 +246,21 @@
 }
 
 .variant-options label {
+  font-size: 0.9rem;
   font-weight: 600;
   color: var(--dark-gray);
   text-transform: capitalize;
+  margin-bottom: 0.4rem;
 }
 
 .variant-buttons {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: 0.4rem;
 }
 
 .variant-button {
-  padding: 0.75rem 1.5rem;
+  padding: 0.4rem 0.8rem;
   border: 1px solid var(--medium-gray);
   border-radius: 4px;
   background: var(--white);
@@ -266,6 +270,7 @@
   min-width: 6rem;
   text-align: center;
   color: var(--maroon);
+  font-size: 0.8rem;
 }
 
 .variant-button:hover {
@@ -327,6 +332,7 @@
   overflow: hidden;
   width: 100%;
   max-width: 160px;
+  height: 32px;
 }
 
 .quantity-input input {
@@ -334,11 +340,12 @@
   background: none;
   text-align: center;
   flex: 1;
-  height: 42px;
-  font-size: 1rem;
+  height: 32px;
+  font-size: 0.9rem;
   color: var(--dark-gray);
   padding: 0;
   -moz-appearance: textfield;
+  width: 48px;
 }
 
 .quantity-input input::-webkit-outer-spin-button,
@@ -350,14 +357,15 @@
 .quantity-btn {
   background: none;
   border: none;
-  height: 42px;
-  width: 42px;
+  height: 32px;
+  width: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: background-color 0.2s;
   color: var(--dark-gray);
+  font-size: 0.8rem;
 }
 
 .quantity-btn:hover:not(:disabled) {
@@ -371,7 +379,7 @@
 
 .product-detail-action-buttons {
   display: flex;
-  gap: 1rem;
+  gap: 0.8rem;
   width: 100%;
 }
 
@@ -381,13 +389,14 @@
   border-radius: 4px;
   border: none;
   font-weight: 600;
-  font-size: 1rem;
+  font-size: 0.9rem;
   cursor: pointer;
   transition: all 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
+  padding: 0.6rem 1.2rem;
 }
 
 .add-to-cart {
@@ -457,12 +466,13 @@
 }
 
 .section-title {
-  font-size: 1.5rem;
+  font-size: 1.4rem;
   font-weight: 700;
   margin: 0;
   color: var(--maroon);
   padding-bottom: 0;
   border-bottom: none;
+  margin-bottom: 0.8rem;
 }
 
 .section-title::after {
@@ -681,10 +691,11 @@
 .review-item {
   background-color: var(--light-gray);
   border-radius: var(--border-radius);
-  padding: 1.25rem;
+  padding: 0.8rem;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  margin-bottom: 0.8rem;
 }
 
 .review-item:last-child {
@@ -700,16 +711,19 @@
 }
 
 .reviewer-name {
+  font-size: 0.9rem;
   font-weight: 600;
   color: var(--dark-gray);
 }
 
 .review-date {
+  font-size: 0.8rem;
   color: #666;
-  font-size: 0.75rem;
 }
 
 .review-content {
+  font-size: 0.9rem;
+  margin-top: 0.4rem;
   line-height: 1.6;
 }
 
@@ -773,17 +787,17 @@
   }
 
   .main-image-container {
-    height: 400px;
+    height: 320px;
   }
 }
 
 @media (max-width: 768px) {
   .product-detail-page-container {
-    padding: 0 0.75rem;
+    padding: 0 0.6rem;
   }
 
   .product-detail-name {
-    font-size: 1.75rem;
+    font-size: 1.4rem;
   }
 
   .product-detail-action-buttons {
@@ -791,19 +805,19 @@
   }
 
   .thumbnail-item {
-    width: 60px;
-    height: 60px;
+    width: 48px;
+    height: 48px;
   }
 
   .main-image-container {
-    height: 350px;
+    height: 280px;
   }
 }
 
 @media (max-width: 576px) {
   .product-detail-main-layout,
   .product-container {
-    padding: 1rem;
+    padding: 0.8rem;
   }
 
   .section-header {
@@ -813,7 +827,7 @@
   }
 
   .main-image-container {
-    height: 300px;
+    height: 240px;
   }
 
   .spec-items-inline {

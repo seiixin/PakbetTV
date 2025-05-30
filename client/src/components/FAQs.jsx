@@ -5,6 +5,7 @@ import './FAQs.css';
 import NavBar from './NavBar';
 import Footer from './Footer';
 import API_BASE_URL from '../config';
+import { sanitizeHtml } from '../utils/sanitize';
 
 const FAQs = () => {
   const [faqs, setFaqs] = useState([]);
@@ -15,7 +16,7 @@ const FAQs = () => {
 
   // Parse HTML content
   const createMarkup = (htmlContent) => {
-    return { __html: htmlContent };
+    return { __html: sanitizeHtml(htmlContent) };
   };
 
   // Fetch FAQs from the API

@@ -32,48 +32,32 @@ async function getNinjaVanToken() {
  */
 async function createDeliveryOrder(orderData, shippingAddress, customerInfo) {
   try {
-    // Validate required inputs
-    if (!orderData || !orderData.order_id) {
-      throw new Error('Missing order information');
-    }
+    let address1 = '', address2 = '', area = '', city = '', state = '', postcode = '';
     
-    if (!shippingAddress) {
-      throw new Error('Missing shipping address');
-    }
-    
-    if (!customerInfo || !customerInfo.first_name) {
-      throw new Error('Missing customer information');
-    }
-    
-    // Get authentication token
-    const token = await getNinjaVanToken();
-    
-    // Calculate total weight based on items
-    const totalWeight = orderData.items ? 
-      orderData.items.reduce((sum, item) => sum + (item.quantity * 0.5), 0) : 
-      0.5;
-    
-    // Parse shipping address if it's a string
-    let address1 = '', city = '', state = '', postcode = '', area = '';
-    
+    // Validate and format shipping address
     if (typeof shippingAddress === 'string') {
+      // Parse string address
       const addressParts = shippingAddress.split(',').map(part => part.trim());
+      
+      // Extract address components more reliably
       address1 = addressParts[0] || '';
       
-      // Extract postcode
-      const postcodeMatch = shippingAddress.match(/\d{5,6}/);
-      if (postcodeMatch) {
-        postcode = postcodeMatch[0];
-      }
+      // Extract postcode with validation
+      const postcodeMatch = shippingAddress.match(/\b\d{5,6}\b/);
+      postcode = postcodeMatch ? postcodeMatch[0] : '';
       
-      // Extract city and state
-      if (addressParts.length > 2) {
-        area = addressParts[1] || '';
-        city = addressParts[addressParts.length - 2] || '';
-        state = addressParts[addressParts.length - 1] || '';
+      // Extract city and state more reliably
+      const remainingParts = addressParts.filter(part => !part.match(/\b\d{5,6}\b/));
+      if (remainingParts.length >= 2) {
+        city = remainingParts[remainingParts.length - 2] || '';
+        state = remainingParts[remainingParts.length - 1] || '';
+        // If there are parts between address1 and city, use them as area
+        if (remainingParts.length > 2) {
+          area = remainingParts.slice(1, -2).join(', ');
+        }
       }
-    } else if (typeof shippingAddress === 'object') {
-      // Use shipping address object properties
+    } else if (typeof shippingAddress === 'object' && shippingAddress !== null) {
+      // Use shipping address object with validation
       address1 = shippingAddress.address1 || '';
       address2 = shippingAddress.address2 || '';
       area = shippingAddress.area || '';
@@ -81,15 +65,26 @@ async function createDeliveryOrder(orderData, shippingAddress, customerInfo) {
       state = shippingAddress.state || '';
       postcode = shippingAddress.postcode || '';
     }
+
+    // Validate required address fields
+    if (!address1 || !city || !state || !postcode) {
+      throw new Error('Missing required address fields. Please ensure address1, city, state, and postcode are provided.');
+    }
+
+    // Format address components
+    address1 = address1.trim();
+    city = city.trim();
+    state = state.trim();
+    postcode = postcode.trim();
     
-    // Generate tracking number
+    // Generate consistent tracking number format
     const timestamp = Date.now();
-    const requestedTrackingNumber = `ORD-${orderData.order_id}-${timestamp}`;
+    const requestedTrackingNumber = `FES-${orderData.order_id}-${timestamp}`;
     
-    // Create delivery request matching the required format
+    // Create delivery request with validated address
     const deliveryRequest = {
       requested_tracking_number: requestedTrackingNumber,
-      tracking_number: `PREFIX${requestedTrackingNumber}`,
+      tracking_number: requestedTrackingNumber,
       service_type: "Parcel",
       service_level: "Standard",
       reference: {
@@ -97,32 +92,32 @@ async function createDeliveryOrder(orderData, shippingAddress, customerInfo) {
       },
       from: {
         name: "FengShui E-Commerce Store",
-        phone_number: "+60138201527", 
-        email: "store@fengshui-ecommerce.com", 
+        phone_number: "+60138201527",
+        email: "store@fengshui-ecommerce.com",
         address: {
-          address1: "30 Jln Kilang Barat", 
+          address1: "30 Jln Kilang Barat",
           address2: "",
           area: "Taman Sri Delima",
           city: "Simpang Ampat",
           state: "Pulau Pinang",
           address_type: "office",
           country: COUNTRY_CODE,
-          postcode: "51200" 
+          postcode: "51200"
         }
       },
       to: {
-        name: `${customerInfo.first_name} ${customerInfo.last_name || ''}`,
-        phone_number: customerInfo.phone || "+60103067174", 
+        name: `${customerInfo.first_name} ${customerInfo.last_name || ''}`.trim(),
+        phone_number: customerInfo.phone || "+60103067174",
         email: customerInfo.email,
         address: {
           address1: address1,
-          address2: "",
+          address2: address2,
           area: area || city,
           city: city,
           state: state,
           address_type: "home",
           country: COUNTRY_CODE,
-          postcode: postcode || "47820" 
+          postcode: postcode
         }
       },
       parcel_job: {

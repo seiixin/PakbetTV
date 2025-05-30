@@ -1,5 +1,6 @@
 // client/src/components/Guides/Horoscope.jsx
 import React from 'react';
+import { Link } from 'react-router-dom';
 import './Horoscope.css'; // Assuming you have a CSS file for styling
 
 // Navbar Component
@@ -41,7 +42,9 @@ const Hero = () => {
             aria-label="Red banner with auspicious pattern and text 'Bring the auspicious into your life today! SHOP NOW' in white with a rounded white button"
         >
             <div className="hero-text">Bring the auspicious into your life today!</div>
-            <button className="hero-button" type="button" tabIndex={0}>SHOP NOW</button>
+            <Link to="/shop">
+                <button className="hero-button" type="button" tabIndex={0}>SHOP NOW</button>
+            </Link>
         </section>
     );
 };

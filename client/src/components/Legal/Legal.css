@@ -1,0 +1,362 @@
+.privacy-policy-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  line-height: 1.8;
+  color: #2D3748;
+  background: #FDF2F2;
+  min-height: 100vh;
+  position: relative;
+}
+
+.privacy-policy-content {
+  background: #FFFFFF;
+  border-radius: 16px;
+  box-shadow: 0 4px 6px rgba(128, 0, 0, 0.05), 0 10px 15px rgba(128, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  height: 90vh;
+  margin: 2rem 0;
+}
+
+.privacy-policy-header {
+  position: sticky;
+  top: 0;
+  background: #FFFFFF;
+  padding: 2rem 3rem;
+  border-bottom: 1px solid #FED7D7;
+  border-radius: 16px 16px 0 0;
+  z-index: 10;
+}
+
+.privacy-policy-sections {
+  padding: 0 3rem;
+  overflow-y: auto;
+  flex-grow: 1;
+  scrollbar-width: thin;
+  scrollbar-color: #E53E3E #FED7D7;
+  margin-top: 2rem;
+}
+
+/* For Webkit browsers like Chrome/Safari */
+.privacy-policy-sections::-webkit-scrollbar {
+  width: 8px;
+}
+
+.privacy-policy-sections::-webkit-scrollbar-track {
+  background: #FED7D7;
+  border-radius: 4px;
+}
+
+.privacy-policy-sections::-webkit-scrollbar-thumb {
+  background-color: #E53E3E;
+  border-radius: 4px;
+  border: 2px solid #FED7D7;
+}
+
+.privacy-policy-sections::-webkit-scrollbar-thumb:hover {
+  background-color: #C53030;
+}
+
+.privacy-policy-container h1 {
+  color: #800000;
+  text-align: center;
+  margin-bottom: 1rem;
+  font-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.privacy-policy-container .effective-date {
+  text-align: center;
+  color: #4A5568;
+  margin-bottom: 0;
+  font-style: italic;
+  font-size: 0.95rem;
+}
+
+.privacy-policy-container section {
+  margin-bottom: 3rem;
+  padding: 2rem;
+  background: #FFFFFF;
+  border-radius: 12px;
+  border: 1px solid #FED7D7;
+  transition: all 0.3s ease;
+}
+
+.privacy-policy-container section:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(128, 0, 0, 0.1);
+}
+
+.privacy-policy-container h2 {
+  color: #800000;
+  margin-bottom: 1.5rem;
+  font-size: 1.75rem;
+  font-weight: 600;
+  border-bottom: 2px solid #FED7D7;
+  padding-bottom: 0.75rem;
+}
+
+.privacy-policy-container p {
+  margin-bottom: 1.5rem;
+  font-size: 1.05rem;
+  color: #4A5568;
+  line-height: 1.8;
+}
+
+.privacy-policy-container ul {
+  list-style: none;
+  margin: 0 0 1.5rem 0;
+  padding: 0;
+}
+
+.privacy-policy-container li {
+  margin-bottom: 1rem;
+  padding-left: 1.5rem;
+  position: relative;
+  font-size: 1.05rem;
+  color: #4A5568;
+}
+
+.privacy-policy-container li::before {
+  content: "•";
+  color: #800000;
+  font-weight: bold;
+  position: absolute;
+  left: 0;
+}
+
+.privacy-policy-container strong {
+  color: #800000;
+  font-weight: 600;
+}
+
+.privacy-policy-container a {
+  color: #800000;
+  text-decoration: none;
+  border-bottom: 1px dashed #800000;
+  transition: all 0.2s ease;
+}
+
+.privacy-policy-container a:hover {
+  color: #C53030;
+  border-bottom-style: solid;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(128, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: 1rem;
+  backdrop-filter: blur(4px);
+}
+
+.modal-content {
+  background: #FFFFFF;
+  padding: 2.5rem;
+  border-radius: 16px;
+  max-width: 800px;
+  width: 95%;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 20px 25px -5px rgba(128, 0, 0, 0.1), 0 10px 10px -5px rgba(128, 0, 0, 0.04);
+}
+
+.modal-close {
+  position: absolute;
+  top: 1.5rem;
+  right: 1.5rem;
+  background: #FFF5F5;
+  border: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  color: #800000;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 20;
+}
+
+.modal-close:hover {
+  background: #FED7D7;
+  transform: rotate(90deg);
+}
+
+/* Custom Scrollbar */
+.modal-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modal-content::-webkit-scrollbar-track {
+  background: #EDF2F7;
+  border-radius: 4px;
+}
+
+.modal-content::-webkit-scrollbar-thumb {
+  background: #4299E1;
+  border-radius: 4px;
+}
+
+.modal-content::-webkit-scrollbar-thumb:hover {
+  background: #2B6CB0;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .privacy-policy-container {
+    padding: 0 1rem;
+  }
+
+  .privacy-policy-header {
+    padding: 1.5rem;
+  }
+
+  .privacy-policy-sections {
+    padding: 0 1.5rem;
+  }
+
+  .privacy-policy-content {
+    height: 85vh;
+    margin: 1rem 0;
+  }
+
+  .privacy-policy-container h1 {
+    font-size: 2rem;
+  }
+
+  .privacy-policy-container h2 {
+    font-size: 1.5rem;
+  }
+
+  .privacy-policy-container section {
+    padding: 1.5rem;
+  }
+
+  .privacy-policy-container p,
+  .privacy-policy-container li {
+    font-size: 1rem;
+  }
+
+  .modal-content {
+    padding: 2rem;
+    width: 95%;
+  }
+}
+
+@media (max-width: 480px) {
+  .privacy-policy-container {
+    margin: 1rem auto;
+  }
+
+  .privacy-policy-content {
+    padding: 1.5rem;
+  }
+
+  .privacy-policy-container h1 {
+    font-size: 1.75rem;
+  }
+
+  .privacy-policy-container h2 {
+    font-size: 1.25rem;
+  }
+
+  .privacy-policy-container section {
+    padding: 1.25rem;
+  }
+
+  .modal-content {
+    padding: 1.5rem;
+  }
+
+  .modal-close {
+    top: 1rem;
+    right: 1rem;
+    width: 36px;
+    height: 36px;
+  }
+}
+
+/* Deletion Status Styles */
+.deletion-status-container {
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+
+.deletion-status-content {
+  background: #fff;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.status-info {
+  margin: 2rem 0;
+  text-align: left;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 1rem;
+  font-weight: bold;
+  text-transform: capitalize;
+}
+
+.status-badge.pending {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.status-badge.completed {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.status-badge.failed {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.success-message {
+  color: #155724;
+  background-color: #d4edda;
+  border: 1px solid #c3e6cb;
+  padding: 1rem;
+  border-radius: 4px;
+  margin-top: 1rem;
+}
+
+.error-message {
+  color: #721c24;
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  padding: 1rem;
+  border-radius: 4px;
+  margin-top: 1rem;
+}
+
+.pending-message {
+  color: #856404;
+  background-color: #fff3cd;
+  border: 1px solid #ffeeba;
+  padding: 1rem;
+  border-radius: 4px;
+  margin-top: 1rem;
+} 

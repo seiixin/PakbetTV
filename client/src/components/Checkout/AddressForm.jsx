@@ -40,7 +40,6 @@ const AddressForm = ({ onChange, initialAddress = {} }) => {
     'Catanduanes',
     'Cavite',
     'Cebu',
-    'Compostela Valley',
     'Davao de Oro',
     'Davao del Norte',
     'Davao del Sur',
@@ -59,6 +58,7 @@ const AddressForm = ({ onChange, initialAddress = {} }) => {
     'Maguindanao',
     'Marinduque',
     'Masbate',
+    'Metro Manila',
     'Misamis Occidental',
     'Misamis Oriental',
     'Mountain Province',
@@ -91,6 +91,25 @@ const AddressForm = ({ onChange, initialAddress = {} }) => {
     'Zamboanga del Norte',
     'Zamboanga del Sur',
     'Zamboanga Sibugay'
+  ];
+
+  const malaysianStates = [
+    'Johor',
+    'Kedah',
+    'Kelantan',
+    'Melaka',
+    'Negeri Sembilan',
+    'Pahang',
+    'Perak',
+    'Perlis',
+    'Pulau Pinang',
+    'Sabah',
+    'Sarawak',
+    'Selangor',
+    'Terengganu',
+    'Kuala Lumpur',
+    'Labuan',
+    'Putrajaya'
   ];
 
   useEffect(() => {
@@ -160,13 +179,13 @@ const AddressForm = ({ onChange, initialAddress = {} }) => {
     }
     
     if (!address.state) {
-      newErrors.state = 'State is required';
+      newErrors.state = 'Province is required';
     }
     
     if (!address.postcode.trim()) {
       newErrors.postcode = 'Postal code is required';
-    } else if (!/^\d{5,6}$/.test(address.postcode.trim())) {
-      newErrors.postcode = 'Enter a valid 5 or 6 digit postal code';
+    } else if (!/^\d{4,6}$/.test(address.postcode.trim())) {
+      newErrors.postcode = 'Enter a valid postal code';
     }
     
     setErrors(newErrors);
@@ -180,6 +199,19 @@ const AddressForm = ({ onChange, initialAddress = {} }) => {
       onChange(address, isValid);
     }
   }, [address]);
+
+  // Get appropriate state/province list based on country
+  const getStateOptions = () => {
+    if (address.country === 'MY') {
+      return malaysianStates;
+    }
+    return philippineProvinces;
+  };
+
+  // Get label for state/province based on country
+  const getStateLabel = () => {
+    return address.country === 'MY' ? 'State' : 'Province';
+  };
 
   return (
     <div className="address-form">
@@ -210,41 +242,41 @@ const AddressForm = ({ onChange, initialAddress = {} }) => {
       </div>
       
       <div className="form-group">
-        <label htmlFor="area">Area</label>
+        <label htmlFor="area">Area/Barangay</label>
         <input
           type="text"
           id="area"
           name="area"
           value={address.area}
           onChange={handleChange}
-          placeholder="Neighborhood or area name"
+          placeholder="Neighborhood, barangay or area name"
         />
       </div>
       
       <div className="form-row">
         <div className="form-group half">
-          <label htmlFor="city">City *</label>
+          <label htmlFor="city">City/Municipality *</label>
           <input
             type="text"
             id="city"
             name="city"
             value={address.city}
             onChange={handleChange}
-            placeholder="City"
+            placeholder="City or municipality"
             className={errors.city ? 'error' : ''}
           />
           {errors.city && <span className="error-text">{errors.city}</span>}
         </div>
         
         <div className="form-group half">
-          <label htmlFor="postcode">Postal Code *</label>
+          <label htmlFor="postcode">Postal/ZIP Code *</label>
           <input
             type="text"
             id="postcode"
             name="postcode"
             value={address.postcode}
             onChange={handleChange}
-            placeholder="e.g. 50000"
+            placeholder={address.country === 'PH' ? 'e.g. 1000' : 'e.g. 50000'}
             className={errors.postcode ? 'error' : ''}
             maxLength={6}
           />
@@ -252,37 +284,49 @@ const AddressForm = ({ onChange, initialAddress = {} }) => {
         </div>
       </div>
       
-      <div className="form-row">
-        <div className="form-group half">
-          <label htmlFor="state">State *</label>
-          <select
-            id="state"
-            name="state"
-            value={address.state}
-            onChange={handleChange}
-            className={errors.state ? 'error' : ''}
-          >
-            <option value="">Select State</option>
-            {philippineProvinces.map(state => (
-              <option key={state} value={state}>{state}</option>
-            ))}
-          </select>
-          {errors.state && <span className="error-text">{errors.state}</span>}
-        </div>
-        
-        <div className="form-group half">
-          <label htmlFor="address_type">Address Type</label>
-          <select
-            id="address_type"
-            name="address_type"
-            value={address.address_type}
-            onChange={handleChange}
-          >
-            <option value="home">Home</option>
-            <option value="office">Office</option>
-            <option value="other">Other</option>
-          </select>
-        </div>
+      <div className="form-group">
+        <label htmlFor="country">Country *</label>
+        <select
+          id="country"
+          name="country"
+          value={address.country}
+          onChange={handleChange}
+        >
+          <option value="PH">Philippines</option>
+          <option value="MY">Malaysia</option>
+          <option value="SG">Singapore</option>
+        </select>
+      </div>
+      
+      <div className="form-group">
+        <label htmlFor="state">{getStateLabel()} *</label>
+        <select
+          id="state"
+          name="state"
+          value={address.state}
+          onChange={handleChange}
+          className={errors.state ? 'error' : ''}
+        >
+          <option value="">Select {getStateLabel()}</option>
+          {getStateOptions().map(state => (
+            <option key={state} value={state}>{state}</option>
+          ))}
+        </select>
+        {errors.state && <span className="error-text">{errors.state}</span>}
+      </div>
+      
+      <div className="form-group">
+        <label htmlFor="address_type">Address Type</label>
+        <select
+          id="address_type"
+          name="address_type"
+          value={address.address_type}
+          onChange={handleChange}
+        >
+          <option value="home">Home</option>
+          <option value="work">Work</option>
+          <option value="other">Other</option>
+        </select>
       </div>
     </div>
   );

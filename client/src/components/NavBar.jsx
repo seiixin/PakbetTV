@@ -2,16 +2,25 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
+import API_BASE_URL from '../config';
 import './NavBar.css';
+
 const NavBar = () => {
   const [scrolled, setScrolled] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState({ products: [], blogs: [], zodiacs: [] });
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [error, setError] = useState(null);
   const { user, logout, loggingOut } = useAuth();
   const { getTotalCount } = useCart();
   const dropdownRef = useRef(null);
+  const searchRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
   const isShopPage = location.pathname === '/shop';
+
   useEffect(() => {
     const handleScroll = () => {
       if (window.scrollY > 50) {
@@ -20,18 +29,80 @@ const NavBar = () => {
         setScrolled(false);
       }
     };
-    window.addEventListener('scroll', handleScroll);
+
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setDropdownOpen(false);
       }
+      if (searchRef.current && !searchRef.current.contains(event.target)) {
+        setShowSearchDropdown(false);
+      }
     };
+
+    window.addEventListener('scroll', handleScroll);
     document.addEventListener('mousedown', handleClickOutside);
+
     return () => {
       window.removeEventListener('scroll', handleScroll);
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+
+  const handleSearch = async (query) => {
+    if (!query.trim()) {
+      setSearchResults({ products: [], blogs: [], zodiacs: [] });
+      setShowSearchDropdown(false);
+      return;
+    }
+
+    setIsSearching(true);
+    setShowSearchDropdown(true);
+    setError(null);
+
+    try {
+      // Fetch products
+      const productsResponse = await fetch(`${API_BASE_URL}/api/products/search?query=${encodeURIComponent(query)}`);
+      if (!productsResponse.ok) {
+        throw new Error('Failed to fetch products');
+      }
+      const productsData = await productsResponse.json();
+
+      // Fetch blogs
+      const blogsResponse = await fetch(`${API_BASE_URL}/api/cms/blogs/search?query=${encodeURIComponent(query)}`);
+      if (!blogsResponse.ok) {
+        throw new Error('Failed to fetch blogs');
+      }
+      const blogsData = await blogsResponse.json();
+
+      // Fetch zodiacs
+      const zodiacsResponse = await fetch(`${API_BASE_URL}/api/cms/zodiacs?search=${encodeURIComponent(query)}`);
+      if (!zodiacsResponse.ok) {
+        throw new Error('Failed to fetch zodiacs');
+      }
+      const zodiacsData = await zodiacsResponse.json();
+
+      setSearchResults({
+        products: productsData || [],
+        blogs: blogsData || [],
+        zodiacs: zodiacsData || []
+      });
+    } catch (error) {
+      console.error('Search error:', error);
+      setError(error.message);
+      setSearchResults({ products: [], blogs: [], zodiacs: [] });
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  useEffect(() => {
+    const debounceTimeout = setTimeout(() => {
+      handleSearch(searchQuery);
+    }, 300);
+
+    return () => clearTimeout(debounceTimeout);
+  }, [searchQuery]);
+
   const toggleDropdown = () => {
     setDropdownOpen(!dropdownOpen);
   };
@@ -43,6 +114,122 @@ const NavBar = () => {
   const navClassName = `navbar-navbar ${
     !isHomePage || scrolled ? 'red' : 'transparent' 
   } ${scrolled ? 'scrolled' : ''}`;
+  const handleSearchResultClick = (item, type) => {
+    setSearchQuery('');
+    setShowSearchDropdown(false);
+    
+    switch (type) {
+      case 'product':
+        navigate(`/product/${item.product_id}`);
+        break;
+      case 'blog':
+        navigate(`/blog/${item.blogID}`);
+        break;
+      case 'zodiac':
+        navigate(`/prosper-guide/${item.zodiacID.toLowerCase()}`);
+        break;
+      default:
+        break;
+    }
+  };
+  const renderSearchResults = () => {
+    if (!showSearchDropdown) return null;
+    
+    return (
+      <div className="search-dropdown">
+        {searchResults.zodiacs.length > 0 && (
+          <div className="search-section">
+            <div className="search-section-header">Zodiac Guides</div>
+            {searchResults.zodiacs.map((zodiac) => (
+              <div
+                key={zodiac.zodiacID}
+                className="search-result-item"
+                onClick={() => handleSearchResultClick(zodiac, 'zodiac')}
+              >
+                <div className="search-result-content">
+                  <div className="search-result-title">{zodiac.zodiacID}</div>
+                  <div className="search-result-subtitle">Prosper Guide</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        
+        {searchResults.products.length > 0 && (
+          <div className="search-section">
+            <div className="search-section-header">Products</div>
+            {searchResults.products.map((product) => (
+              <div
+                key={product.product_id}
+                className="search-result-item"
+                onClick={() => handleSearchResultClick(product, 'product')}
+              >
+                <div className="search-result-image">
+                  <img 
+                    src={product.image || '/placeholder-product.jpg'} 
+                    alt={product.name} 
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = '/placeholder-product.jpg';
+                    }}
+                  />
+                </div>
+                <div className="search-result-content">
+                  <div className="search-result-title">{product.name}</div>
+                  <div className="search-result-subtitle">{product.category_name}</div>
+                  <div className="search-result-price">₱{Number(product.price).toLocaleString()}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        
+        {searchResults.blogs.length > 0 && (
+          <div className="search-section">
+            <div className="search-section-header">Blog Posts</div>
+            {searchResults.blogs.map((blog) => (
+              <div
+                key={blog.blogID}
+                className="search-result-item"
+                onClick={() => handleSearchResultClick(blog, 'blog')}
+              >
+                {blog.cover_image && (
+                  <div className="search-result-image">
+                    <img 
+                      src={blog.cover_image} 
+                      alt={blog.title}
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = '/placeholder-blog.jpg';
+                      }}
+                    />
+                  </div>
+                )}
+                <div className="search-result-content">
+                  <div className="search-result-title">{blog.title}</div>
+                  <div className="search-result-subtitle">{blog.category}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        
+        {isSearching && (
+          <div className="search-loading">
+            Searching...
+          </div>
+        )}
+        
+        {!isSearching && searchResults.products.length === 0 && 
+         searchResults.blogs.length === 0 && 
+         searchResults.zodiacs.length === 0 && (
+          <div className="search-no-results">
+            No results found for "{searchQuery}"
+          </div>
+        )}
+      </div>
+    );
+  };
   return (
     <>
       <nav className={navClassName}>
@@ -63,7 +250,7 @@ const NavBar = () => {
               <Link to="/shop" className="navbar-navbar-link">Shop</Link>
             </li>
             <li className="navbar-navbar-item">
-              <Link to="#" className="navbar-navbar-link">Consultations</Link>
+              <Link to="/consultation" className="navbar-navbar-link">Consultations</Link>
             </li>
             <li className="navbar-navbar-item">
               <Link to="/horoscope" className="navbar-navbar-link">Horoscope</Link>
@@ -78,18 +265,35 @@ const NavBar = () => {
               <Link to="/contact" className="navbar-navbar-link">Contact Us</Link>
             </li>
             <li className="navbar-navbar-item">
-              <Link to="/blog/:slug" className="navbar-navbar-link">Free Tools</Link>
+              <Link to="/bazi-calculator" className="navbar-navbar-link">BaZi Calculator</Link>
             </li>
           </ul>
           <div className="navbar-navbar-actions">
-            <div className="navbar-search-bar">
-              <input type="text" placeholder="Search for a product" />
-              <button className="navbar-search-button" aria-label="Search">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="11" cy="11" r="8"></circle>
-                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                </svg>
-              </button>
+            <div className="navbar-search-container" ref={searchRef}>
+              <div className="navbar-search-bar">
+                <input
+                  type="text"
+                  placeholder="Search for a product"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => {
+                    if (searchQuery.trim()) {
+                      setShowSearchDropdown(true);
+                    }
+                  }}
+                />
+                <button 
+                  className="navbar-search-button" 
+                  aria-label="Search"
+                  onClick={() => handleSearch(searchQuery)}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                  </svg>
+                </button>
+              </div>
+              {renderSearchResults()}
             </div>
             <div className="navbar-navbar-buttons">
               {user ? (
@@ -157,4 +361,5 @@ const NavBar = () => {
     </>
   );
 };
+
 export default NavBar; 

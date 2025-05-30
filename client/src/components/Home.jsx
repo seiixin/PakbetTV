@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
+import { useProducts } from '../hooks/useProducts';
 import './Home.css';
-import placeholderImages from '../assets/placeholder.js';
-import Logo from '/Logo.png';
-import Michael from '/Michael.png';
 import NavBar from './NavBar';
 import Footer from './Footer';
 import API_BASE_URL from '../config';
@@ -23,14 +21,53 @@ const constructUrl = (baseUrl, path) => {
 };
 
 const Home = () => {
-  const [newArrivals, setNewArrivals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [blogs, setBlogs] = useState([]);
   const [blogLoading, setBlogLoading] = useState(true);
+  const [currentSlide, setCurrentSlide] = useState(0);
 
   const navigate = useNavigate();
   const { } = useCart();
+  
+  // Use the optimized new arrivals query
+  const { getNewArrivals } = useProducts();
+  const { 
+    data: newArrivals = [], 
+    isLoading: newArrivalsLoading,
+    error: newArrivalsError 
+  } = getNewArrivals;
+
+  // Add carousel data
+  const carouselData = [
+    {
+      title: "FENG SHUI ESSENTIALS",
+      description: "Transform your space with our authentic Feng Shui collection by Feng Shui Expert Michael De Mesa. Find the perfect items to enhance harmony and balance in your life.",
+      buttonText: "Shop Collection",
+      buttonLink: "/shop",
+      leftBackground: "url('/Carousel-1.jpg')",
+      rightColor: "linear-gradient(135deg, #db1730 100%)",
+      side: "left"
+    },
+    {
+      title: "ZODIAC COLLECTION",
+      description: "Discover items tailored to your zodiac sign. Enhance your luck and prosperity with our specially curated zodiac items.",
+      buttonText: "Find Your Sign",
+      buttonLink: "/prosper-guide",
+      leftColor: "linear-gradient(135deg, #db1730 100%)",
+      rightBackground: "url('/Zodiac-1.jpg')",
+      side: "right"
+    },
+    {
+      title: "SPECIAL OFFERS",
+      description: "Take advantage of our limited-time deals on selected Feng Shui items. Transform your space while saving.",
+      buttonText: "View Deals",
+      buttonLink: "/shop?category=flash-deals",
+      leftBackground: "url('/Carousel-2.jpg')",
+      rightColor: "linear-gradient(135deg, #db1730 100%)",
+      side: "left"
+    }
+  ];
 
   const zodiacSigns = [
     { name: 'RAT', image: '/Prosper-1.png' },
@@ -67,34 +104,8 @@ const Home = () => {
   ];
 
   useEffect(() => {
-    const fetchNewArrivals = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`${API_BASE_URL}/api/products?limit=20`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch products for new arrivals');
-        }
-        const data = await response.json();
-        const allProducts = Array.isArray(data?.products) ? data.products : [];
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        const filteredArrivals = allProducts.filter(product => new Date(product.created_at) > thirtyDaysAgo);
-        setNewArrivals(filteredArrivals.slice(0, 10));
-      } catch (error) {
-        console.error('Error fetching new arrivals:', error);
-        setError('Error fetching new arrivals');
-        setNewArrivals([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchNewArrivals();
-  }, []);
-
-  useEffect(() => {
     setBlogLoading(true);
-    axios.get(`${API_BASE_URL}/api/cms/blogs`)
+    axios.get(`/api/cms/blogs`)
       .then(res => {
         if (res.data.length === 0) {
           Swal.fire("No Blog Posts Found", "Please check back later.", "info");
@@ -110,19 +121,41 @@ const Home = () => {
       });
   }, []);
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev === 2 ? 0 : prev + 1));
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const handlePrevSlide = () => {
+    setCurrentSlide((prev) => (prev === 0 ? 2 : prev - 1));
+  };
+
+  const handleNextSlide = () => {
+    setCurrentSlide((prev) => (prev === 2 ? 0 : prev + 1));
+  };
+
+  const handleDotClick = (index) => {
+    setCurrentSlide(index);
+  };
+
   const renderNewArrivals = () => (
     <section className="home-new-arrivals">
       <div className="home-section-header">
         <h2>New Arrivals</h2>
       </div>
-      {loading ? (
+      {newArrivalsLoading ? (
         <div className="home-new-arrivals-loading-container">
           <div className="spinner-border" role="status">
             <span className="visually-hidden">Loading...</span>
           </div>
         </div>
-      ) : error ? (
-        <div className="error-message">{error}</div>
+      ) : newArrivalsError ? (
+        <div className="error-message">{newArrivalsError.message}</div>
+      ) : newArrivals.length === 0 ? (
+        <div className="no-products">No new arrivals at the moment.</div>
       ) : (
         <div className="home-new-arrivals-grid">
           {newArrivals.map(product => (
@@ -149,40 +182,104 @@ const Home = () => {
     );
   };
 
+  const max_limit_display = 5;
+
   return (
     <div className="home-page">
       <NavBar />
-
-      <section className="home-hero-section" style={{ backgroundColor: '#A2201A', backgroundImage: `url(/HeroBG-01-01.png)`, backgroundSize: '100% 100%', backgroundPosition: 'center center', backgroundRepeat: 'no-repeat' }}>
-        <div className="home-hero-grid">
-          <div className="home-hero-top-left">
-            <div className="home-hero-content">
-              {Logo && <img src={Logo} alt="Logo" className="home-hero-logo" />}
-              <h1>MICHAEL DE MESA</h1>
-              <h2>BAZI & FENG SHUI CONSULTANCY</h2>
-              <p>Will give you a step-by-step guideline that will help you towards your desired</p>
-              <button className="home-primary-button">Learn More</button>
+      <section className="home-hero-section">
+        {/* The background image will display automatically via CSS */}
+      </section>
+        <div className="why-consult-section">
+          <h1>Why Consult with Master Michael De Mesa</h1>
+          <div className="why-consult-grid">
+            <div className="why-consult-item">
+              <img src="/Icons-1.png" alt="Icons-1" className="why-consult-icon" />
+              <h3>International Feng Shui Affiliate Member</h3>
+              <p>Extensive international expertise in Feng Shui consultations across diverse cultures and environments.</p>
             </div>
-          </div>
-          <div className="home-hero-top-right">
-            {Michael && <img src={Michael} alt="Michael De Mesa" className="home-hero-image" />}
-          </div>
-          <div className="home-hero-bottom-right">
-            <div className="home-hero-why-consult">
-              <h3>WHY CONSULT WITH MASTER MICHAEL DE MESA</h3>
-              <div className="home-why-consult-icons">
-                {[1, 2, 3, 4, 5, 6].map(i => (
-                  <div className="home-why-consult-icon" key={i}>
-                    <img src={`/Icons-${i}.png`} alt={`Icon ${i}`} />
-                  </div>
-                ))}
-              </div>
+            <div className="why-consult-item">
+              <img src="/Icons-2.png" alt="Icons-2.png" className="why-consult-icon" />
+              <h3>Realistic Solution</h3>
+              <p>Tailored Feng Shui solutions that integrate both traditional wisdom and modern lifestyle needs.</p>
+            </div>
+            <div className="why-consult-item">
+              <img src="/Icons-3.png" alt="Icons-3.png" className="why-consult-icon" />
+              <h3>Over 96% Customer Satisfaction</h3>
+              <p>Custom recommendations based on your specific goals, space, and personal circumstances.</p>
+            </div>
+            <div className="why-consult-item">
+              <img src="/Icons-4.png" alt="Icons-4.png" className="why-consult-icon" />
+              <h3>Comprehensive Advices</h3>
+              <p>Track record of successful transformations in both residential and commercial spaces.</p>
+            </div>
+            <div className="why-consult-item">
+              <img src="/Icons-5.png" alt="Icons-5.png" className="why-consult-icon" />
+              <h3>Expert Team</h3>
+              <p>Clear, practical advice that makes Feng Shui principles easy to understand and implement.</p>
+            </div>
+            <div className="why-consult-item">
+              <img src="/Icons-6.png" alt="Icons-6.png" className="why-consult-icon" />
+              <h3>Reasonable Pricing</h3>
+              <p>Dedicated to helping clients achieve harmony, prosperity, and well-being in their spaces.</p>
             </div>
           </div>
         </div>
-      </section>
-
       {renderNewArrivals()}
+      
+      <section className="home-featured-carousel">
+        <div className="home-carousel">
+          <div className="home-carousel-track" style={{ transform: `translateX(-${currentSlide * 100}%)` }}>
+            {carouselData.map((slide, index) => (
+              <div className="home-carousel-slide" key={index}>
+                <div className="home-carousel-content">
+                  <div 
+                    className="home-carousel-section"
+                    style={{ 
+                      background: slide.side === "left" 
+                        ? slide.leftBackground || slide.leftColor 
+                        : slide.rightBackground || slide.rightColor,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                      order: slide.side === "left" ? 1 : 2
+                    }}
+                  />
+                  <div 
+                    className="home-carousel-text-section"
+                    style={{ 
+                      background: slide.side === "left" 
+                        ? slide.rightBackground || slide.rightColor 
+                        : slide.leftBackground || slide.leftColor,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                      order: slide.side === "left" ? 2 : 1
+                    }}
+                  >
+                    <div className="home-carousel-text">
+                      <h2>{slide.title}</h2>
+                      <p>{slide.description}</p>
+                      <Link to={slide.buttonLink} className="home-carousel-button">
+                        {slide.buttonText}
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <button className="home-carousel-nav prev" onClick={handlePrevSlide}>❮</button>
+          <button className="home-carousel-nav next" onClick={handleNextSlide}>❯</button>
+          <div className="home-carousel-dots">
+            {carouselData.map((_, index) => (
+              <span 
+                key={index}
+                className={`home-carousel-dot ${currentSlide === index ? 'active' : ''}`} 
+                onClick={() => handleDotClick(index)}
+              ></span>
+            ))}
+          </div>
+        </div>
+      </section>
 
       <section className="home-categories">
         <div className="home-section-header">
@@ -235,64 +332,54 @@ const Home = () => {
         </div>
         <div className="home-aspirations-grid">
           {aspirations.map(item => (
-            <div key={item.name} className="home-aspiration-card">
+            <Link to="/shop" key={item.name} className="home-aspiration-card" style={{ textDecoration: 'none', color: 'inherit' }}>
               <div className="home-aspiration-icon">
                 <img src={item.image} alt={`${item.name} Icon`} />
               </div>
               <h3>{item.name}</h3>
-            </div>
+            </Link>
           ))}
         </div>
       </section>
       <section className="home-blog-section">
-  <div className="home-blog-container py-5">
-    <div className="home-blog-section-header text-center mb-5">
-      <h2 className="text-dark">BLOG</h2>
-      <p className="text-muted">Latest insights on Feng Shui and wellness</p>
-    </div>
-    {blogLoading ? (
-      <div className="text-center py-5">
-        <div className="spinner-border" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </div>
-      </div>
-    ) : (
-      <div className="row justify-content-center g-4">
-        {blogs.slice(0, 4).map(blog => (
-          <div className="col-sm-10 col-md-6 col-lg-3" key={blog.blogID}>
-            <div className="card h-100 shadow-lg border-0 rounded-3">
-              <img
-                src={blog.cover_image}
-                className="card-img-top rounded-3"
-                alt="Blog Cover"
-              />
-              <div className="card-body d-flex flex-column p-4">
-                <h5 className="card-title text-dark mb-3">{blog.title}</h5>
-                <p className="card-subtitle text-muted small mb-2">
-                  {blog.category} • {new Date(blog.publish_date).toLocaleDateString()}
-                </p>
-                <p className="card-text text-muted mb-3">
-                  {blog.content.substring(0, 120)}...
-                </p>
-                <Link to={`/blog/${blog.blogID}`} className="blog-read-more-btn mt-auto"
-                style={{
-                  backgroundColor: 'var(--primary-color)',
-                  color: 'white',
-                  padding: '10px 20px',
-                  borderRadius: '5px',
-                  textDecoration: 'none',
-                }}
-                >
-                  Read More
-                </Link>
+        <div className="home-blog-container">
+          <div className="home-blog-section-header">
+            <h2>BLOG</h2>
+            <p>Latest insights on Feng Shui and wellness</p>
+          </div>
+          {blogLoading ? (
+            <div className="home-blog-loading">
+              <div className="spinner-border" role="status">
+                <span className="visually-hidden">Loading...</span>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
-    )}
-  </div>
-</section>
+          ) : (
+            <div className="home-blog-grid">
+              {blogs.slice(0, 4).map(blog => (
+                <div className="home-blog-card" key={blog.blogID}>
+                  <img
+                    src={blog.cover_image}
+                    className="home-blog-image"
+                    alt="Blog Cover"
+                  />
+                  <div className="home-blog-content">
+                    <h5 className="home-blog-title">{blog.title}</h5>
+                    <p className="home-blog-meta">
+                      {blog.category} • {new Date(blog.publish_date).toLocaleDateString()}
+                    </p>
+                    <p className="home-blog-excerpt">
+                      {blog.content.substring(0, 120)}...
+                    </p>
+                    <Link to={`/blog/${blog.blogID}`} className="home-blog-read-more">
+                      Read More
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
   <Footer forceShow={false} />
     </div>
   );

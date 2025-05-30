@@ -21,13 +21,19 @@ import TransactionComplete from './components/Shop/TransactionComplete'
 import ProsperGuide from './components/Guides/ProsperGuide'
 import Horoscope from './components/Horoscope/Horoscope'
 import OrderTracking from './pages/OrderTracking'
-import SocialAuthSuccess from './components/auth/SocialAuthSuccess'
+import SocialAuthSuccess from './components/Auth/SocialAuthSuccess'
+import BaziCalculator from './components/BaziCalculator/BaziCalculator'
 import { AuthProvider } from './context/AuthContext'
 import { CartProvider } from './context/CartContext'
 import Blog from './components/Blog'
 import BlogDetail from './components/BlogDetail'
 import FAQs from './components/FAQs'
 import Contact from './components/Contact'
+import Consultation from './components/Consultation'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
+import PrivacyPolicy from './components/Legal/PrivacyPolicy'
+
 function AppContent() {
   const location = useLocation();
   const [isFBInitialized, setFBInitialized] = useState(false);
@@ -58,7 +64,10 @@ function AppContent() {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password/:token" element={<ResetPassword />} />
         <Route path="/contact" element={<Contact />} />
+        <Route path="/consultation" element={<Consultation />} />
         <Route path="/social-auth-success" element={<SocialAuthSuccess />} />
         <Route path="/account" element={<Account />} />
         <Route path="/account/purchases" element={<Purchases />} />
@@ -71,11 +80,14 @@ function AppContent() {
         <Route path="/cart" element={<Cart />} />
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/transaction-complete" element={<TransactionComplete />} />
+        <Route path="/payment/confirmation" element={<TransactionComplete />} />
         <Route path="/prosper-guide/:sign" element={<ProsperGuide />} />
         <Route path="/horoscope" element={<Horoscope />} />
         <Route path="/blog" element={<Blog />} />
         <Route path="/blog/:blogID" element={<BlogDetail />} />
         <Route path="/faqs" element={<FAQs />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/bazi-calculator" element={<BaziCalculator />} />
       </Routes>
     </>
   );

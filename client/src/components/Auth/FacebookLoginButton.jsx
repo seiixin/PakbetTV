@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
-import { handleFacebookLoginStatus } from '../../utils/facebookSDK';
+import { handleFacebookLoginStatus, initiateFacebookLogin } from '../../utils/facebookSDK';
+import { FaFacebook } from 'react-icons/fa';
 
 const FacebookLoginButton = () => {
   useEffect(() => {
@@ -11,16 +12,22 @@ const FacebookLoginButton = () => {
     };
   }, []);
 
+  const handleFacebookLogin = (e) => {
+    e.preventDefault();
+    initiateFacebookLogin()
+      .catch(error => {
+        console.error('Facebook login error:', error);
+      });
+  };
+
   return (
-    <div className="facebook-login-button-container">
-      <fb:login-button 
-        scope="public_profile,email"
-        onlogin="checkLoginState();"
-        size="large"
-        data-use-continue-as="true"
-      >
-      </fb:login-button>
-    </div>
+    <button 
+      className="social-login-button facebook-login"
+      onClick={handleFacebookLogin}
+    >
+      <FaFacebook />
+      <span>Continue with Facebook</span>
+    </button>
   );
 };
 

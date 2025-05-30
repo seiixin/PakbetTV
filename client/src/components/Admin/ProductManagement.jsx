@@ -7,6 +7,8 @@ import { toast } from 'react-toastify';
 import './ProductManagement.css';
 import API_BASE_URL from '../../config';
 import { notify } from '../../utils/notifications';
+import { useProducts } from '../../hooks/useProducts';
+import { useCategories } from '../../hooks/useCategories';
 const ModalContent = styled.div`
   .read-only-field {
     background-color: #f0f0f0;
@@ -103,16 +105,16 @@ const ProductRow = memo(({ product, onEdit, onDelete }) => {
   );
 });
 const ProductManagement = () => {
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { getAllProducts, createProduct, updateProduct, deleteProduct } = useProducts();
+  const { getAllCategories } = useCategories();
+  const { data: productsData, isLoading: loading, error } = getAllProducts;
+  const { data: categoriesData, isLoading: categoriesLoading } = getAllCategories;
   const [isEditing, setIsEditing] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deleteInProgress, setDeleteInProgress] = useState(false);
   const [userInitiatedSubmit, setUserInitiatedSubmit] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
-  const [categories, setCategories] = useState([]);
   const [includeVariants, setIncludeVariants] = useState(false);
   const [variants, setVariants] = useState([]);
   const [variantAttributes, setVariantAttributes] = useState([]); 
@@ -145,69 +147,19 @@ const ProductManagement = () => {
   const [selectedImages, setSelectedImages] = useState([]);
   useEffect(() => {
     resetForm();
-    fetchProducts();
-    fetchCategories();
   }, []);
-  const fetchProducts = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch(`${API_URL}/api/products`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch products');
-      }
-      const data = await response.json();
-      setProducts(Array.isArray(data.products) ? data.products : []);
-      setError(null);
-    } catch (err) {
-      setError('Error fetching products: ' + err.message);
-      console.error('Error fetching products:', err);
-      setProducts([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-  const fetchCategories = async () => {
-    try {
-      const response = await fetch(`${API_URL}/api/categories`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch categories');
-      }
-      const data = await response.json();
-      const fetchedCategories = Array.isArray(data) ? data : [];
-      console.log("Fetched categories:", fetchedCategories);
-      setCategories(fetchedCategories);
-    } catch (err) {
-      console.error('Error fetching categories:', err);
-      setCategories([
-        { id: 1, name: 'books', code: 'BK' },
-        { id: 2, name: 'amulets', code: 'AM' },
-        { id: 3, name: 'bracelets', code: 'BR' }
-      ]);
-    }
-  };
   const generateProductCode = (categoryId) => {
-    console.log('[generateProductCode] Received categoryId:', categoryId, typeof categoryId);
-    if (!categoryId || isNaN(categoryId)) { 
-      console.log('[generateProductCode] Invalid or missing categoryId.');
+    if (!categoryId || isNaN(categoryId)) {
       return '';
-    } 
-    console.log('[generateProductCode] Categories available:', categories);
-    const category = categories.find(cat => cat.category_id === categoryId); 
-    console.log('[generateProductCode] Found category:', category);
+    }
+    const category = categoriesData?.find(cat => cat.category_id === categoryId);
     if (!category) {
-      console.log('[generateProductCode] Category object not found.');
       return '';
-    } 
-    const prefix = category.code || category.name.substring(0, 3).toUpperCase(); 
-    console.log('[generateProductCode] Calculated prefix:', prefix);
-    console.log('[generateProductCode] Existing products state:', products);
-    const existingProducts = products.filter(p => parseInt(p.category_id) === categoryId);
-    console.log('[generateProductCode] Filtered existing products in category:', existingProducts);
+    }
+    const prefix = category.code || category.name.substring(0, 3).toUpperCase();
+    const existingProducts = productsData?.filter(p => parseInt(p.category_id) === categoryId) || [];
     const nextNumber = (existingProducts.length + 1).toString().padStart(3, '0');
-    console.log('[generateProductCode] Calculated next number:', nextNumber);
-    const finalCode = `${prefix}${nextNumber}`;
-    console.log('[generateProductCode] Returning final code:', finalCode);
-    return finalCode;
+    return `${prefix}${nextNumber}`;
   };
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -432,84 +384,50 @@ const ProductManagement = () => {
   };
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setUserInitiatedSubmit(true);
+    
     try {
       setIsSubmitting(true);
-      setError('');
-      const isPriceRequired = !includeVariants;
-      if (!currentProduct.name || (isPriceRequired && !currentProduct.price) || !currentProduct.category_id) {
-        let missingFields = [];
-        if (!currentProduct.name) missingFields.push('Name');
-        if (isPriceRequired && !currentProduct.price) missingFields.push('Price');
-        if (!currentProduct.category_id) missingFields.push('Category');
-        setError(`${missingFields.join(', ')} ${missingFields.length > 1 ? 'are' : 'is'} required.`);
-        setIsSubmitting(false);
-        return;
-      }
-      if (isNaN(parseInt(currentProduct.category_id))) {
-        setError('Invalid category selection.');
-        setIsSubmitting(false);
-        return;
-      }
+      setSubmitError('');
+
       const formData = new FormData();
-      formData.append('name', currentProduct.name);
-      formData.append('description', currentProduct.description);
-      formData.append('price', currentProduct.price);
-      formData.append('stock', currentProduct.stock);
-      formData.append('category_id', currentProduct.category_id);
-      formData.append('is_featured', currentProduct.is_featured || false);
-      if (Array.isArray(newProductImages) && newProductImages.length > 0) {
-        newProductImages.forEach(image => {
-          if (image instanceof File) {
-            formData.append('productImages', image);
-          }
-        });
-      }
-      if (variants.length > 0) {
-        formData.append('include_variants', 'true');
-        const timestamp = Date.now(); 
-        const randomString = Math.random().toString(36).substring(2, 6);
-        const variantsToSend = variants.map((variant, index) => {
-          const variantNumber = index + 1;
-          const baseCode = currentProduct.product_code || `TEMP-${timestamp}`;
-          const sku = `${baseCode}-${variantNumber}-${randomString}`;
-          return {
-            price: variant.price || 0, 
-            stock: variant.stock || 0, 
-            sku,
-            attributes: variant.attributes || {}, 
-            has_image: !!variant.image 
-          };
-        });
-        formData.append('variants', JSON.stringify(variantsToSend)); 
-        variants.forEach((variant) => {
-          if (variant.image && variant.image instanceof File) {
-            formData.append('variantImages', variant.image);
-          }
-        });
-      }
-      const endpoint = isEditing 
-        ? `${API_URL}/api/products/${currentProduct.product_id}`
-        : `${API_URL}/api/products`;
-      const method = isEditing ? 'PUT' : 'POST';
-      const response = await fetch(endpoint, {
-        method,
-        body: formData
+      // Add all product fields to formData
+      Object.keys(currentProduct).forEach(key => {
+        if (key !== 'images') {
+          formData.append(key, currentProduct[key]);
+        }
       });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to save product');
+
+      // Add images
+      newProductImages.forEach(image => {
+        formData.append('images', image);
+      });
+
+      // Add variants if included
+      if (includeVariants && variants.length > 0) {
+        formData.append('variants', JSON.stringify(variants));
       }
-      const responseData = await response.json();
-      setSuccessMessage(isEditing ? 'Product updated successfully!' : 'Product created successfully!');
-      setTimeout(() => {
-        setIsModalOpen(false);
-        fetchProducts();
-      }, 1500);
+
+      if (isEditing) {
+        await updateProduct.mutateAsync({
+          id: currentProduct.product_id,
+          formData
+        });
+        toast.success('Product updated successfully');
+      } else {
+        await createProduct.mutateAsync(formData);
+        toast.success('Product created successfully');
+      }
+
+      resetForm();
+      setIsModalOpen(false);
     } catch (error) {
-      console.error('Error saving product:', error);
-      setError(error.message || 'An error occurred while saving the product.');
+      console.error('Error submitting product:', error);
+      setSubmitError('Failed to save product. Please try again.');
+      toast.error('Failed to save product');
     } finally {
       setIsSubmitting(false);
+      setUserInitiatedSubmit(false);
     }
   };
   const handleSuccess = (message) => {
@@ -547,66 +465,19 @@ const ProductManagement = () => {
       console.error('Error deleting image:', err);
     }
   };
-  const handleDelete = useCallback(async (id) => {
-    if (!window.confirm('Are you sure you want to delete this product?')) {
-      return;
-    }
-    setError(null);
-    setSuccessMessage('');
-    setDeleteInProgress(true);
+  const handleDelete = async (productId) => {
     try {
-      const response = await fetch(`${API_URL}/api/products/${id}`, {
-        method: 'DELETE'
-      });
-        console.log('Delete Response Status:', response.status);
-      if (!response.ok) {
-            let errorMsg = 'Failed to delete product';
-            try {
-                 const errorData = await response.json();
-                 errorMsg = errorData.message || errorMsg;
-                 console.error('Delete Error Data:', errorData);
-            } catch (e) {
-                 console.error('Could not parse error response:', e);
-            }
-            throw new Error(errorMsg);
-        }
-        const contentType = response.headers.get("content-type");
-        if (contentType && contentType.indexOf("application/json") !== -1) {
-            const result = await response.json();
-            console.log('Delete Success Data:', result);
-            setSuccessMessage(result.message || 'Product deleted successfully!');
-        } else {
-            console.log('Delete successful (no content in response).');
-      setSuccessMessage('Product deleted successfully!');
-        }
-      fetchProducts();
-        setIsEditing(false);
-        setCurrentProduct({
-          name: '',
-          description: '',
-          price: '',
-          category_id: '',
-          stock: '',
-          is_best_seller: false,
-          is_flash_deal: false,
-          flash_deal_end: '',
-          discount_percentage: '',
-          images: [],
-          product_code: ''
-        });
-        setNewProductImages([]);
-        setIsModalOpen(false);
-      setTimeout(() => {
-        setSuccessMessage('');
-            setDeleteInProgress(false);
-      }, 3000);
-        return;
-    } catch (err) {
-      setError('Error deleting product: ' + err.message);
-      console.error('Error deleting product:', err);
-        setDeleteInProgress(false);
+      setDeleteLoading(true);
+      await deleteProduct.mutateAsync(productId);
+      toast.success('Product deleted successfully');
+    } catch (error) {
+      toast.error('Failed to delete product');
+      console.error('Error deleting product:', error);
+    } finally {
+      setDeleteLoading(false);
+      setConfirmDeleteProduct(null);
     }
-  }, [setError, setSuccessMessage, setDeleteInProgress, fetchProducts, setIsEditing, setCurrentProduct, setNewProductImages, setIsModalOpen]);
+  };
   const calculateDiscountedPrice = useCallback((price, discount) => {
     if (!discount || price === null || price === undefined) return price;
     if (typeof price === 'string' && price.includes('-')) {
@@ -718,7 +589,7 @@ const ProductManagement = () => {
                   required
                 >
                   <option key="placeholder" value="">Select a category</option>
-                  {categories.map((category) => (
+                  {categoriesData.map((category) => (
                     <option key={category.category_id} value={category.category_id}>
                       {category.name}
                     </option>
@@ -1029,7 +900,7 @@ const ProductManagement = () => {
         <h2>Products List</h2>
         {loading ? (
           <div className="loading">Loading products...</div>
-        ) : products.length === 0 ? (
+        ) : productsData.length === 0 ? (
           <div className="empty-list">No products found</div>
         ) : (
           <div className="products-table-container">
@@ -1047,7 +918,7 @@ const ProductManagement = () => {
                 </tr>
               </thead>
               <tbody>
-                {Array.isArray(products) && products.map((product) => (
+                {Array.isArray(productsData) && productsData.map((product) => (
                   <ProductRow
                     key={product.product_id}
                     product={product}

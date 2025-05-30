@@ -3,21 +3,20 @@
   box-sizing: border-box;
 }
 
-body {
+.account-page-body {
   margin: 0;
   font-family: 'ZCOOL XiaoWei', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: #f7f9fc;
   color: #333;
 }
 
-h2 {
+.account-page h2 {
   font-weight: 600;
   margin-bottom: 12px;
   color: #222;
   font-family: 'ZCOOL XiaoWei', serif;
 }
 
-label {
+.account-page label {
   display: block;
   margin-bottom: 6px;
   font-weight: 600;
@@ -25,7 +24,9 @@ label {
   color: #555;
 }
 
-input, select, textarea {
+.account-page .account-container input, 
+.account-page .account-container select, 
+.account-page .account-container textarea {
   width: 100%;
   padding: 10px 12px;
   margin-bottom: 15px;
@@ -36,229 +37,576 @@ input, select, textarea {
   background-color: #ffffff;
   color: #333 !important;
   font-family: 'ZCOOL XiaoWei', sans-serif;
-  -webkit-text-fill-color: #333;
-  opacity: 1;
 }
 
-input:focus, select:focus, textarea:focus {
+.account-page .account-container input:focus, 
+.account-page .account-container select:focus, 
+.account-page .account-container textarea:focus {
   outline: none;
   border-color: #800000;
   box-shadow: 0 0 4px rgba(128, 0, 0, 0.4);
-  background: #fff;
 }
 
-/* Also ensure placeholder text is visible but slightly lighter */
-input::placeholder, 
-select::placeholder, 
-textarea::placeholder {
-  color: #999;
-  opacity: 1;
-}
-
-/* Ensure text remains visible during autofill */
-input:-webkit-autofill,
-input:-webkit-autofill:hover,
-input:-webkit-autofill:focus,
-input:-webkit-autofill:active {
-  -webkit-text-fill-color: #333 !important;
-  -webkit-box-shadow: 0 0 0 30px white inset !important;
-  transition: background-color 5000s ease-in-out 0s;
-}
-
-.account-page {
+.account-background {
   min-height: 100vh;
-}
-
-.container {
-  max-width: 900px;
-  margin: 100px auto;
-  background: #fff;
-  padding: 30px 25px;
-  border-radius: 10px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.07);
   display: flex;
-  gap: 40px;
-  flex-wrap: wrap;
+  flex-direction: column;
 }
 
-.column {
-  flex: 1 1 400px;
-  min-width: 280px;
-}
-
-/* Section header container */
-.section-header-container {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-/* Section headings */
-.section-header {
-  border-bottom: 2px solid #800000;
-  padding-bottom: 6px;
-  margin-bottom: 0;
-  font-family: 'ZCOOL XiaoWei', serif;
-  color: #800000;
-}
-
-/* Form description */
-#personal-details-desc,
-#shipping-details-desc {
-  color: #666;
-  font-size: 0.9rem;
-  margin-bottom: 20px;
-}
-
-/* Submit button */
-.save-button, .edit-button {
-  background-color: #800000;
-  border: none;
-  color: #DAA520;
-  padding: 12px 22px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 1rem;
-  transition: background-color 0.3s ease;
-  font-family: 'ZCOOL XiaoWei', serif;
-}
-
-.save-button:hover, .edit-button:hover {
-  background-color: #600000;
-}
-
-.edit-button {
-  padding: 8px 16px;
-  font-size: 0.9rem;
-}
-
-.cancel-button {
-  background-color: #f1f1f1;
-  border: none;
-  color: #333;
-  padding: 12px 22px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 1rem;
-  transition: background-color 0.3s ease;
-  font-family: 'ZCOOL XiaoWei', serif;
-}
-
-.cancel-button:hover {
-  background-color: #e0e0e0;
-}
-
-.form-actions {
-  display: flex;
-  gap: 10px;
-  margin-top: 20px;
-}
-
-.form-actions button {
+.account-content {
   flex: 1;
-}
-
-/* Info display for view mode */
-.info-display {
-  padding: 15px 0;
-}
-
-.info-label {
-  font-weight: 600;
-  color: #666;
-  margin-bottom: 5px;
-  font-size: 0.9rem;
-}
-
-.info-value {
-  background-color: #f9f9f9;
-  padding: 12px 15px;
-  border-radius: 6px;
-  margin-bottom: 20px;
-  color: #333;
-  word-break: break-word;
-}
-
-/* Loading state */
-.loading-container {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  min-height: 400px;
   padding: 20px;
-  text-align: center;
 }
 
-.loading-spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid rgba(128, 0, 0, 0.1);
-  border-radius: 50%;
-  border-top: 3px solid #800000;
-  animation: spin 1s linear infinite;
-  margin-bottom: 15px;
+.account-container {
+  max-width: 1200px;
+  width: 100%;
+  margin: 120px auto 40px;
+  padding: 30px;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 30px;
 }
 
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+.account-column {
+  background: #fff;
+  padding: 25px;
+  border-radius: 8px;
+  border: 1px solid #eee;
 }
 
-/* Messages */
-.error-message,
-.success-message {
-  padding: 12px 20px;
-  border-radius: 6px;
-  margin: 20px auto;
-  max-width: 900px;
-  text-align: center;
-  font-weight: 500;
+/* Make shipping details and danger zone sections full width */
+.account-column[aria-labelledby="shipping-details-title"],
+.account-column[aria-labelledby="danger-zone-title"] {
+  grid-column: 1 / -1;
 }
 
-.error-message {
+/* Remove the previous last-child rule since we're explicitly setting full width */
+.account-column:last-child {
+  grid-column: 1 / -1;
+}
+
+.account-section-header-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #800000;
+}
+
+.account-section-header {
+  margin: 0;
+  font-size: 1.5rem;
+  color: #800000;
+  font-weight: 600;
+}
+
+.account-edit-button, 
+.account-save-button {
+  background-color: #800000;
+  color: #fff;
+  padding: 8px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s ease;
+}
+
+.account-edit-button:hover, 
+.account-save-button:hover {
+  background-color: #600000;
+}
+
+.account-cancel-button {
+  background-color: #f0f0f0;
+  color: #333;
+  padding: 8px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s ease;
+}
+
+.account-cancel-button:hover {
+  background-color: #e0e0e0;
+}
+
+.account-info-display {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.account-info-display > div {
+  background-color: #f8f8f8;
+  padding: 1rem;
+  border-radius: 4px;
+}
+
+.account-info-label {
+  color: #666;
+  font-size: 0.9rem;
+  margin: 0 0 0.5rem 0;
+  font-weight: 600;
+}
+
+.account-info-value {
+  color: #333;
+  margin: 0;
+  font-size: 1rem;
+  word-break: break-word;
+}
+
+.account-form-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+  position: relative;
+}
+
+.account-form-actions button {
+  flex: 1;
+}
+
+.account-error-message,
+.account-success-message {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  padding: 15px 25px;
+  border-radius: 4px;
+  animation: slideIn 0.3s ease;
+  z-index: 1000;
+}
+
+.account-error-message {
   background-color: #fef2f2;
   color: #800000;
   border: 1px solid #fecaca;
 }
 
-.success-message {
+.account-success-message {
   background-color: #f0fdf4;
   color: #166534;
   border: 1px solid #dcfce7;
 }
 
-/* Responsive design */
-@media (max-width: 720px) {
-  .container {
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Form styles */
+.account-column form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.account-column label {
+  color: #555;
+  font-size: 0.9rem;
+  margin-bottom: 5px;
+}
+
+.account-column input,
+.account-column select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.95rem;
+  transition: border-color 0.2s ease;
+}
+
+.account-column input:focus,
+.account-column select:focus {
+  outline: none;
+  border-color: #800000;
+  box-shadow: 0 0 0 2px rgba(128, 0, 0, 0.1);
+}
+
+@media (max-width: 768px) {
+  .account-container {
+    grid-template-columns: 1fr;
+    margin: 80px 15px 20px;
+    padding: 20px;
+  }
+
+  .account-column:last-child {
+    grid-column: auto;
+  }
+
+  .account-section-header {
+    font-size: 1.3rem;
+  }
+
+  .account-form-actions {
     flex-direction: column;
-    padding: 20px 15px;
-    margin: 20px 15px;
+  }
+
+  .account-error-message,
+  .account-success-message {
+    bottom: 10px;
+    right: 10px;
+    left: 10px;
+  }
+}
+
+.account-settings {
+  max-width: 600px;
+  margin: 2rem auto;
+  padding: 1.5rem;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.account-settings h2 {
+  margin-bottom: 2rem;
+  color: #333;
+  text-align: center;
+}
+
+.settings-section {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  border: 1px solid #e1e1e1;
+  border-radius: 6px;
+}
+
+.settings-section h3 {
+  margin-bottom: 1.5rem;
+  color: #444;
+}
+
+.settings-section .form-group {
+  margin-bottom: 1.25rem;
+}
+
+.settings-section label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #555;
+  font-weight: 500;
+}
+
+.settings-section input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+  transition: border-color 0.2s ease;
+}
+
+.settings-section input:focus {
+  border-color: #4a90e2;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.1);
+}
+
+.settings-section button {
+  width: 100%;
+  padding: 0.75rem;
+  background-color: #4a90e2;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.settings-section button:hover:not(:disabled) {
+  background-color: #357abd;
+}
+
+.settings-section button:disabled {
+  background-color: #a0a0a0;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .account-settings {
+    margin: 1rem;
+    padding: 1rem;
   }
   
-  .column {
-    min-width: 100%;
+  .settings-section {
+    padding: 1rem;
   }
-  
-  .section-header-container {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 15px;
+}
+
+/* Danger Zone */
+.account-danger-zone {
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 20px;
+  margin-top: 15px;
+}
+
+.account-danger-text {
+  color: #800000;
+  margin-bottom: 15px;
+  font-size: 0.95rem;
+}
+
+.account-warning-text {
+  color: #b91c1c;
+  font-weight: 500;
+  display: block;
+  margin-top: 8px;
+}
+
+.account-delete-button {
+  background-color: #dc2626;
+  color: white;
+  padding: 8px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s ease, opacity 0.2s ease;
+  width: 100%;
+}
+
+.account-delete-button:hover:not(:disabled) {
+  background-color: #b91c1c;
+}
+
+.account-delete-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: #dc2626;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background-color: white;
+  padding: 30px;
+  border-radius: 8px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.modal-content h2 {
+  color: #800000;
+  margin-bottom: 15px;
+  font-size: 1.5rem;
+}
+
+.modal-content p {
+  color: #4b5563;
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.modal-cancel-button {
+  background-color: #f3f4f6;
+  color: #4b5563;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s ease;
+}
+
+.modal-delete-button {
+  background-color: #dc2626;
+  color: white;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s ease;
+}
+
+.modal-cancel-button:hover {
+  background-color: #e5e7eb;
+}
+
+.modal-delete-button:hover {
+  background-color: #b91c1c;
+}
+
+/* Form field disabled states */
+.account-page .account-container input:disabled,
+.account-page .account-container select:disabled {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* Button disabled states */
+.account-edit-button:disabled,
+.account-save-button:disabled,
+.account-cancel-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Loading indicator for dropdowns */
+.account-page .account-container select:disabled {
+  background-image: linear-gradient(45deg, #f5f5f5 25%, transparent 25%, transparent 50%, #f5f5f5 50%, #f5f5f5 75%, transparent 75%, transparent);
+  background-size: 1rem 1rem;
+}
+
+/* Loading text styles */
+.account-save-button:disabled {
+  background-color: #999;
+}
+
+/* Loading overlay for saving state */
+.account-form-actions button:disabled {
+  position: relative;
+  overflow: hidden;
+}
+
+.account-form-actions button:disabled::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 200%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.2) 50%,
+    transparent 100%
+  );
+  animation: loading-shimmer 1.5s infinite;
+}
+
+@keyframes loading-shimmer {
+  0% {
+    transform: translateX(-100%);
   }
-  
-  .edit-button {
-    width: 100%;
+  100% {
+    transform: translateX(100%);
   }
-  
-  .form-actions {
-    flex-direction: column;
+}
+
+/* Loading states */
+.loading-text {
+  color: #666;
+  font-style: italic;
+}
+
+.form-group select.loading {
+  background-image: linear-gradient(45deg, 
+    #f5f5f5 25%, 
+    transparent 25%, 
+    transparent 50%, 
+    #f5f5f5 50%, 
+    #f5f5f5 75%, 
+    transparent 75%, 
+    transparent
+  );
+  background-size: 40px 40px;
+  animation: loading-stripes 1s linear infinite;
+}
+
+@keyframes loading-stripes {
+  0% {
+    background-position: 0 0;
   }
-  
-  .error-message,
-  .success-message {
-    margin: 15px;
+  100% {
+    background-position: 40px 0;
   }
-} 
+}
+
+/* Improve form group spacing */
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #555;
+  font-weight: 600;
+}
+
+.form-group select {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: white;
+  font-size: 1rem;
+  color: #333;
+  transition: all 0.2s ease;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
+  background-size: 1em;
+  padding-right: 2.5rem;
+}
+
+.form-group select:disabled {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.form-group select:not(:disabled):hover {
+  border-color: #800000;
+}
+
+.form-group select:not(:disabled):focus {
+  outline: none;
+  border-color: #800000;
+  box-shadow: 0 0 0 2px rgba(128, 0, 0, 0.1);
+}
+
+/* Current value display in labels */
+.current-value {
+  display: inline-block;
+  margin-left: 0.5rem;
+  font-size: 0.85em;
+  color: #666;
+  font-weight: normal;
+  font-style: italic;
+}

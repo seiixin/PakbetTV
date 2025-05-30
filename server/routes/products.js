@@ -103,10 +103,7 @@ const handleCombinedUpload = async (req, res, next) => {
       if (req.files && req.files.productImages) {
         console.log(`Processing ${req.files.productImages.length} product images`);
         req.productImages = req.files.productImages.map(file => {
-          const relativePath = path.relative(
-            path.join(__dirname, '..'),
-            file.path
-          ).replace(/\\/g, '/');
+          const relativePath = 'uploads/' + path.basename(file.path);
           return {
             filename: file.filename,
             path: file.path,
@@ -119,10 +116,7 @@ const handleCombinedUpload = async (req, res, next) => {
       if (req.files && req.files.variantImages) {
         console.log(`Processing ${req.files.variantImages.length} variant images`);
         req.variantImages = req.files.variantImages.map(file => {
-          const relativePath = path.relative(
-            path.join(__dirname, '..'),
-            file.path
-          ).replace(/\\/g, '/');
+          const relativePath = 'uploads/' + path.basename(file.path);
           return {
             filename: file.filename,
             path: file.path,
@@ -265,7 +259,7 @@ router.post('/', handleCombinedUpload, [
 router.get('/', async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
+    const limit = parseInt(req.query.limit) || 1000;
     const offset = (page - 1) * limit;
     const category = req.query.category;
 
@@ -280,8 +274,13 @@ router.get('/', async (req, res) => {
         p.category_id, 
         p.created_at, 
         p.updated_at,
+        p.is_featured,
         c.name AS category_name,
-        COALESCE(MIN(pv.price), 0) as price,
+        p.price as base_price,
+        p.average_rating,
+        p.review_count,
+        p.discounted_price,
+        p.discount_percentage,
         COALESCE(SUM(pv.stock), 0) as stock,
         GROUP_CONCAT(DISTINCT pv.image_url) as variant_images
       FROM products p
@@ -301,7 +300,7 @@ router.get('/', async (req, res) => {
       countQueryParams.push(category);
     }
 
-    productQuery += ' GROUP BY p.product_id, p.name, p.product_code, p.description, p.category_id, p.created_at, p.updated_at, c.name';
+    productQuery += ' GROUP BY p.product_id, p.name, p.product_code, p.description, p.category_id, p.created_at, p.updated_at, c.name, p.price, p.discounted_price, p.discount_percentage, p.is_featured';
     productQuery += ' ORDER BY p.created_at DESC LIMIT ? OFFSET ?';
     queryParams.push(limit, offset);
 
@@ -318,36 +317,71 @@ router.get('/', async (req, res) => {
 
       console.log(`Found ${products.length} products out of ${totalProducts} total`);
 
-      // Process variant images
-      products.forEach(product => {
-        if (product.variant_images) {
+      // Process each product
+      for (const product of products) {
+        // Ensure numeric values are properly formatted
+        product.price = Number(product.base_price) || 0;
+        product.discounted_price = Number(product.discounted_price) || 0;
+        product.discount_percentage = Number(product.discount_percentage) || 0;
+        product.average_rating = product.average_rating !== null ? Number(product.average_rating) : 0;
+        product.review_count = Number(product.review_count) || 0;
+        product.stock = Number(product.stock) || 0;
+
+        delete product.base_price;
+
+        // Get variants and process them
+        const [productVariants] = await db.query(
+          'SELECT variant_id, sku, price, stock, image_url, attributes FROM product_variants WHERE product_id = ?',
+          [product.product_id]
+        );
+        
+        if (productVariants && productVariants.length > 0) {
+          product.variants = productVariants.map(variant => ({
+            ...variant,
+            price: Number(variant.price) || 0,
+            stock: Number(variant.stock) || 0,
+            attributes: variant.attributes ? JSON.parse(variant.attributes) : {}
+          }));
+        } else {
+          product.variants = [];
+        }
+
+        // Process images
+        const [productImages] = await db.query(
+          'SELECT image_id, image_url, alt_text, sort_order FROM product_images WHERE product_id = ? ORDER BY sort_order LIMIT 1', 
+          [product.product_id]
+        );
+        
+        if (productImages.length > 0) {
+          const image = productImages[0];
+          if (image.image_url && Buffer.isBuffer(image.image_url)) {
+            product.images = [{
+              id: image.image_id,
+              url: `data:image/jpeg;base64,${image.image_url.toString('base64')}`,
+              alt: image.alt_text || product.name,
+              order: image.sort_order
+            }];
+          } else {
+            product.images = [{
+              id: image.image_id,
+              url: `/uploads/${image.image_url}`,
+              alt: image.alt_text || product.name,
+              order: image.sort_order
+            }];
+          }
+        } else if (product.variant_images) {
           const imageUrls = product.variant_images.split(',').filter(url => url);
-          console.log(`Processing images for product ${product.product_id}:`, imageUrls);
-          
-          product.images = imageUrls.map((url, index) => {
-            // Ensure the URL is properly formatted
-            let imageUrl = url.trim();
-            if (!imageUrl.startsWith('http')) {
-              // If it's a relative path, ensure it starts with /uploads/
-              imageUrl = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`;
-              if (!imageUrl.startsWith('/uploads/')) {
-                imageUrl = `/uploads/${imageUrl}`;
-              }
-            }
-            console.log(`Formatted image URL: ${imageUrl}`);
-            return {
-              url: imageUrl,
-              alt: `${product.name} - Variant ${index + 1}`,
-              order: index
-            };
-          });
+          product.images = imageUrls.map((url, index) => ({
+            url: url.startsWith('/') ? url : `/uploads/${url}`,
+            alt: `${product.name} - Variant ${index + 1}`,
+            order: index
+          }));
         } else {
           product.images = [];
         }
-        product.price = Number(product.price) || 0;
-        product.stock = Number(product.stock) || 0;
-        delete product.variant_images; // Remove the raw variant_images field
-      });
+
+        delete product.variant_images;
+      }
 
       res.json({
         products: products,
@@ -381,6 +415,111 @@ router.get('/', async (req, res) => {
     });
   }
 });
+router.get('/search', async (req, res) => {
+  try {
+    const searchQuery = req.query.query;
+    console.log('\n=== Product Search Debug ===');
+    console.log('Search query received:', searchQuery);
+    
+    if (!searchQuery) {
+      return res.json([]);
+    }
+
+    const searchTerm = `%${searchQuery.toLowerCase()}%`;
+    
+    // Enhanced query to include images and ensure category info
+    const sqlQuery = `
+      SELECT 
+        p.*,
+        c.name as category_name,
+        c.category_id,
+        COALESCE(MIN(pv.price), p.price) as min_price,
+        COALESCE(MAX(pv.price), p.price) as max_price,
+        (
+          SELECT pi.image_url 
+          FROM product_images pi 
+          WHERE pi.product_id = p.product_id 
+          ORDER BY pi.sort_order 
+          LIMIT 1
+        ) as primary_image
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.category_id
+      LEFT JOIN product_variants pv ON p.product_id = pv.product_id
+      WHERE 
+        LOWER(p.name) LIKE ? OR
+        LOWER(COALESCE(p.description, '')) LIKE ? OR
+        LOWER(COALESCE(p.product_code, '')) LIKE ? OR
+        LOWER(COALESCE(c.name, '')) LIKE ?
+      GROUP BY p.product_id
+      ORDER BY 
+        CASE 
+          WHEN LOWER(p.name) LIKE ? THEN 10
+          WHEN LOWER(p.description) LIKE ? THEN 5
+          ELSE 1
+        END DESC,
+        p.created_at DESC
+      LIMIT 10
+    `;
+
+    const params = [searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm];
+    console.log('\nExecuting search with params:', params);
+
+    const [results] = await db.query(sqlQuery, params);
+    console.log(`\nFound ${results.length} results`);
+
+    // Process the results with better error handling
+    const products = await Promise.all(results.map(async (product) => {
+      try {
+        // Get the primary image if not already included
+        let imageUrl = product.primary_image;
+        if (!imageUrl) {
+          const [images] = await db.query(
+            'SELECT image_url FROM product_images WHERE product_id = ? ORDER BY sort_order LIMIT 1',
+            [product.product_id]
+          );
+          if (images.length > 0) {
+            imageUrl = images[0].image_url;
+          }
+        }
+
+        // Handle price range
+        const minPrice = Number(product.min_price) || Number(product.price) || 0;
+        const maxPrice = Number(product.max_price) || Number(product.price) || 0;
+        const price = minPrice === maxPrice ? minPrice : { min: minPrice, max: maxPrice };
+
+        return {
+          product_id: product.product_id,
+          name: product.name,
+          description: product.description,
+          product_code: product.product_code || '',
+          category_name: product.category_name || 'Uncategorized',
+          category_id: product.category_id,
+          price: price,
+          average_rating: product.average_rating !== null ? Number(product.average_rating) : 0,
+          review_count: Number(product.review_count) || 0,
+          image: imageUrl ? `/uploads/${imageUrl}` : null,
+          stock: Number(product.stock) || 0
+        };
+      } catch (err) {
+        console.error(`Error processing product ${product.product_id}:`, err);
+        return null;
+      }
+    }));
+
+    // Filter out any null products from errors
+    const validProducts = products.filter(p => p !== null);
+    console.log('\nProcessed products to return:', validProducts);
+    console.log('=== End Debug ===\n');
+
+    res.json(validProducts);
+  } catch (err) {
+    console.error('Error in product search:', err);
+    res.status(500).json({ 
+      error: 'Server error during product search',
+      details: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
+  }
+});
 router.get('/:id', async (req, res) => {
   try {
     const productId = req.params.id;
@@ -407,6 +546,8 @@ router.get('/:id', async (req, res) => {
       average_rating: productResult[0].average_rating !== null ? Number(productResult[0].average_rating) : null,
       review_count: Number(productResult[0].review_count) || 0
     };
+    
+    // Get variants including image data
     const [variants] = await db.query('SELECT variant_id, product_id, sku, price, stock, image_url, attributes, created_at, updated_at FROM product_variants WHERE product_id = ?', [productId]);
     const variantsWithDetails = [];
     for (const variant of variants) {
@@ -419,14 +560,16 @@ router.get('/:id', async (req, res) => {
       const attributeString = Object.entries(parsedAttributes || {}).map(([key, value]) => value).join(' ');
       const variantName = attributeString ? `${product.name} - ${attributeString}` : product.name;
       let variantImage = null;
+      
       if (variant.image_url) {
         variantImage = {
           id: `variant-img-${variant.variant_id}`,
-          url: `/uploads/${variant.image_url}`,
+          url: variant.image_url,
           alt: `${product.name} - ${attributeString}`,
           order: 0
         };
       }
+      
       variantsWithDetails.push({
         ...variant, 
         attributes: parsedAttributes, 
@@ -435,19 +578,38 @@ router.get('/:id', async (req, res) => {
         name: variantName
       });
     }
+    
+    // Get product images as BLOB data
     const [images] = await db.query(
         'SELECT image_id, image_url, alt_text, sort_order FROM product_images WHERE product_id = ? ORDER BY sort_order', 
         [productId]
     );
+    
+    // Process image data
+    const processedImages = images.map(img => {
+      // If image_url is a BLOB, convert to base64
+      if (img.image_url && Buffer.isBuffer(img.image_url)) {
+        return {
+          id: img.image_id,
+          url: `data:image/jpeg;base64,${img.image_url.toString('base64')}`,
+          alt: img.alt_text || product.name,
+          order: img.sort_order
+        };
+      } else {
+        // Otherwise use as URL path
+        return {
+          id: img.image_id,
+          url: `/uploads/${img.image_url}`,
+          alt: img.alt_text || product.name,
+          order: img.sort_order
+        };
+      }
+    });
+    
     res.json({
       ...product,
       variants: variantsWithDetails,
-      images: images.map(img => ({ 
-          id: img.image_id, 
-          url: `/uploads/${img.image_url}`, 
-          alt: img.alt_text, 
-          order: img.sort_order 
-      })) 
+      images: processedImages
     });
   } catch (err) {
     console.error("Error fetching product details:", err);

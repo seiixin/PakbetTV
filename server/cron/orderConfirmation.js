@@ -7,8 +7,9 @@ const scheduleOrderConfirmation = () => {
     try {
       console.log('Running order auto-completion cron job...');
       
+      const serverUrl = process.env.SERVER_URL || 'https://pakbettv.gghsoftwaredev.com';
       const response = await axios.post(
-        'http://localhost:5000/api/orders/auto-complete'
+        `${serverUrl}/api/orders/auto-complete`
       );
       
       console.log('Auto-completion result:', response.data);

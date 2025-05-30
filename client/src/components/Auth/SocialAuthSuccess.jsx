@@ -1,49 +1,83 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import { useCart } from '../../context/CartContext';
+import { toast } from 'react-toastify';
+import { setAuthToken, setUser } from '../../utils/cookies';
+import './SocialAuthSuccess.css';
 
 const SocialAuthSuccess = () => {
+  const [processingStatus, setProcessingStatus] = useState('Processing authentication...');
   const navigate = useNavigate();
   const location = useLocation();
-  const { login } = useAuth();
+  const cart = useCart();
 
   useEffect(() => {
     const processToken = async () => {
-      // Extract token from URL params
-      const queryParams = new URLSearchParams(location.search);
-      const token = queryParams.get('token');
-      
-      if (token) {
-        try {
-          // Store token in local storage
-          localStorage.setItem('token', token);
-          
-          // Update auth context
-          await login(token);
-          
-          // Redirect to home page or intended destination
-          const returnTo = localStorage.getItem('returnTo') || '/';
-          localStorage.removeItem('returnTo');
-          navigate(returnTo);
-        } catch (error) {
-          console.error('Error processing social login:', error);
-          navigate('/login?error=auth_failed');
+      try {
+        // Get token from URL params
+        const params = new URLSearchParams(location.search);
+        const token = params.get('token');
+        
+        if (!token) {
+          throw new Error('No token received');
         }
-      } else {
-        // If no token, redirect to login
-        navigate('/login?error=no_token');
+        
+        // Store token in cookies
+        setAuthToken(token);
+        
+        // Get the current domain
+        const currentDomain = window.location.origin;
+        
+        // Attempt to fetch user profile with this token
+        const response = await fetch(`${currentDomain}/api/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.ok) {
+          const userData = await response.json();
+          setUser(userData);
+          
+          // Show success message
+          toast.success('Successfully logged in!');
+          
+          // Try to merge guest cart if cart context is available
+          if (cart && cart.mergeGuestCartWithUserCart) {
+            try {
+              await cart.mergeGuestCartWithUserCart();
+            } catch (cartError) {
+              console.error('Error merging carts:', cartError);
+            }
+          }
+          
+          // Navigate to home or previous page
+          setTimeout(() => {
+            navigate('/');
+          }, 1500);
+        } else {
+          throw new Error('Failed to fetch user profile');
+        }
+      } catch (error) {
+        console.error('Error processing social login:', error);
+        toast.error('Authentication failed. Please try again.');
+        setProcessingStatus('Authentication failed');
+        setTimeout(() => {
+          navigate('/login?error=auth_failed');
+        }, 1500);
       }
     };
 
     processToken();
-  }, [location, login, navigate]);
+  }, [location, navigate, cart]);
 
   return (
-    <div className="social-auth-success">
-      <div className="spinner-border" role="status">
-        <span className="visually-hidden">Loading...</span>
+    <div className="social-auth-success-container">
+      <div className="social-auth-success-content">
+        <div className="spinner"></div>
+        <h2>{processingStatus}</h2>
       </div>
-      <p>Processing login, please wait...</p>
     </div>
   );
 };

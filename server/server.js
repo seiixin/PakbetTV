@@ -9,15 +9,49 @@ const passport = require('./config/passport');
 dotenv.config();
 const { runMigrations } = require('./config/db-migrations');
 const app = express();
+const rateLimit = require('express-rate-limit');
+const helmet = require('helmet');
+
+//Express Rate Limit to avoid abuse
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, 
+  max: 100, 
+  message: 'Too many requests, please try again later.'
+});
+
+app.use(limiter);
+app.use(helmet());
+
+// Configure CORS origins based on environment
+const getAllowedOrigins = () => {
+  const clientUrl = process.env.CLIENT_URL || process.env.FRONTEND_URL;
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  
+  if (isDevelopment) {
+    // In development, allow multiple localhost ports
+    return ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5174'];
+  } else {
+    // In production, use the specific client URL
+    return clientUrl ? [clientUrl] : ['https://pakbettv.gghsoftwaredev.com'];
+  }
+};
 
 app.use(cors({
-  origin: process.env.CLIENT_URL || ['http://localhost:3000', 'http://localhost:5173'],
+  origin: getAllowedOrigins(),
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({
+    message: 'Something went wrong!',
+    error: process.env.NODE_ENV === 'production' ? {} : err
+  });
+})
 
 // Session and Passport setup
 app.use(session({
@@ -52,6 +86,7 @@ const deliveryRoutes = require('./routes/delivery');
 const adminRoutes = require('./routes/admin');
 const cmsRoutes = require('./routes/cms');
 const emailRoutes = require('./routes/email');
+const locationRoutes = require('./routes/locations');
 app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/categories', categoryRoutes);
@@ -65,6 +100,7 @@ app.use('/api/delivery', deliveryRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/cms', cmsRoutes);
 app.use('/api/email', emailRoutes);
+app.use('/api/locations', locationRoutes);
 app.get('/transaction-complete', (req, res) => {
   console.log('Received Dragonpay return request:', req.query);
   const { txnid, refno, status, message } = req.query;
@@ -160,7 +196,7 @@ app.use((err, req, res, next) => {
     error: process.env.NODE_ENV === 'production' ? {} : err
   });
 });
-const PORT = process.env.PORT || 4444;
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, async () => {
   console.log(`Server is running on port ${PORT}`);
   try {

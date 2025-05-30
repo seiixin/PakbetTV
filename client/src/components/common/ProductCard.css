@@ -79,8 +79,9 @@
   padding: 0.5rem;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
   flex: 1;
+  position: relative;
+  height: 120px; /* Fixed height for details section */
 }
 
 .product-card-name {
@@ -93,10 +94,18 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
   color: rgba(0, 0, 0, 0.87);
+  height: 2.8em; /* Fixed height for 2 lines */
+  margin-bottom: 0.5rem;
 }
 
 .product-card-price {
-  margin-top: 0.25rem;
+  margin-top: auto; /* Push to bottom of flex container */
+  min-height: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
 }
 
 .price-with-discount {
@@ -107,20 +116,19 @@
 }
 
 .discounted-price {
-  font-size: 0.75rem !important;
+  font-size: 0.9rem !important;
   font-weight: 500;
   color: #ee4d2d;
 }
 
 .original-price {
-  font-size: 0.65rem !important;
+  font-size: 0.7rem !important;
   text-decoration: line-through;
   color: rgba(0, 0, 0, 0.54);
 }
 
 .regular-price {
-  font-size: 1.2rem !important;
-  margin-top: 2rem;
+  font-size: 0.9rem !important;
   font-weight: 500;
   color: #ee4d2d;
 }
@@ -129,11 +137,11 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin-top: auto;
   padding-top: 0.25rem;
   font-size: 0.75rem;
   color: rgba(0, 0, 0, 0.54);
   border-top: 1px solid #f5f5f5;
+  margin-top: auto; /* Ensure it stays at bottom */
 }
 
 .rating-container {
@@ -145,6 +153,7 @@
 .rating-value {
   color: #ee4d2d;
   font-weight: 600;
+  font-size: 0.85rem !important;
 }
 
 .rating-stars {
@@ -155,7 +164,7 @@
 }
 
 .rating-stars i {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
 }
 
 .rating-stars i.filled {
@@ -168,7 +177,7 @@
 
 .review-count {
   color: rgba(0, 0, 0, 0.54);
-  font-size: 0.75rem;
+  font-size: 0.7rem !important;
 }
 
 .items-sold {
@@ -181,6 +190,38 @@
   margin-left: auto;
   font-size: 0.75rem;
   color: rgba(0, 0, 0, 0.54);
+}
+
+.add-to-cart-icon {
+  position: static;
+  background-color: #A2201A;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 2;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+
+.add-to-cart-icon:hover {
+  background-color: #8a1c17;
+  transform: scale(1.1);
+}
+
+.add-to-cart-icon.added {
+  background-color: #4CAF50;
+  transform: scale(1.1);
+}
+
+.add-to-cart-icon.added:hover {
+  background-color: #45a049;
 }
 
 /* Responsive adjustments */

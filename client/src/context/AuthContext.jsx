@@ -1,31 +1,30 @@
 import { createContext, useState, useEffect, useContext } from 'react';
 import { authService } from '../services/api';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
+import axios from 'axios';
+import { getUser, setUser, removeUser, getAuthToken, setAuthToken, removeAuthToken } from '../utils/cookies';
 
 const AuthContext = createContext();
 
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(() => {
-    const storedUser = localStorage.getItem('user');
-    return storedUser ? JSON.parse(storedUser) : null;
-  });
-  const [token, setToken] = useState(() => localStorage.getItem('token'));
+  const [user, setUserState] = useState(() => getUser());
+  const [token, setTokenState] = useState(() => getAuthToken());
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [loggingOut, setLoggingOut] = useState(false);
   const navigate = useNavigate();
 
   // This effect runs once on mount to validate the token
   useEffect(() => {
     const validateToken = async () => {
-      const storedToken = localStorage.getItem('token');
+      const storedToken = getAuthToken();
       
       if (!storedToken) {
-        setToken(null);
-        setUser(null);
+        setTokenState(null);
+        setUserState(null);
         setInitialLoading(false);
         return;
       }
@@ -41,12 +40,13 @@ export const AuthProvider = ({ children }) => {
           firstName: profileData.firstName,
           lastName: profileData.lastName,
           email: profileData.email,
-          userType: profileData.userType
+          userType: profileData.userType,
+          username: profileData.username
         };
         
-        localStorage.setItem('user', JSON.stringify(updatedUserData));
-        setToken(storedToken);
         setUser(updatedUserData);
+        setUserState(updatedUserData);
+        setTokenState(storedToken);
       } catch (error) {
         console.error('Token validation failed:', error);
         
@@ -57,10 +57,10 @@ export const AuthProvider = ({ children }) => {
             setRefreshing(true);
             const refreshResponse = await authService.refreshToken();
             
-            if (refreshResponse && refreshResponse.data && refreshResponse.data.token) {
+            if (refreshResponse?.data?.token) {
               const newToken = refreshResponse.data.token;
-              localStorage.setItem('token', newToken);
-              setToken(newToken);
+              setAuthToken(newToken);
+              setTokenState(newToken);
               
               // Try to get profile with new token
               const newProfileResponse = await authService.getProfile();
@@ -71,34 +71,19 @@ export const AuthProvider = ({ children }) => {
                 firstName: newProfileData.firstName,
                 lastName: newProfileData.lastName,
                 email: newProfileData.email,
-                userType: newProfileData.userType
+                userType: newProfileData.userType,
+                username: newProfileData.username
               };
               
-              localStorage.setItem('user', JSON.stringify(refreshedUserData));
               setUser(refreshedUserData);
+              setUserState(refreshedUserData);
               console.log('Token refreshed successfully');
             } else {
               throw new Error('Failed to refresh token');
             }
           } catch (refreshError) {
             console.error('Token refresh failed:', refreshError);
-            // Only clear auth data if it's an auth error and refresh failed
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            setToken(null);
-            setUser(null);
-            
-            // Only navigate to login if we're not already there and not in a public route
-            const currentPath = window.location.pathname;
-            const isPublicRoute = currentPath === '/' || 
-                                  currentPath.includes('/login') || 
-                                  currentPath.includes('/signup') || 
-                                  currentPath.includes('/shop') ||
-                                  currentPath.includes('/product/');
-            
-            if (!isPublicRoute) {
-              navigate('/login');
-            }
+            handleLogout();
           } finally {
             setRefreshing(false);
           }
@@ -111,16 +96,35 @@ export const AuthProvider = ({ children }) => {
     validateToken();
   }, [navigate]);
 
+  const handleLogout = () => {
+    removeAuthToken();
+    removeUser();
+    setUserState(null);
+    setTokenState(null);
+
+    // Only navigate to login if not on a public route
+    const currentPath = window.location.pathname;
+    const isPublicRoute = currentPath === '/' || 
+                         currentPath.includes('/login') || 
+                         currentPath.includes('/signup') || 
+                         currentPath.includes('/shop') ||
+                         currentPath.includes('/product/');
+    
+    if (!isPublicRoute) {
+      navigate('/login');
+    }
+  };
+
   const login = async (credentials) => {
     try {
       setLoading(true);
       const response = await authService.login(credentials);
       const { token: newToken, user: userData } = response.data;
       
-      localStorage.setItem('token', newToken);
-      localStorage.setItem('user', JSON.stringify(userData));
-      setToken(newToken);
+      setAuthToken(newToken);
       setUser(userData);
+      setTokenState(newToken);
+      setUserState(userData);
       return { success: true };
     } catch (error) {
       return { 
@@ -148,19 +152,89 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    // Small delay before starting logout to ensure smooth transition
-    setTimeout(() => {
-      setLoggingOut(true);
-    }, 100);
+    handleLogout();
+    toast.success('Logged out successfully');
+  };
 
-    setTimeout(() => {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      setUser(null);
-      setToken(null);
-      setLoggingOut(false);
-      navigate('/');
-    }, 2500); // Increased to 2.5s for better visibility
+  // Add this function to check for existing email
+  const checkExistingEmail = async (email) => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/api/auth/check-email`, { email });
+      return response.data;
+    } catch (error) {
+      console.error('Error checking email:', error);
+      throw error;
+    }
+  };
+
+  // Update the social login handlers
+  const handleGoogleLogin = async (response) => {
+    try {
+      const { email, name, imageUrl } = response.profileObj;
+      
+      // Check if email already exists
+      const emailCheck = await checkExistingEmail(email);
+      
+      if (emailCheck.exists) {
+        // If email exists, check if it's a Google account
+        if (!emailCheck.isGoogleAccount) {
+          throw new Error('An account with this email already exists. Please use your regular login.');
+        }
+      }
+      
+      const authResponse = await axios.post(`${API_BASE_URL}/api/auth/google`, {
+        email,
+        name,
+        imageUrl,
+        googleId: response.googleId
+      });
+      
+      handleLoginSuccess(authResponse.data);
+    } catch (error) {
+      handleLoginError(error);
+    }
+  };
+
+  const handleFacebookLogin = async (response) => {
+    try {
+      const { email, name, picture } = response;
+      
+      // Check if email already exists
+      const emailCheck = await checkExistingEmail(email);
+      
+      if (emailCheck.exists) {
+        // If email exists, check if it's a Facebook account
+        if (!emailCheck.isFacebookAccount) {
+          throw new Error('An account with this email already exists. Please use your regular login.');
+        }
+      }
+      
+      const authResponse = await axios.post(`${API_BASE_URL}/api/auth/facebook`, {
+        email,
+        name,
+        picture: picture.data.url,
+        facebookId: response.id
+      });
+      
+      handleLoginSuccess(authResponse.data);
+    } catch (error) {
+      handleLoginError(error);
+    }
+  };
+
+  // Add error handling function
+  const handleLoginError = (error) => {
+    let errorMessage = 'An error occurred during login. Please try again.';
+    
+    if (error.response) {
+      errorMessage = error.response.data.message || errorMessage;
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    // You can dispatch this error to your notification system
+    console.error('Login error:', errorMessage);
+    throw new Error(errorMessage);
   };
 
   const value = {
@@ -169,10 +243,10 @@ export const AuthProvider = ({ children }) => {
     loading,
     initialLoading,
     refreshing,
-    loggingOut,
     login,
-    register,
     logout,
+    register,
+    checkExistingEmail,
     isAuthenticated: !!token && !!user
   };
 
@@ -186,17 +260,7 @@ export const AuthProvider = ({ children }) => {
           <p>Loading...</p>
         </div>
       ) : (
-        <>
-          {loggingOut && (
-            <div className="loading-container">
-              <div className="spinner-border" role="status">
-                <span className="visually-hidden">Loading...</span>
-              </div>
-              <p>Logging out...</p>
-            </div>
-          )}
-          {children}
-        </>
+        children
       )}
     </AuthContext.Provider>
   );
