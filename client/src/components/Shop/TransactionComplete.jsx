@@ -138,8 +138,8 @@ const TransactionComplete = () => {
         
         {orderDetails && (
           <div className="order-details">
-            <h3>Order #{orderDetails.id}</h3>
-            <p>Total: ₱{parseFloat(orderDetails.total_amount).toFixed(2)}</p>
+            <h3>Order #{orderDetails.order_code || orderDetails.order_id}</h3>
+            <p>Total: ₱{parseFloat(orderDetails.total_price || orderDetails.total_amount || 0).toFixed(2)}</p>
             {orderDetails.tracking_number && (
               <p>Tracking Number: {orderDetails.tracking_number}</p>
             )}
