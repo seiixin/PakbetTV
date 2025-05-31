@@ -52,20 +52,29 @@ const Home = () => {
     {
       title: "ZODIAC COLLECTION",
       description: "Discover items tailored to your zodiac sign. Enhance your luck and prosperity with our specially curated zodiac items.",
-      buttonText: "Find Your Sign",
-      buttonLink: "/prosper-guide",
+      buttonText: "Shop Zodiac Items",
+      buttonLink: "/shop?category=zodiac",
       leftColor: "linear-gradient(135deg, #db1730 100%)",
       rightBackground: "url('/Zodiac-1.jpg')",
       side: "right"
+    },
+    {
+      title: "FENG SHUI WISDOM BLOG",
+      description: "Explore our collection of insightful articles on Feng Shui principles, home harmony, and spiritual wellness. Learn from expert guidance and real-life applications.",
+      buttonText: "Read Blog Posts",
+      buttonLink: "/blog",
+      leftBackground: "url('/Carousel-2.jpg')",
+      rightColor: "linear-gradient(135deg, #db1730 100%)",
+      side: "left"
     },
     {
       title: "SPECIAL OFFERS",
       description: "Take advantage of our limited-time deals on selected Feng Shui items. Transform your space while saving.",
       buttonText: "View Deals",
       buttonLink: "/shop?category=flash-deals",
-      leftBackground: "url('/Carousel-2.jpg')",
-      rightColor: "linear-gradient(135deg, #db1730 100%)",
-      side: "left"
+      leftColor: "linear-gradient(135deg, #db1730 100%)",
+      rightBackground: "url('/Carousel-1.jpg')",
+      side: "right"
     }
   ];
 
@@ -123,18 +132,18 @@ const Home = () => {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentSlide((prev) => (prev === 2 ? 0 : prev + 1));
+      setCurrentSlide((prev) => (prev === 3 ? 0 : prev + 1));
     }, 5000);
 
     return () => clearInterval(interval);
   }, []);
 
   const handlePrevSlide = () => {
-    setCurrentSlide((prev) => (prev === 0 ? 2 : prev - 1));
+    setCurrentSlide((prev) => (prev === 0 ? 3 : prev - 1));
   };
 
   const handleNextSlide = () => {
-    setCurrentSlide((prev) => (prev === 2 ? 0 : prev + 1));
+    setCurrentSlide((prev) => (prev === 3 ? 0 : prev + 1));
   };
 
   const handleDotClick = (index) => {
@@ -158,7 +167,7 @@ const Home = () => {
         <div className="no-products">No new arrivals at the moment.</div>
       ) : (
         <div className="home-new-arrivals-grid">
-          {newArrivals.map(product => (
+          {newArrivals.slice(0, 10).map(product => (
             <ProductCard key={product.product_id} product={product} />
           ))}
         </div>

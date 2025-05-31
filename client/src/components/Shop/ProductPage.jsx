@@ -23,6 +23,7 @@ const ProductPage = () => {
   );
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [isCategoriesVisible, setIsCategoriesVisible] = useState(true);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [categories, setCategories] = useState([
     { id: 'all', name: 'All Products', image: '/All-Products.svg' }
@@ -169,6 +170,11 @@ const ProductPage = () => {
   const handleCategoryClick = (categoryId) => {
     navigate(`/shop?category=${categoryId}`);
     setSelectedCategory(categoryId);
+    setIsMobileSidebarOpen(false); // Close mobile sidebar when category is selected
+  };
+
+  const toggleMobileSidebar = () => {
+    setIsMobileSidebarOpen(!isMobileSidebarOpen);
   };
 
   const filterProducts = (products) => {
@@ -215,6 +221,68 @@ const ProductPage = () => {
   return (
     <div className="shop-container">
       <NavBar />
+      
+      {/* Mobile Categories Toggle Button */}
+      <button 
+        className="mobile-categories-toggle"
+        onClick={toggleMobileSidebar}
+        aria-label="Toggle Categories"
+      >
+        <i className="fas fa-bars"></i>
+        <span>Categories</span>
+      </button>
+
+      {/* Mobile Sidebar Overlay */}
+      {isMobileSidebarOpen && (
+        <div 
+          className="mobile-sidebar-overlay"
+          onClick={() => setIsMobileSidebarOpen(false)}
+        />
+      )}
+
+      {/* Categories Sidebar */}
+      <div className={`categories-sidebar ${isMobileSidebarOpen ? 'mobile-open' : ''}`}>
+        <div className="categories-sidebar-header">
+          <h3>Categories</h3>
+          <button 
+            className="close-sidebar-btn"
+            onClick={() => setIsMobileSidebarOpen(false)}
+          >
+            <i className="fas fa-times"></i>
+          </button>
+        </div>
+        
+        <div className="sidebar-categories">
+          {categoriesError && (
+            <div className="error-message">
+              Error loading categories: {categoriesError.message || categoriesError}
+            </div>
+          )}
+          {categoriesLoading ? (
+            <div>Loading categories...</div>
+          ) : (
+            <div className="sidebar-categories-list">
+              {Array.isArray(categories) ? categories.map(category => (
+                <div 
+                  key={category.id}
+                  className={`sidebar-category-card ${selectedCategory === category.id ? 'active' : ''}`}
+                  onClick={() => handleCategoryClick(category.id)}
+                >
+                  {category.image && (
+                    <div className="sidebar-category-icon">
+                      <img src={category.image} alt={`${category.name} icon`} />
+                    </div>
+                  )}
+                  <span className="sidebar-category-name">{category.name}</span>
+                </div>
+              )) : (
+                <div>No categories available</div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
       <div className="shop-main-2">
         <div className="products-content">
           <div className="home-carousel">
@@ -343,7 +411,9 @@ const ProductPage = () => {
             </div>
           )}
 
-          <div className="shop-main">
+          {/* Desktop Categories Section */}
+          <div className="desktop-categories-section">
+            <h1>SHOP BY CATEGORY</h1>
             <div className="shop-categories">
               <div className={`shop-categories ${!isCategoriesVisible ? 'collapsed' : ''}`}>
                 {categoriesError && (
@@ -375,34 +445,34 @@ const ProductPage = () => {
                 )}
               </div>
             </div>
+          </div>
 
-            <div className="Products-content">
-              <h1>PRODUCTS</h1>
-              {productsError && <div className="error-message">{productsError}</div>}
-              {productsLoading ? (
-                <div>Loading products...</div>
-              ) : !Array.isArray(filteredProducts) || filteredProducts.length === 0 ? (
-                <div className="no-products">
-                  <p>No products found{searchParams.get('search') ? ' matching your search' : ' in this category'}.</p>
-                </div>
-              ) : (
-                <div className="shop-products-grid">
-                  {Array.isArray(filteredProducts) ? filteredProducts.map(product => (
-                    <ProductCard 
-                      key={product.product_id} 
-                      product={{
-                        ...product,
-                        price: product.price,
-                        originalPrice: product.originalPrice,
-                        discountedPrice: product.discounted_price,
-                        discount_percentage: product.discount_percentage,
-                        isDiscountValid: product.isDiscountValid
-                      }} 
-                    />
-                  )) : null}
-                </div>
-              )}
-            </div>
+          <div className="Products-content">
+            <h1>PRODUCTS</h1>
+            {productsError && <div className="error-message">{productsError}</div>}
+            {productsLoading ? (
+              <div>Loading products...</div>
+            ) : !Array.isArray(filteredProducts) || filteredProducts.length === 0 ? (
+              <div className="no-products">
+                <p>No products found{searchParams.get('search') ? ' matching your search' : ' in this category'}.</p>
+              </div>
+            ) : (
+              <div className="shop-products-grid">
+                {Array.isArray(filteredProducts) ? filteredProducts.map(product => (
+                  <ProductCard 
+                    key={product.product_id} 
+                    product={{
+                      ...product,
+                      price: product.price,
+                      originalPrice: product.originalPrice,
+                      discountedPrice: product.discounted_price,
+                      discount_percentage: product.discount_percentage,
+                      isDiscountValid: product.isDiscountValid
+                    }} 
+                  />
+                )) : null}
+              </div>
+            )}
           </div>
         </div>
       </div>
