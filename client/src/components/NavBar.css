@@ -1,4 +1,4 @@
-/* Fix scrollbar overlap issue globally */
+/* Remove global body padding since navbar will be in normal flow */
 body {
   margin: 0;
   padding: 0;
@@ -25,11 +25,42 @@ body::-webkit-scrollbar-thumb:hover {
   background: #555;
 }
 
-/* MAIN NAVBAR CONTAINER */
+/* NAVBAR BODY SPACING - Prevent content overlap */
+body {
+  padding-top: 167px; /* Total navbar height on desktop: ~43px + ~68px + ~56px */
+  transition: padding-top 0.3s ease;
+}
+
+/* Mobile responsive body padding */
+@media (max-width: 1024px) {
+  body {
+    padding-top: 111px; /* Tablet: only first two rows ~43px + ~68px */
+  }
+}
+
+@media (max-width: 768px) {
+  body {
+    padding-top: 88px; /* Mobile navbar height: ~36px + ~52px */
+  }
+}
+
+@media (max-width: 480px) {
+  body {
+    padding-top: 80px; /* Small mobile navbar height: ~30px + ~50px */
+  }
+}
+
+@media (max-width: 360px) {
+  body {
+    padding-top: 74px; /* Extra small mobile navbar height */
+  }
+}
+
+/* MAIN NAVBAR CONTAINER - Now part of normal page flow */
 .navbar-navbar {
-  position: fixed;
-  top: 0;
-  left: 0;
+  position: static;
+  top: auto;
+  left: auto;
   width: 100%;
   z-index: 900;
   background-color: var(--primary-color, #ab1125);
@@ -992,16 +1023,6 @@ button:disabled {
     width: 320px;
     left: -320px;
   }
-  
-  .search-dropdown {
-    position: fixed;
-    top: 78px;
-    left: 0;
-    right: 0;
-    margin: 0;
-    border-radius: 0;
-    max-height: calc(100vh - 78px);
-  }
 }
 
 /* Small Mobile Devices */
@@ -1048,11 +1069,6 @@ button:disabled {
   .mobile-menu-sidebar {
     width: 300px;
     left: -300px;
-  }
-  
-  .search-dropdown {
-    top: 70px;
-    max-height: calc(100vh - 70px);
   }
 }
 

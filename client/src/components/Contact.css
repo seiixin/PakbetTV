@@ -7,7 +7,6 @@
   background-repeat: no-repeat;
   padding: 4rem 2rem;
   text-align: center;
-  margin-top: 80px;
   position: relative;
   overflow: hidden;
 }
@@ -240,7 +239,6 @@
 @media (max-width: 480px) {
   .contact-hero-section {
     padding: 2.5rem 1rem;
-    margin-top: 60px;
   }
 
   .contact-hero-content h1 {
@@ -326,4 +324,11 @@
   .contact-footer-title {
     font-size: 1.5rem;
   }
+}
+
+/* Contact Page Styles */
+.contact-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+  padding: 2rem 0;
 } 

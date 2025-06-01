@@ -13,12 +13,11 @@
   --text-color: #333333;
 }
 
-/* Shop Container - Fix navbar overlap */
+/* Shop Container - Remove conflicting spacing, body padding handles navbar overlap */
 .shop-container {
   width: 100%;
   display: flex;
   flex-direction: column;
-  margin-top: 80px !important;
   background-color: white !important;
 }
 
@@ -2850,7 +2849,7 @@
 /* Mobile styles for devices <= 768px */
 @media (max-width: 768px) {
   .shop-container {
-    margin-top: 70px !important;
+    /* Remove conflicting margin-top - body padding handles navbar spacing */
   }
 
   .shop-main-2 {
@@ -3064,7 +3063,7 @@
 /* Mobile styles for devices <= 480px */
 @media (max-width: 480px) {
   .shop-container {
-    margin-top: 60px !important;
+    /* Remove conflicting margin-top - body padding handles navbar spacing */
   }
 
   .shop-main-2 {
@@ -3208,7 +3207,7 @@
 /* Very small screens */
 @media (max-width: 360px) {
   .shop-container {
-    margin-top: 60px !important;
+    /* Remove conflicting margin-top - body padding handles navbar spacing */
   }
 
   .shop-main-2 {

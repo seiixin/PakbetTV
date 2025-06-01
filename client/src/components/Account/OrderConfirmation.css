@@ -6,7 +6,6 @@
 }
 
 .hero-banner {
-  margin-top: 80px;
   background-color: var(--primary-color);
   background-image: url('/cover.png');
   background-size: cover;

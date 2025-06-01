@@ -2,9 +2,8 @@
 .bazi-calculator-container {
   width: 100%;
   padding: 1rem;
-  margin-top: 60px; /* Mobile navbar height */
   background-color: var(--background-color, #ffffff);
-  min-height: calc(100vh - 60px);
+  min-height: 100vh;
   box-sizing: border-box;
 }
 
@@ -129,7 +128,6 @@
 @media screen and (min-width: 768px) {
   .bazi-calculator-container {
     padding: 1.5rem;
-    margin-top: 70px; /* Tablet navbar height */
     max-width: 1000px;
     margin-left: auto;
     margin-right: auto;
@@ -186,7 +184,6 @@
 @media screen and (min-width: 1024px) {
   .bazi-calculator-container {
     padding: 2rem;
-    margin-top: 80px; /* Desktop navbar height */
     max-width: 1200px;
   }
   

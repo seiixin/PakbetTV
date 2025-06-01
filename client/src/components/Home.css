@@ -72,10 +72,10 @@ body {
   background-position: center;
   background-repeat: no-repeat;
   color: var(--white-color);
-  min-height: calc(100vh - 64px);
+  min-height: 80vh;
   width: 100%;
   max-width: 100%;
-  margin: 64px 0 0 0;
+  margin: 0;
   padding: 32px 4%;
   position: relative;
   overflow: hidden;
@@ -1128,8 +1128,7 @@ body {
   .home-hero-section {
     background-image: url('/Mobile Large Phone (414x896).png');
     background-size: cover;
-    margin-top: 60px;
-    min-height: calc(100vh - 60px);
+    min-height: 70vh;
     padding: 20px 5%;
   }
   
@@ -1142,8 +1141,7 @@ body {
   .home-hero-section {
     background-image: url('/Mobile (1080x1920).png');
     background-size: cover;
-    margin-top: 70px;
-    min-height: calc(100vh - 70px);
+    min-height: 75vh;
     padding: 30px 5%;
   }
 }
@@ -1152,8 +1150,7 @@ body {
   .home-hero-section {
     background-image: url('/Tablets Landscape - (1024x768).png');
     background-size: cover;
-    margin-top: 80px;
-    min-height: calc(100vh - 80px);
+    min-height: 80vh;
     padding: 40px 5%;
   }
 }
@@ -1162,8 +1159,7 @@ body {
   .home-hero-section {
     background-image: url('/Laptop (1280x800).png');
     background-size: cover;
-    margin-top: 80px;
-    min-height: calc(100vh - 80px);
+    min-height: 80vh;
     padding: 60px 5%;
   }
 }
@@ -1580,5 +1576,14 @@ body {
 @media (max-width: 480px) {
   .why-consult-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Contact Form Section for Desktop only */
+@media (min-width: 769px) {
+  .desktop-contact-form {
+    padding: 4rem 0;
+    background: linear-gradient(135deg, var(--primary-color) 0%, #8b1d0e 100%);
+    color: white;
   }
 } 
