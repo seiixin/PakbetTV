@@ -8,6 +8,7 @@ import './NavBar.css';
 const NavBar = () => {
   const [scrolled, setScrolled] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState({ products: [], blogs: [], zodiacs: [] });
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
@@ -17,6 +18,7 @@ const NavBar = () => {
   const { getTotalCount } = useCart();
   const dropdownRef = useRef(null);
   const searchRef = useRef(null);
+  const mobileMenuRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
   const isShopPage = location.pathname === '/shop';
@@ -36,6 +38,9 @@ const NavBar = () => {
       }
       if (searchRef.current && !searchRef.current.contains(event.target)) {
         setShowSearchDropdown(false);
+      }
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target)) {
+        setMobileMenuOpen(false);
       }
     };
 
@@ -106,14 +111,26 @@ const NavBar = () => {
   const toggleDropdown = () => {
     setDropdownOpen(!dropdownOpen);
   };
+
+  const toggleMobileMenu = () => {
+    setMobileMenuOpen(!mobileMenuOpen);
+  };
+
   const handleLogout = () => {
     setDropdownOpen(false); 
+    setMobileMenuOpen(false);
     logout(); 
   };
+
+  const handleMobileNavClick = () => {
+    setMobileMenuOpen(false);
+  };
+
   const isHomePage = location.pathname === '/';
   const navClassName = `navbar-navbar ${
     !isHomePage || scrolled ? 'red' : 'transparent' 
   } ${scrolled ? 'scrolled' : ''}`;
+
   const handleSearchResultClick = (item, type) => {
     setSearchQuery('');
     setShowSearchDropdown(false);
@@ -132,6 +149,7 @@ const NavBar = () => {
         break;
     }
   };
+
   const renderSearchResults = () => {
     if (!showSearchDropdown) return null;
     
@@ -230,50 +248,47 @@ const NavBar = () => {
       </div>
     );
   };
+
   return (
     <>
       <nav className={navClassName}>
-        <div className="navbar-navbar-container">
-          <div className="navbar-navbar-logo">
-            <Link to="/" className="navbar-logo-link">
-              <div className="navbar-logo-text">
-                <h3>MICHAEL DE MESA</h3>
-                <p>BAZI & FENG SHUI CONSULTANCY</p>
-              </div>
-            </Link>
+        {/* First Row - Shipping Banner */}
+        <div className="navbar-shipping-banner">
+          <div className="navbar-shipping-content">
+            <span>Nationwide shipping rate of PHP 28</span>
           </div>
-          <ul className="navbar-navbar-menu">
-            <li className="navbar-navbar-item">
-              <Link to="/" className="navbar-navbar-link">Home</Link>
-            </li>
-            <li className="navbar-navbar-item">
-              <Link to="/shop" className="navbar-navbar-link">Shop</Link>
-            </li>
-            <li className="navbar-navbar-item">
-              <Link to="/consultation" className="navbar-navbar-link">Consultations</Link>
-            </li>
-            <li className="navbar-navbar-item">
-              <Link to="/horoscope" className="navbar-navbar-link">Horoscope</Link>
-            </li>
-            <li className="navbar-navbar-item">
-              <Link to="/blog" className="navbar-navbar-link">Blogs</Link>
-            </li>
-            <li className="navbar-navbar-item">
-              <Link to="/faqs" className="navbar-navbar-link">FAQs</Link>
-            </li>
-            <li className="navbar-navbar-item">
-              <Link to="/contact" className="navbar-navbar-link">Contact Us</Link>
-            </li>
-            <li className="navbar-navbar-item">
-              <Link to="/bazi-calculator" className="navbar-navbar-link">BaZi Calculator</Link>
-            </li>
-          </ul>
-          <div className="navbar-navbar-actions">
-            <div className="navbar-search-container" ref={searchRef}>
+        </div>
+
+        {/* Second Row - Logo, Search, Actions */}
+        <div className="navbar-main-row">
+          <div className="navbar-main-container">
+            {/* Mobile Menu Toggle */}
+            <button 
+              className="mobile-menu-toggle"
+              onClick={toggleMobileMenu}
+              aria-label="Toggle mobile menu"
+            >
+              <span className={`hamburger-line ${mobileMenuOpen ? 'active' : ''}`}></span>
+              <span className={`hamburger-line ${mobileMenuOpen ? 'active' : ''}`}></span>
+              <span className={`hamburger-line ${mobileMenuOpen ? 'active' : ''}`}></span>
+            </button>
+
+            {/* Logo */}
+            <div className="navbar-navbar-logo">
+              <Link to="/" className="navbar-logo-link">
+                <div className="navbar-logo-text">
+                  <h3>MICHAEL DE MESA</h3>
+                  <p>BAZI & FENG SHUI CONSULTANCY</p>
+                </div>
+              </Link>
+            </div>
+
+            {/* Desktop Search */}
+            <div className="navbar-search-container desktop-search" ref={searchRef}>
               <div className="navbar-search-bar">
                 <input
                   type="text"
-                  placeholder="Search for a product"
+                  placeholder="Search for products, blogs, and guides..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onFocus={() => {
@@ -295,69 +310,277 @@ const NavBar = () => {
               </div>
               {renderSearchResults()}
             </div>
-            <div className="navbar-navbar-buttons">
-              {user ? (
-                <div className="navbar-user-menu" ref={dropdownRef}>
-                  <button className="navbar-profile-button" onClick={toggleDropdown} disabled={loggingOut}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                      <circle cx="12" cy="7" r="4"></circle>
-                    </svg>
-                    <span>{user.firstName}  {user.lastName}</span>
-                    <svg className="navbar-dropdown-arrow" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="6 9 12 15 18 9"></polyline>
-                    </svg>
-                  </button>
-                  {dropdownOpen && (
-                    <div className="navbar-dropdown-menu">
-                      <Link to="/account" className="navbar-dropdown-item" onClick={() => setDropdownOpen(false)}>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                          <circle cx="12" cy="7" r="4"></circle>
-                        </svg>
-                        <span>My Account</span>
-                      </Link>
-                      <Link to="/purchases" className="navbar-dropdown-item" onClick={() => setDropdownOpen(false)}>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
-                          <line x1="3" y1="6" x2="21" y2="6"></line>
-                          <path d="M16 10a4 4 0 0 1-8 0"></path>
-                        </svg>
-                        <span>My Purchase</span>
-                      </Link>
-                      <button onClick={handleLogout} className="navbar-dropdown-item navbar-logout-item" disabled={loggingOut}>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                          <polyline points="16 17 21 12 16 7"></polyline>
-                          <line x1="21" y1="12" x2="9" y2="12"></line>
-                        </svg>
-                        <span>Logout</span>
-                      </button>
-                    </div>
-                  )}
+
+            {/* Actions */}
+            <div className="navbar-navbar-actions">
+              <div className="navbar-navbar-buttons">
+                {/* Desktop Auth/Profile */}
+                {user ? (
+                  <div className="navbar-user-menu desktop-auth" ref={dropdownRef}>
+                    <button className="navbar-profile-button" onClick={toggleDropdown} disabled={loggingOut}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                      </svg>
+                      <span>{user.firstName}  {user.lastName}</span>
+                      <svg className="navbar-dropdown-arrow" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                      </svg>
+                    </button>
+                    {dropdownOpen && (
+                      <div className="navbar-dropdown-menu">
+                        <Link to="/account" className="navbar-dropdown-item" onClick={() => setDropdownOpen(false)}>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                          </svg>
+                          <span>My Account</span>
+                        </Link>
+                        <Link to="/purchases" className="navbar-dropdown-item" onClick={() => setDropdownOpen(false)}>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                            <line x1="3" y1="6" x2="21" y2="6"></line>
+                            <path d="M16 10a4 4 0 0 1-8 0"></path>
+                          </svg>
+                          <span>My Purchase</span>
+                        </Link>
+                        <button onClick={handleLogout} className="navbar-dropdown-item navbar-logout-item" disabled={loggingOut}>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                            <polyline points="16 17 21 12 16 7"></polyline>
+                            <line x1="21" y1="12" x2="9" y2="12"></line>
+                          </svg>
+                          <span>Logout</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="navbar-auth-buttons desktop-auth">
+                    <Link to="/login" className="navbar-login-button">Login</Link>
+                    <Link to="/signup" className="navbar-signup-button">Sign Up</Link>
+                  </div>
+                )}
+                
+                {/* Cart Button */}
+                <button 
+                  className="navbar-cart-button"
+                  disabled={loggingOut}
+                  onClick={() => navigate('/cart')}
+                >
+                  <span className="cart-text">Cart ({getTotalCount()})</span>
+                  <span className="cart-count-mobile">({getTotalCount()})</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="navbar-cart-icon">
+                    <circle cx="9" cy="21" r="1"></circle>
+                    <circle cx="20" cy="21" r="1"></circle>
+                    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Third Row - Navigation Links */}
+        <div className="navbar-nav-row">
+          <div className="navbar-nav-container">
+            <ul className="navbar-navbar-menu">
+              <li className="navbar-navbar-item">
+                <Link to="/" className="navbar-navbar-link">Home</Link>
+              </li>
+              <li className="navbar-navbar-item">
+                <Link to="/shop" className="navbar-navbar-link">Shop</Link>
+              </li>
+              <li className="navbar-navbar-item">
+                <Link to="/horoscope" className="navbar-navbar-link">Horoscope</Link>
+              </li>
+              <li className="navbar-navbar-item">
+                <Link to="/blog" className="navbar-navbar-link">Blogs</Link>
+              </li>
+              <li className="navbar-navbar-item navbar-dropdown-wrapper">
+                <span className="navbar-navbar-link">Free Tools</span>
+                <div className="navbar-submenu">
+                  <Link to="/bazi-calculator" className="navbar-submenu-link">BaZi Calculator</Link>
                 </div>
-              ) : (
-                <div className="navbar-auth-buttons">
-                  <Link to="/login" className="navbar-login-button">Login</Link>
-                  <Link to="/signup" className="navbar-signup-button">Sign Up</Link>
-                </div>
-              )}
-              <button 
-                className="navbar-cart-button"
-                disabled={loggingOut}
-                onClick={() => navigate('/cart')}
-              >
-                <span>Cart ({getTotalCount()})</span>
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="navbar-cart-icon">
-                  <circle cx="9" cy="21" r="1"></circle>
-                  <circle cx="20" cy="21" r="1"></circle>
-                  <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
-                </svg>
-              </button>
+              </li>
+              <li className="navbar-navbar-item">
+                <Link to="/contact" className="navbar-navbar-link">Contact Us</Link>
+              </li>
+            </ul>
+
+            {/* Phone Number */}
+            <div className="navbar-phone-info">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+              </svg>
+              <span>0976-120-3535</span>
             </div>
           </div>
         </div>
       </nav>
+
+      {/* Mobile Menu Overlay */}
+      {mobileMenuOpen && (
+        <div 
+          className="mobile-menu-overlay"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Mobile Menu Sidebar */}
+      <div className={`mobile-menu-sidebar ${mobileMenuOpen ? 'open' : ''}`} ref={mobileMenuRef}>
+        <div className="mobile-menu-header">
+          <div className="mobile-menu-logo">
+            <h3>MICHAEL DE MESA</h3>
+            <p>BAZI & FENG SHUI CONSULTANCY</p>
+          </div>
+          <button 
+            className="mobile-menu-close"
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+
+        {/* Mobile Search */}
+        <div className="mobile-search-container">
+          <div className="mobile-search-bar">
+            <input
+              type="text"
+              placeholder="Search for products, blogs, and guides..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            <button 
+              className="mobile-search-button" 
+              aria-label="Search"
+              onClick={() => handleSearch(searchQuery)}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile Navigation Links */}
+        <div className="mobile-menu-nav">
+          <Link to="/" className="mobile-nav-link" onClick={handleMobileNavClick}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+              <polyline points="9,22 9,12 15,12 15,22"></polyline>
+            </svg>
+            <span>Home</span>
+          </Link>
+          <Link to="/shop" className="mobile-nav-link" onClick={handleMobileNavClick}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <path d="M16 10a4 4 0 0 1-8 0"></path>
+            </svg>
+            <span>Shop</span>
+          </Link>
+          <Link to="/horoscope" className="mobile-nav-link" onClick={handleMobileNavClick}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="5"></circle>
+              <line x1="12" y1="1" x2="12" y2="3"></line>
+              <line x1="12" y1="21" x2="12" y2="23"></line>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+              <line x1="1" y1="12" x2="3" y2="12"></line>
+              <line x1="21" y1="12" x2="23" y2="12"></line>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+            <span>Horoscope</span>
+          </Link>
+          <Link to="/blog" className="mobile-nav-link" onClick={handleMobileNavClick}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14,2 14,8 20,8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10,9 9,9 8,9"></polyline>
+            </svg>
+            <span>Blogs</span>
+          </Link>
+          <Link to="/bazi-calculator" className="mobile-nav-link" onClick={handleMobileNavClick}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+              <line x1="8" y1="21" x2="16" y2="21"></line>
+              <line x1="12" y1="17" x2="12" y2="21"></line>
+            </svg>
+            <span>BaZi Calculator</span>
+          </Link>
+          <Link to="/contact" className="mobile-nav-link" onClick={handleMobileNavClick}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+              <polyline points="22,6 12,13 2,6"></polyline>
+            </svg>
+            <span>Contact Us</span>
+          </Link>
+
+          {/* Mobile Phone Section */}
+          <div className="mobile-phone-section">
+            <div className="mobile-phone-info">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+              </svg>
+              <span>Call Us: 0976-120-3535</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile Auth Section */}
+        <div className="mobile-auth-section">
+          {user ? (
+            <div className="mobile-user-info">
+              <div className="mobile-user-details">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+                <div className="mobile-user-text">
+                  <span className="mobile-user-name">{user.firstName} {user.lastName}</span>
+                  <span className="mobile-user-email">{user.email}</span>
+                </div>
+              </div>
+              <Link to="/account" className="mobile-nav-link" onClick={handleMobileNavClick}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+                <span>My Account</span>
+              </Link>
+              <Link to="/purchases" className="mobile-nav-link" onClick={handleMobileNavClick}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                  <line x1="3" y1="6" x2="21" y2="6"></line>
+                  <path d="M16 10a4 4 0 0 1-8 0"></path>
+                </svg>
+                <span>My Purchases</span>
+              </Link>
+              <button onClick={handleLogout} className="mobile-nav-link mobile-logout" disabled={loggingOut}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                  <polyline points="16 17 21 12 16 7"></polyline>
+                  <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+                <span>Logout</span>
+              </button>
+            </div>
+          ) : (
+            <div className="mobile-auth-buttons">
+              <Link to="/login" className="mobile-auth-btn login" onClick={handleMobileNavClick}>Login</Link>
+              <Link to="/signup" className="mobile-auth-btn signup" onClick={handleMobileNavClick}>Sign Up</Link>
+            </div>
+          )}
+        </div>
+      </div>
     </>
   );
 };

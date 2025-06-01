@@ -23,7 +23,6 @@ const ProductPage = () => {
   );
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [isCategoriesVisible, setIsCategoriesVisible] = useState(true);
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [categories, setCategories] = useState([
     { id: 'all', name: 'All Products', image: '/All-Products.svg' }
@@ -170,11 +169,6 @@ const ProductPage = () => {
   const handleCategoryClick = (categoryId) => {
     navigate(`/shop?category=${categoryId}`);
     setSelectedCategory(categoryId);
-    setIsMobileSidebarOpen(false); // Close mobile sidebar when category is selected
-  };
-
-  const toggleMobileSidebar = () => {
-    setIsMobileSidebarOpen(!isMobileSidebarOpen);
   };
 
   const filterProducts = (products) => {
@@ -218,73 +212,198 @@ const ProductPage = () => {
     setCurrentSlide(index);
   };
 
+  // Scroll to section function
+  const scrollToSection = (sectionId) => {
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ 
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }
+  };
+
   return (
     <div className="shop-container">
       <NavBar />
       
-      {/* Mobile Categories Toggle Button */}
-      <button 
-        className="mobile-categories-toggle"
-        onClick={toggleMobileSidebar}
-        aria-label="Toggle Categories"
-      >
-        <i className="fas fa-bars"></i>
-        <span>Categories</span>
-      </button>
-
-      {/* Mobile Sidebar Overlay */}
-      {isMobileSidebarOpen && (
-        <div 
-          className="mobile-sidebar-overlay"
-          onClick={() => setIsMobileSidebarOpen(false)}
-        />
-      )}
-
-      {/* Categories Sidebar */}
-      <div className={`categories-sidebar ${isMobileSidebarOpen ? 'mobile-open' : ''}`}>
-        <div className="categories-sidebar-header">
-          <h3>Categories</h3>
-          <button 
-            className="close-sidebar-btn"
-            onClick={() => setIsMobileSidebarOpen(false)}
-          >
-            <i className="fas fa-times"></i>
-          </button>
+      <div className="shop-main-layout">
+        {/* Left Navigation Menu */}
+        <div className="left-navigation">
+          <div className="nav-menu">
+            <div className="nav-item" onClick={() => scrollToSection('new-arrivals-section')}>
+              <div className="nav-icon">
+                <i className="fas fa-star" style={{color: '#A2201A'}}></i>
+              </div>
+              <span className="nav-text">WHAT'S NEW?</span>
+            </div>
+            
+            <div className="nav-item" onClick={() => scrollToSection('best-sellers-section')}>
+              <div className="nav-icon">
+                <i className="fas fa-trophy" style={{color: '#A2201A'}}></i>
+              </div>
+              <span className="nav-text">BEST SELLERS</span>
+            </div>
+            
+            <div className="nav-item" onClick={() => scrollToSection('flash-deals-section')}>
+              <div className="nav-icon">
+                <i className="fas fa-bolt" style={{color: '#A2201A'}}></i>
+              </div>
+              <span className="nav-text">FLASH DEALS</span>
+            </div>
+            
+            <div className="nav-item expandable" onClick={() => handleCategoryClick('amulets')}>
+              <div className="nav-icon">
+                <i className="fas fa-gem" style={{color: '#A2201A'}}></i>
+              </div>
+              <span className="nav-text">AMULETS</span>
+              <i className="fas fa-chevron-right nav-arrow"></i>
+              <div className="nav-dropdown">
+                <div className="nav-dropdown-item" onClick={(e) => { e.stopPropagation(); handleCategoryClick('keychains'); }}>
+                  <div className="nav-dropdown-icon">
+                    <i className="fas fa-key"></i>
+                  </div>
+                  <span className="nav-dropdown-text">Keychains</span>
+                </div>
+                <div className="nav-dropdown-item" onClick={(e) => { e.stopPropagation(); handleCategoryClick('medallions'); }}>
+                  <div className="nav-dropdown-icon">
+                    <i className="fas fa-medal"></i>
+                  </div>
+                  <span className="nav-dropdown-text">Medallions</span>
+                </div>
+                <div className="nav-dropdown-item" onClick={(e) => { e.stopPropagation(); handleCategoryClick('plaque'); }}>
+                  <div className="nav-dropdown-icon">
+                    <i className="fas fa-square"></i>
+                  </div>
+                  <span className="nav-dropdown-text">Plaque</span>
+                </div>
+                <div className="nav-dropdown-item" onClick={(e) => { e.stopPropagation(); handleCategoryClick('talisman card'); }}>
+                  <div className="nav-dropdown-icon">
+                    <i className="fas fa-id-card"></i>
+                  </div>
+                  <span className="nav-dropdown-text">Talisman Card</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="nav-item" onClick={() => handleCategoryClick('auspicious home decor')}>
+              <div className="nav-icon">
+                <i className="fas fa-home" style={{color: '#A2201A'}}></i>
+              </div>
+              <span className="nav-text">AUSPICIOUS HOME DECOR</span>
+            </div>
+            
+            <div className="nav-item" onClick={() => handleCategoryClick('feng shui bracelets')}>
+              <div className="nav-icon">
+                <i className="fas fa-circle" style={{color: '#A2201A'}}></i>
+              </div>
+              <span className="nav-text">FENG SHUI BRACELETS</span>
         </div>
         
-        <div className="sidebar-categories">
-          {categoriesError && (
-            <div className="error-message">
-              Error loading categories: {categoriesError.message || categoriesError}
+            <div className="nav-item" onClick={() => handleCategoryClick('feng shui books')}>
+              <div className="nav-icon">
+                <i className="fas fa-book" style={{color: '#A2201A'}}></i>
+              </div>
+              <span className="nav-text">FENG SHUI BOOKS</span>
             </div>
-          )}
-          {categoriesLoading ? (
-            <div>Loading categories...</div>
-          ) : (
-            <div className="sidebar-categories-list">
-              {Array.isArray(categories) ? categories.map(category => (
-                <div 
-                  key={category.id}
-                  className={`sidebar-category-card ${selectedCategory === category.id ? 'active' : ''}`}
-                  onClick={() => handleCategoryClick(category.id)}
-                >
-                  {category.image && (
-                    <div className="sidebar-category-icon">
-                      <img src={category.image} alt={`${category.name} icon`} />
-                    </div>
-                  )}
-                  <span className="sidebar-category-name">{category.name}</span>
+            
+            <div className="nav-item expandable" onClick={() => handleCategoryClick('feng shui fashion')}>
+              <div className="nav-icon">
+                <i className="fas fa-tshirt" style={{color: '#A2201A'}}></i>
+              </div>
+              <span className="nav-text">FENG SHUI FASHION</span>
+              <i className="fas fa-chevron-right nav-arrow"></i>
+              <div className="nav-dropdown">
+                <div className="nav-dropdown-item" onClick={(e) => { e.stopPropagation(); handleCategoryClick('earrings'); }}>
+                  <div className="nav-dropdown-icon">
+                    <i className="fas fa-circle"></i>
+                  </div>
+                  <span className="nav-dropdown-text">Earrings</span>
                 </div>
-              )) : (
-                <div>No categories available</div>
-              )}
+                <div className="nav-dropdown-item" onClick={(e) => { e.stopPropagation(); handleCategoryClick('necklaces'); }}>
+                  <div className="nav-dropdown-icon">
+                    <i className="fas fa-gem"></i>
+                  </div>
+                  <span className="nav-dropdown-text">Necklaces</span>
+                </div>
+                <div className="nav-dropdown-item" onClick={(e) => { e.stopPropagation(); handleCategoryClick('pendants'); }}>
+                  <div className="nav-dropdown-icon">
+                    <i className="fas fa-star"></i>
+                  </div>
+                  <span className="nav-dropdown-text">Pendants</span>
+                </div>
+                <div className="nav-dropdown-item" onClick={(e) => { e.stopPropagation(); handleCategoryClick('rings'); }}>
+                  <div className="nav-dropdown-icon">
+                    <i className="fas fa-circle"></i>
+                  </div>
+                  <span className="nav-dropdown-text">Rings</span>
+                </div>
+                <div className="nav-dropdown-item" onClick={(e) => { e.stopPropagation(); handleCategoryClick('scarves & shawls'); }}>
+                  <div className="nav-dropdown-icon">
+                    <i className="fas fa-tshirt"></i>
+                  </div>
+                  <span className="nav-dropdown-text">Scarves & Shawls</span>
+                </div>
+                <div className="nav-dropdown-item" onClick={(e) => { e.stopPropagation(); handleCategoryClick('wallets'); }}>
+                  <div className="nav-dropdown-icon">
+                    <i className="fas fa-wallet"></i>
+                    </div>
+                  <span className="nav-dropdown-text">Wallets</span>
+                </div>
+              </div>
             </div>
-          )}
+            
+            <div className="nav-item expandable" onClick={() => handleCategoryClick('incense & space clearing')}>
+              <div className="nav-icon">
+                <i className="fas fa-fire" style={{color: '#A2201A'}}></i>
+              </div>
+              <span className="nav-text">INCENSE & SPACE CLEARING</span>
+              <i className="fas fa-chevron-right nav-arrow"></i>
+              <div className="nav-dropdown">
+                <div className="nav-dropdown-item" onClick={(e) => { e.stopPropagation(); handleCategoryClick('incense holder & burner'); }}>
+                  <div className="nav-dropdown-icon">
+                    <i className="fas fa-fire"></i>
+                  </div>
+                  <span className="nav-dropdown-text">Incense Holder & Burner</span>
+                </div>
+                <div className="nav-dropdown-item" onClick={(e) => { e.stopPropagation(); handleCategoryClick('incense sticks'); }}>
+                  <div className="nav-dropdown-icon">
+                    <i className="fas fa-fire-alt"></i>
+                  </div>
+                  <span className="nav-dropdown-text">Incense Sticks</span>
+                </div>
+                <div className="nav-dropdown-item" onClick={(e) => { e.stopPropagation(); handleCategoryClick('singing bowl'); }}>
+                  <div className="nav-dropdown-icon">
+                    <i className="fas fa-circle-notch"></i>
+                  </div>
+                  <span className="nav-dropdown-text">Singing Bowl</span>
+                </div>
+                <div className="nav-dropdown-item" onClick={(e) => { e.stopPropagation(); handleCategoryClick('smudge kit'); }}>
+                  <div className="nav-dropdown-icon">
+                    <i className="fas fa-seedling"></i>
+                  </div>
+                  <span className="nav-dropdown-text">Smudge Kit</span>
+                </div>
+                <div className="nav-dropdown-item" onClick={(e) => { e.stopPropagation(); handleCategoryClick('wishing paper'); }}>
+                  <div className="nav-dropdown-icon">
+                    <i className="fas fa-file-alt"></i>
+                  </div>
+                  <span className="nav-dropdown-text">Wishing Paper</span>
+                </div>
         </div>
       </div>
 
-      <div className="shop-main-2">
-        <div className="products-content">
+            <div className="nav-item" onClick={() => handleCategoryClick('windchimes')}>
+              <div className="nav-icon">
+                <i className="fas fa-music" style={{color: '#A2201A'}}></i>
+              </div>
+              <span className="nav-text">WINDCHIMES</span>
+            </div>
+          </div>
+        </div>
+        
+        {/* Main Content Area */}
+        <div className="main-content">
           <div className="home-carousel">
             <div className="home-carousel-track" style={{ transform: `translateX(-${currentSlide * 100}%)` }}>
               {carouselData.map((slide, index) => (
@@ -337,7 +456,82 @@ const ProductPage = () => {
             </div>
           </div>
 
-          <h1>FLASH DEALS</h1>
+          {/* Mobile Quick Navigation - Shows after carousel on mobile only */}
+          <div className="mobile-quick-nav">
+            <div className="mobile-quick-nav-scroll">
+              <div className="mobile-quick-nav-item" onClick={() => scrollToSection('new-arrivals-section')}>
+                <div className="mobile-quick-nav-icon">
+                  <i className="fas fa-star"></i>
+                </div>
+                <span className="mobile-quick-nav-text">WHAT'S NEW?</span>
+              </div>
+              
+              <div className="mobile-quick-nav-item" onClick={() => scrollToSection('best-sellers-section')}>
+                <div className="mobile-quick-nav-icon">
+                  <i className="fas fa-trophy"></i>
+                </div>
+                <span className="mobile-quick-nav-text">BEST SELLERS</span>
+              </div>
+              
+              <div className="mobile-quick-nav-item" onClick={() => scrollToSection('flash-deals-section')}>
+                <div className="mobile-quick-nav-icon">
+                  <i className="fas fa-bolt"></i>
+                </div>
+                <span className="mobile-quick-nav-text">FLASH DEALS</span>
+              </div>
+              
+              <div className="mobile-quick-nav-item" onClick={() => handleCategoryClick('amulets')}>
+                <div className="mobile-quick-nav-icon">
+                  <i className="fas fa-gem"></i>
+                </div>
+                <span className="mobile-quick-nav-text">AMULETS</span>
+              </div>
+              
+              <div className="mobile-quick-nav-item" onClick={() => handleCategoryClick('auspicious home decor')}>
+                <div className="mobile-quick-nav-icon">
+                  <i className="fas fa-home"></i>
+                </div>
+                <span className="mobile-quick-nav-text">AUSPICIOUS HOME DECOR</span>
+              </div>
+              
+              <div className="mobile-quick-nav-item" onClick={() => handleCategoryClick('feng shui bracelets')}>
+                <div className="mobile-quick-nav-icon">
+                  <i className="fas fa-circle"></i>
+                </div>
+                <span className="mobile-quick-nav-text">FENG SHUI BRACELETS</span>
+              </div>
+              
+              <div className="mobile-quick-nav-item" onClick={() => handleCategoryClick('feng shui books')}>
+                <div className="mobile-quick-nav-icon">
+                  <i className="fas fa-book"></i>
+                </div>
+                <span className="mobile-quick-nav-text">FENG SHUI BOOKS</span>
+              </div>
+              
+              <div className="mobile-quick-nav-item" onClick={() => handleCategoryClick('feng shui fashion')}>
+                <div className="mobile-quick-nav-icon">
+                  <i className="fas fa-tshirt"></i>
+                </div>
+                <span className="mobile-quick-nav-text">FENG SHUI FASHION</span>
+              </div>
+              
+              <div className="mobile-quick-nav-item" onClick={() => handleCategoryClick('incense & space clearing')}>
+                <div className="mobile-quick-nav-icon">
+                  <i className="fas fa-fire"></i>
+                </div>
+                <span className="mobile-quick-nav-text">INCENSE & SPACE CLEARING</span>
+              </div>
+              
+              <div className="mobile-quick-nav-item" onClick={() => handleCategoryClick('windchimes')}>
+                <div className="mobile-quick-nav-icon">
+                  <i className="fas fa-music"></i>
+                </div>
+                <span className="mobile-quick-nav-text">WINDCHIMES</span>
+              </div>
+            </div>
+          </div>
+
+          <h1 id="flash-deals-section">FLASH DEALS</h1>
           {productsError && <div className="error-message">{productsError}</div>}
           {productsLoading ? (
             <div>Loading products...</div>
@@ -371,7 +565,7 @@ const ProductPage = () => {
             </>
           )}
 
-          <h1>NEW ARRIVALS</h1>
+          <h1 id="new-arrivals-section">NEW ARRIVALS</h1>
           {newArrivalsLoading ? (
             <div>Loading new arrivals...</div>
           ) : newArrivalsError ? (
@@ -391,7 +585,7 @@ const ProductPage = () => {
             </div>
           )}
 
-          <h1>BEST SELLERS</h1>
+          <h1 id="best-sellers-section">BEST SELLERS</h1>
           {bestSellersLoading ? (
             <div>Loading best sellers...</div>
           ) : bestSellersError ? (
@@ -411,28 +605,29 @@ const ProductPage = () => {
             </div>
           )}
 
-          {/* Desktop Categories Section */}
-          <div className="desktop-categories-section">
-            <h1>SHOP BY CATEGORY</h1>
-            <div className="shop-categories">
-              <div className={`shop-categories ${!isCategoriesVisible ? 'collapsed' : ''}`}>
+          <div className="Products-content">
+            <h1>PRODUCTS</h1>
+            
+            {/* Categories below PRODUCTS header - now sticky */}
+            <div className="products-categories-sticky">
+              <div className="products-categories-container">
                 {categoriesError && (
                   <div className="error-message">
                     Error loading categories: {categoriesError.message || categoriesError}
                   </div>
                 )}
                 {categoriesLoading ? (
-                  <div>Loading categories...</div>
+                  <div className="categories-loading">Loading categories...</div>
                 ) : (
-                  <div className="shop-categories-grid">
+                  <div className="products-categories-grid">
                     {Array.isArray(categories) ? categories.map(category => (
                       <div 
                         key={category.id}
-                        className={`shop-category-card ${selectedCategory === category.id ? 'active' : ''}`}
+                        className={`products-category-card ${selectedCategory === category.id ? 'active' : ''}`}
                         onClick={() => handleCategoryClick(category.id)}
                       >
                         {category.image && (
-                          <div className="shop-category-icon">
+                          <div className="products-category-icon">
                             <img src={category.image} alt={`${category.name} icon`} />
                           </div>
                         )}
@@ -443,12 +638,11 @@ const ProductPage = () => {
                     )}
                   </div>
                 )}
-              </div>
             </div>
           </div>
 
-          <div className="Products-content">
-            <h1>PRODUCTS</h1>
+            {/* Products Grid */}
+            <div className="products-grid-section">
             {productsError && <div className="error-message">{productsError}</div>}
             {productsLoading ? (
               <div>Loading products...</div>
@@ -473,6 +667,7 @@ const ProductPage = () => {
                 )) : null}
               </div>
             )}
+            </div>
           </div>
         </div>
       </div>

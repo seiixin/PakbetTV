@@ -5,11 +5,11 @@ import { useAuth } from '../../context/AuthContext';
 import './Cart.css';
 import API_BASE_URL from '../../config';
 import NavBar from '../NavBar';
-import Footer from '../Footer';
 
 const Cart = () => {
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [isMobile, setIsMobile] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
   const { 
@@ -25,6 +25,17 @@ const Cart = () => {
     createOrder,
     processPayment
   } = useCart();
+
+  // Check if screen is mobile size
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const getFullImageUrl = (url) => {
     if (!url) return '/placeholder-product.jpg';
@@ -127,67 +138,94 @@ const Cart = () => {
     }
   };
 
-  if (loading) {
+  const renderCartItem = (item) => {
+    const itemTotalPrice = calculateDiscountedPrice(item) * item.quantity;
+    const displayPrice = calculateDiscountedPrice(item);
+    const hasDiscount = item.price > displayPrice;
+
+    if (isMobile) {
     return (
-      <div className="cart-page">
-        <NavBar />
-        <div className="cart-shop-container">
-          <div className="cart-loading">
-            <div className="cart-loading-spinner"></div>
-            <p>Loading your cart...</p>
-          </div>
-        </div>
-        <Footer />
-      </div>
-    );
-  }
-
-  if (cartItems.length === 0) {
-    return (
-      <div className="cart-page">
-        <NavBar />
-        <div className="cart-shop-container">
-          <div className="cart-empty-cart">
-            <h2>Your Shopping Cart is Empty</h2>
-            <p>Add items to your cart to see them here.</p>
-            <button className="cart-continue-shopping-button" onClick={handleContinueShopping}>
-              Continue Shopping
-            </button>
-          </div>
-        </div>
-        <Footer />
-      </div>
-    );
-  }
-
-  const allSelected = cartItems.length > 0 && cartItems.every(item => item.selected);
-
-  return (
-    <div className="cart-page">
-      <NavBar />
-      <div className="cart-shop-container">
-        <div className="cart-container cart-redesign">
-          {error && <div className="cart-error-message">{error}</div>}
-          <div className="cart-header-new">
-            <div className="cart-header-select">
+        <div key={item.variant_id || item.id} className="cart-item-new">
+          <div className="cart-item-mobile-row main">
+            <div className="cart-item-select-new">
               <input
                 type="checkbox"
-                checked={allSelected}
-                onChange={() => toggleSelectAll(!allSelected)}
-                id="cart-select-all-header"
+                checked={item.selected}
+                onChange={() => toggleItemSelection(item.product_id, item.variant_id)}
               />
             </div>
-            <div className="cart-header-product">Product</div>
-            <div className="cart-header-unit-price">Unit Price</div>
-            <div className="cart-header-quantity">Quantity</div>
-            <div className="cart-header-total-price">Total Price</div>
-            <div className="cart-header-actions">Actions</div>
+            <div className="cart-item-product-new">
+              <img 
+                src={getFullImageUrl(item.image_url)} 
+                alt={item.name}
+                className="cart-item-image-new"
+                onError={(e) => {
+                  console.log('Image failed to load:', e.target.src);
+                  e.target.onerror = null; // Prevent infinite loop
+                  e.target.src = '/placeholder-product.jpg'; 
+                }}
+              />
+              <div className="cart-item-details-new">
+                <p className="cart-item-name-new">{item.name}</p>
+                {item.variant_attributes && Object.keys(item.variant_attributes).length > 0 && (
+                  <div className="cart-item-variation-new">
+                    {Object.entries(item.variant_attributes)
+                      .map(([key, value]) => `${key}: ${value}`)
+                      .join(', ')}
+                  </div>
+                )}
+                <div className="cart-item-price-mobile">
+                  {hasDiscount && (
+                    <span className="cart-original-price-new">{formatPrice(item.price)}</span>
+                  )}
+                  <span className="cart-current-price-new">{formatPrice(displayPrice)} each</span>
+                </div>
+              </div>
+            </div>
+            <div className="cart-item-total-price-mobile">
+              {formatPrice(itemTotalPrice)}
+            </div>
           </div>
-          <div className="cart-items-new">
-            {cartItems.map(item => {
-              const itemTotalPrice = calculateDiscountedPrice(item) * item.quantity;
-              const displayPrice = calculateDiscountedPrice(item);
-              const hasDiscount = item.price > displayPrice;
+          <div className="cart-item-mobile-row actions">
+            <div className="cart-item-quantity-new">
+              <div className="cart-quantity-input-new">
+                <button 
+                  className="cart-quantity-btn-new" 
+                  onClick={() => updateQuantity(item.product_id, item.quantity - 1, item.variant_id)}
+                  disabled={item.quantity <= 1}
+                >
+                  -
+                </button>
+                <input
+                  type="number"
+                  value={item.quantity}
+                  onChange={(e) => updateQuantity(item.product_id, parseInt(e.target.value) || 1, item.variant_id)}
+                  min="1"
+                  max={item.stock_quantity || 99}
+                />
+                <button 
+                  className="cart-quantity-btn-new" 
+                  onClick={() => updateQuantity(item.product_id, item.quantity + 1, item.variant_id)}
+                  disabled={item.quantity >= (item.stock_quantity || 99)}
+                >
+                  +
+                </button>
+              </div>
+            </div>
+            <div className="cart-item-actions-new">
+              <button 
+                className="cart-delete-button-new"
+                onClick={() => removeFromCart(item.product_id, item.variant_id)}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Desktop layout
               return (
                 <div key={item.variant_id || item.id} className="cart-item-new">
                   <div className="cart-item-select-new">
@@ -263,8 +301,71 @@ const Cart = () => {
                   </div>
                 </div>
               );
-            })}
+  };
+
+  if (loading) {
+    return (
+      <div className="cart-page">
+        <NavBar />
+        <div className="cart-shop-container">
+          <div className="cart-loading">
+            <div className="cart-loading-spinner"></div>
+            <p>Loading your cart...</p>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (cartItems.length === 0) {
+    return (
+      <div className="cart-page">
+        <NavBar />
+        <div className="cart-shop-container">
+          <div className="cart-empty-cart">
+            <h2>Your Shopping Cart is Empty</h2>
+            <p>Add items to your cart to see them here.</p>
+            <button className="cart-continue-shopping-button" onClick={handleContinueShopping}>
+              Continue Shopping
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const allSelected = cartItems.length > 0 && cartItems.every(item => item.selected);
+
+  return (
+    <div className="cart-page">
+      <NavBar />
+      <div className="cart-shop-container">
+        <div className="cart-container cart-redesign">
+          {error && <div className="cart-error-message">{error}</div>}
+          
+          {/* Desktop header - hidden on mobile */}
+          {!isMobile && (
+            <div className="cart-header-new">
+              <div className="cart-header-select">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={() => toggleSelectAll(!allSelected)}
+                  id="cart-select-all-header"
+                />
+              </div>
+              <div className="cart-header-product">Product</div>
+              <div className="cart-header-unit-price">Unit Price</div>
+              <div className="cart-header-quantity">Quantity</div>
+              <div className="cart-header-total-price">Total Price</div>
+              <div className="cart-header-actions">Actions</div>
+            </div>
+          )}
+          
+          <div className="cart-items-new">
+            {cartItems.map(item => renderCartItem(item))}
+          </div>
+          
           <div className="cart-footer-new">
              <div className="cart-footer-select-all-new">
                 <input

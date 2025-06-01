@@ -95,6 +95,20 @@ function AppContent() {
 
 function App() {
   console.log('App component rendering');
+  
+  // Check if screen is mobile for toast positioning
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+  
   return (
     <Router>
       <AuthProvider>
@@ -103,17 +117,20 @@ function App() {
         </CartProvider>
       </AuthProvider>
       <ToastContainer
-        position="top-right"
-        autoClose={3000}
-        limit={3}
+        position={isMobile ? "top-center" : "top-right"}
+        autoClose={isMobile ? 2500 : 3000}
+        limit={isMobile ? 2 : 3}
         hideProgressBar={false}
         newestOnTop
         closeOnClick
         rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
+        pauseOnFocusLoss={!isMobile}
+        draggable={!isMobile}
+        pauseOnHover={!isMobile}
         theme="light"
+        style={{
+          fontSize: isMobile ? '14px' : '16px',
+        }}
       />
     </Router>
   )
