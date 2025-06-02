@@ -394,13 +394,20 @@ const NavBar = () => {
               <li className="navbar-navbar-item">
                 <Link to="/horoscope" className="navbar-navbar-link">Horoscope</Link>
               </li>
-              <li className="navbar-navbar-item">
-                <Link to="/blog" className="navbar-navbar-link">Blogs</Link>
+              <li className="navbar-navbar-item navbar-dropdown-wrapper">
+                <span className="navbar-navbar-link">Blogs</span>
+                <div className="navbar-submenu">
+                  <Link to="/blog" className="navbar-submenu-link">Dream Meaning</Link>
+                  <Link to="/blog" className="navbar-submenu-link">Face Reading</Link>
+                  <Link to="/blog" className="navbar-submenu-link">Feng Shui</Link>
+                  <Link to="/blog" className="navbar-submenu-link">Palmistry</Link>
+                </div>
               </li>
               <li className="navbar-navbar-item navbar-dropdown-wrapper">
                 <span className="navbar-navbar-link">Free Tools</span>
                 <div className="navbar-submenu">
                   <Link to="/bazi-calculator" className="navbar-submenu-link">BaZi Calculator</Link>
+                  <Link to="/shop" className="navbar-submenu-link">Product Guide</Link>
                 </div>
               </li>
               <li className="navbar-navbar-item">
@@ -508,6 +515,18 @@ const NavBar = () => {
             </svg>
             <span>Blogs</span>
           </Link>
+          <Link to="/blog" className="mobile-nav-link" onClick={handleMobileNavClick} style={{paddingLeft: '40px', fontSize: '14px'}}>
+            <span>Dream Meaning</span>
+          </Link>
+          <Link to="/blog" className="mobile-nav-link" onClick={handleMobileNavClick} style={{paddingLeft: '40px', fontSize: '14px'}}>
+            <span>Face Reading</span>
+          </Link>
+          <Link to="/blog" className="mobile-nav-link" onClick={handleMobileNavClick} style={{paddingLeft: '40px', fontSize: '14px'}}>
+            <span>Feng Shui</span>
+          </Link>
+          <Link to="/blog" className="mobile-nav-link" onClick={handleMobileNavClick} style={{paddingLeft: '40px', fontSize: '14px'}}>
+            <span>Palmistry</span>
+          </Link>
           <Link to="/bazi-calculator" className="mobile-nav-link" onClick={handleMobileNavClick}>
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
@@ -515,6 +534,9 @@ const NavBar = () => {
               <line x1="12" y1="17" x2="12" y2="21"></line>
             </svg>
             <span>BaZi Calculator</span>
+          </Link>
+          <Link to="/shop" className="mobile-nav-link" onClick={handleMobileNavClick} style={{paddingLeft: '40px', fontSize: '14px'}}>
+            <span>Product Guide</span>
           </Link>
           <Link to="/contact" className="mobile-nav-link" onClick={handleMobileNavClick}>
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

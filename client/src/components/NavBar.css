@@ -73,6 +73,10 @@ body {
 /* FIRST ROW - SHIPPING BANNER */
 .navbar-shipping-banner {
   background-color: var(--primary-color, #ab1125);
+  background-image: url('/headerbg.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   position: relative;
   padding: 8px 0;
   min-height: 35px;
@@ -256,26 +260,23 @@ body {
 }
 
 .navbar-login-button {
-  color: white;
-  border: 2px solid white;
-  background: transparent;
+  color: var(--secondary-color, #FEC16E);
+  background: rgb(41, 41, 41);
 }
 
 .navbar-signup-button {
-  background-color: var(--secondary-color, #FEC16E);
-  color: white;
-  border: 2px solid var(--secondary-color, #FEC16E);
+  color: var(--secondary-color, #FEC16E);
+  background: rgb(41, 41, 41);
 }
 
 .navbar-login-button:hover {
-  background-color: white;
-  color: var(--primary-color, #ab1125);
+  color: var(--secondary-color, #FEC16E);
+  background: rgb(41, 41, 41);
 }
 
 .navbar-signup-button:hover {
-  background-color: white;
-  border-color: white;
-  color: var(--primary-color, #ab1125);
+  color: rgb(41, 41, 41);
+  background: --secondary-color, #FEC16E;
 }
 
 /* PROFILE BUTTON */
