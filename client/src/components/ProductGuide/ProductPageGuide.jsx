@@ -15,7 +15,7 @@ const ProductPageGuide = () => {
       description: 'Complete guide for feng shui bracelets and their benefits',
       filename: 'Bracelet.pdf',
       category: 'Accessories',
-      previewImage: '/Categories-4.png'
+      previewImage: '/PDF-Previews/Bracelet.png'
     },
     {
       id: 'coins',
@@ -23,7 +23,7 @@ const ProductPageGuide = () => {
       description: 'Traditional feng shui coins and their proper usage',
       filename: 'Coins.pdf',
       category: 'Traditional Items',
-      previewImage: '/Icons-1.png'
+      previewImage: '/PDF-Previews/Coins.png'
     },
     {
       id: 'crystal-bottles',
@@ -31,7 +31,7 @@ const ProductPageGuide = () => {
       description: 'Crystal bottles for energy enhancement and protection',
       filename: 'CrystalBottles.pdf',
       category: 'Crystals',
-      previewImage: '/Icons-2.png'
+      previewImage: '/PDF-Previews/CrystalBottles.png'
     },
     {
       id: 'fashion',
@@ -39,7 +39,7 @@ const ProductPageGuide = () => {
       description: 'Feng shui fashion items and styling tips',
       filename: 'Fashion.pdf',
       category: 'Fashion',
-      previewImage: '/Icons-3.png'
+      previewImage: '/PDF-Previews/Fashion.png'
     },
     {
       id: 'fountain',
@@ -47,7 +47,7 @@ const ProductPageGuide = () => {
       description: 'Water fountains for wealth and prosperity',
       filename: 'Fountain.pdf',
       category: 'Water Elements',
-      previewImage: '/Icons-4.png'
+      previewImage: '/PDF-Previews/Fountains.png'
     },
     {
       id: 'home-decor',
@@ -55,7 +55,7 @@ const ProductPageGuide = () => {
       description: 'Feng shui home decoration essentials',
       filename: 'HomeDecor.pdf',
       category: 'Home & Living',
-      previewImage: '/Icons-5.png'
+      previewImage: '/PDF-Previews/HomeDecor.png'
     },
     {
       id: 'incense',
@@ -63,7 +63,7 @@ const ProductPageGuide = () => {
       description: 'Incense types and their spiritual benefits',
       filename: 'Incense.pdf',
       category: 'Spiritual Items',
-      previewImage: '/Icons-6.png'
+      previewImage: '/PDF-Previews/Incense.png'
     },
     {
       id: 'keychains',
@@ -71,7 +71,7 @@ const ProductPageGuide = () => {
       description: 'Protective and lucky feng shui keychains',
       filename: 'Keychains.pdf',
       category: 'Accessories',
-      previewImage: '/Categories-5.png'
+      previewImage: '/PDF-Previews/Keychains.png'
     },
     {
       id: 'medallions',
@@ -79,7 +79,7 @@ const ProductPageGuide = () => {
       description: 'Sacred medallions and amulets for protection',
       filename: 'Medallions.pdf',
       category: 'Protection Items',
-      previewImage: '/Icons-1.png'
+      previewImage: '/PDF-Previews/Medallions.png'
     },
     {
       id: 'prosperity-bowl',
@@ -87,7 +87,7 @@ const ProductPageGuide = () => {
       description: 'Wealth bowls for attracting abundance',
       filename: 'ProsperityBowl.pdf',
       category: 'Wealth Items',
-      previewImage: '/Aspiration-7.png'
+      previewImage: '/PDF-Previews/ProsperityBowl.png'
     },
     {
       id: 'smudge-kit',
@@ -95,7 +95,7 @@ const ProductPageGuide = () => {
       description: 'Cleansing and purification smudge kits',
       filename: 'SmudgeKit.pdf',
       category: 'Cleansing Items',
-      previewImage: '/Icons-2.png'
+      previewImage: '/PDF-Previews/SmudgeKit.png'
     },
     {
       id: 'talisman-cards',
@@ -103,7 +103,7 @@ const ProductPageGuide = () => {
       description: 'Protective talisman cards and their meanings',
       filename: 'TalismanCards.pdf',
       category: 'Protection Items',
-      previewImage: '/Icons-3.png'
+      previewImage: '/PDF-Previews/TalismanCards.png'
     },
     {
       id: 'wallet',
@@ -111,7 +111,7 @@ const ProductPageGuide = () => {
       description: 'Feng shui wallets for wealth attraction',
       filename: 'Wallet.pdf',
       category: 'Accessories',
-      previewImage: '/Icons-4.png'
+      previewImage: '/PDF-Previews/Wallet.png'
     },
     {
       id: 'wind-chimes',
@@ -119,7 +119,7 @@ const ProductPageGuide = () => {
       description: 'Feng shui wind chimes and their placement',
       filename: 'WindChimes.pdf',
       category: 'Sound Elements',
-      previewImage: '/Icons-5.png'
+      previewImage: '/PDF-Previews/WindChimes.png'
     },
     {
       id: 'wishing-paper',
@@ -127,7 +127,7 @@ const ProductPageGuide = () => {
       description: 'Manifestation papers and ritual instructions',
       filename: 'WishingPaper.pdf',
       category: 'Spiritual Items',
-      previewImage: '/Icons-6.png'
+      previewImage: '/PDF-Previews/WishingPaper.png'
     }
   ];
 
