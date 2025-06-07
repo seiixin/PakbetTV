@@ -14,17 +14,23 @@ const BaziCalculator = () => {
     }
   }, []);
 
+  // Hero Component
+  const Hero = () => {
+    return (
+      <section className="blog-hero" role="banner" tabIndex="0">
+        <div className="blog-hero-text">
+          Mini BaZi Calculator
+        </div>
+        <p>Discover your Four Pillars of Destiny and unlock the secrets of your birth chart!</p>
+      </section>
+    );
+  };
+
   return (
     <>
       <NavBar />
+      <Hero />
       <div className="bazi-calculator-container">
-        <div className="bazi-header">
-          <h1>Mini BaZi Calculator</h1>
-          <p className="bazi-description">
-            Discover your BaZi (Four Pillars of Destiny) chart. This ancient Chinese divination method 
-            reveals your personality traits, strengths, and life path based on your birth date and time.
-          </p>
-        </div>
         
         <div className="calculator-iframe-container">
           <iframe 
@@ -35,28 +41,6 @@ const BaziCalculator = () => {
             loading="lazy"
             allow="fullscreen"
           />
-        </div>
-        
-        <div className="bazi-info">
-          <h2>About BaZi Reading</h2>
-          <div className="info-grid">
-            <div className="info-card">
-              <h3>Four Pillars</h3>
-              <p>Year, Month, Day, and Hour pillars represent different aspects of your life and personality.</p>
-            </div>
-            <div className="info-card">
-              <h3>Five Elements</h3>
-              <p>Wood, Fire, Earth, Metal, and Water elements show your natural strengths and weaknesses.</p>
-            </div>
-            <div className="info-card">
-              <h3>Luck Periods</h3>
-              <p>10-year cycles that influence different phases of your life journey.</p>
-            </div>
-            <div className="info-card">
-              <h3>Element Balance</h3>
-              <p>Understanding your element balance helps in making better life decisions.</p>
-            </div>
-          </div>
         </div>
       </div>
       <Footer forceShow={false} />

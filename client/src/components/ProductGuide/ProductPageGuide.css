@@ -33,6 +33,62 @@
   width: 100%;
 }
 
+/* Hero Section - Full Screen */
+.blog-hero {
+  position: relative;
+  max-height: 240px;
+  background-image: url('/cover.png');
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: white;
+  padding: 4rem 2rem;
+}
+
+.blog-hero::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(139, 29, 14, 0.75);
+  z-index: 1;
+}
+
+.blog-hero-text {
+  position: relative;
+  z-index: 2;
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 2rem;
+  max-width: 800px;
+}
+
+.blog-hero-button {
+  position: relative;
+  z-index: 2;
+  background: white;
+  color: #8b1d0e;
+  border: none;
+  padding: 1rem 2.5rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.blog-hero-button:hover {
+  background-color: #f8f8f8;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
 /* Header section */
 .guide-header {
   text-align: center;
@@ -263,6 +319,10 @@
   .guide-header p {
     font-size: 1.1rem;
   }
+
+  .blog-hero-text {
+    font-size: 2.2rem;
+  }
 }
 
 @media (max-width: 768px) {
@@ -270,6 +330,20 @@
     padding: 1.5rem 0.75rem;
   }
   
+  .blog-hero {
+    height: 300px;
+    padding: 2rem 1rem;
+  }
+
+  .blog-hero-text {
+    font-size: 1.75rem;
+  }
+
+  .blog-hero-button {
+    padding: 0.875rem 2rem;
+    font-size: 1rem;
+  }
+
   .guide-header {
     margin-bottom: 2rem;
     padding: 1rem 0;
@@ -311,6 +385,20 @@
     padding: 1rem 0.5rem;
   }
   
+  .blog-hero {
+    height: 250px;
+    padding: 1.5rem 1rem;
+  }
+
+  .blog-hero-text {
+    font-size: 1.5rem;
+  }
+
+  .blog-hero-button {
+    padding: 0.75rem 1.5rem;
+    font-size: 0.95rem;
+  }
+
   .guide-header h1 {
     font-size: 1.6rem;
   }
@@ -345,6 +433,11 @@
     padding: 0.5rem 0.65rem; /* 0.65rem * 0.8 = 0.5rem, 0.85rem * 0.8 = 0.65rem */
     font-size: 0.8rem; /* 0.9rem * 0.9 = 0.8rem */
   }
+
+  .blog-hero-button {
+    font-size: 0.9rem;
+    padding: 0.55rem 1.5rem;
+  }
 }
 
 @media (max-width: 360px) {
@@ -352,6 +445,20 @@
     padding: 0.75rem 0.25rem;
   }
   
+  .blog-hero {
+    height: 220px;
+    padding: 1.25rem 0.75rem;
+  }
+
+  .blog-hero-text {
+    font-size: 1.3rem;
+  }
+
+  .blog-hero-button {
+    padding: 0.65rem 1.25rem;
+    font-size: 0.9rem;
+  }
+
   .guide-header h1 {
     font-size: 1.4rem;
   }
@@ -379,6 +486,11 @@
   .open-pdf-btn {
     padding: 0.45rem 0.55rem; /* 0.6rem * 0.75 = 0.45rem, 0.75rem * 0.75 = 0.55rem */
     font-size: 0.75rem; /* 0.85rem * 0.9 = 0.75rem */
+  }
+
+  .blog-hero-button {
+    font-size: 0.85rem;
+    padding: 0.5rem 1.3rem;
   }
 }
 

@@ -418,39 +418,35 @@ router.get('/', async (req, res) => {
 router.get('/search', async (req, res) => {
   try {
     const searchQuery = req.query.query;
-    console.log('\n=== Product Search Debug ===');
-    console.log('Search query received:', searchQuery);
+    console.log('Product search query received:', searchQuery);
     
-    if (!searchQuery) {
+    if (!searchQuery || !searchQuery.trim()) {
+      console.log('Empty product search query, returning empty results');
       return res.json([]);
     }
 
     const searchTerm = `%${searchQuery.toLowerCase()}%`;
     
-    // Enhanced query to include images and ensure category info
+    // Simplified query to avoid JOIN issues
     const sqlQuery = `
       SELECT 
-        p.*,
-        c.name as category_name,
-        c.category_id,
-        COALESCE(MIN(pv.price), p.price) as min_price,
-        COALESCE(MAX(pv.price), p.price) as max_price,
-        (
-          SELECT pi.image_url 
-          FROM product_images pi 
-          WHERE pi.product_id = p.product_id 
-          ORDER BY pi.sort_order 
-          LIMIT 1
-        ) as primary_image
+        p.product_id,
+        p.name,
+        p.description,
+        p.product_code,
+        p.price,
+        p.stock,
+        p.category_id,
+        p.average_rating,
+        p.review_count,
+        c.name as category_name
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.category_id
-      LEFT JOIN product_variants pv ON p.product_id = pv.product_id
       WHERE 
         LOWER(p.name) LIKE ? OR
         LOWER(COALESCE(p.description, '')) LIKE ? OR
         LOWER(COALESCE(p.product_code, '')) LIKE ? OR
         LOWER(COALESCE(c.name, '')) LIKE ?
-      GROUP BY p.product_id
       ORDER BY 
         CASE 
           WHEN LOWER(p.name) LIKE ? THEN 10
@@ -462,17 +458,20 @@ router.get('/search', async (req, res) => {
     `;
 
     const params = [searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm];
-    console.log('\nExecuting search with params:', params);
 
     const [results] = await db.query(sqlQuery, params);
-    console.log(`\nFound ${results.length} results`);
+    console.log(`Found ${results.length} product results`);
 
-    // Process the results with better error handling
+    if (results.length === 0) {
+      return res.json([]);
+    }
+
+    // Process the results with simpler image handling
     const products = await Promise.all(results.map(async (product) => {
       try {
-        // Get the primary image if not already included
-        let imageUrl = product.primary_image;
-        if (!imageUrl) {
+        // Get the primary image
+        let imageUrl = null;
+        try {
           const [images] = await db.query(
             'SELECT image_url FROM product_images WHERE product_id = ? ORDER BY sort_order LIMIT 1',
             [product.product_id]
@@ -480,17 +479,17 @@ router.get('/search', async (req, res) => {
           if (images.length > 0) {
             imageUrl = images[0].image_url;
           }
+        } catch (imgErr) {
+          console.error(`Error getting image for product ${product.product_id}:`, imgErr.message);
         }
 
-        // Handle price range
-        const minPrice = Number(product.min_price) || Number(product.price) || 0;
-        const maxPrice = Number(product.max_price) || Number(product.price) || 0;
-        const price = minPrice === maxPrice ? minPrice : { min: minPrice, max: maxPrice };
+        // Ensure price is a number
+        const price = Number(product.price) || 0;
 
-        return {
+        const processedProduct = {
           product_id: product.product_id,
           name: product.name,
-          description: product.description,
+          description: product.description || '',
           product_code: product.product_code || '',
           category_name: product.category_name || 'Uncategorized',
           category_id: product.category_id,
@@ -500,20 +499,21 @@ router.get('/search', async (req, res) => {
           image: imageUrl ? `/uploads/${imageUrl}` : null,
           stock: Number(product.stock) || 0
         };
+
+        return processedProduct;
       } catch (err) {
-        console.error(`Error processing product ${product.product_id}:`, err);
+        console.error(`Error processing product ${product.product_id}:`, err.message);
         return null;
       }
     }));
 
     // Filter out any null products from errors
     const validProducts = products.filter(p => p !== null);
-    console.log('\nProcessed products to return:', validProducts);
-    console.log('=== End Debug ===\n');
+    console.log(`Returning ${validProducts.length} valid products`);
 
     res.json(validProducts);
   } catch (err) {
-    console.error('Error in product search:', err);
+    console.error('Error in product search:', err.message);
     res.status(500).json({ 
       error: 'Server error during product search',
       details: process.env.NODE_ENV === 'development' ? err.message : undefined

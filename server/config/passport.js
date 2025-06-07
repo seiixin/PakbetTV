@@ -98,29 +98,37 @@ const findOrCreateUser = async (profile, provider, done) => {
   }
 };
 
-// Google Strategy Configuration
-passport.use(new GoogleStrategy({
-  clientID: process.env.GOOGLE_CLIENT_ID,
-  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  callbackURL: '/api/auth/google/callback', // Use relative URL for all environments
-  profileFields: ['id', 'displayName', 'name', 'emails', 'photos']
-}, (accessToken, refreshToken, profile, done) => {
-  findOrCreateUser(profile, 'google', done);
-}));
+// Google Strategy Configuration - Only if environment variables are available
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  passport.use(new GoogleStrategy({
+    clientID: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    callbackURL: '/api/auth/google/callback', // Use relative URL for all environments
+    profileFields: ['id', 'displayName', 'name', 'emails', 'photos']
+  }, (accessToken, refreshToken, profile, done) => {
+    findOrCreateUser(profile, 'google', done);
+  }));
+} else {
+  console.log('Google OAuth not configured - GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables missing');
+}
 
-// Facebook Strategy Configuration
-passport.use(new FacebookStrategy({
-  clientID: process.env.FACEBOOK_APP_ID,
-  clientSecret: process.env.FACEBOOK_APP_SECRET,
-  callbackURL: '/api/auth/facebook/callback',
-  profileFields: ['id', 'displayName', 'name', 'emails', 'photos'],
-  enableProof: true
-}, (accessToken, refreshToken, profile, done) => {
-  // Ensure we have an email
-  if (!profile.emails || !profile.emails[0]?.value) {
-    return done(new Error('Email is required for registration. Please ensure you grant email permission.'));
-  }
-  findOrCreateUser(profile, 'facebook', done);
-}));
+// Facebook Strategy Configuration - Only if environment variables are available
+if (process.env.FACEBOOK_APP_ID && process.env.FACEBOOK_APP_SECRET) {
+  passport.use(new FacebookStrategy({
+    clientID: process.env.FACEBOOK_APP_ID,
+    clientSecret: process.env.FACEBOOK_APP_SECRET,
+    callbackURL: '/api/auth/facebook/callback',
+    profileFields: ['id', 'displayName', 'name', 'emails', 'photos'],
+    enableProof: true
+  }, (accessToken, refreshToken, profile, done) => {
+    // Ensure we have an email
+    if (!profile.emails || !profile.emails[0]?.value) {
+      return done(new Error('Email is required for registration. Please ensure you grant email permission.'));
+    }
+    findOrCreateUser(profile, 'facebook', done);
+  }));
+} else {
+  console.log('Facebook OAuth not configured - FACEBOOK_APP_ID and FACEBOOK_APP_SECRET environment variables missing');
+}
 
 module.exports = passport; 

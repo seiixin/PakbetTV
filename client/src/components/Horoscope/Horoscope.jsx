@@ -9,6 +9,18 @@ const Horoscope = () => {
   const [birth, setBirth] = useState({ month: '', day: '', year: '' });
   const [showResults, setShowResults] = useState(false);
 
+  // Hero Component (same as blog page)
+  const Hero = () => {
+    return (
+      <section className="blog-hero" role="banner" tabIndex="0">
+        <div className="blog-hero-text">
+        Daily Chinese Horoscope
+        </div>
+        <p>Discover your fortune today with our daily horoscope!</p>
+      </section>
+    );
+  };
+
   const zodiacSigns = [
     { id: 'rat', name: 'Rat', years: [1924, 1936, 1948, 1960, 1972, 1984, 1996, 2008, 2020], image: '/Prosper-1.png' },
     { id: 'ox', name: 'Ox', years: [1925, 1937, 1949, 1961, 1973, 1985, 1997, 2009, 2021], image: '/Prosper-2.png' },
@@ -132,11 +144,8 @@ const Horoscope = () => {
   return (
     <div className="horoscope-page">
       <NavBar />
+      <Hero />
       <div className="horoscope-container">
-        <div className="horoscope-header">
-          <h1>Daily Chinese Horoscope</h1>
-          <h2>DISCOVER YOUR FORTUNE</h2>
-        </div>
 
         {!showResults ? (
           <div className="horoscope-selection">

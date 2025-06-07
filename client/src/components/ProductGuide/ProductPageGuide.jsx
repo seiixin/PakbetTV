@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import NavBar from '../NavBar';
 import Footer from '../Footer';
 import './ProductPageGuide.css';
@@ -7,6 +8,16 @@ const ProductPageGuide = () => {
   const [pdfGuides, setPdfGuides] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const Hero = () => {
+    return (
+      <section className="blog-hero" role="banner" tabIndex="0">
+        <div className="blog-hero-text">
+          Feng Shui Product Guides
+        </div>
+        <p>Comprehensive guides for all our feng shui products. Click on any guide to open it in a new tab.</p>
+      </section>
+    );
+  };
   // Define the PDF guides with their information and preview images
   const pdfData = [
     {
@@ -177,7 +188,7 @@ const ProductPageGuide = () => {
       <div className="product-guide-container">
         <NavBar />
         <div className="loading-container">
-          <div className="loading-spinner"></div>
+          <div></div>
           <p>Loading Product Guides...</p>
         </div>
         <Footer />
@@ -189,12 +200,8 @@ const ProductPageGuide = () => {
     <div className="product-guide-container">
       <NavBar />
       
+      <Hero />
       <div className="product-guide-content">
-        <div className="guide-header">
-          <h1>Product Guides</h1>
-          <p>Comprehensive guides for all our feng shui products. Click on any guide to open it in a new tab.</p>
-        </div>
-
         <div className="guides-grid">
           {pdfGuides.map((guide) => (
             <div 

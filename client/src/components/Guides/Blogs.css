@@ -87,6 +87,7 @@ body {
     background: #8b1d0e;
     color: white;
     padding: 2rem 3rem;
+    max-height: 240px;
   }
   
   .hero:hover {

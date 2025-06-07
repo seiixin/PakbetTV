@@ -205,9 +205,9 @@ body {
   right: 8px;
   top: 50%;
   transform: translateY(-50%);
-  background: var(--primary-color, #ab1125);
+  background: transparent;
   border: none;
-  color: white;
+  color: #666;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -220,14 +220,18 @@ body {
 }
 
 .navbar-search-button:hover {
-  background-color: var(--secondary-color, #FEC16E);
+  background-color: rgba(0, 0, 0, 0.1);
 }
 
-.navbar-search-button svg {
-  width: 18px;
-  height: 18px;
-  stroke: currentColor;
-  stroke-width: 2px;
+.navbar-search-button svg,
+.navbar-search-button svg *,
+button.navbar-search-button svg {
+  width: 18px !important;
+  height: 18px !important;
+  stroke: #666666 !important;
+  stroke-width: 2px !important;
+  fill: none !important;
+  color: #666 !important;
 }
 
 /* ACTIONS SECTION */
@@ -732,9 +736,9 @@ body {
   right: 8px;
   top: 50%;
   transform: translateY(-50%);
-  background: var(--primary-color, #ab1125);
+  background: transparent;
   border: none;
-  color: white;
+  color: #666;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -746,7 +750,18 @@ body {
 }
 
 .mobile-search-button:hover {
-  background-color: var(--secondary-color, #FEC16E);
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.mobile-search-button svg,
+.mobile-search-button svg *,
+button.mobile-search-button svg {
+  width: 18px !important;
+  height: 18px !important;
+  stroke: #666666 !important;
+  stroke-width: 2px !important;
+  fill: none !important;
+  color: #666 !important;
 }
 
 .mobile-menu-nav {

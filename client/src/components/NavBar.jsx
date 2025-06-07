@@ -10,7 +10,7 @@ const NavBar = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState({ products: [], blogs: [], zodiacs: [] });
+  const [searchResults, setSearchResults] = useState({ products: [], blogs: [], zodiacs: [], guides: [] });
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState(null);
@@ -55,7 +55,7 @@ const NavBar = () => {
 
   const handleSearch = async (query) => {
     if (!query.trim()) {
-      setSearchResults({ products: [], blogs: [], zodiacs: [] });
+      setSearchResults({ products: [], blogs: [], zodiacs: [], guides: [] });
       setShowSearchDropdown(false);
       return;
     }
@@ -65,36 +65,66 @@ const NavBar = () => {
     setError(null);
 
     try {
-      // Fetch products
-      const productsResponse = await fetch(`${API_BASE_URL}/api/products/search?query=${encodeURIComponent(query)}`);
-      if (!productsResponse.ok) {
-        throw new Error('Failed to fetch products');
-      }
-      const productsData = await productsResponse.json();
+      // Create promises for all searches
+      const searchPromises = [
+        // Fetch products
+        fetch(`${API_BASE_URL}/api/products/search?query=${encodeURIComponent(query)}`)
+          .then(response => {
+            if (!response.ok) throw new Error('Failed to fetch products');
+            return response.json();
+          })
+          .catch(error => {
+            console.error('Products search error:', error);
+            return [];
+          }),
 
-      // Fetch blogs
-      const blogsResponse = await fetch(`${API_BASE_URL}/api/cms/blogs/search?query=${encodeURIComponent(query)}`);
-      if (!blogsResponse.ok) {
-        throw new Error('Failed to fetch blogs');
-      }
-      const blogsData = await blogsResponse.json();
+        // Fetch blogs
+        fetch(`${API_BASE_URL}/api/cms/blogs/search?query=${encodeURIComponent(query)}`)
+          .then(response => {
+            if (!response.ok) throw new Error('Failed to fetch blogs');
+            return response.json();
+          })
+          .catch(error => {
+            console.error('Blogs search error:', error);
+            return [];
+          }),
 
-      // Fetch zodiacs
-      const zodiacsResponse = await fetch(`${API_BASE_URL}/api/cms/zodiacs?search=${encodeURIComponent(query)}`);
-      if (!zodiacsResponse.ok) {
-        throw new Error('Failed to fetch zodiacs');
-      }
-      const zodiacsData = await zodiacsResponse.json();
+        // Fetch zodiacs
+        fetch(`${API_BASE_URL}/api/cms/zodiacs?search=${encodeURIComponent(query)}`)
+          .then(response => {
+            if (!response.ok) throw new Error('Failed to fetch zodiacs');
+            return response.json();
+          })
+          .catch(error => {
+            console.error('Zodiacs search error:', error);
+            return [];
+          }),
+
+        // Fetch product guides
+        fetch(`${API_BASE_URL}/api/cms/product-guides/search?query=${encodeURIComponent(query)}`)
+          .then(response => {
+            if (!response.ok) throw new Error('Failed to fetch product guides');
+            return response.json();
+          })
+          .catch(error => {
+            console.error('Product guides search error:', error);
+            return [];
+          })
+      ];
+
+      // Execute all searches in parallel
+      const [productsData, blogsData, zodiacsData, guidesData] = await Promise.all(searchPromises);
 
       setSearchResults({
         products: productsData || [],
         blogs: blogsData || [],
-        zodiacs: zodiacsData || []
+        zodiacs: zodiacsData || [],
+        guides: guidesData || []
       });
     } catch (error) {
       console.error('Search error:', error);
       setError(error.message);
-      setSearchResults({ products: [], blogs: [], zodiacs: [] });
+      setSearchResults({ products: [], blogs: [], zodiacs: [], guides: [] });
     } finally {
       setIsSearching(false);
     }
@@ -145,6 +175,9 @@ const NavBar = () => {
       case 'zodiac':
         navigate(`/prosper-guide/${item.zodiacID.toLowerCase()}`);
         break;
+      case 'guide':
+        navigate('/product-guide');
+        break;
       default:
         break;
     }
@@ -173,6 +206,36 @@ const NavBar = () => {
           </div>
         )}
         
+        {searchResults.guides.length > 0 && (
+          <div className="search-section">
+            <div className="search-section-header">Product Guides</div>
+            {searchResults.guides.map((guide) => (
+              <div
+                key={guide.id}
+                className="search-result-item"
+                onClick={() => handleSearchResultClick(guide, 'guide')}
+              >
+                {guide.previewImage && (
+                  <div className="search-result-image">
+                    <img 
+                      src={guide.previewImage} 
+                      alt={guide.title}
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = '/placeholder-guide.jpg';
+                      }}
+                    />
+                  </div>
+                )}
+                <div className="search-result-content">
+                  <div className="search-result-title">{guide.title}</div>
+                  <div className="search-result-subtitle">{guide.category}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         {searchResults.products.length > 0 && (
           <div className="search-section">
             <div className="search-section-header">Products</div>
@@ -182,26 +245,27 @@ const NavBar = () => {
                 className="search-result-item"
                 onClick={() => handleSearchResultClick(product, 'product')}
               >
-                <div className="search-result-image">
-                  <img 
-                    src={product.image || '/placeholder-product.jpg'} 
-                    alt={product.name} 
-                    onError={(e) => {
-                      e.target.onerror = null;
-                      e.target.src = '/placeholder-product.jpg';
-                    }}
-                  />
-                </div>
+                {product.image && (
+                  <div className="search-result-image">
+                    <img 
+                      src={product.image} 
+                      alt={product.name}
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = '/placeholder-product.jpg';
+                      }}
+                    />
+                  </div>
+                )}
                 <div className="search-result-content">
                   <div className="search-result-title">{product.name}</div>
-                  <div className="search-result-subtitle">{product.category_name}</div>
-                  <div className="search-result-price">₱{Number(product.price).toLocaleString()}</div>
+                  <div className="search-result-subtitle">₱{product.price}</div>
                 </div>
               </div>
             ))}
           </div>
         )}
-        
+
         {searchResults.blogs.length > 0 && (
           <div className="search-section">
             <div className="search-section-header">Blog Posts</div>
@@ -240,7 +304,8 @@ const NavBar = () => {
         
         {!isSearching && searchResults.products.length === 0 && 
          searchResults.blogs.length === 0 && 
-         searchResults.zodiacs.length === 0 && (
+         searchResults.zodiacs.length === 0 && 
+         searchResults.guides.length === 0 && (
           <div className="search-no-results">
             No results found for "{searchQuery}"
           </div>
@@ -288,7 +353,7 @@ const NavBar = () => {
               <div className="navbar-search-bar">
                 <input
                   type="text"
-                  placeholder="Search for products, blogs, and guides..."
+                  placeholder="Search for products, blogs, guides, and zodiac signs..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onFocus={() => {
@@ -302,7 +367,17 @@ const NavBar = () => {
                   aria-label="Search"
                   onClick={() => handleSearch(searchQuery)}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    width="18" 
+                    height="18" 
+                    viewBox="0 0 24 24" 
+                    fill="none" 
+                    stroke="#666666" 
+                    strokeWidth="2" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round"
+                  >
                     <circle cx="11" cy="11" r="8"></circle>
                     <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                   </svg>
@@ -457,7 +532,7 @@ const NavBar = () => {
           <div className="mobile-search-bar">
             <input
               type="text"
-              placeholder="Search for products, blogs, and guides..."
+              placeholder="Search for products, blogs, guides, and zodiac signs..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -466,7 +541,17 @@ const NavBar = () => {
               aria-label="Search"
               onClick={() => handleSearch(searchQuery)}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                width="18" 
+                height="18" 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="#666666" 
+                strokeWidth="2" 
+                strokeLinecap="round" 
+                strokeLinejoin="round"
+              >
                 <circle cx="11" cy="11" r="8"></circle>
                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
               </svg>
