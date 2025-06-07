@@ -12,11 +12,28 @@ const dbConfig = {
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
-  connectTimeout: 60000, 
+  connectTimeout: 60000,
+  acquireTimeout: 60000,
+  timeout: 60000,
+  reconnect: true,
   ssl: process.env.DB_SSL === 'true' ? {rejectUnauthorized: false} : false
 };
 
 const pool = mysql.createPool(dbConfig);
+
+// Handle connection events
+pool.on('connection', function (connection) {
+  console.log('New connection established as id ' + connection.threadId);
+});
+
+pool.on('error', function(err) {
+  console.error('Database pool error:', err);
+  if(err.code === 'PROTOCOL_CONNECTION_LOST') {
+    console.log('Lost connection, creating new one...');
+  } else {
+    throw err;
+  }
+});
 
 const testConnection = async () => {
   try {

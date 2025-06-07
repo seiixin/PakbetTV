@@ -50,8 +50,17 @@ export const AuthProvider = ({ children }) => {
       } catch (error) {
         console.error('Token validation failed:', error);
         
-        // Check if we should try to refresh the token
-        if (error.response?.status === 401) {
+        // Handle different types of errors
+        if (error.response?.status === 503) {
+          // Database temporarily unavailable - don't logout, just continue with stored user data
+          console.log('Database temporarily unavailable, continuing with stored user data');
+          const storedUser = getUser();
+          if (storedUser) {
+            setUserState(storedUser);
+            setTokenState(storedToken);
+          }
+        } else if (error.response?.status === 401) {
+          // Token is invalid - try to refresh
           try {
             console.log('Attempting to refresh token...');
             setRefreshing(true);
@@ -86,6 +95,16 @@ export const AuthProvider = ({ children }) => {
             handleLogout();
           } finally {
             setRefreshing(false);
+          }
+        } else {
+          // Other errors - fallback to stored user data if available
+          const storedUser = getUser();
+          if (storedUser && storedToken) {
+            console.log('Using stored user data due to network error');
+            setUserState(storedUser);
+            setTokenState(storedToken);
+          } else {
+            handleLogout();
           }
         }
       } finally {

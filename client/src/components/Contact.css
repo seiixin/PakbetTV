@@ -9,6 +9,7 @@
   text-align: center;
   position: relative;
   overflow: hidden;
+  max-height: 240px;
 }
 
 .contact-hero-section::before {

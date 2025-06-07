@@ -342,7 +342,6 @@
   color: #666;
   font-size: 0.75rem;
   padding-top: 0.7rem;
-  border-top: 1px solid rgba(232, 178, 93, 0.1);
 }
 
 .auth-redirect a {

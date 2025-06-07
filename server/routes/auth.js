@@ -135,18 +135,28 @@ router.get('/me', auth, async (req, res) => {
       return res.status(401).json({ message: 'Invalid user token structure' });
     }
     
-    // Get a connection from the pool
-    const connection = await db.getConnection();
-    console.log('Database connection acquired');
+    // Get a connection from the pool with retry mechanism
+    let connection;
+    let retries = 3;
+    
+    while (retries > 0) {
+      try {
+        connection = await db.getConnection();
+        console.log('Database connection acquired');
+        break;
+      } catch (connError) {
+        retries--;
+        console.log(`Connection attempt failed, retries left: ${retries}`);
+        if (retries === 0) throw connError;
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+      }
+    }
     
     try {
       const [users] = await connection.query(
         'SELECT user_id, username, first_name, last_name, email, phone, address, user_type, status FROM users WHERE user_id = ?',
         [userId]
       );
-      
-      connection.release();
-      console.log('Database connection released');
       
       if (!users || users.length === 0) {
         console.log('User not found:', userId);
@@ -168,20 +178,24 @@ router.get('/me', auth, async (req, res) => {
         status: user.status
       });
     } catch (dbError) {
-      connection.release();
       console.error('Database query error:', dbError);
       throw dbError;
+    } finally {
+      if (connection) {
+        connection.release();
+        console.log('Database connection released');
+      }
     }
   } catch (err) {
     console.error('Error in /me endpoint:', {
       name: err.name,
       message: err.message,
-      stack: err.stack
+      code: err.code
     });
     
     // Send appropriate error response based on error type
-    if (err.code === 'ECONNREFUSED') {
-      return res.status(503).json({ message: 'Database connection failed' });
+    if (err.code === 'ECONNREFUSED' || err.code === 'ECONNRESET') {
+      return res.status(503).json({ message: 'Database temporarily unavailable. Please try again.' });
     }
     
     if (err.code === 'ER_ACCESS_DENIED_ERROR') {
