@@ -466,18 +466,26 @@ router.get('/search', async (req, res) => {
       return res.json([]);
     }
 
-    // Process the results with simpler image handling
+    // Process the results with proper image handling
     const products = await Promise.all(results.map(async (product) => {
       try {
-        // Get the primary image
-        let imageUrl = null;
+        // Get the primary image with proper BLOB handling
+        let processedImageUrl = null;
         try {
           const [images] = await db.query(
             'SELECT image_url FROM product_images WHERE product_id = ? ORDER BY sort_order LIMIT 1',
             [product.product_id]
           );
           if (images.length > 0) {
-            imageUrl = images[0].image_url;
+            const imageUrl = images[0].image_url;
+            
+            // Handle BLOB data (binary image data)
+            if (imageUrl && Buffer.isBuffer(imageUrl)) {
+              processedImageUrl = `data:image/jpeg;base64,${imageUrl.toString('base64')}`;
+            } else if (imageUrl && typeof imageUrl === 'string') {
+              // Handle file path
+              processedImageUrl = `/uploads/${imageUrl}`;
+            }
           }
         } catch (imgErr) {
           console.error(`Error getting image for product ${product.product_id}:`, imgErr.message);
@@ -496,7 +504,7 @@ router.get('/search', async (req, res) => {
           price: price,
           average_rating: product.average_rating !== null ? Number(product.average_rating) : 0,
           review_count: Number(product.review_count) || 0,
-          image: imageUrl ? `/uploads/${imageUrl}` : null,
+          image: processedImageUrl,
           stock: Number(product.stock) || 0
         };
 

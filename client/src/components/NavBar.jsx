@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import API_BASE_URL from '../config';
+import { getFullImageUrl } from '../utils/imageUtils';
 import './NavBar.css';
 
 const NavBar = () => {
@@ -218,7 +219,7 @@ const NavBar = () => {
                 {guide.previewImage && (
                   <div className="search-result-image">
                     <img 
-                      src={guide.previewImage} 
+                      src={getFullImageUrl(guide.previewImage)} 
                       alt={guide.title}
                       onError={(e) => {
                         e.target.onerror = null;
@@ -248,7 +249,7 @@ const NavBar = () => {
                 {product.image && (
                   <div className="search-result-image">
                     <img 
-                      src={product.image} 
+                      src={getFullImageUrl(product.image)} 
                       alt={product.name}
                       onError={(e) => {
                         e.target.onerror = null;
@@ -278,7 +279,7 @@ const NavBar = () => {
                 {blog.cover_image && (
                   <div className="search-result-image">
                     <img 
-                      src={blog.cover_image} 
+                      src={getFullImageUrl(blog.cover_image)} 
                       alt={blog.title}
                       onError={(e) => {
                         e.target.onerror = null;
@@ -362,26 +363,6 @@ const NavBar = () => {
                     }
                   }}
                 />
-                <button 
-                  className="navbar-search-button" 
-                  aria-label="Search"
-                  onClick={() => handleSearch(searchQuery)}
-                >
-                  <svg 
-                    xmlns="http://www.w3.org/2000/svg" 
-                    width="18" 
-                    height="18" 
-                    viewBox="0 0 24 24" 
-                    fill="none" 
-                    stroke="#666666" 
-                    strokeWidth="2" 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round"
-                  >
-                    <circle cx="11" cy="11" r="8"></circle>
-                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                  </svg>
-                </button>
               </div>
               {renderSearchResults()}
             </div>
@@ -536,26 +517,6 @@ const NavBar = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
-            <button 
-              className="mobile-search-button" 
-              aria-label="Search"
-              onClick={() => handleSearch(searchQuery)}
-            >
-              <svg 
-                xmlns="http://www.w3.org/2000/svg" 
-                width="18" 
-                height="18" 
-                viewBox="0 0 24 24" 
-                fill="none" 
-                stroke="#666666" 
-                strokeWidth="2" 
-                strokeLinecap="round" 
-                strokeLinejoin="round"
-              >
-                <circle cx="11" cy="11" r="8"></circle>
-                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-              </svg>
-            </button>
           </div>
         </div>
 

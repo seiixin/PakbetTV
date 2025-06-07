@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaGoogle } from 'react-icons/fa';
+import { FaGoogle, FaFacebook } from 'react-icons/fa';
 import FacebookLoginButton from './FacebookLoginButton';
 import { setCookie } from '../../utils/cookies';
 import './SocialLogin.css';
@@ -19,19 +19,15 @@ const SocialLogin = () => {
   };
 
   return (
-    <div className="social-login-container">
-      <div className="social-login-divider">
-        <span>OR</span>
-      </div>
-      
-      <div className="social-login-buttons">
+    <div className="social-login">
+      <div className="social-buttons">
         <a 
           href={googleLoginUrl}
-          className="social-login-button google-login"
+          className="social-button google"
           onClick={handleGoogleLogin}
+          title="Continue with Google"
         >
-          <FaGoogle />
-          <span>Continue with Google</span>
+          <FaGoogle size={20} />
         </a>
         
         <FacebookLoginButton />

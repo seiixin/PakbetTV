@@ -22,11 +22,11 @@ const FacebookLoginButton = () => {
 
   return (
     <button 
-      className="social-login-button facebook-login"
+      className="social-button facebook"
       onClick={handleFacebookLogin}
+      title="Continue with Facebook"
     >
-      <FaFacebook />
-      <span>Continue with Facebook</span>
+      <FaFacebook size={20} />
     </button>
   );
 };

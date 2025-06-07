@@ -10,6 +10,7 @@ function Signup() {
   const navigate = useNavigate();
   const { register } = useAuth();
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     username: '',
     firstname: '',
@@ -18,7 +19,6 @@ function Signup() {
     password: '',
     confirmPassword: ''
   });
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -31,29 +31,59 @@ function Signup() {
     }));
   };
 
+  const validateStep = (step) => {
+    switch (step) {
+      case 1:
+        if (!formData.username || !formData.email) {
+          toast.error('Please fill in username and email');
+          return false;
+        }
+        if (!formData.email.includes('@')) {
+          toast.error('Please enter a valid email address');
+          return false;
+        }
+        break;
+      case 2:
+        if (!formData.firstname || !formData.lastname) {
+          toast.error('Please fill in first and last name');
+          return false;
+        }
+        break;
+      case 3:
+        if (!formData.password || !formData.confirmPassword) {
+          toast.error('Please fill in both password fields');
+          return false;
+        }
+        if (formData.password !== formData.confirmPassword) {
+          toast.error('Passwords do not match');
+          return false;
+        }
+        if (formData.password.length < 6) {
+          toast.error('Password must be at least 6 characters');
+          return false;
+        }
+        break;
+      default:
+        return false;
+    }
+    return true;
+  };
+
+  const handleContinue = () => {
+    if (validateStep(currentStep)) {
+      setCurrentStep(currentStep + 1);
+    }
+  };
+
+  const handleBack = () => {
+    setCurrentStep(currentStep - 1);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
     setLoading(true);
     
-    if (!formData.username || !formData.firstname || !formData.lastname || 
-        !formData.email || !formData.password || !formData.confirmPassword) {
-      setError('Please fill in all required fields');
-      toast.error('Please fill in all required fields');
-      setLoading(false);
-      return;
-    }
-    
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
-      toast.error('Passwords do not match');
-      setLoading(false);
-      return;
-    }
-    
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters');
-      toast.error('Password must be at least 6 characters');
+    if (!validateStep(3)) {
       setLoading(false);
       return;
     }
@@ -71,7 +101,6 @@ function Signup() {
       toast.success('Registration successful! Please log in.');
       navigate('/login');
     } else {
-      setError(result.message);
       toast.error(result.message || 'Registration failed');
       setLoading(false);
     }
@@ -82,6 +111,32 @@ function Signup() {
       setShowPassword(!showPassword);
     } else {
       setShowConfirmPassword(!showConfirmPassword);
+    }
+  };
+
+  const getStepTitle = () => {
+    switch (currentStep) {
+      case 1:
+        return 'Create Account';
+      case 2:
+        return 'Personal Info';
+      case 3:
+        return 'Set Password';
+      default:
+        return 'Create Account';
+    }
+  };
+
+  const getStepDescription = () => {
+    switch (currentStep) {
+      case 1:
+        return 'Enter your username and email';
+      case 2:
+        return 'Tell us your name';
+      case 3:
+        return 'Choose a secure password';
+      default:
+        return 'Sign up for a new account';
     }
   };
 
@@ -104,157 +159,160 @@ function Signup() {
     );
   };
 
+  const renderStepContent = () => {
+    switch (currentStep) {
+      case 1:
+        return (
+          <div className="form-row two-columns">
+            <div className="form-group">
+              <label htmlFor="username">Username*</label>
+              <input
+                type="text"
+                id="username"
+                name="username"
+                value={formData.username}
+                onChange={handleChange}
+                placeholder="Enter your username"
+                required
+                disabled={loading}
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="email">Email*</label>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="Enter your email"
+                required
+                disabled={loading}
+              />
+            </div>
+          </div>
+        );
+      
+      case 2:
+        return (
+          <div className="form-row two-columns">
+            <div className="form-group">
+              <label htmlFor="firstname">First Name*</label>
+              <input
+                type="text"
+                id="firstname"
+                name="firstname"
+                value={formData.firstname}
+                onChange={handleChange}
+                placeholder="First name"
+                required
+                disabled={loading}
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="lastname">Last Name*</label>
+              <input
+                type="text"
+                id="lastname"
+                name="lastname"
+                value={formData.lastname}
+                onChange={handleChange}
+                placeholder="Last name"
+                required
+                disabled={loading}
+              />
+            </div>
+          </div>
+        );
+      
+      case 3:
+        return (
+          <div className="form-row two-columns">
+            <div className="form-group">
+              <label htmlFor="password">Password*</label>
+              <div className="password-input-container">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  id="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  placeholder="Password"
+                  required
+                  disabled={loading}
+                />
+                <button
+                  type="button"
+                  onClick={() => togglePasswordVisibility('password')}
+                  className="password-toggle-btn"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                      <line x1="1" y1="1" x2="23" y2="23"></line>
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                      <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
+            <div className="form-group">
+              <label htmlFor="confirmPassword">Confirm Password*</label>
+              <div className="password-input-container">
+                <input
+                  type={showConfirmPassword ? "text" : "password"}
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  placeholder="Confirm password"
+                  required
+                  disabled={loading}
+                />
+                <button
+                  type="button"
+                  onClick={() => togglePasswordVisibility('confirm')}
+                  className="password-toggle-btn"
+                  aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                >
+                  {showConfirmPassword ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                      <line x1="1" y1="1" x2="23" y2="23"></line>
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                      <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="auth-container">
-      <form className="auth-form signup" onSubmit={handleSubmit}>
+      <form className="auth-form signup" onSubmit={currentStep === 3 ? handleSubmit : (e) => e.preventDefault()}>
         <div className="auth-header">
-          <h2>Create Account</h2>
-          <p>Sign up for a new account</p>
+          <h2>{getStepTitle()}</h2>
+          <p>{getStepDescription()}</p>
         </div>
-        {error && <div className="error-message">{error}</div>}
-        <div className="form-group">
-          <label htmlFor="username">Username*</label>
-          <input
-            type="text"
-            id="username"
-            name="username"
-            value={formData.username}
-            onChange={handleChange}
-            placeholder="Enter your username"
-            required
-            disabled={loading}
-          />
-        </div>
-        <div className="form-row">
-          <div className="form-group half">
-            <label htmlFor="firstname">First Name*</label>
-            <input
-              type="text"
-              id="firstname"
-              name="firstname"
-              value={formData.firstname}
-              onChange={handleChange}
-              placeholder="First name"
-              required
-              disabled={loading}
-            />
-          </div>
-          <div className="form-group half">
-            <label htmlFor="lastname">Last Name*</label>
-            <input
-              type="text"
-              id="lastname"
-              name="lastname"
-              value={formData.lastname}
-              onChange={handleChange}
-              placeholder="Last name"
-              required
-              disabled={loading}
-            />
-          </div>
-        </div>
-        <div className="form-group">
-          <label htmlFor="email">Email*</label>
-          <input
-            type="email"
-            id="email"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-            placeholder="Enter your email"
-            required
-            disabled={loading}
-          />
-        </div>
-        <div className="form-row">
-          <div className="form-group half">
-            <label htmlFor="password">Password*</label>
-            <div style={{ position: 'relative' }}>
-              <input
-                type={showPassword ? "text" : "password"}
-                id="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                placeholder="Password"
-                required
-                disabled={loading}
-              />
-              <button
-                type="button"
-                onClick={() => togglePasswordVisibility('password')}
-                style={{
-                  position: 'absolute',
-                  right: '10px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  border: 'none',
-                  background: 'none',
-                  cursor: 'pointer',
-                  padding: '5px',
-                  display: 'flex',
-                  alignItems: 'center'
-                }}
-              >
-                {showPassword ? (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                    <line x1="1" y1="1" x2="23" y2="23"></line>
-                  </svg>
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                    <circle cx="12" cy="12" r="3"></circle>
-                  </svg>
-                )}
-              </button>
-            </div>
-          </div>
-          <div className="form-group half">
-            <label htmlFor="confirmPassword">Confirm Password*</label>
-            <div style={{ position: 'relative' }}>
-              <input
-                type={showConfirmPassword ? "text" : "password"}
-                id="confirmPassword"
-                name="confirmPassword"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                placeholder="Password"
-                required
-                disabled={loading}
-              />
-              <button
-                type="button"
-                onClick={() => togglePasswordVisibility('confirm')}
-                style={{
-                  position: 'absolute',
-                  right: '10px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  border: 'none',
-                  background: 'none',
-                  cursor: 'pointer',
-                  padding: '5px',
-                  display: 'flex',
-                  alignItems: 'center'
-                }}
-              >
-                {showConfirmPassword ? (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                    <line x1="1" y1="1" x2="23" y2="23"></line>
-                  </svg>
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                    <circle cx="12" cy="12" r="3"></circle>
-                  </svg>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-        <div>
+        
+        {renderStepContent()}
+        
+        {currentStep === 3 && (
           <p>
             By signing up, you agree to our{' '}
             <span 
@@ -272,14 +330,39 @@ function Signup() {
             </span>
             .
           </p>
+        )}
+        
+        <div className="step-navigation">
+          {currentStep > 1 && (
+            <button 
+              type="button" 
+              className="auth-button secondary"
+              onClick={handleBack}
+              disabled={loading}
+            >
+              Back
+            </button>
+          )}
+          
+          {currentStep < 3 ? (
+            <button 
+              type="button" 
+              className="auth-button"
+              onClick={handleContinue}
+              disabled={loading}
+            >
+              Continue
+            </button>
+          ) : (
+            <button 
+              type="submit" 
+              className="auth-button"
+              disabled={loading}
+            >
+              {loading ? 'Signing Up...' : 'Sign Up'}
+            </button>
+          )}
         </div>
-        <button 
-          type="submit" 
-          className="auth-button"
-          disabled={loading}
-        >
-          {loading ? 'Signing Up...' : 'Sign Up'}
-        </button>
         
         <SocialLogin />
         
