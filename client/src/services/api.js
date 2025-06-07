@@ -387,6 +387,16 @@ export const orderService = {
       handleApiError(error);
       throw error;
     }
+  },
+
+  cancelOrder: async (trackingId) => {
+    try {
+      const response = await api.delete(`/delivery/ninjavan/orders/${trackingId}`);
+      return response;
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
   }
 };
 

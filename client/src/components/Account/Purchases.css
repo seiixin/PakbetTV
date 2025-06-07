@@ -198,7 +198,7 @@
 }
 
 .purchase-view-details-btn {
-  width: 100%;
+  flex: 1;
   padding: 0.75rem 1.5rem;
   border-radius: 6px;
   font-size: 0.95rem;
@@ -214,6 +214,34 @@
 .purchase-view-details-btn:hover {
   background-color: #8b0e1e;
   color: var(--secondary-color);
+}
+
+.purchase-cancel-btn {
+  flex: 0 0 auto;
+  padding: 0.75rem 1.25rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  text-align: center;
+  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+  color: white;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(220, 53, 69, 0.2);
+  min-width: 120px;
+}
+
+.purchase-cancel-btn:hover {
+  background: linear-gradient(135deg, #c82333 0%, #bd2130 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+}
+
+.purchase-cancel-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(220, 53, 69, 0.2);
 }
 
 /* Empty State */
@@ -361,9 +389,17 @@
   
   .purchase-order-actions {
     padding: 1rem 1.25rem;
+    flex-direction: column;
+    gap: 0.75rem;
   }
   
   .purchase-view-details-btn {
     padding: 0.75rem 1rem;
+  }
+
+  .purchase-cancel-btn {
+    padding: 0.7rem 1rem;
+    font-size: 0.85rem;
+    min-width: auto;
   }
 } 

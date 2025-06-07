@@ -25,14 +25,14 @@ router.post('/orders', auth, async (req, res) => {
     // Log the incoming order data
     console.log('Order data:', req.body);
     
-    const { user_id, total_amount, items } = req.body;
+    const { user_id, total_amount, subtotal, shipping_fee = 0, items } = req.body;
     
     // Generate order_code using UUID
     const orderCode = uuidv4();
     console.log(`Generated order_code: ${orderCode}`);
     
     // Create the order record - let MySQL auto-increment the order_id
-    console.log('Creating order record with data:', { user_id, total_amount, order_code: orderCode });
+    console.log('Creating order record with data:', { user_id, total_amount, subtotal, shipping_fee, order_code: orderCode });
     const [orderResult] = await connection.query(
       `INSERT INTO orders 
        (user_id, total_price, order_status, payment_status, order_code, created_at, updated_at) 
@@ -42,6 +42,15 @@ router.post('/orders', auth, async (req, res) => {
     
     const orderId = orderResult.insertId; // Use the auto-increment ID
     console.log(`Order record created with ID: ${orderId}, order_code: ${orderCode}`);
+
+    // Create shipping record if shipping fee is provided
+    if (shipping_fee > 0) {
+      console.log(`Creating shipping record with fee: ${shipping_fee}`);
+      await connection.query(
+        'INSERT INTO shipping (order_id, user_id, status, shipping_fee, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())',
+        [orderId, user_id, 'pending', shipping_fee]
+      );
+    }
 
     // Process order items
     console.log('Processing order items:', items);
@@ -365,7 +374,7 @@ router.get('/verify', async (req, res) => {
                 price: item.price
               })),
               totalAmount: order.total_price,
-              shippingFee: 0, // You can add shipping fee logic here if needed
+              shippingFee: shipping.length > 0 ? (shipping[0].shipping_fee || 0) : 0,
               shippingAddress: shippingAddress,
               paymentMethod: payment.payment_method || 'DragonPay',
               paymentReference: refNo,
@@ -535,7 +544,7 @@ router.post('/postback', async (req, res) => {
                 price: item.price
               })),
               totalAmount: order.total_price,
-              shippingFee: 0, // You can add shipping fee logic here if needed
+              shippingFee: shippingDetails.length > 0 ? (shippingDetails[0].shipping_fee || 0) : 0,
               shippingAddress: shippingAddress,
               paymentMethod: payment.payment_method || 'DragonPay',
               paymentReference: refno,
@@ -697,7 +706,7 @@ router.post('/simulate-payment', async (req, res) => {
               price: item.price
             })),
             totalAmount: orders[0].total_price,
-            shippingFee: 0, // You can add shipping fee logic here if needed
+            shippingFee: shippingDetails.length > 0 ? (shippingDetails[0].shipping_fee || 0) : 0,
             shippingAddress: shippingAddress,
             paymentMethod: 'DragonPay (Simulated)',
             paymentReference: refno,

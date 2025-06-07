@@ -187,7 +187,7 @@ export const CartProvider = ({ children }) => {
   };
 
   // Create order function - using the transactions API instead of orders
-  const createOrder = async (userId) => {
+  const createOrder = async (userId, shippingFee = 0) => {
     try {
       const selectedItems = cartItems.filter(item => item.selected);
       if (selectedItems.length === 0) {
@@ -203,10 +203,15 @@ export const CartProvider = ({ children }) => {
         variant_attributes: item.variant_attributes || {}
       }));
 
+      const subtotal = getTotalPrice();
+      const totalAmount = subtotal + shippingFee;
+
       const orderData = {
         user_id: userId,
         items: orderItems,
-        total_amount: getTotalPrice()
+        subtotal: subtotal,
+        shipping_fee: shippingFee,
+        total_amount: totalAmount
       };
 
       const token = getAuthToken(); // Get token from cookies

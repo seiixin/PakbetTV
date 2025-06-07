@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
+import ninjaVanService from '../../services/ninjaVanService';
+import CancelOrderModal from '../common/CancelOrderModal';
 import './Purchases.css';
 import NavBar from '../NavBar';
 import Footer from '../Footer';
@@ -14,6 +16,8 @@ function Purchases() {
   const [error, setError] = useState(null);
   const [activeFilter, setActiveFilter] = useState('all');
   const [filteredOrders, setFilteredOrders] = useState([]);
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState(null);
 
   // Order status options for filter
   const orderStatusFilters = [
@@ -24,6 +28,28 @@ function Purchases() {
     { key: 'delivered', label: 'Delivered' },
     { key: 'completed', label: 'Completed' }
   ];
+
+  // Handle opening cancel modal
+  const handleCancelOrder = (order) => {
+    setSelectedOrder(order);
+    setCancelModalOpen(true);
+  };
+
+  // Handle order cancellation success
+  const handleOrderCancelled = (orderId, cancelData) => {
+    // Update the order status in the local state
+    setOrders(prevOrders => 
+      prevOrders.map(order => 
+        order.order_id === orderId 
+          ? { ...order, order_status: 'cancelled' }
+          : order
+      )
+    );
+    
+    // Close the modal
+    setCancelModalOpen(false);
+    setSelectedOrder(null);
+  };
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -248,6 +274,15 @@ function Purchases() {
                 <Link to={`/account/orders/${order.order_id}`} className="purchase-view-details-btn">
                   View Details
                 </Link>
+                {ninjaVanService.canCancelOrder(order.order_status) && (
+                  <button 
+                    className="purchase-cancel-btn" 
+                    onClick={() => handleCancelOrder(order)}
+                    title="Cancel this order"
+                  >
+                    Cancel Order
+                  </button>
+                )}
               </div>
             </div>
           );
@@ -281,6 +316,14 @@ function Purchases() {
         </div>
       </div>
       <Footer />
+      {cancelModalOpen && selectedOrder && (
+        <CancelOrderModal
+          isOpen={cancelModalOpen}
+          onClose={() => setCancelModalOpen(false)}
+          onOrderCancelled={handleOrderCancelled}
+          order={selectedOrder}
+        />
+      )}
     </div>
   );
 }

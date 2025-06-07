@@ -3,6 +3,7 @@ const router = express.Router();
 const axios = require('axios');
 const crypto = require('crypto');
 const config = require('../config/keys');
+const { auth } = require('../middleware/auth');
 const API_BASE_URL = config.NINJAVAN_API_URL || 'https://api.ninjavan.co';
 const COUNTRY_CODE = config.NINJAVAN_COUNTRY_CODE || 'SG';
 const CLIENT_ID = config.NINJAVAN_CLIENT_ID;
@@ -260,25 +261,266 @@ router.get('/ninjavan/waybill/:trackingId', async (req, res) => {
   }
 });
 
-router.delete('/ninjavan/orders/:trackingId', async (req, res) => {
+// Get shipping rate estimate from NinjaVan
+router.post('/ninjavan/estimate', async (req, res) => {
   try {
+    const { fromAddress, toAddress, weight, dimensions } = req.body;
+    
+    // Validate required fields
+    if (!toAddress || !toAddress.postcode || !toAddress.city || !toAddress.state) {
+      return res.status(400).json({
+        message: 'Missing required address fields',
+        details: 'Please provide destination postcode, city, and state'
+      });
+    }
+
     const token = await getNinjaVanToken();
-    const trackingId = req.params.trackingId;
-    const response = await axios.delete(
-      `${API_BASE_URL}/${COUNTRY_CODE}/2.2/orders/${trackingId}`,
-      { 
-        headers: { 
-          'Authorization': `Bearer ${token}` 
-        } 
+    
+    // Prepare rate request payload
+    const rateRequest = {
+      service_type: "Parcel",
+      service_level: "Standard",
+      from: fromAddress || {
+        address1: "Unit 1004 Cityland Shaw Tower",
+        address2: "Corner St. Francis, Shaw Blvd.",
+        city: "Mandaluyong City",
+        state: "NCR",
+        country: "SG",
+        postcode: "486015"
+      },
+      to: {
+        address1: toAddress.address1,
+        address2: toAddress.address2 || "",
+        city: toAddress.city,
+        state: toAddress.state,
+        country: toAddress.country || "SG",
+        postcode: toAddress.postcode
+      },
+      parcel_job: {
+        dimensions: {
+          weight: weight || 1.0,
+          length: dimensions?.length || 20,
+          width: dimensions?.width || 15,
+          height: dimensions?.height || 10
+        }
+      }
+    };
+
+    // Call NinjaVan rate estimation API
+    const response = await axios.post(
+      `${API_BASE_URL}/${COUNTRY_CODE}/2.0/rates`,
+      rateRequest,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       }
     );
-    res.status(200).json(response.data);
-  } catch (error) {
-    console.error('Error cancelling order:', error.response?.data || error.message);
-    res.status(error.response?.status || 500).json({ 
-      error: 'Failed to cancel delivery order',
-      details: error.response?.data || error.message
+
+    // Return the shipping rates
+    res.status(200).json({
+      success: true,
+      rates: response.data,
+      estimatedFee: response.data.total_fee || response.data.rate || 0,
+      currency: response.data.currency || 'SGD',
+      service_type: response.data.service_type || 'Standard'
     });
+
+  } catch (error) {
+    console.error('Error getting NinjaVan shipping estimate:', error.response?.data || error.message);
+    
+    // Fallback to standard shipping fee if API fails
+    res.status(200).json({
+      success: false,
+      estimatedFee: 50.00, // Fallback shipping fee
+      currency: 'SGD',
+      service_type: 'Standard',
+      message: 'Using standard shipping rate - live calculation unavailable',
+      error: error.response?.data || error.message
+    });
+  }
+});
+
+// Enhanced cancel order endpoint with authentication and validation
+router.delete('/ninjavan/orders/:trackingId', auth, async (req, res) => {
+  const connection = await db.getConnection();
+  
+  try {
+    await connection.beginTransaction();
+    
+    const trackingId = req.params.trackingId;
+    const userId = req.user?.id || req.user?.user?.id;
+    const isAdmin = (req.user?.userType || req.user?.user?.userType) === 'admin';
+    
+    if (!userId) {
+      await connection.rollback();
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+
+    // Validate tracking ID format
+    if (!trackingId || trackingId.length < 9) {
+      await connection.rollback();
+      return res.status(400).json({ 
+        message: 'Invalid tracking number format',
+        details: 'Tracking number must be at least 9 characters long'
+      });
+    }
+
+    // Find the order associated with this tracking number
+    const [shipping] = await connection.query(
+      'SELECT s.*, o.order_status, o.user_id, o.order_id FROM shipping s ' +
+      'JOIN orders o ON s.order_id = o.order_id ' +
+      'WHERE s.tracking_number = ?',
+      [trackingId]
+    );
+    
+    if (shipping.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ 
+        message: 'Order not found',
+        details: 'No order found with the provided tracking number'
+      });
+    }
+
+    const order = shipping[0];
+
+    // Check authorization - user can only cancel their own orders unless they're admin
+    if (!isAdmin && order.user_id !== userId) {
+      await connection.rollback();
+      return res.status(403).json({ 
+        message: 'Access denied',
+        details: 'You can only cancel your own orders'
+      });
+    }
+
+    // Check if order can be cancelled - only orders that are Pending Pickup can be cancelled
+    const cancelableStatuses = ['processing', 'for_packing', 'packed', 'for_shipping', 'pending'];
+    if (!cancelableStatuses.includes(order.order_status)) {
+      await connection.rollback();
+      return res.status(400).json({ 
+        message: 'Order cannot be cancelled',
+        details: `Orders with status '${order.order_status}' cannot be cancelled. Only orders that are pending pickup can be cancelled.`,
+        currentStatus: order.order_status
+      });
+    }
+
+    // Get NinjaVan access token
+    const token = await getNinjaVanToken();
+    
+    // Cancel the order with NinjaVan
+    let ninjaVanResponse;
+    try {
+      const ninjaVanCancelResponse = await axios.delete(
+        `${API_BASE_URL}/${COUNTRY_CODE}/2.2/orders/${trackingId}`,
+        { 
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          } 
+        }
+      );
+      ninjaVanResponse = ninjaVanCancelResponse.data;
+    } catch (ninjaVanError) {
+      await connection.rollback();
+      
+      // Handle specific NinjaVan API errors
+      if (ninjaVanError.response?.status === 404) {
+        return res.status(404).json({
+          message: 'Order not found with delivery provider',
+          details: 'The order may have already been cancelled or does not exist with NinjaVan'
+        });
+      } else if (ninjaVanError.response?.status === 400) {
+        return res.status(400).json({
+          message: 'Order cannot be cancelled with delivery provider',
+          details: ninjaVanError.response?.data?.message || 'The order status prevents cancellation'
+        });
+      } else {
+        console.error('NinjaVan cancellation error:', ninjaVanError.response?.data || ninjaVanError.message);
+        return res.status(502).json({
+          message: 'Failed to cancel order with delivery provider',
+          details: 'Please try again later or contact support'
+        });
+      }
+    }
+
+    // Update order status in database
+    await connection.query(
+      'UPDATE orders SET order_status = ?, updated_at = NOW() WHERE order_id = ?',
+      ['cancelled', order.order_id]
+    );
+
+    // Update shipping status
+    await connection.query(
+      'UPDATE shipping SET status = ?, updated_at = NOW() WHERE order_id = ?',
+      ['cancelled', order.order_id]
+    );
+
+    // Restore inventory for cancelled items
+    const [orderItems] = await connection.query(
+      'SELECT * FROM order_items WHERE order_id = ?',
+      [order.order_id]
+    );
+
+    for (const item of orderItems) {
+      const [variants] = await connection.query(
+        'SELECT variant_id, stock FROM product_variants WHERE product_id = ? ORDER BY variant_id ASC LIMIT 1',
+        [item.product_id]
+      );
+      
+      if (variants.length > 0) {
+        const variantId = variants[0].variant_id;
+        const newStock = variants[0].stock + item.quantity;
+        
+        await connection.query(
+          'UPDATE product_variants SET stock = ? WHERE variant_id = ?',
+          [newStock, variantId]
+        );
+        
+        await connection.query(
+          'INSERT INTO inventory (variant_id, change_type, quantity, reason) VALUES (?, ?, ?, ?)',
+          [variantId, 'add', item.quantity, `Order ${order.order_id} cancelled - tracking ${trackingId}`]
+        );
+      }
+    }
+
+    // Save tracking event
+    await connection.query(
+      'INSERT INTO tracking_events (tracking_number, order_id, status, description, created_at) VALUES (?, ?, ?, ?, NOW())',
+      [trackingId, order.order_id, 'Cancelled', 'Order cancelled by user request']
+    );
+
+    // Update payment status if applicable
+    await connection.query(
+      'UPDATE payments SET status = ?, updated_at = NOW() WHERE order_id = ? AND status = ?',
+      ['refunded', order.order_id, 'completed']
+    );
+
+    await connection.commit();
+
+    // Return success response with comprehensive information
+    res.status(200).json({
+      message: 'Order cancelled successfully',
+      data: {
+        trackingId: ninjaVanResponse.trackingId || trackingId,
+        status: ninjaVanResponse.status || 'cancelled',
+        updatedAt: ninjaVanResponse.updatedAt || new Date().toISOString(),
+        orderId: order.order_id,
+        refundStatus: 'pending_processing'
+      },
+      ninjaVanResponse
+    });
+
+  } catch (error) {
+    await connection.rollback();
+    console.error('Error cancelling order:', error);
+    res.status(500).json({ 
+      message: 'Internal server error',
+      details: 'An unexpected error occurred while cancelling the order. Please try again later or contact support.',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  } finally {
+    connection.release();
   }
 });
 

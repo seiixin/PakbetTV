@@ -8,6 +8,7 @@ import NavBar from '../NavBar';
 import Footer from '../Footer';
 import { notify } from '../../utils/notifications';
 import { authService } from '../../services/api';
+import ninjaVanService from '../../services/ninjaVanService';
 
 const Checkout = () => {
   const [loading, setLoading] = useState(false);
@@ -22,6 +23,12 @@ const Checkout = () => {
   });
   const [profileLoading, setProfileLoading] = useState(false);
   const [hasShippingAddress, setHasShippingAddress] = useState(false);
+  
+  // Shipping fee calculation state
+  const [shippingFee, setShippingFee] = useState(0);
+  const [shippingLoading, setShippingLoading] = useState(false);
+  const [shippingError, setShippingError] = useState(null);
+  
   const navigate = useNavigate();
   const { user } = useAuth();
   const { 
@@ -33,6 +40,60 @@ const Checkout = () => {
   } = useCart();
 
   const selectedItems = cartItems.filter(item => item.selected);
+
+  // Calculate shipping fee based on address and items
+  const calculateShippingFee = async (address) => {
+    if (!address || !address.city || !address.state || !address.postal_code) {
+      console.log('Address incomplete for shipping calculation:', address);
+      return;
+    }
+
+    setShippingLoading(true);
+    setShippingError(null);
+
+    try {
+      console.log('Calculating shipping fee for address:', address);
+      
+      // Calculate total weight based on items (assuming 0.5kg per item)
+      const totalWeight = selectedItems.reduce((total, item) => {
+        return total + (item.quantity * 0.5);
+      }, 0);
+
+      // Prepare address data for NinjaVan
+      const addressData = {
+        address: {
+          address1: address.address,
+          city: address.city,
+          state: address.state,
+          postcode: address.postal_code,
+          country: 'SG' // Default to Singapore
+        },
+        weight: Math.max(totalWeight, 1.0), // Minimum 1kg
+        dimensions: {
+          length: 20,
+          width: 15,
+          height: 10
+        }
+      };
+
+      const shippingEstimate = await ninjaVanService.getShippingEstimate(addressData);
+      
+      if (shippingEstimate.success) {
+        setShippingFee(shippingEstimate.estimatedFee);
+        console.log('Shipping fee calculated:', shippingEstimate.estimatedFee);
+      } else {
+        setShippingFee(50.00); // Fallback fee
+        setShippingError('Using standard shipping rate');
+        console.log('Using fallback shipping fee:', shippingEstimate.error);
+      }
+    } catch (error) {
+      console.error('Error calculating shipping fee:', error);
+      setShippingFee(50.00); // Fallback fee
+      setShippingError('Failed to calculate shipping. Using standard rate.');
+    } finally {
+      setShippingLoading(false);
+    }
+  };
 
   const getFullImageUrl = (url) => {
     if (!url) return '/placeholder-product.jpg';
@@ -134,6 +195,15 @@ const Checkout = () => {
               state: defaultAddress.province || defaultAddress.state || '',
               postal_code: defaultAddress.postcode || '',
             });
+            
+            // Calculate shipping fee with the new address
+            const addressForShipping = {
+              address: formattedAddress,
+              city: defaultAddress.city_municipality || defaultAddress.city || '',
+              state: defaultAddress.province || defaultAddress.state || '',
+              postal_code: defaultAddress.postcode || ''
+            };
+            calculateShippingFee(addressForShipping);
           }
         } catch (addressError) {
           console.error("Error fetching shipping addresses:", addressError);
@@ -178,6 +248,15 @@ const Checkout = () => {
               state: sd.state || '',
               postal_code: sd.postal_code || '',
             });
+            
+            // Calculate shipping fee with the fallback address
+            const addressForShipping = {
+              address: formattedAddress,
+              city: sd.city || '',
+              state: sd.state || '',
+              postal_code: sd.postal_code || ''
+            };
+            calculateShippingFee(addressForShipping);
           }
         } else if (!hasAddress && profileData.address) {
           // Fallback to user's main address field if available
@@ -195,6 +274,9 @@ const Checkout = () => {
               state: '',
               postal_code: '',
             });
+            
+            // Note: Cannot calculate shipping fee without city/state/postal_code
+            console.log('Cannot calculate shipping fee - missing city/state/postal code');
           }
         }
         
@@ -235,12 +317,13 @@ const Checkout = () => {
     try {
       console.log('[Checkout] Starting order process for user:', user.id);
       console.log('[Checkout] Selected items:', selectedItems.length);
+      console.log('[Checkout] Shipping fee:', shippingFee);
       
-      // Create the order
-      const orderResult = await createOrder(user.id);
+      // Create the order with shipping fee
+      const orderResult = await createOrder(user.id, shippingFee);
       console.log('[Checkout] Order created:', orderResult);
       
-      // Process payment with DragonPay
+      // Process payment with DragonPay (total includes shipping fee)
       const paymentResult = await processPayment(
         orderResult.order_id, 
         user.email || 'customer@example.com'
@@ -402,11 +485,22 @@ const Checkout = () => {
             </div>
             <div className="summary-row">
               <span>Shipping Fee</span>
-              <span>₱0.00</span>
+              <div className="shipping-fee-section">
+                {shippingLoading ? (
+                  <span className="shipping-loading">Calculating...</span>
+                ) : (
+                  <span>{formatPrice(shippingFee)}</span>
+                )}
+                {shippingError && (
+                  <div className="shipping-error">
+                    <small>{shippingError}</small>
+                  </div>
+                )}
+              </div>
             </div>
             <div className="summary-row total">
               <span>Total</span>
-              <span>{formatPrice(getTotalPrice())}</span>
+              <span>{formatPrice(getTotalPrice() + shippingFee)}</span>
             </div>
           </div>
         </div>

@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
+import ninjaVanService from '../../services/ninjaVanService';
+import CancelOrderModal from '../common/CancelOrderModal';
 import './OrderConfirmation.css';
 import NavBar from '../NavBar';
 import Footer from '../Footer';
@@ -11,9 +13,33 @@ import { FaArrowLeft } from 'react-icons/fa';
 function OrderConfirmation() {
   const { orderId } = useParams();
   const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+
+  // Handle opening cancel modal
+  const handleCancelOrder = () => {
+    setCancelModalOpen(true);
+  };
+
+  // Handle order cancellation success
+  const handleOrderCancelled = (orderId, cancelData) => {
+    // Update the order status in the local state
+    setOrder(prevOrder => ({
+      ...prevOrder,
+      order_status: 'cancelled'
+    }));
+    
+    // Close the modal
+    setCancelModalOpen(false);
+    
+    // Show success message and redirect after a delay
+    setTimeout(() => {
+      navigate('/account/purchases');
+    }, 2000);
+  };
 
   useEffect(() => {
     const fetchOrderDetails = async () => {
@@ -94,7 +120,16 @@ function OrderConfirmation() {
           <Link to="/account/purchases" className="back-link">
             <FaArrowLeft /> Back to Orders
           </Link>
-              </div>
+          {ninjaVanService.canCancelOrder(order.order_status) && (
+            <button 
+              className="cancel-order-btn" 
+              onClick={handleCancelOrder}
+              title="Cancel this order"
+            >
+              Cancel Order
+            </button>
+          )}
+          </div>
 
         <div className="order-card">
           <div className="section-title">ORDER INFORMATION</div>
@@ -189,6 +224,14 @@ function OrderConfirmation() {
             </div>
           </div>
       <Footer forceShow={false} />
+      {cancelModalOpen && order && (
+        <CancelOrderModal
+          isOpen={cancelModalOpen}
+          onClose={() => setCancelModalOpen(false)}
+          onOrderCancelled={handleOrderCancelled}
+          order={order}
+        />
+      )}
     </div>
   );
 }

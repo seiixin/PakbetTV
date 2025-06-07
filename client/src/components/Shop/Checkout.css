@@ -17,12 +17,11 @@
   background-attachment: fixed;
   position: relative;
   min-height: 100vh;
-  padding: 40px 0;
 }
 
 .checkout-container {
+  margin-top: 40px;
   max-width: 1000px;
-  margin: 0 auto;
   padding: 30px;
   background-color: white;
   border-radius: 12px;
@@ -208,6 +207,34 @@
   font-weight: 600;
   color: #800000;
   font-size: 18px;
+}
+
+/* Shipping fee section styling */
+.shipping-fee-section {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.shipping-loading {
+  color: #666;
+  font-style: italic;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+.shipping-error {
+  color: #e74c3c;
+  font-size: 11px;
+  margin-top: 2px;
+  text-align: right;
 }
 
 /* Action Buttons */
