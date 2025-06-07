@@ -183,6 +183,9 @@ router.post(
         [orderId, userId, totalPrice, payment_method, 'pending']
       );
 
+      // Clear the user's cart after successful order creation
+      await connection.query('DELETE FROM cart WHERE user_id = ?', [userId]);
+
       await connection.commit();
       let deliveryInfo = null;
       if (payment_method === 'cod' || payment_method === 'credit_card') {

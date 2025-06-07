@@ -11,78 +11,140 @@ export const useCart = () => useContext(CartContext);
 
 export const CartProvider = ({ children }) => {
   const { user } = useAuth();
-  const [cartItems, setCartItems] = useState(() => {
-    // Initialize cart items from storage on mount
-    try {
-      const userId = user?.id || 'guest';
-      console.log('[CartContext] Initializing cart for user:', userId);
-      const savedCart = getCart(userId);
-      console.log('[CartContext] Initial cart data:', savedCart);
-      return savedCart || [];
-    } catch (error) {
-      console.error('[CartContext] Error initializing cart:', error);
-      return [];
-    }
-  });
+  const [cartItems, setCartItems] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  // Load cart from storage whenever user changes
+  // Load cart data based on user authentication status
   useEffect(() => {
-    const loadCart = () => {
-      try {
-        const userId = user?.id || 'guest';
-        console.log('[CartContext] Loading cart for user:', userId);
-        const savedCart = getCart(userId);
-        console.log('[CartContext] Loaded cart data:', savedCart);
-        
-        if (Array.isArray(savedCart) && savedCart.length > 0) {
-          console.log('[CartContext] Setting cart items:', savedCart.length, 'items');
-          setCartItems(savedCart);
-        } else {
-          console.log('[CartContext] No valid cart data found');
-        }
-      } catch (error) {
-        console.error('[CartContext] Error loading cart:', error);
+    const loadCart = async () => {
+      if (user?.id) {
+        // User is logged in - fetch cart from database
+        await fetchCartFromDatabase();
+        // Merge guest cart if exists
+        await mergeGuestCartWithUserCart();
+      } else {
+        // User is not logged in - load from localStorage
+        loadCartFromStorage();
       }
     };
-    
+
     loadCart();
   }, [user]);
 
-  // Save cart to storage whenever cartItems changes
-  useEffect(() => {
+  // Fetch cart from database for authenticated users
+  const fetchCartFromDatabase = async () => {
+    if (!user?.id) return;
+    
+    setLoading(true);
+    try {
+      const response = await api.get('/cart');
+      const dbCartItems = response.data.map(item => ({
+        cart_id: item.cart_id,
+        id: item.product_id,
+        product_id: item.product_id,
+        variant_id: item.variant_id,
+        name: item.product_name,
+        product_name: item.product_name,
+        price: parseFloat(item.price),
+        quantity: item.quantity,
+        stock: item.stock,
+        image_url: getFullImageUrl(item.image_url),
+        size: item.size,
+        color: item.color,
+        sku: item.sku,
+        selected: true // Default to selected
+      }));
+      
+      console.log('[CartContext] Loaded cart from database:', dbCartItems);
+      setCartItems(dbCartItems);
+    } catch (error) {
+      console.error('[CartContext] Error fetching cart from database:', error);
+      // Fallback to localStorage on error
+      loadCartFromStorage();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load cart from localStorage for guest users
+  const loadCartFromStorage = () => {
     try {
       const userId = user?.id || 'guest';
-      console.log('[CartContext] Saving cart for user:', userId, 'Items:', cartItems);
+      console.log('[CartContext] Loading cart from storage for user:', userId);
+      const savedCart = getCart(userId);
+      console.log('[CartContext] Loaded cart data from storage:', savedCart);
       
-      if (Array.isArray(cartItems)) {
-        setCart(cartItems, userId);
-        console.log('[CartContext] Cart saved successfully');
+      if (Array.isArray(savedCart) && savedCart.length > 0) {
+        setCartItems(savedCart);
       } else {
-        console.warn('[CartContext] Invalid cart data, not saving:', cartItems);
+        setCartItems([]);
       }
     } catch (error) {
-      console.error('[CartContext] Error saving cart:', error);
+      console.error('[CartContext] Error loading cart from storage:', error);
+      setCartItems([]);
     }
-  }, [cartItems, user]);
+  };
 
-  const addToCart = (product, quantity = 1) => {
+  // Save cart to storage for guest users
+  const saveCartToStorage = (items) => {
+    if (user?.id) return; // Don't save to storage if user is logged in
+    
+    try {
+      const userId = 'guest';
+      setCart(items, userId);
+      console.log('[CartContext] Cart saved to storage for guest user');
+    } catch (error) {
+      console.error('[CartContext] Error saving cart to storage:', error);
+    }
+  };
+
+  // Add item to cart with database sync
+  const addToCart = async (product, quantity = 1) => {
     console.log('[CartContext] Adding to cart:', { product, quantity });
     
-    // Ensure image URL is properly formatted before adding to cart
+    // Ensure image URL is properly formatted
     const productWithProperImageUrl = {
       ...product,
       image_url: product.image_url ? getFullImageUrl(product.image_url) : '/placeholder-product.jpg'
     };
     
+    if (user?.id) {
+      // User is logged in - sync with database
+      try {
+        setLoading(true);
+        const response = await api.post('/cart', {
+          product_id: product.id || product.product_id,
+          variant_id: product.variant_id || null,
+          quantity: quantity
+        });
+        
+        console.log('[CartContext] Item added to database cart:', response.data);
+        
+        // Refresh cart from database
+        await fetchCartFromDatabase();
+      } catch (error) {
+        console.error('[CartContext] Error adding item to database cart:', error);
+        // Fallback to local cart update
+        updateLocalCart(productWithProperImageUrl, quantity);
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      // Guest user - update local cart
+      updateLocalCart(productWithProperImageUrl, quantity);
+    }
+  };
+
+  // Update local cart state
+  const updateLocalCart = (product, quantity) => {
     setCartItems(prevItems => {
-      // Ensure prevItems is always an array
       const currentItems = Array.isArray(prevItems) ? prevItems : [];
       
       const existingItemIndex = currentItems.findIndex(item => {
         if (product.variant_id && item.variant_id) {
           return item.variant_id === product.variant_id;
         }
-        return item.id === product.id;
+        return (item.id || item.product_id) === (product.id || product.product_id);
       });
       
       let updatedItems;
@@ -94,77 +156,219 @@ export const CartProvider = ({ children }) => {
           selected: true
         };
       } else {
-        updatedItems = [...currentItems, { ...productWithProperImageUrl, quantity, selected: true }];
+        updatedItems = [...currentItems, { 
+          ...product, 
+          quantity, 
+          selected: true,
+          id: product.id || product.product_id,
+          product_id: product.id || product.product_id
+        }];
       }
       
-      console.log('[CartContext] Updated cart items:', updatedItems);
+      // Save to storage for guest users
+      if (!user?.id) {
+        saveCartToStorage(updatedItems);
+      }
+      
+      console.log('[CartContext] Updated local cart items:', updatedItems);
       return updatedItems;
     });
   };
 
-  const removeFromCart = (productId, variantId = null) => {
+  // Remove item from cart with database sync
+  const removeFromCart = async (productId, variantId = null, cartId = null) => {
+    if (user?.id && cartId) {
+      // User is logged in - sync with database
+      try {
+        setLoading(true);
+        await api.delete(`/cart/${cartId}`);
+        console.log('[CartContext] Item removed from database cart');
+        
+        // Update local state
+        setCartItems(prevItems => 
+          prevItems.filter(item => item.cart_id !== cartId)
+        );
+      } catch (error) {
+        console.error('[CartContext] Error removing item from database cart:', error);
+        // Fallback to local removal
+        removeFromLocalCart(productId, variantId);
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      // Guest user - update local cart
+      removeFromLocalCart(productId, variantId);
+    }
+  };
+
+  // Remove from local cart
+  const removeFromLocalCart = (productId, variantId = null) => {
     setCartItems(prevItems => {
       const updatedItems = prevItems.filter(item => {
         if (variantId && item.variant_id) {
           return item.variant_id !== variantId;
         }
-        return item.id !== productId;
+        return (item.id || item.product_id) !== productId;
       });
+      
+      // Save to storage for guest users
+      if (!user?.id) {
+        saveCartToStorage(updatedItems);
+      }
+      
       return updatedItems;
     });
   };
 
-  const removeSelectedItems = () => {
-    setCartItems(prevItems => prevItems.filter(item => !item.selected));
+  // Remove selected items
+  const removeSelectedItems = async () => {
+    const selectedItems = cartItems.filter(item => item.selected);
+    
+    if (user?.id) {
+      // User is logged in - remove from database
+      try {
+        setLoading(true);
+        for (const item of selectedItems) {
+          if (item.cart_id) {
+            await api.delete(`/cart/${item.cart_id}`);
+          }
+        }
+        
+        // Update local state
+        setCartItems(prevItems => prevItems.filter(item => !item.selected));
+        console.log('[CartContext] Selected items removed from database cart');
+      } catch (error) {
+        console.error('[CartContext] Error removing selected items from database:', error);
+        // Fallback to local removal
+        const updatedItems = cartItems.filter(item => !item.selected);
+        setCartItems(updatedItems);
+        saveCartToStorage(updatedItems);
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      // Guest user - update local cart
+      const updatedItems = cartItems.filter(item => !item.selected);
+      setCartItems(updatedItems);
+      saveCartToStorage(updatedItems);
+    }
   };
 
-  const updateQuantity = (productId, quantity, variantId = null) => {
+  // Update quantity with database sync
+  const updateQuantity = async (productId, quantity, variantId = null, cartId = null) => {
     if (quantity <= 0) {
-      removeFromCart(productId, variantId);
+      await removeFromCart(productId, variantId, cartId);
       return;
     }
     
+    if (user?.id && cartId) {
+      // User is logged in - sync with database
+      try {
+        setLoading(true);
+        await api.put(`/cart/${cartId}`, { quantity });
+        
+        // Update local state
+        setCartItems(prevItems => 
+          prevItems.map(item => 
+            item.cart_id === cartId ? { ...item, quantity } : item
+          )
+        );
+        console.log('[CartContext] Quantity updated in database cart');
+      } catch (error) {
+        console.error('[CartContext] Error updating quantity in database:', error);
+        // Fallback to local update
+        updateLocalQuantity(productId, quantity, variantId);
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      // Guest user - update local cart
+      updateLocalQuantity(productId, quantity, variantId);
+    }
+  };
+
+  // Update local quantity
+  const updateLocalQuantity = (productId, quantity, variantId = null) => {
     setCartItems(prevItems => {
       const updatedItems = prevItems.map(item => {
         if (variantId && item.variant_id) {
           return item.variant_id === variantId ? { ...item, quantity } : item;
         }
-        return item.id === productId ? { ...item, quantity } : item;
+        return (item.id || item.product_id) === productId ? { ...item, quantity } : item;
       });
+      
+      // Save to storage for guest users
+      if (!user?.id) {
+        saveCartToStorage(updatedItems);
+      }
+      
       return updatedItems;
     });
   };
 
-  const toggleItemSelection = (productId, variantId = null) => {
-    setCartItems(prevItems => 
-      prevItems.map(item => {
+  // Toggle item selection (local only - no database sync needed)
+  const toggleItemSelection = (productId, variantId = null, cartId = null) => {
+    setCartItems(prevItems => {
+      const updatedItems = prevItems.map(item => {
+        if (cartId && item.cart_id === cartId) {
+          return { ...item, selected: !item.selected };
+        }
         if (variantId && item.variant_id) {
           return item.variant_id === variantId ? { ...item, selected: !item.selected } : item;
         }
-        return item.id === productId ? { ...item, selected: !item.selected } : item;
-      })
-    );
+        return (item.id || item.product_id) === productId ? { ...item, selected: !item.selected } : item;
+      });
+      
+      // Save to storage for guest users
+      if (!user?.id) {
+        saveCartToStorage(updatedItems);
+      }
+      
+      return updatedItems;
+    });
   };
 
+  // Toggle select all (local only - no database sync needed)
   const toggleSelectAll = (selectAll) => {
-    setCartItems(prevItems => 
-      prevItems.map(item => ({ ...item, selected: selectAll }))
-    );
+    setCartItems(prevItems => {
+      const updatedItems = prevItems.map(item => ({ ...item, selected: selectAll }));
+      
+      // Save to storage for guest users
+      if (!user?.id) {
+        saveCartToStorage(updatedItems);
+      }
+      
+      return updatedItems;
+    });
   };
 
-  const clearCart = () => {
-    setCartItems([]);
-    // Clear from cookies too
-    try {
-      const userId = user?.id || 'guest';
-      removeCart(userId);
-    } catch (err) {
-      console.error('Failed to clear cart from cookies:', err);
+  // Clear cart with database sync
+  const clearCart = async () => {
+    if (user?.id) {
+      // User is logged in - clear database cart
+      try {
+        setLoading(true);
+        await api.delete('/cart');
+        console.log('[CartContext] Database cart cleared');
+      } catch (error) {
+        console.error('[CartContext] Error clearing database cart:', error);
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      // Guest user - clear storage
+      try {
+        removeCart('guest');
+      } catch (err) {
+        console.error('Failed to clear cart from cookies:', err);
+      }
     }
+    
+    setCartItems([]);
   };
 
   // Merge guest cart with user cart when logging in
-  const mergeGuestCartWithUserCart = () => {
+  const mergeGuestCartWithUserCart = async () => {
     if (!user?.id) {
       console.log('Cannot merge carts: user not logged in');
       return; 
@@ -172,17 +376,35 @@ export const CartProvider = ({ children }) => {
     
     try {
       const guestCart = getCart('guest');
-      console.log(`Merging guest cart (${guestCart.length} items) with user cart (${cartItems.length} items)`);
+      console.log(`Merging guest cart (${guestCart?.length || 0} items) with user cart`);
       
-      if (guestCart.length > 0) {
-        guestCart.forEach(item => {
-          addToCart(item, item.quantity);
-        });
+      if (guestCart && guestCart.length > 0) {
+        setLoading(true);
+        
+        // Add each guest cart item to the database
+        for (const item of guestCart) {
+          try {
+            await api.post('/cart', {
+              product_id: item.id || item.product_id,
+              variant_id: item.variant_id || null,
+              quantity: item.quantity
+            });
+          } catch (error) {
+            console.error('Error adding guest cart item to database:', error);
+          }
+        }
+        
+        // Clear guest cart
         removeCart('guest');
         console.log('Guest cart merged and removed');
+        
+        // Refresh cart from database
+        await fetchCartFromDatabase();
+        setLoading(false);
       }
     } catch (error) {
       console.error('Error merging guest cart with user cart:', error);
+      setLoading(false);
     }
   };
 
@@ -262,11 +484,7 @@ export const CartProvider = ({ children }) => {
         }
       });
 
-      console.log('[CartContext] Payment processing response:', response.data);
-
-      // Clear selected items from cart after successful payment initiation
-      setCartItems(prevItems => prevItems.filter(item => !item.selected));
-      
+      console.log('[CartContext] Payment processed successfully:', response.data);
       return response.data;
     } catch (error) {
       console.error('[CartContext] Error processing payment:', error);
@@ -274,42 +492,47 @@ export const CartProvider = ({ children }) => {
     }
   };
 
+  // Calculate total price of selected items
   const getTotalPrice = () => {
     return cartItems
       .filter(item => item.selected)
       .reduce((total, item) => {
-        const price = item.is_flash_deal && item.discount_percentage
-          ? item.price - (item.price * item.discount_percentage / 100)
-          : item.price;
-        return total + (price * item.quantity);
+        return total + (parseFloat(item.price) * item.quantity);
       }, 0);
   };
 
+  // Get count of selected items
   const getSelectedCount = () => {
     return cartItems.filter(item => item.selected).length;
   };
 
+  // Get total count of all items
   const getTotalCount = () => {
-    return cartItems.reduce((count, item) => count + item.quantity, 0);
+    return cartItems.reduce((total, item) => total + item.quantity, 0);
+  };
+
+  // Context value with all cart functions and state
+  const value = {
+    cartItems,
+    loading,
+    addToCart,
+    removeFromCart,
+    removeSelectedItems,
+    updateQuantity,
+    toggleItemSelection,
+    toggleSelectAll,
+    clearCart,
+    mergeGuestCartWithUserCart,
+    fetchCartFromDatabase,
+    createOrder,
+    processPayment,
+    getTotalPrice,
+    getSelectedCount,
+    getTotalCount
   };
 
   return (
-    <CartContext.Provider value={{
-      cartItems,
-      addToCart,
-      removeFromCart,
-      removeSelectedItems,
-      updateQuantity,
-      clearCart,
-      getTotalPrice,
-      getTotalCount,
-      toggleItemSelection,
-      toggleSelectAll,
-      getSelectedCount,
-      mergeGuestCartWithUserCart,
-      createOrder,
-      processPayment
-    }}>
+    <CartContext.Provider value={value}>
       {children}
     </CartContext.Provider>
   );

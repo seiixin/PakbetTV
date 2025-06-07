@@ -20,8 +20,8 @@ BEGIN
         v.price,
         v.stock,
         v.image_url,
-        v.size,
-        v.color,
+        JSON_UNQUOTE(JSON_EXTRACT(v.attributes, '$.Size')) AS size,
+        JSON_UNQUOTE(JSON_EXTRACT(v.attributes, '$.Color')) AS color,
         v.sku
     FROM cart c
     JOIN products p ON c.product_id = p.product_id
@@ -32,8 +32,7 @@ BEGIN
             price, 
             stock, 
             image_url, 
-            size, 
-            color, 
+            attributes,
             sku
         FROM product_variants
     ) v ON (c.variant_id = v.variant_id OR (c.variant_id IS NULL AND v.product_id = c.product_id))

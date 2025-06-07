@@ -279,8 +279,6 @@ router.get('/', async (req, res) => {
         p.price as base_price,
         p.average_rating,
         p.review_count,
-        p.discounted_price,
-        p.discount_percentage,
         COALESCE(SUM(pv.stock), 0) as stock,
         GROUP_CONCAT(DISTINCT pv.image_url) as variant_images
       FROM products p
@@ -300,7 +298,7 @@ router.get('/', async (req, res) => {
       countQueryParams.push(category);
     }
 
-    productQuery += ' GROUP BY p.product_id, p.name, p.product_code, p.description, p.category_id, p.created_at, p.updated_at, c.name, p.price, p.discounted_price, p.discount_percentage, p.is_featured';
+    productQuery += ' GROUP BY p.product_id, p.name, p.product_code, p.description, p.category_id, p.created_at, p.updated_at, c.name, p.price, p.is_featured';
     productQuery += ' ORDER BY p.created_at DESC LIMIT ? OFFSET ?';
     queryParams.push(limit, offset);
 
@@ -321,8 +319,8 @@ router.get('/', async (req, res) => {
       for (const product of products) {
         // Ensure numeric values are properly formatted
         product.price = Number(product.base_price) || 0;
-        product.discounted_price = Number(product.discounted_price) || 0;
-        product.discount_percentage = Number(product.discount_percentage) || 0;
+        product.discounted_price = 0; // Default to 0 since column doesn't exist
+        product.discount_percentage = 0; // Default to 0 since column doesn't exist
         product.average_rating = product.average_rating !== null ? Number(product.average_rating) : 0;
         product.review_count = Number(product.review_count) || 0;
         product.stock = Number(product.stock) || 0;

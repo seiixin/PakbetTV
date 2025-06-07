@@ -37,6 +37,9 @@ const Cart = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // Check if all items are selected
+  const allSelected = cartItems.length > 0 && cartItems.every(item => item.selected);
+
   const getFullImageUrl = (url) => {
     if (!url) return '/placeholder-product.jpg';
     
@@ -68,6 +71,47 @@ const Cart = () => {
     
     // Any other format
     return `${API_BASE_URL}/uploads/${url}`;
+  };
+
+  const handleQuantityChange = async (item, newQuantity) => {
+    if (newQuantity < 1) return;
+    
+    await updateQuantity(
+      item.id || item.product_id, 
+      newQuantity, 
+      item.variant_id, 
+      item.cart_id
+    );
+  };
+
+  const handleRemoveItem = async (item) => {
+    await removeFromCart(
+      item.id || item.product_id, 
+      item.variant_id, 
+      item.cart_id
+    );
+  };
+
+  const handleToggleSelection = (item) => {
+    toggleItemSelection(
+      item.id || item.product_id, 
+      item.variant_id, 
+      item.cart_id
+    );
+  };
+
+  const handleRemoveSelected = async () => {
+    if (getSelectedCount() === 0) {
+      setError('No items selected for removal');
+      return;
+    }
+    
+    try {
+      await removeSelectedItems();
+      setError(null);
+    } catch (err) {
+      setError('Failed to remove selected items');
+    }
   };
 
   useEffect(() => {
@@ -130,14 +174,6 @@ const Cart = () => {
     navigate('/shop');
   };
 
-  const handleDeleteSelected = () => {
-    if (getSelectedCount() > 0) {
-      if (window.confirm(`Are you sure you want to remove ${getSelectedCount()} selected item(s)?`)) {
-        removeSelectedItems(); 
-      }
-    }
-  };
-
   const renderCartItem = (item) => {
     const itemTotalPrice = calculateDiscountedPrice(item) * item.quantity;
     const displayPrice = calculateDiscountedPrice(item);
@@ -151,7 +187,7 @@ const Cart = () => {
               <input
                 type="checkbox"
                 checked={item.selected}
-                onChange={() => toggleItemSelection(item.product_id, item.variant_id)}
+                onChange={() => handleToggleSelection(item)}
               />
             </div>
             <div className="cart-item-product-new">
@@ -191,7 +227,7 @@ const Cart = () => {
               <div className="cart-quantity-input-new">
                 <button 
                   className="cart-quantity-btn-new" 
-                  onClick={() => updateQuantity(item.product_id, item.quantity - 1, item.variant_id)}
+                  onClick={() => handleQuantityChange(item, item.quantity - 1)}
                   disabled={item.quantity <= 1}
                 >
                   -
@@ -199,13 +235,13 @@ const Cart = () => {
                 <input
                   type="number"
                   value={item.quantity}
-                  onChange={(e) => updateQuantity(item.product_id, parseInt(e.target.value) || 1, item.variant_id)}
+                  onChange={(e) => handleQuantityChange(item, parseInt(e.target.value) || 1)}
                   min="1"
                   max={item.stock_quantity || 99}
                 />
                 <button 
                   className="cart-quantity-btn-new" 
-                  onClick={() => updateQuantity(item.product_id, item.quantity + 1, item.variant_id)}
+                  onClick={() => handleQuantityChange(item, item.quantity + 1)}
                   disabled={item.quantity >= (item.stock_quantity || 99)}
                 >
                   +
@@ -215,7 +251,7 @@ const Cart = () => {
             <div className="cart-item-actions-new">
               <button 
                 className="cart-delete-button-new"
-                onClick={() => removeFromCart(item.product_id, item.variant_id)}
+                onClick={() => handleRemoveItem(item)}
               >
                 Delete
               </button>
@@ -232,7 +268,7 @@ const Cart = () => {
                     <input
                       type="checkbox"
                       checked={item.selected}
-                      onChange={() => toggleItemSelection(item.product_id, item.variant_id)}
+                      onChange={() => handleToggleSelection(item)}
                     />
                   </div>
                   <div className="cart-item-product-new">
@@ -267,7 +303,7 @@ const Cart = () => {
                     <div className="cart-quantity-input-new">
                       <button 
                         className="cart-quantity-btn-new" 
-                        onClick={() => updateQuantity(item.product_id, item.quantity - 1, item.variant_id)}
+                        onClick={() => handleQuantityChange(item, item.quantity - 1)}
                         disabled={item.quantity <= 1}
                       >
                         -
@@ -275,13 +311,13 @@ const Cart = () => {
                       <input
                         type="number"
                         value={item.quantity}
-                        onChange={(e) => updateQuantity(item.product_id, parseInt(e.target.value) || 1, item.variant_id)}
+                        onChange={(e) => handleQuantityChange(item, parseInt(e.target.value) || 1)}
                         min="1"
                         max={item.stock_quantity || 99}
                       />
                       <button 
                         className="cart-quantity-btn-new" 
-                        onClick={() => updateQuantity(item.product_id, item.quantity + 1, item.variant_id)}
+                        onClick={() => handleQuantityChange(item, item.quantity + 1)}
                         disabled={item.quantity >= (item.stock_quantity || 99)}
                       >
                         +
@@ -294,7 +330,7 @@ const Cart = () => {
                   <div className="cart-item-actions-new">
                     <button 
                       className="cart-delete-button-new"
-                      onClick={() => removeFromCart(item.product_id, item.variant_id)}
+                      onClick={() => handleRemoveItem(item)}
                     >
                       Delete
                     </button>
@@ -334,14 +370,19 @@ const Cart = () => {
     );
   }
 
-  const allSelected = cartItems.length > 0 && cartItems.every(item => item.selected);
-
   return (
     <div className="cart-page">
       <NavBar />
       <div className="cart-shop-container">
         <div className="cart-container cart-redesign">
           {error && <div className="cart-error-message">{error}</div>}
+          
+          {loading && (
+            <div className="cart-loading-message">
+              <div className="loading-spinner"></div>
+              <span>Updating cart...</span>
+            </div>
+          )}
           
           {/* Desktop header - hidden on mobile */}
           {!isMobile && (
@@ -378,7 +419,7 @@ const Cart = () => {
              </div>
              <button 
                className="cart-footer-delete-button-new"
-               onClick={handleDeleteSelected}
+               onClick={handleRemoveSelected}
                disabled={getSelectedCount() === 0}
              >
                Delete
