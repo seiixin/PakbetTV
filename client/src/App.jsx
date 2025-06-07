@@ -19,6 +19,7 @@ import Cart from './components/Shop/Cart'
 import Checkout from './components/Shop/Checkout'
 import TransactionComplete from './components/Shop/TransactionComplete'
 import ProsperGuide from './components/Guides/ProsperGuide'
+import ProductPageGuide from './components/ProductGuide/ProductPageGuide'
 import Horoscope from './components/Horoscope/Horoscope'
 import OrderTracking from './pages/OrderTracking'
 import SocialAuthSuccess from './components/Auth/SocialAuthSuccess'
@@ -82,6 +83,7 @@ function AppContent() {
         <Route path="/transaction-complete" element={<TransactionComplete />} />
         <Route path="/payment/confirmation" element={<TransactionComplete />} />
         <Route path="/prosper-guide/:sign" element={<ProsperGuide />} />
+        <Route path="/product-guide" element={<ProductPageGuide />} />
         <Route path="/horoscope" element={<Horoscope />} />
         <Route path="/blog" element={<Blog />} />
         <Route path="/blog/:blogID" element={<BlogDetail />} />

@@ -407,7 +407,7 @@ const NavBar = () => {
                 <span className="navbar-navbar-link">Free Tools</span>
                 <div className="navbar-submenu">
                   <Link to="/bazi-calculator" className="navbar-submenu-link">BaZi Calculator</Link>
-                  <Link to="/shop" className="navbar-submenu-link">Product Guide</Link>
+                  <Link to="/product-guide" className="navbar-submenu-link">Product Guide</Link>
                 </div>
               </li>
               <li className="navbar-navbar-item">
@@ -535,7 +535,7 @@ const NavBar = () => {
             </svg>
             <span>BaZi Calculator</span>
           </Link>
-          <Link to="/shop" className="mobile-nav-link" onClick={handleMobileNavClick} style={{paddingLeft: '40px', fontSize: '14px'}}>
+          <Link to="/product-guide" className="mobile-nav-link" onClick={handleMobileNavClick} style={{paddingLeft: '40px', fontSize: '14px'}}>
             <span>Product Guide</span>
           </Link>
           <Link to="/contact" className="mobile-nav-link" onClick={handleMobileNavClick}>
