@@ -34,7 +34,7 @@
 
 /* Left Navigation */
 .left-navigation {
-  width: 240px;
+  width: 180px; /* Reduced from 240px */
   flex-shrink: 0;
   background-color: white;
   border-radius: 8px;
@@ -42,6 +42,7 @@
   height: fit-content;
   position: sticky;
   top: 100px;
+  z-index: 500; /* Maintain consistent z-index on mobile */
 }
 
 .nav-menu {
@@ -3836,103 +3837,82 @@
 
 /* Mobile Responsive Styles for New Layout */
 @media (max-width: 768px) {
-  /* Mobile Layout - Stack navigation and content */
+  /* Mobile Layout - Keep side-by-side layout but make navigation smaller */
   .shop-main-layout {
-    flex-direction: column;
+    flex-direction: row; /* Keep side-by-side layout */
     padding: 1rem 0.5rem;
     gap: 1rem;
   }
 
-  /* Left Navigation - Convert to horizontal on mobile */
+  /* Left Navigation - Keep as sidebar but make it smaller */
   .left-navigation {
-    width: 100%;
-    position: static;
-    order: 2; /* Show after main content */
-    margin-top: 1rem;
-    top: auto;
+    width: 180px; /* Reduced from 240px */
+    flex-shrink: 0;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    height: fit-content;
+    position: sticky;
+    top: 100px;
+    z-index: 500; /* Maintain z-index consistency */
   }
 
   .nav-menu {
-    display: flex;
-    overflow-x: auto;
-    padding: 0.5rem;
-    gap: 0.5rem;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-  }
-
-  .nav-menu::-webkit-scrollbar {
-    display: none;
+    padding: 0.5rem 0; /* Reduced padding */
   }
 
   .nav-item {
-    flex: 0 0 auto;
-    min-width: 100px;
-    padding: 0.5rem 0.75rem;
-    border-bottom: none;
-    border-radius: 6px;
-    border: 1px solid #eee;
-    background-color: white;
-    flex-direction: column;
-    text-align: center;
-    gap: 0.25rem;
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 1rem; /* Reduced padding */
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-bottom: 1px solid #f5f5f5;
+    position: relative;
   }
 
   .nav-icon {
-    margin-right: 0;
-    margin-bottom: 0.25rem;
-    width: 20px;
+    width: 20px; /* Smaller icons */
     height: 20px;
+    margin-right: 8px; /* Reduced margin */
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .nav-icon img {
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
     object-fit: contain;
   }
 
-  /* Fallback for missing navigation icons */
-  .nav-icon img[src*="whats-new"]::before,
-  .nav-icon img[src*="best-sellers"]::before,
-  .nav-icon img[src*="flash-deals"]::before,
-  .nav-icon img[src*="amulets"]::before,
-  .nav-icon img[src*="home-decor"]::before,
-  .nav-icon img[src*="bracelets"]::before,
-  .nav-icon img[src*="books"]::before,
-  .nav-icon img[src*="fashion"]::before,
-  .nav-icon img[src*="incense"]::before,
-  .nav-icon img[src*="windchimes"]::before {
-    content: '';
-    display: block;
-    width: 20px;
-    height: 20px;
-    background-color: #A2201A;
-    border-radius: 50%;
-  }
-
-  /* Navigation icon colors for better visibility */
-  .nav-item:hover .nav-icon img {
-    filter: brightness(0) saturate(100%) invert(17%) sepia(88%) saturate(6156%) hue-rotate(355deg) brightness(95%) contrast(87%);
+  .nav-icon i {
+    font-size: 14px; /* Smaller font size */
+    color: #A2201A;
+    transition: color 0.2s ease;
   }
 
   .nav-text {
-    font-size: 0.6rem;
-    line-height: 1.1;
-    white-space: normal;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+    font-size: 0.75rem; /* Smaller text */
+    font-weight: 500;
+    color: #333;
+    flex-grow: 1;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    line-height: 1.2;
   }
 
   .nav-arrow {
-    display: none;
+    font-size: 0.6rem;
+    color: #A2201A;
+    margin-left: auto;
   }
 
   /* Main content mobile styles */
   .main-content {
-    order: 1;
+    flex: 1;
+    min-width: 0;
   }
 
   .main-content h1 {
@@ -3942,53 +3922,82 @@
     margin-bottom: 15px;
   }
 
-  /* Show mobile quick navigation on mobile */
+  /* Hide mobile quick navigation since we have the sidebar */
   .mobile-quick-nav {
-    display: block !important;
-  }
-
-  .mobile-quick-nav-text {
-    font-size: 0.65rem;
-    max-width: 75px;
-  }
-
-  .mobile-quick-nav-icon {
-    width: 28px;
-    height: 28px;
-  }
-
-  .mobile-quick-nav-icon i {
-    font-size: 14px;
+    display: none !important;
   }
 }
 
 @media (max-width: 480px) {
   .shop-main-layout {
     padding: 0.5rem 0.25rem;
+    gap: 0.5rem;
+  }
+
+  /* Even smaller navigation for very small screens */
+  .left-navigation {
+    width: 150px; /* Further reduced width */
+    z-index: 500; /* Maintain z-index consistency */
   }
 
   .nav-item {
-    min-width: 90px;
-    padding: 0.4rem 0.6rem;
+    padding: 0.4rem 0.75rem;
   }
 
   .nav-text {
-    font-size: 0.55rem;
+    font-size: 0.7rem;
+  }
+
+  .nav-icon {
+    width: 18px;
+    height: 18px;
+    margin-right: 6px;
+  }
+
+  .nav-icon img {
+    width: 16px;
+    height: 16px;
+  }
+
+  .nav-icon i {
+    font-size: 12px;
   }
 }
 
 @media (max-width: 360px) {
   .shop-main-layout {
     padding: 0.25rem;
+    gap: 0.25rem;
+  }
+
+  /* Minimal navigation for extra small screens */
+  .left-navigation {
+    width: 120px;
+    z-index: 500; /* Maintain z-index consistency */
   }
 
   .nav-item {
-    min-width: 80px;
     padding: 0.3rem 0.5rem;
   }
 
   .nav-text {
-    font-size: 0.5rem;
+    font-size: 0.65rem;
+    letter-spacing: 0.2px;
+  }
+
+  .nav-icon {
+    width: 16px;
+    height: 16px;
+    margin-right: 4px;
+  }
+
+  .nav-icon img {
+    width: 14px;
+    height: 14px;
+  }
+
+  .nav-icon i {
+    font-size: 11px;
   }
 }
 
@@ -4007,7 +4016,7 @@
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   min-width: 200px;
-  z-index: 1000;
+  z-index: 600; /* Ensure dropdowns appear above navigation but below navbar dropdowns */
   opacity: 0;
   visibility: hidden;
   transform: translateY(-10px);
@@ -4056,13 +4065,55 @@
 }
 
 /* Hide dropdowns on mobile */
-.nav-dropdown {
-  display: none !important;
+@media (max-width: 768px) {
+  .nav-dropdown {
+    display: block !important; /* Changed from none to block to show dropdowns */
+    position: static !important; /* Make dropdowns part of normal flow on mobile */
+    background: rgba(162, 32, 26, 0.05) !important;
+    border-radius: 4px !important;
+    margin-top: 0.5rem !important;
+    padding: 0.5rem !important;
+    border: 1px solid rgba(162, 32, 26, 0.1) !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    transform: none !important;
+    box-shadow: none !important;
+  }
+
+  .nav-dropdown-item {
+    padding: 0.4rem 0.6rem !important;
+    margin-bottom: 0.2rem !important;
+    border-radius: 3px !important;
+    background: white !important;
+    border: 1px solid #eee !important;
+  }
+
+  .nav-dropdown-item:hover {
+    background: #f8f9fa !important;
+    border-color: #A2201A !important;
+  }
+
+  .nav-dropdown-icon {
+    width: 16px !important;
+    height: 16px !important;
+  }
+
+  .nav-dropdown-text {
+    font-size: 0.75rem !important;
+  }
 }
 
 /* Make expandable items function like regular items on mobile */
-.nav-item.expandable {
-  position: static;
+@media (max-width: 768px) {
+  .nav-item.expandable {
+    position: static;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+  }
+
+  .nav-arrow {
+    display: none !important; /* Hide arrows on mobile since dropdowns are always visible */
+  }
 }
 
 /* Mobile Sidebar - Now Hidden */

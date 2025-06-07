@@ -27,7 +27,64 @@ const ProductPage = () => {
   const [categories, setCategories] = useState([
     { id: 'all', name: 'All Products', image: '/All-Products.svg' }
   ]);
+  const [categoryMapping, setCategoryMapping] = useState(new Map());
   const navigate = useNavigate();
+
+  // Create a mapping function to match navigation items with database categories
+  const createCategoryMapping = (dbCategories) => {
+    const mapping = new Map();
+    
+    // Navigation items to search for
+    const navigationItems = [
+      { navId: 'amulets', searchTerms: ['amulet', 'amulets'] },
+      { navId: 'feng shui fashion', searchTerms: ['feng shui fashion', 'fashion', 'jewelry'] },
+      { navId: 'incense & space clearing', searchTerms: ['incense', 'space clearing', 'incense & space clearing'] },
+      { navId: 'feng shui bracelets', searchTerms: ['bracelet', 'bracelets', 'feng shui bracelet'] },
+      { navId: 'feng shui books', searchTerms: ['book', 'books', 'feng shui book'] },
+      { navId: 'auspicious home decor', searchTerms: ['home decor', 'decor', 'auspicious'] },
+      { navId: 'windchimes', searchTerms: ['windchime', 'windchimes', 'wind chime'] },
+      // Subcategories
+      { navId: 'keychains', searchTerms: ['keychain', 'keychains'] },
+      { navId: 'medallions', searchTerms: ['medallion', 'medallions'] },
+      { navId: 'plaque', searchTerms: ['plaque', 'plaques'] },
+      { navId: 'talisman card', searchTerms: ['talisman', 'card', 'talisman card'] },
+      { navId: 'earrings', searchTerms: ['earring', 'earrings'] },
+      { navId: 'necklaces', searchTerms: ['necklace', 'necklaces'] },
+      { navId: 'pendants', searchTerms: ['pendant', 'pendants'] },
+      { navId: 'rings', searchTerms: ['ring', 'rings'] },
+      { navId: 'scarves & shawls', searchTerms: ['scarf', 'scarves', 'shawl', 'shawls'] },
+      { navId: 'wallets', searchTerms: ['wallet', 'wallets'] },
+      { navId: 'incense holder & burner', searchTerms: ['incense holder', 'incense burner', 'holder', 'burner'] },
+      { navId: 'incense sticks', searchTerms: ['incense stick', 'incense sticks', 'stick'] },
+      { navId: 'singing bowl', searchTerms: ['singing bowl', 'bowl'] },
+      { navId: 'smudge kit', searchTerms: ['smudge', 'smudge kit'] },
+      { navId: 'wishing paper', searchTerms: ['wishing paper', 'paper'] }
+    ];
+
+    // Map each navigation item to matching database categories
+    navigationItems.forEach(navItem => {
+      const matchingCategories = dbCategories.filter(dbCat => {
+        const dbName = dbCat.name.toLowerCase();
+        return navItem.searchTerms.some(term => 
+          dbName.includes(term.toLowerCase()) || term.toLowerCase().includes(dbName)
+        );
+      });
+
+      if (matchingCategories.length > 0) {
+        // Use the first match, or the most specific one
+        const bestMatch = matchingCategories.find(cat => 
+          cat.name.toLowerCase() === navItem.navId.toLowerCase()
+        ) || matchingCategories[0];
+        
+        mapping.set(navItem.navId, bestMatch.name.toLowerCase());
+        console.log(`Mapped navigation "${navItem.navId}" to database category "${bestMatch.name}"`);
+      } else {
+        console.warn(`No matching database category found for navigation item: ${navItem.navId}`);
+      }
+    });
+
+    return mapping;
+  };
 
   // Debug categories data
   console.log('Categories Debug:', {
@@ -65,6 +122,7 @@ const ProductPage = () => {
         if (response.ok) {
           const data = await response.json();
           console.log('Direct API response data:', data);
+          console.log('Available category names:', data.map(cat => cat.name));
         } else {
           console.error('Direct API response failed:', response.statusText);
           const errorText = await response.text();
@@ -128,6 +186,12 @@ const ProductPage = () => {
   // Process categories when data changes
   useEffect(() => {
     if (categoriesData && Array.isArray(categoriesData)) {
+      console.log('Processing categories data:', categoriesData);
+      
+      // Create category mapping
+      const mapping = createCategoryMapping(categoriesData);
+      setCategoryMapping(mapping);
+      
       // Transform database categories to match our format
       const dbCategories = categoriesData.map(category => ({
         id: category.name.toLowerCase(),
@@ -144,6 +208,8 @@ const ProductPage = () => {
         };
         return [allProductsCategory, ...dbCategories];
       });
+
+      console.log('Final categories after processing:', [{ id: 'all', name: 'All Products', image: null }, ...dbCategories]);
     }
   }, [categoriesData]);
 
@@ -167,8 +233,25 @@ const ProductPage = () => {
   }, [productsData, selectedCategory, searchParams]);
 
   const handleCategoryClick = (categoryId) => {
-    navigate(`/shop?category=${categoryId}`);
-    setSelectedCategory(categoryId);
+    console.log('Category clicked:', categoryId);
+    
+    // Check if we have a mapping for this navigation item
+    let finalCategoryId = categoryId;
+    if (categoryMapping.has(categoryId)) {
+      finalCategoryId = categoryMapping.get(categoryId);
+      console.log(`Using mapped category: ${categoryId} -> ${finalCategoryId}`);
+    }
+    
+    // Check if the category exists in our categories list
+    const categoryExists = categories.some(cat => cat.id === finalCategoryId || cat.id === categoryId);
+    if (!categoryExists && categoryId !== 'all') {
+      console.warn(`Category not found: ${categoryId}, available categories:`, categories.map(c => c.id));
+      // Fallback to 'all' if category doesn't exist
+      finalCategoryId = 'all';
+    }
+    
+    navigate(`/shop?category=${categoryId}`); // Keep original URL
+    setSelectedCategory(finalCategoryId); // Use mapped category for filtering
   };
 
   const filterProducts = (products) => {
@@ -176,9 +259,19 @@ const ProductPage = () => {
     
     let filtered = [...products];
     if (selectedCategory && selectedCategory !== 'all') {
+      console.log('Filtering products for category:', selectedCategory);
+      console.log('Available products:', products.map(p => ({ name: p.name, category: p.category_name })));
+      
       filtered = filtered.filter(product => {
-        return product.category_name?.toLowerCase() === selectedCategory.toLowerCase();
+        const productCategory = product.category_name?.toLowerCase();
+        const matches = productCategory === selectedCategory.toLowerCase();
+        if (matches) {
+          console.log(`Product "${product.name}" matches category "${selectedCategory}"`);
+        }
+        return matches;
       });
+      
+      console.log(`Filtered ${filtered.length} products for category "${selectedCategory}"`);
     }
 
     if (searchQuery) {
@@ -649,6 +742,9 @@ const ProductPage = () => {
             ) : !Array.isArray(filteredProducts) || filteredProducts.length === 0 ? (
               <div className="no-products">
                 <p>No products found{searchParams.get('search') ? ' matching your search' : ' in this category'}.</p>
+                {selectedCategory !== 'all' && (
+                  <p><small>Category: {selectedCategory}</small></p>
+                )}
               </div>
             ) : (
               <div className="shop-products-grid">
