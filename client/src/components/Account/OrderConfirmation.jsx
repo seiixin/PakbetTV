@@ -168,7 +168,34 @@ function OrderConfirmation() {
               </div>
                 <div className="detail-row">
                   <span className="label">Delivery Address</span>
-                  <span className="value">{order.shipping?.address || order.address || 'Not provided'}</span>
+                  <span className="value">
+                    {(() => {
+                      // Try to build full address from shipping details
+                      if (order.shipping?.address) {
+                        return order.shipping.address;
+                      }
+                      
+                      // Try to build from individual address components
+                      const addressParts = [];
+                      if (order.address1) addressParts.push(order.address1);
+                      if (order.address2) addressParts.push(order.address2);
+                      if (order.city) addressParts.push(order.city);
+                      if (order.state) addressParts.push(order.state);
+                      if (order.postcode) addressParts.push(order.postcode);
+                      if (order.country) addressParts.push(order.country);
+                      
+                      if (addressParts.length > 0) {
+                        return addressParts.join(', ');
+                      }
+                      
+                      // Fallback to order.address if available
+                      if (order.address) {
+                        return order.address;
+                      }
+                      
+                      return 'Not provided';
+                    })()}
+                  </span>
             </div>
               </div>
             </div>

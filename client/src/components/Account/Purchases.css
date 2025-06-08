@@ -299,6 +299,31 @@
   color: var(--text-color);
 }
 
+.purchase-address-info {
+  font-size: 0.85rem;
+  color: var(--light-text-color);
+  margin-top: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: rgba(162, 32, 26, 0.05);
+  border-radius: 8px;
+  border-left: 3px solid var(--primary-color);
+  max-width: 350px;
+}
+
+.purchase-address-label {
+  font-weight: 600;
+  color: var(--text-color);
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.purchase-address-text {
+  color: var(--light-text-color);
+  display: block;
+  word-wrap: break-word;
+  line-height: 1.4;
+}
+
 /* Order Summary */
 .purchase-order-summary {
   display: flex;

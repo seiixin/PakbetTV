@@ -244,9 +244,13 @@ router.get('/', auth, async (req, res) => {
              (SELECT COUNT(*) FROM order_items WHERE order_id = o.order_id) AS item_count,
              (SELECT status FROM payments WHERE order_id = o.order_id LIMIT 1) AS payment_status,
              (SELECT status FROM shipping WHERE order_id = o.order_id LIMIT 1) AS shipping_status,
-             (SELECT tracking_number FROM shipping WHERE order_id = o.order_id LIMIT 1) AS tracking_number
+             (SELECT tracking_number FROM shipping WHERE order_id = o.order_id LIMIT 1) AS tracking_number,
+             s.address as shipping_address,
+             sd.address1, sd.address2, sd.city, sd.state, sd.postcode, sd.country
       FROM orders o
       JOIN users u ON o.user_id = u.user_id
+      LEFT JOIN shipping s ON o.order_id = s.order_id
+      LEFT JOIN shipping_details sd ON o.order_id = sd.order_id
     `;
     const params = [];
     if (!isAdmin) {

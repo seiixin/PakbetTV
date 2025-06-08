@@ -23,9 +23,11 @@ const transporter = nodemailer.createTransport({
 });
 
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 10,
-  message: 'Too many login attempts. Please try again later.'
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  limit: 100, // Increased from 10 to 100 login attempts per 15 minutes
+  message: 'Too many login attempts. Please try again later.',
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
 
 router.post(

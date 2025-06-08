@@ -942,6 +942,47 @@ router.post('/check-payment-status', async (req, res) => {
 });
 
 /**
+ * Trigger payment status check from frontend (no auth required)
+ * Called on page refresh to sync payment statuses
+ */
+router.post('/trigger-payment-check', async (req, res) => {
+  try {
+    // Set a short timeout to prevent hanging
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Timeout')), 5000)
+    );
+    
+    // Run the payment check with timeout
+    const checkPromise = runManualPaymentCheck();
+    
+    try {
+      const result = await Promise.race([checkPromise, timeoutPromise]);
+      
+      res.json({
+        success: true,
+        message: 'Payment status check triggered successfully',
+        checked: result.checked || 0,
+        updated: result.updated || 0
+      });
+    } catch (timeoutError) {
+      // If timeout, return success anyway since the check is running in background
+      res.json({
+        success: true,
+        message: 'Payment status check started in background',
+        note: 'Check is running, please wait for updates'
+      });
+    }
+  } catch (error) {
+    console.error('Error triggering payment status check:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to trigger payment status check',
+      error: error.message
+    });
+  }
+});
+
+/**
  * Get payment status checker service status
  */
 router.get('/payment-checker-status', (req, res) => {

@@ -2,10 +2,12 @@ import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'r
 import { useEffect, useState } from 'react'
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
+import axios from 'axios'
 import './App.css'
 import './styles/Modern.css'
 import './styles/notifications.css'
 import { initFacebookSDK } from './utils/facebookSDK'
+import API_BASE_URL from './config'
 import Home from './components/Home'
 import Login from './components/Auth/Login'
 import Signup from './components/Auth/Signup'
@@ -52,6 +54,43 @@ function AppContent() {
     };
 
     initFB();
+  }, []);
+
+  // Trigger payment status check on page load/refresh
+  useEffect(() => {
+    const triggerPaymentCheck = async () => {
+      try {
+        // Only trigger if this is a page refresh or new session
+        const isPageRefresh = performance.navigation?.type === 1 || 
+                             performance.getEntriesByType('navigation')[0]?.type === 'reload';
+        
+        if (isPageRefresh || !sessionStorage.getItem('paymentCheckTriggered')) {
+          console.log('Triggering payment status check on page load...');
+          
+          const response = await axios.post(`${API_BASE_URL}/api/transactions/trigger-payment-check`, {}, {
+            timeout: 5000 // 5 second timeout
+          });
+          
+          if (response.data.success) {
+            console.log('Payment status check triggered successfully:', response.data.message);
+            if (response.data.updated > 0) {
+              console.log(`${response.data.updated} payment(s) updated`);
+            }
+          }
+          
+          // Mark as triggered for this session
+          sessionStorage.setItem('paymentCheckTriggered', 'true');
+        }
+      } catch (error) {
+        // Silently handle errors - don't disrupt user experience
+        console.log('Payment status check trigger failed (non-critical):', error.message);
+      }
+    };
+
+    // Delay the trigger slightly to not block initial page load
+    const timer = setTimeout(triggerPaymentCheck, 1000);
+    
+    return () => clearTimeout(timer);
   }, []);
   
   // Show loading state while FB SDK initializes

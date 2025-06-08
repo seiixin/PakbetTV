@@ -195,6 +195,28 @@ function Purchases() {
     return statusBgColors[status.toLowerCase()] || 'rgba(117, 117, 117, 0.1)';
   };
 
+  const getShippingAddress = (order) => {
+    // Try to build full address from available data
+    if (order.shipping_address) {
+      return order.shipping_address;
+    }
+    
+    // Try to build from individual address components
+    const addressParts = [];
+    if (order.address1) addressParts.push(order.address1);
+    if (order.address2) addressParts.push(order.address2);
+    if (order.city) addressParts.push(order.city);
+    if (order.state) addressParts.push(order.state);
+    if (order.postcode) addressParts.push(order.postcode);
+    if (order.country) addressParts.push(order.country);
+    
+    if (addressParts.length > 0) {
+      return addressParts.join(', ');
+    }
+    
+    return 'Address information not available';
+  };
+
   const renderOrders = () => {
     if (loading) {
       return (
@@ -276,6 +298,10 @@ function Purchases() {
                       <span className="purchase-tracking-label">Waybill No.:</span> {order.tracking_number}
                     </div>
                   )}
+                  <div className="purchase-address-info">
+                    <span className="purchase-address-label">Delivery to:</span> 
+                    <span className="purchase-address-text">{getShippingAddress(order)}</span>
+                  </div>
                 </div>
                 <div className="purchase-order-summary">
                   <div className="purchase-order-count">{order.item_count} item{order.item_count !== 1 ? 's' : ''}</div>
@@ -327,7 +353,7 @@ function Purchases() {
           </div>
         </div>
       </div>
-      <Footer />
+      <Footer forceShow={false} />
       {cancelModalOpen && selectedOrder && (
         <CancelOrderModal
           isOpen={cancelModalOpen}
