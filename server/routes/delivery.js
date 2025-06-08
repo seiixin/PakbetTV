@@ -574,7 +574,7 @@ async function createShippingOrder(orderId) {
   try {
     await connection.beginTransaction();
     
-    // Get order details
+    // Get order details including payment status
     const [orders] = await connection.query(
       'SELECT o.*, u.first_name, u.last_name, u.email, u.phone, u.user_id FROM orders o ' +
       'JOIN users u ON o.user_id = u.user_id ' +
@@ -588,6 +588,21 @@ async function createShippingOrder(orderId) {
     }
     
     const order = orders[0];
+    
+    // IMPORTANT: Check payment status before creating shipping order
+    if (order.payment_status !== 'paid') {
+      await connection.rollback();
+      throw new Error(`Cannot create shipping order for order ${orderId}. Payment status is '${order.payment_status}', but 'paid' is required. Please confirm payment first.`);
+    }
+    
+    // Additional validation for order status
+    const validOrderStatuses = ['for_packing', 'packed', 'for_shipping'];
+    if (!validOrderStatuses.includes(order.order_status)) {
+      await connection.rollback();
+      throw new Error(`Cannot create shipping order for order ${orderId}. Order status is '${order.order_status}', but one of [${validOrderStatuses.join(', ')}] is required.`);
+    }
+    
+    console.log(`✅ Payment confirmed for order ${orderId} (${order.payment_status}), proceeding with shipping order creation`);
     
     // Get user's shipping details
     const [shippingDetails] = await connection.query(

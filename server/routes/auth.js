@@ -291,7 +291,17 @@ router.get('/google',
 router.get('/google/callback',
   passport.authenticate('google', { session: false, failureRedirect: '/login?error=google_auth_failed' }),
   (req, res) => {
+    console.log('Google OAuth callback route hit');
+    console.log('Request URL:', req.url);
+    console.log('Request path:', req.path);
+    console.log('User authenticated:', req.user ? 'Yes' : 'No');
+    
     try {
+      if (!req.user) {
+        console.error('No user found in request after Google authentication');
+        return res.redirect('/login?error=no_user_data');
+      }
+      
       // Generate JWT token
       const payload = {
         user: {
@@ -312,7 +322,16 @@ router.get('/google/callback',
           
           // Redirect to the frontend success page with the token
           const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
-          res.redirect(`${clientUrl}/social-auth-success?token=${token}`);
+          console.log('Google Auth - CLIENT_URL:', process.env.CLIENT_URL);
+          console.log('Google Auth - Redirecting to:', `${clientUrl}/social-auth-success?token=${token}`);
+          
+          // Ensure the clientUrl is an absolute URL
+          const redirectUrl = clientUrl.startsWith('http') 
+            ? `${clientUrl}/social-auth-success?token=${token}`
+            : `https://${clientUrl}/social-auth-success?token=${token}`;
+          
+          console.log('Google Auth - Final redirect URL:', redirectUrl);
+          res.redirect(redirectUrl);
         }
       );
     } catch (error) {
@@ -518,7 +537,16 @@ router.get('/facebook/callback',
         }
         // Redirect to client with token
         const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
-        res.redirect(`${clientUrl}/social-auth-success?token=${token}`);
+        console.log('Facebook Auth - CLIENT_URL:', process.env.CLIENT_URL);
+        console.log('Facebook Auth - Redirecting to:', `${clientUrl}/social-auth-success?token=${token}`);
+        
+        // Ensure the clientUrl is an absolute URL
+        const redirectUrl = clientUrl.startsWith('http') 
+          ? `${clientUrl}/social-auth-success?token=${token}`
+          : `https://${clientUrl}/social-auth-success?token=${token}`;
+        
+        console.log('Facebook Auth - Final redirect URL:', redirectUrl);
+        res.redirect(redirectUrl);
       }
     );
   }
@@ -719,6 +747,46 @@ router.put('/update-password', auth, [
     console.error('Password update error for user:', req.user.id, err);
     res.status(500).json({ message: 'Server error while updating password' });
   }
+});
+
+// Catch-all route for malformed OAuth redirect URLs
+// This handles cases where the domain gets incorrectly appended to the path
+router.get('*/social-auth-success', (req, res) => {
+  console.log('Caught malformed social auth success URL:', req.path);
+  console.log('Query params:', req.query);
+  console.log('Headers:', req.headers);
+  
+  const token = req.query.token;
+  if (token) {
+    // If we have a token, redirect to the correct frontend URL
+    const clientUrl = process.env.CLIENT_URL || 'https://pakbettv.gghsoftwaredev.com';
+    const redirectUrl = clientUrl.startsWith('http') 
+      ? `${clientUrl}/social-auth-success?token=${token}`
+      : `https://${clientUrl}/social-auth-success?token=${token}`;
+    
+    console.log('Redirecting malformed request to:', redirectUrl);
+    return res.redirect(redirectUrl);
+  }
+  
+  // If no token, redirect to login with error
+  res.redirect('/login?error=malformed_auth_url');
+});
+
+// Specific handler for the exact URL pattern seen in production logs
+router.get('/google/pakbettv.gghsoftwaredev.com/social-auth-success', (req, res) => {
+  console.log('Caught specific malformed Google auth URL');
+  console.log('Query params:', req.query);
+  
+  const token = req.query.token;
+  if (token) {
+    // Redirect to the correct frontend URL
+    const redirectUrl = `https://pakbettv.gghsoftwaredev.com/social-auth-success?token=${token}`;
+    console.log('Redirecting specific malformed request to:', redirectUrl);
+    return res.redirect(redirectUrl);
+  }
+  
+  // If no token, redirect to login with error
+  res.redirect('https://pakbettv.gghsoftwaredev.com/login?error=malformed_google_auth');
 });
 
 module.exports = router; 

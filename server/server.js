@@ -87,6 +87,11 @@ const adminRoutes = require('./routes/admin');
 const cmsRoutes = require('./routes/cms');
 const emailRoutes = require('./routes/email');
 const locationRoutes = require('./routes/locations');
+
+// Import cron jobs
+const { scheduleOrderConfirmation } = require('./cron/orderConfirmation');
+const { startPaymentStatusChecker } = require('./cron/paymentStatusChecker');
+
 app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/categories', categoryRoutes);
@@ -199,9 +204,26 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, async () => {
   console.log(`Server is running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  
   try {
+    // Run database migrations on startup
+    console.log('Running database migrations...');
     await runMigrations();
-  } catch (err) {
-    console.error('Failed to run database migrations:', err);
+    console.log('Database migrations completed successfully');
+  } catch (error) {
+    console.error('Error running database migrations:', error);
+  }
+  
+  // Start cron jobs
+  console.log('Starting cron jobs...');
+  try {
+    scheduleOrderConfirmation();
+    console.log('✅ Order confirmation cron job scheduled');
+    
+    startPaymentStatusChecker();
+    console.log('✅ Payment status checker cron job started');
+  } catch (cronError) {
+    console.error('Error starting cron jobs:', cronError);
   }
 }); 

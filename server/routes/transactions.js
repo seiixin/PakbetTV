@@ -13,6 +13,11 @@ const BASE_URL = process.env.NODE_ENV === 'production'
 const SECRET_KEY_SHA256 = process.env.DRAGONPAY_SECRET_KEY_SHA256 || 'test_sha256_key';
 const { sendOrderConfirmationEmail } = require('../services/emailService');
 
+// Import payment status checker services
+const paymentStatusChecker = require('../services/paymentStatusChecker');
+const dragonpayService = require('../services/dragonpayService');
+const { runManualPaymentCheck, getPaymentStatusCheckerStatus } = require('../cron/paymentStatusChecker');
+
 router.post('/orders', auth, async (req, res) => {
   const connection = await db.getConnection();
   console.log('Starting order creation process...');
@@ -908,6 +913,130 @@ router.get('/test-postback', (req, res) => {
       ip: req.ip
     }
   });
+});
+
+// Payment Status Checker Endpoints
+
+/**
+ * Manual trigger for payment status checking
+ * Useful for testing and immediate checks
+ */
+router.post('/check-payment-status', async (req, res) => {
+  try {
+    console.log('Manual payment status check triggered');
+    const result = await runManualPaymentCheck();
+    
+    res.json({
+      success: true,
+      message: 'Payment status check completed',
+      result: result
+    });
+  } catch (error) {
+    console.error('Error in manual payment status check:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to check payment status',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * Get payment status checker service status
+ */
+router.get('/payment-checker-status', (req, res) => {
+  try {
+    const status = getPaymentStatusCheckerStatus();
+    res.json({
+      success: true,
+      status: status
+    });
+  } catch (error) {
+    console.error('Error getting payment checker status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get payment checker status',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * Inquiry specific transaction status using Dragonpay API
+ */
+router.get('/inquiry/:txnId', async (req, res) => {
+  try {
+    const { txnId } = req.params;
+    
+    if (!txnId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Transaction ID is required'
+      });
+    }
+
+    console.log(`Manual inquiry for transaction: ${txnId}`);
+    const result = await dragonpayService.inquireTransaction(txnId);
+    
+    res.json({
+      success: true,
+      message: 'Transaction inquiry completed',
+      inquiry: result
+    });
+  } catch (error) {
+    console.error('Error in transaction inquiry:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to inquiry transaction',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * Get all pending payments with their details
+ */
+router.get('/pending-payments', async (req, res) => {
+  try {
+    const [pendingPayments] = await db.query(`
+      SELECT 
+        o.order_id,
+        o.order_code,
+        o.order_status,
+        o.payment_status,
+        o.total_price,
+        p.payment_id,
+        p.reference_number,
+        p.status as payment_status_detail,
+        p.created_at as payment_created,
+        u.first_name,
+        u.last_name,
+        u.email,
+        TIMESTAMPDIFF(HOUR, p.created_at, NOW()) as hours_since_payment
+      FROM orders o
+      JOIN payments p ON o.order_id = p.order_id
+      JOIN users u ON o.user_id = u.user_id
+      WHERE o.payment_status = 'awaiting_for_confirmation'
+        AND p.reference_number IS NOT NULL
+        AND p.reference_number != ''
+        AND p.status = 'waiting_for_confirmation'
+        AND p.created_at > DATE_SUB(NOW(), INTERVAL 14 DAY)
+      ORDER BY p.created_at DESC
+    `);
+
+    res.json({
+      success: true,
+      count: pendingPayments.length,
+      payments: pendingPayments
+    });
+  } catch (error) {
+    console.error('Error getting pending payments:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get pending payments',
+      error: error.message
+    });
+  }
 });
 
 module.exports = router; 
