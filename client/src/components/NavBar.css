@@ -475,8 +475,10 @@ button.navbar-search-button svg {
   flex-shrink: 0;
 }
 
-.navbar-dropdown-item:hover {
-  background-color: #f8f9fa;
+.navbar-dropdown-item:hover,
+.navbar-dropdown-item:hover span {
+  background-color: #f8f9fa !important;
+  color: #333 !important;
 }
 
 .navbar-logout-item {

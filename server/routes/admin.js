@@ -58,8 +58,7 @@ router.post('/confirm-payment/:orderId', async (req, res) => {
     // Get order details
     const [orders] = await connection.query(
       'SELECT o.*, u.first_name, u.last_name, u.email, u.phone, u.user_id, ' +
-      's.address as shipping_address, s.tracking_number, ' +
-      'COALESCE(s.shipping_fee, 0) as shipping_fee ' +
+      's.address as shipping_address, s.tracking_number ' +
       'FROM orders o ' +
       'JOIN users u ON o.user_id = u.user_id ' +
       'LEFT JOIN shipping s ON o.order_id = s.order_id ' +
@@ -124,7 +123,7 @@ router.post('/confirm-payment/:orderId', async (req, res) => {
         price: item.price
       })),
       totalAmount: order.total_price,
-      shippingFee: order.shipping_fee,
+      shippingFee: 0, // Shipping fee not stored in shipping table
       shippingAddress: order.shipping_address,
       paymentMethod: payments.length > 0 ? payments[0].payment_method : 'Unknown',
       paymentReference: payments.length > 0 ? payments[0].reference_number : transactionId,

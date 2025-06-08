@@ -19,6 +19,18 @@ function Purchases() {
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
 
+  // Hero Component
+  const Hero = () => {
+    return (
+      <section className="purchase-hero" role="banner" tabIndex="0">
+        <div className="purchase-hero-text">
+          Track your Order History
+        </div>
+        <p>View and manage all your Feng Shui orders in one place</p>
+      </section>
+    );
+  };
+
   // Order status options for filter
   const orderStatusFilters = [
     { key: 'all', label: 'All Orders' },
@@ -221,7 +233,7 @@ function Purchases() {
           let trackingInfo = null;
           
           // Example implementation for checking tracking/shipping info
-          if (order.shipping_status) {
+          if (order.shipping_status) {  
             trackingInfo = {
               status: order.shipping_status,
               number: order.tracking_number || "Processing"
@@ -294,10 +306,10 @@ function Purchases() {
   return (
     <div className="purchase-account-page">
       <NavBar />
+      <Hero />
       <div className="purchase-account-container">
         <div className="purchase-account-wrapper">
           <div className="purchase-filter-navbar">
-            <h2 className="purchase-orders-title">Order History</h2>
             <div className="purchase-filter-tabs">
               {orderStatusFilters.map(filter => (
                 <button

@@ -311,7 +311,8 @@ router.get('/google/callback',
           }
           
           // Redirect to the frontend success page with the token
-          res.redirect(`/social-auth-success?token=${token}`);
+          const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+          res.redirect(`${clientUrl}/social-auth-success?token=${token}`);
         }
       );
     } catch (error) {
@@ -516,7 +517,8 @@ router.get('/facebook/callback',
           return res.redirect(`${process.env.CLIENT_URL}/login?error=token_error`);
         }
         // Redirect to client with token
-        res.redirect(`${process.env.CLIENT_URL}/social-auth-success?token=${token}`);
+        const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+        res.redirect(`${clientUrl}/social-auth-success?token=${token}`);
       }
     );
   }

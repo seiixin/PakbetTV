@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { authService } from '../../services/api';
 import './Account.css';
@@ -521,6 +521,18 @@ function Account() {
     shippingAddress.country
   ].filter(Boolean).join(', ');
 
+  // Hero Component (same as horoscope page)
+  const Hero = () => {
+    return (
+      <section className="blog-hero" role="banner" tabIndex="0">
+        <div className="blog-hero-text">
+          Account Management
+        </div>
+        <p>Manage your account settings and view your information</p>
+      </section>
+    );
+  };
+
   return (
     <div className="account-background account-page">
       {refreshing && (
@@ -538,6 +550,8 @@ function Account() {
       )}
       <NavBar />
       <div className="account-content">
+        <Hero />
+        
         <main className="account-container" role="main" aria-label="My Account">
           <section className="account-column" aria-labelledby="personal-details-title">
             <div className="account-section-header-container">

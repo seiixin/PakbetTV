@@ -305,6 +305,15 @@ function Signup() {
   return (
     <div className="auth-container">
       <form className="auth-form signup" onSubmit={currentStep === 3 ? handleSubmit : (e) => e.preventDefault()}>
+        <div className="auth-back-button">
+          <Link to="/" className="back-to-home-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 12H5"></path>
+              <polyline points="12,19 5,12 12,5"></polyline>
+            </svg>
+          </Link>
+        </div>
+        
         <div className="auth-header">
           <h2>{getStepTitle()}</h2>
           <p>{getStepDescription()}</p>
@@ -312,25 +321,24 @@ function Signup() {
         
         {renderStepContent()}
         
-        {currentStep === 3 && (
-          <p>
-            By signing up, you agree to our{' '}
-            <span 
-              className="privacy-policy-link"
-              onClick={() => setShowPrivacyPolicy(true)}
-              role="button"
-              tabIndex={0}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  setShowPrivacyPolicy(true);
-                }
-              }}
-            >
-              Privacy Policy
-            </span>
-            .
-          </p>
-        )}
+        {/* Show privacy policy agreement in all steps */}
+        <p className="privacy-agreement">
+          By signing up, you agree to our{' '}
+          <span 
+            className="privacy-policy-link"
+            onClick={() => setShowPrivacyPolicy(true)}
+            role="button"
+            tabIndex={0}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                setShowPrivacyPolicy(true);
+              }
+            }}
+          >
+            Privacy Policy
+          </span>
+          .
+        </p>
         
         <div className="step-navigation">
           {currentStep > 1 && (

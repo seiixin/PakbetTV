@@ -47,8 +47,8 @@ router.post('/orders', auth, async (req, res) => {
     if (shipping_fee > 0) {
       console.log(`Creating shipping record with fee: ${shipping_fee}`);
       await connection.query(
-        'INSERT INTO shipping (order_id, user_id, status, shipping_fee, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())',
-        [orderId, user_id, 'pending', shipping_fee]
+        'INSERT INTO shipping (order_id, user_id, status, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())',
+        [orderId, user_id, 'pending']
       );
     }
 
@@ -374,7 +374,7 @@ router.get('/verify', async (req, res) => {
                 price: item.price
               })),
               totalAmount: order.total_price,
-              shippingFee: shipping.length > 0 ? (shipping[0].shipping_fee || 0) : 0,
+              shippingFee: 0, // Shipping fee not stored in shipping table
               shippingAddress: shippingAddress,
               paymentMethod: payment.payment_method || 'DragonPay',
               paymentReference: refNo,
@@ -435,6 +435,19 @@ router.post('/postback', async (req, res) => {
   try {
     const { txnid, refno, status, message, digest } = req.body;
     
+    console.log('Postback received:', { txnid, refno, status, message });
+    
+    // Validate digest for security
+    const SECRET_KEY = process.env.DRAGONPAY_SECRET_KEY || 'test_key';
+    const expectedDigest = crypto.createHash('sha1')
+      .update(`${txnid}:${refno}:${status}:${message}:${SECRET_KEY}`)
+      .digest('hex');
+    
+    if (digest && digest.toLowerCase() !== expectedDigest.toLowerCase()) {
+      console.error('Invalid digest received from DragonPay');
+      return res.status(400).send('result=Invalid digest');
+    }
+    
     // Extract order_code from txnid (format: order_{orderCode}_{timestamp})
     const orderCodeMatch = txnid.match(/order_(.+?)_\d+$/);
     if (!orderCodeMatch || !orderCodeMatch[1]) {
@@ -465,7 +478,7 @@ router.post('/postback', async (req, res) => {
       console.log('Postback - Found order:', { order_id: orderId, order_code: orderCode });
 
       if (status === 'S') {
-        // Update order status to for_packing and payment status to paid
+        // Success - Update order status to for_packing and payment status to paid
         await connection.query(
           'UPDATE orders SET order_status = ?, payment_status = ?, updated_at = NOW() WHERE order_id = ?',
           ['for_packing', 'paid', orderId]
@@ -544,7 +557,7 @@ router.post('/postback', async (req, res) => {
                 price: item.price
               })),
               totalAmount: order.total_price,
-              shippingFee: shippingDetails.length > 0 ? (shippingDetails[0].shipping_fee || 0) : 0,
+              shippingFee: 0, // Shipping fee not stored in shipping table
               shippingAddress: shippingAddress,
               paymentMethod: payment.payment_method || 'DragonPay',
               paymentReference: refno,
@@ -561,22 +574,47 @@ router.post('/postback', async (req, res) => {
         }
 
       } else if (status === 'F') {
-        // Update order status to cancelled and payment status to failed
-          await connection.query(
+        // Failed - Update order status to cancelled and payment status to failed
+        await connection.query(
           'UPDATE orders SET order_status = ?, payment_status = ?, updated_at = NOW() WHERE order_id = ?',
           ['cancelled', 'failed', orderId]
         );
 
-          await connection.query(
+        await connection.query(
           'UPDATE payments SET status = ?, reference_number = ?, updated_at = NOW() WHERE order_id = ?',
           ['failed', refno, orderId]
-          );
+        );
 
         console.log(`Postback - Payment failed for order ${orderId}`);
-        }
+        
+      } else if (status === 'P') {
+        // Pending - Important for OTC payments which start as pending
+        await connection.query(
+          'UPDATE orders SET order_status = ?, payment_status = ?, updated_at = NOW() WHERE order_id = ?',
+          ['processing', 'awaiting_for_confirmation', orderId]
+        );
 
-        await connection.commit();
-      res.send('result=OK');
+        await connection.query(
+          'UPDATE payments SET status = ?, reference_number = ?, updated_at = NOW() WHERE order_id = ?',
+          ['waiting_for_confirmation', refno, orderId]
+        );
+
+        console.log(`Postback - Payment pending for order ${orderId}, waiting for confirmation`);
+        
+      } else {
+        // Handle other status codes (U, R, K, V, A)
+        console.log(`Postback - Unhandled status '${status}' for order ${orderId}`);
+        
+        await connection.query(
+          'UPDATE payments SET status = ?, reference_number = ?, updated_at = NOW() WHERE order_id = ?',
+          [mapDragonpayStatus(status), refno, orderId]
+        );
+      }
+
+      await connection.commit();
+      
+      // DragonPay expects this exact response format
+      res.status(200).send('result=OK');
 
     } catch (error) {
       await connection.rollback();
@@ -587,6 +625,7 @@ router.post('/postback', async (req, res) => {
 
   } catch (error) {
     console.error('Postback error:', error);
+    // DragonPay expects this exact error response format
     res.status(500).send('result=Error');
   }
 });
@@ -706,7 +745,7 @@ router.post('/simulate-payment', async (req, res) => {
               price: item.price
             })),
             totalAmount: orders[0].total_price,
-            shippingFee: shippingDetails.length > 0 ? (shippingDetails[0].shipping_fee || 0) : 0,
+            shippingFee: 0, // Shipping fee not stored in shipping table
             shippingAddress: shippingAddress,
             paymentMethod: 'DragonPay (Simulated)',
             paymentReference: refno,
@@ -843,6 +882,32 @@ router.post('/prepare-for-confirmation', async (req, res) => {
       error: error.message
     });
   }
+});
+
+// Test endpoint to verify postback URL is accessible and working
+router.post('/test-postback', (req, res) => {
+  console.log('Test postback received:', req.body);
+  console.log('Headers:', req.headers);
+  console.log('IP:', req.ip);
+  
+  res.status(200).send('result=OK');
+});
+
+// Test endpoint to check if server is receiving DragonPay requests properly
+router.get('/test-postback', (req, res) => {
+  console.log('Test GET postback received:', req.query);
+  console.log('Headers:', req.headers);
+  console.log('IP:', req.ip);
+  
+  res.status(200).json({
+    message: 'Postback URL is accessible',
+    timestamp: new Date().toISOString(),
+    received_data: {
+      query: req.query,
+      headers: req.headers,
+      ip: req.ip
+    }
+  });
 });
 
 module.exports = router; 

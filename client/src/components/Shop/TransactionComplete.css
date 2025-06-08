@@ -48,6 +48,11 @@
   animation: scaleIn 0.5s ease-in-out;
 }
 
+.transaction-complete.pending .transaction-status-icon svg {
+  color: #ffc107;
+  animation: scaleIn 0.5s ease-in-out;
+}
+
 .transaction-title {
   color: var(--primary-color);
   font-size: 2rem;
@@ -57,6 +62,10 @@
 
 .transaction-complete.failed .transaction-title {
   color: #dc3545;
+}
+
+.transaction-complete.pending .transaction-title {
+  color: #ffc107;
 }
 
 .transaction-message {
