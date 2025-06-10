@@ -38,8 +38,7 @@ function Purchases() {
     { key: 'for_packing', label: 'Packing' },
     { key: 'shipped', label: 'Shipped' },
     { key: 'delivered', label: 'Delivered' },
-    { key: 'completed', label: 'Completed' },
-    { key: 'cancelled', label: 'Cancelled' }
+    { key: 'completed', label: 'Completed' }
   ];
 
   // Handle opening cancel modal
@@ -131,12 +130,11 @@ function Purchases() {
       
       // Define status groups
       const statusGroups = {
-        processing: ['processing', 'pending_payment', 'pending', 'pending_payment'],
+        processing: ['processing', 'pending_payment', 'pending'],
         for_packing: ['for_packing', 'packed', 'for_shipping', 'ready_to_ship'],
         shipped: ['shipped', 'picked_up', 'in_transit', 'out_for_delivery'],
         delivered: ['delivered', 'received'],
-        completed: ['completed', 'finished'],
-        cancelled: ['cancelled', 'returned']
+        completed: ['completed', 'finished']
       };
 
       // Check if the order status belongs to the selected filter group
@@ -210,10 +208,7 @@ function Purchases() {
     if (order.city) addressParts.push(order.city);
     if (order.state) addressParts.push(order.state);
     if (order.postcode) addressParts.push(order.postcode);
-    // Only add country if it's not just "MY"
-    if (order.country && order.country !== 'MY') {
-      addressParts.push(order.country);
-    }
+    if (order.country) addressParts.push(order.country);
     
     if (addressParts.length > 0) {
       return addressParts.join(', ');
@@ -303,6 +298,10 @@ function Purchases() {
                       <span className="purchase-tracking-label">Waybill No.:</span> {order.tracking_number}
                     </div>
                   )}
+                  <div className="purchase-address-info">
+                    <span className="purchase-address-label">Delivery to:</span> 
+                    <span className="purchase-address-text">{getShippingAddress(order)}</span>
+                  </div>
                 </div>
                 <div className="purchase-order-summary">
                   <div className="purchase-order-count">{order.item_count} item{order.item_count !== 1 ? 's' : ''}</div>

@@ -159,43 +159,24 @@ router.post(
         );
       }
 
-      // Get user's default shipping address for proper storage
-      const [userShipping] = await connection.query(
-        'SELECT * FROM user_shipping_details WHERE user_id = ? AND is_default = 1',
-        [userId]
-      );
-
       await connection.query(
         'INSERT INTO shipping (order_id, user_id, address, status) VALUES (?, ?, ?, ?)',
         [orderId, userId, address, 'pending']
       );
 
       // Create shipping_details record with structured address
-      if (userShipping.length > 0) {
-        // Use actual user shipping details
-        const shipping = userShipping[0];
-        await connection.query(
-          `INSERT INTO shipping_details (
-            order_id, address1, address2, city, state, postcode, country, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-          [orderId, shipping.address1, shipping.address2 || '', shipping.city, 
-           shipping.state, shipping.postcode, shipping.country || 'MY']
-        );
-      } else {
-        // Fallback to parsing address string
-        const addressParts = address.split(',').map(part => part.trim());
-        const address1 = addressParts[0] || '';
-        const postcode = address.match(/\d{5,6}/) ? address.match(/\d{5,6}/)[0] : '';
-        const city = addressParts.length > 2 ? addressParts[addressParts.length - 2] : '';
-        const state = addressParts.length > 1 ? addressParts[addressParts.length - 1] : '';
+      const addressParts = address.split(',').map(part => part.trim());
+      const address1 = addressParts[0] || '';
+      const postcode = address.match(/\d{5,6}/) ? address.match(/\d{5,6}/)[0] : '';
+      const city = addressParts.length > 2 ? addressParts[addressParts.length - 2] : '';
+      const state = addressParts.length > 1 ? addressParts[addressParts.length - 1] : '';
 
-        await connection.query(
-          `INSERT INTO shipping_details (
-            order_id, address1, city, state, postcode, country, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-          [orderId, address1, city, state, postcode, 'MY']
-        );
-      }
+      await connection.query(
+        `INSERT INTO shipping_details (
+          order_id, address1, city, state, postcode, country, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+        [orderId, address1, city, state, postcode, 'MY']
+      );
 
       await connection.query(
         'INSERT INTO payments (order_id, user_id, amount, payment_method, status) VALUES (?, ?, ?, ?, ?)',
@@ -265,17 +246,11 @@ router.get('/', auth, async (req, res) => {
              (SELECT status FROM shipping WHERE order_id = o.order_id LIMIT 1) AS shipping_status,
              (SELECT tracking_number FROM shipping WHERE order_id = o.order_id LIMIT 1) AS tracking_number,
              s.address as shipping_address,
-             COALESCE(sd.address1, usd.address1) as address1,
-             COALESCE(sd.address2, usd.address2) as address2, 
-             COALESCE(sd.city, usd.city) as city,
-             COALESCE(sd.state, usd.state) as state,
-             COALESCE(sd.postcode, usd.postcode) as postcode,
-             COALESCE(sd.country, usd.country, 'MY') as country
+             sd.address1, sd.address2, sd.city, sd.state, sd.postcode, sd.country
       FROM orders o
       JOIN users u ON o.user_id = u.user_id
       LEFT JOIN shipping s ON o.order_id = s.order_id
       LEFT JOIN shipping_details sd ON o.order_id = sd.order_id
-      LEFT JOIN user_shipping_details usd ON o.user_id = usd.user_id AND usd.is_default = 1
     `;
     const params = [];
     if (!isAdmin) {
@@ -310,17 +285,11 @@ router.get('/:id', auth, async (req, res) => {
       SELECT o.*, u.first_name, u.last_name, u.email, u.phone,
              (SELECT tracking_number FROM shipping WHERE order_id = o.order_id LIMIT 1) AS shipping_tracking_number,
              s.address as shipping_address,
-             COALESCE(sd.address1, usd.address1) as address1,
-             COALESCE(sd.address2, usd.address2) as address2,
-             COALESCE(sd.city, usd.city) as city,
-             COALESCE(sd.state, usd.state) as state,
-             COALESCE(sd.postcode, usd.postcode) as postcode,
-             COALESCE(sd.country, usd.country, 'MY') as country
+             sd.address1, sd.address2, sd.city, sd.state, sd.postcode, sd.country
       FROM orders o
       JOIN users u ON o.user_id = u.user_id
       LEFT JOIN shipping s ON o.order_id = s.order_id
       LEFT JOIN shipping_details sd ON o.order_id = sd.order_id
-      LEFT JOIN user_shipping_details usd ON o.user_id = usd.user_id AND usd.is_default = 1
       WHERE o.order_id = ?
     `;
     if (!isAdmin) {
