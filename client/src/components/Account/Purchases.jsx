@@ -298,10 +298,6 @@ function Purchases() {
                       <span className="purchase-tracking-label">Waybill No.:</span> {order.tracking_number}
                     </div>
                   )}
-                  <div className="purchase-address-info">
-                    <span className="purchase-address-label">Delivery to:</span> 
-                    <span className="purchase-address-text">{getShippingAddress(order)}</span>
-                  </div>
                 </div>
                 <div className="purchase-order-summary">
                   <div className="purchase-order-count">{order.item_count} item{order.item_count !== 1 ? 's' : ''}</div>

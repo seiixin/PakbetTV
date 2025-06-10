@@ -6,26 +6,14 @@ const { auth, admin } = require('../middleware/auth');
 const axios = require('axios');
 const config = require('../config/keys');
 const { v4: uuidv4 } = require('uuid');
+const ninjaVanAuth = require('../services/ninjaVanAuth');
 const API_BASE_URL = config.NINJAVAN_API_URL || 'https://api.ninjavan.co';
 const COUNTRY_CODE = config.NINJAVAN_COUNTRY_CODE || 'SG';
 const CLIENT_ID = config.NINJAVAN_CLIENT_ID;
 const CLIENT_SECRET = config.NINJAVAN_CLIENT_SECRET;
-async function getNinjaVanToken() {
-  try {
-    const response = await axios.post(`${API_BASE_URL}/${COUNTRY_CODE}/2.0/oauth/access_token`, {
-      client_id: CLIENT_ID,
-      client_secret: CLIENT_SECRET,
-      grant_type: "client_credentials"
-    });
-    return response.data.access_token;
-  } catch (error) {
-    console.error('Error getting NinjaVan access token:', error.response?.data || error.message);
-    throw new Error('Failed to authenticate with NinjaVan');
-  }
-}
 async function createNinjaVanDelivery(orderData, shippingAddress, customerInfo) {
   try {
-    const token = await getNinjaVanToken();
+    const token = await ninjaVanAuth.getValidToken();
     const totalWeight = orderData.items.reduce((sum, item) => sum + (item.quantity * 0.5), 0);
     const deliveryRequest = {
       service_type: "Parcel",

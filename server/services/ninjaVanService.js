@@ -1,27 +1,11 @@
 const axios = require('axios');
 const config = require('../config/keys');
+const ninjaVanAuth = require('./ninjaVanAuth');
 
 const API_BASE_URL = config.NINJAVAN_API_URL || 'https://api.ninjavan.co';
 const COUNTRY_CODE = config.NINJAVAN_COUNTRY_CODE || 'MY';
 const CLIENT_ID = config.NINJAVAN_CLIENT_ID;
 const CLIENT_SECRET = config.NINJAVAN_CLIENT_SECRET;
-
-/**
- * Get OAuth token for NinjaVan API
- */
-async function getNinjaVanToken() {
-  try {
-    const response = await axios.post(`${API_BASE_URL}/${COUNTRY_CODE}/2.0/oauth/access_token`, {
-      client_id: CLIENT_ID,
-      client_secret: CLIENT_SECRET,
-      grant_type: "client_credentials"
-    });
-    return response.data.access_token;
-  } catch (error) {
-    console.error('Error getting NinjaVan access token:', error.response?.data || error.message);
-    throw new Error('Failed to authenticate with NinjaVan');
-  }
-}
 
 /**
  * Create a delivery order with NinjaVan
@@ -155,6 +139,9 @@ async function createDeliveryOrder(orderData, shippingAddress, customerInfo) {
       }
     };
     
+    // Get NinjaVan token
+    const token = await ninjaVanAuth.getValidToken();
+    
     // Call NinjaVan API to create delivery
     const response = await axios.post(
       `${API_BASE_URL}/${COUNTRY_CODE}/4.2/orders`, 
@@ -181,7 +168,7 @@ async function createDeliveryOrder(orderData, shippingAddress, customerInfo) {
  */
 async function getTrackingInfo(trackingNumber) {
   try {
-    const token = await getNinjaVanToken();
+    const token = await ninjaVanAuth.getValidToken();
     
     const response = await axios.get(
       `${API_BASE_URL}/${COUNTRY_CODE}/2.2/orders/${trackingNumber}/tracking`,
@@ -207,7 +194,7 @@ async function getTrackingInfo(trackingNumber) {
  */
 async function cancelDelivery(trackingNumber) {
   try {
-    const token = await getNinjaVanToken();
+    const token = await ninjaVanAuth.getValidToken();
     
     const response = await axios.delete(
       `${API_BASE_URL}/${COUNTRY_CODE}/2.2/orders/${trackingNumber}`,

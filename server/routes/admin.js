@@ -15,20 +15,7 @@ const COUNTRY_CODE = 'SG'; // Always use SG as per requirements
 // Create the NinjaVan axios instance with token refresh
 const ninjaVanApi = ninjaVanAuth.createAxiosInstance();
 
-// Get NinjaVan access token
-async function getNinjaVanToken() {
-  try {
-    const response = await axios.post(`${API_BASE_URL}/${COUNTRY_CODE}/2.0/oauth/access_token`, {
-      client_id: CLIENT_ID,
-      client_secret: CLIENT_SECRET,
-      grant_type: "client_credentials"
-    });
-    return response.data.access_token;
-  } catch (error) {
-    console.error('Error getting NinjaVan access token:', error.response?.data || error.message);
-    throw new Error('Failed to authenticate with NinjaVan');
-  }
-}
+// Note: Using ninjaVanAuth service for token management with caching
 
 // Add a helper function to format postal code
 function formatPostalCode(postcode) {

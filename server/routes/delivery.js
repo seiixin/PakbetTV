@@ -4,25 +4,12 @@ const axios = require('axios');
 const crypto = require('crypto');
 const config = require('../config/keys');
 const { auth } = require('../middleware/auth');
+const ninjaVanAuth = require('../services/ninjaVanAuth');
 const API_BASE_URL = config.NINJAVAN_API_URL || 'https://api.ninjavan.co';
 const COUNTRY_CODE = config.NINJAVAN_COUNTRY_CODE || 'SG';
 const CLIENT_ID = config.NINJAVAN_CLIENT_ID;
 const CLIENT_SECRET = config.NINJAVAN_CLIENT_SECRET;
 const db = require('../config/db');
-
-async function getNinjaVanToken() {
-  try {
-    const response = await axios.post(`${API_BASE_URL}/${COUNTRY_CODE}/2.0/oauth/access_token`, {
-      client_id: CLIENT_ID,
-      client_secret: CLIENT_SECRET,
-      grant_type: "client_credentials"
-    });
-    return response.data.access_token;
-  } catch (error) {
-    console.error('Error getting NinjaVan access token:', error.response?.data || error.message);
-    throw new Error('Failed to authenticate with NinjaVan');
-  }
-}
 
 // Middleware to verify NinjaVan webhook signatures
 const verifyNinjaVanSignature = (req, res, next) => {
@@ -200,7 +187,7 @@ async function sendDeliveryNotification(orderId) {
 
 router.post('/ninjavan/create-order', async (req, res) => {
   try {
-    const token = await getNinjaVanToken();
+    const token = await ninjaVanAuth.getValidToken();
     const orderData = req.body;
     const response = await axios.post(
       `${API_BASE_URL}/${COUNTRY_CODE}/4.2/orders`, 
@@ -238,7 +225,7 @@ router.get('/ninjavan/tracking/:trackingId', async (req, res) => {
 
 router.get('/ninjavan/waybill/:trackingId', async (req, res) => {
   try {
-    const token = await getNinjaVanToken();
+    const token = await ninjaVanAuth.getValidToken();
     const trackingId = req.params.trackingId;
     const response = await axios.get(
       `${API_BASE_URL}/${COUNTRY_CODE}/2.0/reports/waybill?tid=${trackingId}`,
@@ -274,7 +261,7 @@ router.post('/ninjavan/estimate', async (req, res) => {
       });
     }
 
-    const token = await getNinjaVanToken();
+    const token = await ninjaVanAuth.getValidToken();
     
     // Prepare rate request payload
     const rateRequest = {
@@ -406,7 +393,7 @@ router.delete('/ninjavan/orders/:trackingId', auth, async (req, res) => {
     }
 
     // Get NinjaVan access token
-    const token = await getNinjaVanToken();
+    const token = await ninjaVanAuth.getValidToken();
     
     // Cancel the order with NinjaVan
     let ninjaVanResponse;
@@ -765,7 +752,7 @@ async function createShippingOrder(orderId) {
 
     try {
       // Get NinjaVan token
-      const token = await getNinjaVanToken();
+      const token = await ninjaVanAuth.getValidToken();
 
       // Create the order with NinjaVan
       const response = await axios.post(
