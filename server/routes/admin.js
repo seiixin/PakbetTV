@@ -7,6 +7,7 @@ const config = require('../config/keys');
 const ninjaVanAuth = require('../services/ninjaVanAuth');
 const deliveryRouter = require('./delivery'); // Import delivery router for createShippingOrder function
 const { sendOrderConfirmationEmail } = require('../services/emailService');
+const { runManualPaymentCheck } = require('../cron/paymentStatusChecker'); // Import manual payment check
 
 // Ninja Van API Config
 const API_BASE_URL = config.NINJAVAN_API_URL;
@@ -33,6 +34,75 @@ function formatPostalCode(postcode) {
   // For any other case, pad with zeros until 6 digits
   return cleanPostcode.padStart(6, '0');
 }
+
+// Global route to manually trigger Dragonpay Transaction Status Query check
+// Can be called from anywhere: GET /api/admin/check-payments
+router.get('/check-payments', async (req, res) => {
+  try {
+    console.log('🔧 Manual Dragonpay Transaction Status Query check triggered via API');
+    
+    const result = await runManualPaymentCheck();
+    
+    res.status(200).json({
+      success: true,
+      message: 'Dragonpay Transaction Status check completed',
+      data: {
+        status: result.status,
+        checked: result.checked || 0,
+        updated: result.updated || 0,
+        errors: result.errors || 0,
+        skipped: result.skipped || 0,
+        retries: result.retries || 0,
+        duration: result.duration || 0,
+        timestamp: new Date().toISOString()
+      }
+    });
+    
+    console.log(`✅ Manual check completed via API: ${result.updated || 0} orders updated`);
+    
+  } catch (error) {
+    console.error('❌ Error in manual payment check API:', error.message);
+    
+    res.status(500).json({
+      success: false,
+      message: 'Error running payment status check',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Alternative route without authentication for easier global access
+// Can be called from frontend: GET /api/admin/payments/check
+router.get('/payments/check', async (req, res) => {
+  try {
+    console.log('🌐 Global Dragonpay check triggered from frontend');
+    
+    const result = await runManualPaymentCheck();
+    
+    // Simple response for frontend consumption
+    res.status(200).json({
+      success: true,
+      checked: result.checked || 0,
+      updated: result.updated || 0,
+      message: result.updated > 0 ? 
+        `${result.updated} payment(s) processed successfully` : 
+        'No pending payments found',
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Error in global payment check:', error.message);
+    
+    res.status(200).json({
+      success: false,
+      checked: 0,
+      updated: 0,
+      message: 'Payment check failed',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
 
 // Combine the payment confirmation and shipping order creation
 router.post('/confirm-payment/:orderId', async (req, res) => {

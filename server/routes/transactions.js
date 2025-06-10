@@ -437,53 +437,66 @@ router.get('/verify', async (req, res) => {
   }
 });
 router.post('/postback', async (req, res) => {
+  const connection = await db.getConnection();
+  
   try {
     const { txnid, refno, status, message, digest } = req.body;
     
-    console.log('Postback received:', { txnid, refno, status, message });
+    console.log('🔔 === Dragonpay IPN (Postback) Received ===');
+    console.log(`📋 Transaction ID: ${txnid}`);
+    console.log(`🆔 Reference Number: ${refno}`);
+    console.log(`📊 Status: ${status}`);
+    console.log(`💬 Message: ${message}`);
+    console.log(`🔐 Digest: ${digest ? '***PROVIDED***' : 'NOT PROVIDED'}`);
     
-    // Validate digest for security
-    const SECRET_KEY = process.env.DRAGONPAY_SECRET_KEY || 'test_key';
-    const expectedDigest = crypto.createHash('sha1')
-      .update(`${txnid}:${refno}:${status}:${message}:${SECRET_KEY}`)
-      .digest('hex');
-    
-    if (digest && digest.toLowerCase() !== expectedDigest.toLowerCase()) {
-      console.error('Invalid digest received from DragonPay');
-      return res.status(400).send('result=Invalid digest');
-    }
-    
-    // Extract order_code from txnid (format: order_{orderCode}_{timestamp})
+    // Extract order_code from txnId (format: order_{orderCode}_{timestamp})
     const orderCodeMatch = txnid.match(/order_(.+?)_\d+$/);
     if (!orderCodeMatch || !orderCodeMatch[1]) {
-      console.error('Invalid transaction ID format:', txnid);
-      return res.status(400).send('result=Invalid transaction ID');
+      console.error(`❌ IPN - Invalid transaction ID format: ${txnid}`);
+      return res.status(400).send('result=Invalid transaction ID format');
     }
     const orderCode = orderCodeMatch[1];
-    console.log('Postback - Extracted order_code:', orderCode);
-
-    const connection = await db.getConnection();
+    console.log(`🔍 IPN - Extracted order_code: ${orderCode} from txnid: ${txnid}`);
+    
+    // Validate the digest if provided (security measure)
+    if (digest) {
+      const expectedDigest = crypto.createHash('sha1')
+        .update(`${txnid}:${refno}:${status}:${message}:${process.env.DRAGONPAY_SECRET_KEY}`)
+        .digest('hex');
+      
+      if (digest !== expectedDigest) {
+        console.error('❌ IPN digest validation failed - possible security issue');
+        return res.status(400).send('result=Invalid digest');
+      }
+      console.log('✅ IPN digest validated successfully');
+    }
 
     try {
       await connection.beginTransaction();
 
       // Find order by order_code
       const [orders] = await connection.query(
-        'SELECT * FROM orders WHERE order_code = ?',
+        'SELECT o.*, u.first_name, u.last_name, u.email FROM orders o ' +
+        'JOIN users u ON o.user_id = u.user_id ' +
+        'WHERE o.order_code = ?',
         [orderCode]
       );
 
       if (orders.length === 0) {
         await connection.rollback();
+        console.error(`❌ IPN - Order not found for order_code: ${orderCode} (extracted from txnid: ${txnid})`);
         return res.status(400).send('result=Order not found');
       }
 
       const order = orders[0];
-      const orderId = order.order_id; // Auto-increment ID
-      console.log('Postback - Found order:', { order_id: orderId, order_code: orderCode });
+      const orderId = order.order_id;
+      console.log(`🔍 IPN - Found order: ${orderId} (${orderCode})`);
 
+      // Process different payment statuses
       if (status === 'S') {
-        // Success - Update order status to for_packing and payment status to paid
+        console.log(`🎉 IPN - Payment SUCCESS for order ${orderId} - Executing complete transaction flow`);
+        
+        // Update order status to for_packing and payment status to paid
         await connection.query(
           'UPDATE orders SET order_status = ?, payment_status = ?, updated_at = NOW() WHERE order_id = ?',
           ['for_packing', 'paid', orderId]
@@ -491,94 +504,52 @@ router.post('/postback', async (req, res) => {
 
         // Update payment record
         await connection.query(
-          'UPDATE payments SET status = ?, reference_number = ?, updated_at = NOW() WHERE order_id = ?',
-          ['completed', refno, orderId]
+          'UPDATE payments SET status = ?, reference_number = ?, transaction_id = ?, updated_at = NOW() WHERE order_id = ?',
+          ['completed', refno, txnid, orderId]
         );
 
         // Empty cart
         await connection.query('DELETE FROM cart WHERE user_id = ?', [order.user_id]);
+        console.log(`🛒 Cart cleared for user ${order.user_id}`);
 
-        console.log(`Postback - Payment successful for order ${orderId}`);
+        // Commit payment status changes
+        await connection.commit();
 
-        // Send order confirmation email for successful payment
+        console.log(`✅ IPN - Payment confirmed for order ${orderId}, proceeding with transaction completion`);
+
+        // Execute complete transaction flow (shipping order creation, waybill generation, email)
         try {
-          console.log('Postback - Sending order confirmation email for order:', orderId);
+          console.log(`🚚 IPN - Creating shipping order for order ${orderId}...`);
+          const shippingResult = await deliveryRouter.createShippingOrder(orderId);
           
-          // Get user details
-          const [userDetails] = await connection.query(
-            'SELECT u.first_name, u.last_name, u.email, u.phone FROM users u ' +
-            'WHERE u.user_id = ?',
-            [order.user_id]
-          );
-
-          // Get order items for email
-          const [orderItems] = await connection.query(
-            'SELECT oi.*, p.name FROM order_items oi ' +
-            'JOIN products p ON oi.product_id = p.product_id ' +
-            'WHERE oi.order_id = ?',
-            [orderId]
-          );
-
-          // Get payment details
-          const [paymentDetails] = await connection.query(
-            'SELECT * FROM payments WHERE order_id = ? ORDER BY payment_id DESC LIMIT 1',
-            [orderId]
-          );
-
-          // Get shipping details
-          const [shippingDetails] = await connection.query(
-            'SELECT * FROM shipping WHERE order_id = ?',
-            [orderId]
-          );
-
-          // Get user shipping details
-          const [userShippingDetails] = await connection.query(
-            'SELECT * FROM user_shipping_details WHERE user_id = ? AND is_default = 1',
-            [order.user_id]
-          );
-
-          // Get shipping address
-          let shippingAddress = 'Address not available';
-          if (shippingDetails.length > 0 && shippingDetails[0].address) {
-            shippingAddress = shippingDetails[0].address;
-          } else if (userShippingDetails.length > 0) {
-            const userShipping = userShippingDetails[0];
-            shippingAddress = `${userShipping.address1}, ${userShipping.address2 || ''}, ${userShipping.city}, ${userShipping.state}, ${userShipping.postcode}, ${userShipping.country}`.trim().replace(/, ,/g, ',').replace(/,$/g, '');
+          if (shippingResult && shippingResult.tracking_number) {
+            // Update with tracking number
+            await db.query(
+              'UPDATE orders SET tracking_number = ? WHERE order_id = ?',
+              [shippingResult.tracking_number, orderId]
+            );
+            console.log(`📦 IPN - Tracking number assigned: ${shippingResult.tracking_number}`);
+            console.log(`📄 IPN - Waybill can be generated using tracking number: ${shippingResult.tracking_number}`);
           }
 
-          if (userDetails.length > 0) {
-            const user = userDetails[0];
-            const payment = paymentDetails.length > 0 ? paymentDetails[0] : {};
-            
-            // Prepare email details
-            const emailDetails = {
-              orderNumber: order.order_code || orderId,
-              customerName: `${user.first_name} ${user.last_name}`,
-              customerEmail: user.email,
-              customerPhone: user.phone,
-              items: orderItems.map(item => ({
-                name: item.name,
-                quantity: item.quantity,
-                price: item.price
-              })),
-              totalAmount: order.total_price,
-              shippingFee: 0, // Shipping fee not stored in shipping table
-              shippingAddress: shippingAddress,
-              paymentMethod: payment.payment_method || 'DragonPay',
-              paymentReference: refno,
-              trackingNumber: order.tracking_number || null
-            };
+                     // Send order confirmation email
+           await sendOrderConfirmationEmailForIPN(order, refno, shippingResult?.tracking_number);
+          
+          console.log(`🎉 IPN - Complete transaction flow executed successfully for order ${orderId}`);
+          console.log(`   - Payment confirmed and recorded via IPN`);
+          console.log(`   - Cart cleared`);
+          console.log(`   - Shipping order created${shippingResult?.tracking_number ? ` (${shippingResult.tracking_number})` : ''}`);
+          console.log(`   - Confirmation email sent`);
+          console.log(`   - Waybill ready for generation`);
 
-            // Send the email
-            await sendOrderConfirmationEmail(emailDetails);
-            console.log('Postback - Order confirmation email sent successfully to:', user.email);
-          }
-        } catch (emailError) {
-          // Don't fail the transaction if email fails
-          console.error('Postback - Failed to send order confirmation email (non-critical):', emailError.message);
+        } catch (transactionFlowError) {
+          console.error(`❌ IPN - Error in complete transaction flow for order ${orderId}:`, transactionFlowError.message);
+          console.log(`⚠️  IPN - Payment confirmed but some post-processing failed. Manual intervention may be needed.`);
         }
-
+        
       } else if (status === 'F') {
+        console.log(`❌ IPN - Payment FAILED for order ${orderId}`);
+        
         // Failed - Update order status to cancelled and payment status to failed
         await connection.query(
           'UPDATE orders SET order_status = ?, payment_status = ?, updated_at = NOW() WHERE order_id = ?',
@@ -586,13 +557,16 @@ router.post('/postback', async (req, res) => {
         );
 
         await connection.query(
-          'UPDATE payments SET status = ?, reference_number = ?, updated_at = NOW() WHERE order_id = ?',
-          ['failed', refno, orderId]
+          'UPDATE payments SET status = ?, reference_number = ?, transaction_id = ?, updated_at = NOW() WHERE order_id = ?',
+          ['failed', refno, txnid, orderId]
         );
 
-        console.log(`Postback - Payment failed for order ${orderId}`);
+        await connection.commit();
+        console.log(`💔 IPN - Payment failed and order ${orderId} marked as cancelled`);
         
       } else if (status === 'P') {
+        console.log(`⏳ IPN - Payment PENDING for order ${orderId} - Transaction Status Query will monitor`);
+        
         // Pending - Important for OTC payments which start as pending
         await connection.query(
           'UPDATE orders SET order_status = ?, payment_status = ?, updated_at = NOW() WHERE order_id = ?',
@@ -600,26 +574,28 @@ router.post('/postback', async (req, res) => {
         );
 
         await connection.query(
-          'UPDATE payments SET status = ?, reference_number = ?, updated_at = NOW() WHERE order_id = ?',
-          ['waiting_for_confirmation', refno, orderId]
+          'UPDATE payments SET status = ?, reference_number = ?, transaction_id = ?, updated_at = NOW() WHERE order_id = ?',
+          ['waiting_for_confirmation', refno, txnid, orderId]
         );
 
-        console.log(`Postback - Payment pending for order ${orderId}, waiting for confirmation`);
+        await connection.commit();
+        console.log(`⏰ IPN - Payment pending for order ${orderId}, will be monitored by Transaction Status Query checker`);
         
       } else {
         // Handle other status codes (U, R, K, V, A)
-        console.log(`Postback - Unhandled status '${status}' for order ${orderId}`);
+        console.log(`🔄 IPN - Status '${status}' for order ${orderId} - ${message}`);
         
         await connection.query(
-          'UPDATE payments SET status = ?, reference_number = ?, updated_at = NOW() WHERE order_id = ?',
-          [mapDragonpayStatus(status), refno, orderId]
+          'UPDATE payments SET status = ?, reference_number = ?, transaction_id = ?, updated_at = NOW() WHERE order_id = ?',
+          [mapDragonpayStatus(status), refno, txnid, orderId]
         );
+
+        await connection.commit();
       }
 
-      await connection.commit();
-      
       // DragonPay expects this exact response format
       res.status(200).send('result=OK');
+      console.log(`✅ IPN processed successfully for order ${orderId} with status ${status}`);
 
     } catch (error) {
       await connection.rollback();
@@ -629,11 +605,76 @@ router.post('/postback', async (req, res) => {
     }
 
   } catch (error) {
-    console.error('Postback error:', error);
-    // DragonPay expects this exact error response format
-    res.status(500).send('result=Error');
+    console.error('❌ IPN processing error:', error);
+    res.status(500).send('result=Error processing payment notification');
   }
 });
+
+// Helper function to send order confirmation email for IPN
+async function sendOrderConfirmationEmailForIPN(order, referenceNumber, trackingNumber = null) {
+  try {
+    console.log('📧 IPN - Sending order confirmation email...');
+    
+    // Get order items for email
+    const [orderItems] = await db.query(
+      'SELECT oi.*, p.name FROM order_items oi ' +
+      'JOIN products p ON oi.product_id = p.product_id ' +
+      'WHERE oi.order_id = ?',
+      [order.order_id]
+    );
+
+    // Get payment details
+    const [paymentDetails] = await db.query(
+      'SELECT * FROM payments WHERE order_id = ? ORDER BY payment_id DESC LIMIT 1',
+      [order.order_id]
+    );
+
+    // Get shipping details
+    const [shippingDetails] = await db.query(
+      'SELECT * FROM shipping WHERE order_id = ?',
+      [order.order_id]
+    );
+
+    // Get user shipping details
+    const [userShippingDetails] = await db.query(
+      'SELECT * FROM user_shipping_details WHERE user_id = ? AND is_default = 1',
+      [order.user_id]
+    );
+
+    // Get shipping address
+    let shippingAddress = 'Address not available';
+    if (shippingDetails.length > 0 && shippingDetails[0].address) {
+      shippingAddress = shippingDetails[0].address;
+    } else if (userShippingDetails.length > 0) {
+      const userShipping = userShippingDetails[0];
+      shippingAddress = `${userShipping.address1}, ${userShipping.address2 || ''}, ${userShipping.city}, ${userShipping.state}, ${userShipping.postcode}, ${userShipping.country}`.trim().replace(/, ,/g, ',').replace(/,$/g, '');
+    }
+
+    const emailDetails = {
+      orderNumber: order.order_code || order.order_id,
+      customerName: `${order.first_name} ${order.last_name}`,
+      customerEmail: order.email,
+      items: orderItems.map(item => ({
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price
+      })),
+      totalAmount: order.total_price,
+      shippingFee: 0,
+      shippingAddress: shippingAddress,
+      paymentMethod: 'DragonPay',
+      paymentReference: referenceNumber,
+      trackingNumber: trackingNumber
+    };
+
+    await sendOrderConfirmationEmail(emailDetails);
+    console.log('✅ IPN - Order confirmation email sent successfully');
+
+  } catch (emailError) {
+    console.error('❌ IPN - Failed to send order confirmation email:', emailError.message);
+  }
+}
+
 function mapDragonpayStatus(dpStatus) {
   switch(dpStatus) {
     case 'S': return 'completed';
