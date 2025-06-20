@@ -24,6 +24,11 @@ const ProductPage = () => {
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [isCategoriesVisible, setIsCategoriesVisible] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
+  
+  // Mobile navigation states
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [expandedDropdowns, setExpandedDropdowns] = useState(new Set());
+  
   const [categories, setCategories] = useState([
     { id: 'all', name: 'All Products', image: '/All-Products.svg' }
   ]);
@@ -232,6 +237,43 @@ const ProductPage = () => {
     }
   }, [productsData, selectedCategory, searchParams]);
 
+  // Toggle mobile menu
+  const toggleMobileMenu = () => {
+    const newState = !isMobileMenuOpen;
+    setIsMobileMenuOpen(newState);
+    
+    // Prevent body scroll when menu is open
+    if (newState) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+  };
+
+  // Toggle dropdown expansion
+  const toggleDropdown = (dropdownId) => {
+    const newExpanded = new Set(expandedDropdowns);
+    if (newExpanded.has(dropdownId)) {
+      newExpanded.delete(dropdownId);
+    } else {
+      newExpanded.add(dropdownId);
+    }
+    setExpandedDropdowns(newExpanded);
+  };
+
+  // Close mobile menu when clicking outside or on item
+  const closeMobileMenu = () => {
+    setIsMobileMenuOpen(false);
+    document.body.style.overflow = 'unset';
+  };
+
+  // Cleanup effect to reset body scroll on unmount
+  useEffect(() => {
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, []);
+
   const handleCategoryClick = (categoryId) => {
     console.log('Category clicked:', categoryId);
     
@@ -252,6 +294,9 @@ const ProductPage = () => {
     
     navigate(`/shop?category=${categoryId}`); // Keep original URL
     setSelectedCategory(finalCategoryId); // Use mapped category for filtering
+    
+    // Close mobile menu after selection
+    closeMobileMenu();
   };
 
   const filterProducts = (products) => {
@@ -321,9 +366,37 @@ const ProductPage = () => {
       <NavBar />
       
       <div className="shop-main-layout">
+        {/* Mobile Menu Toggle Button */}
+        <button 
+          className={`mobile-nav-toggle ${isMobileMenuOpen ? 'hidden' : ''}`}
+          onClick={toggleMobileMenu}
+          aria-label="Toggle navigation menu"
+        >
+          <i className="fas fa-bars"></i>
+        </button>
+
+        {/* Mobile Menu Overlay */}
+        {isMobileMenuOpen && (
+          <div className="mobile-nav-overlay" onClick={closeMobileMenu}></div>
+        )}
+
         {/* Left Navigation Menu */}
-        <div className="left-navigation">
+        <div className={`left-navigation ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
+          {/* Mobile close button inside sidebar */}
+          <div className="mobile-nav-header">
+            <h3>Menu</h3>
+            <button className="mobile-close-btn" onClick={closeMobileMenu}>
+              <i className="fas fa-arrow-left"></i>
+            </button>
+          </div>
           <div className="nav-menu">
+            <Link to="/shop" className="nav-item" onClick={closeMobileMenu}>
+              <div className="nav-icon">
+                <i className="fas fa-store" style={{color: '#A2201A'}}></i>
+              </div>
+              <span className="nav-text">ALL PRODUCTS</span>
+            </Link>
+
             <div className="nav-item" onClick={() => scrollToSection('new-arrivals-section')}>
               <div className="nav-icon">
                 <i className="fas fa-star" style={{color: '#A2201A'}}></i>
@@ -345,153 +418,177 @@ const ProductPage = () => {
               <span className="nav-text">FLASH DEALS</span>
             </div>
             
-            <div className="nav-item expandable" onClick={() => handleCategoryClick('amulets')}>
-              <div className="nav-icon">
-                <i className="fas fa-gem" style={{color: '#A2201A'}}></i>
+            <div className="nav-item expandable">
+              <div 
+                className="nav-item-header"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleDropdown('amulets');
+                }}
+              >
+                <div className="nav-icon">
+                  <i className="fas fa-gem" style={{color: '#A2201A'}}></i>
+                </div>
+                <span className="nav-text">AMULETS</span>
+                <i className={`fas fa-chevron-right nav-arrow ${expandedDropdowns.has('amulets') ? 'expanded' : ''}`}></i>
               </div>
-              <span className="nav-text">AMULETS</span>
-              <i className="fas fa-chevron-right nav-arrow"></i>
-              <div className="nav-dropdown">
-                <div className="nav-dropdown-item" onClick={(e) => { e.stopPropagation(); handleCategoryClick('keychains'); }}>
+              <div className={`nav-dropdown ${expandedDropdowns.has('amulets') ? 'expanded' : ''}`}>
+                <Link to="/category/keychains" className="nav-dropdown-item" onClick={closeMobileMenu}>
                   <div className="nav-dropdown-icon">
                     <i className="fas fa-key"></i>
                   </div>
                   <span className="nav-dropdown-text">Keychains</span>
-                </div>
-                <div className="nav-dropdown-item" onClick={(e) => { e.stopPropagation(); handleCategoryClick('medallions'); }}>
+                </Link>
+                <Link to="/category/medallions" className="nav-dropdown-item" onClick={closeMobileMenu}>
                   <div className="nav-dropdown-icon">
                     <i className="fas fa-medal"></i>
                   </div>
                   <span className="nav-dropdown-text">Medallions</span>
-                </div>
-                <div className="nav-dropdown-item" onClick={(e) => { e.stopPropagation(); handleCategoryClick('plaque'); }}>
+                </Link>
+                <Link to="/category/plaque" className="nav-dropdown-item" onClick={closeMobileMenu}>
                   <div className="nav-dropdown-icon">
                     <i className="fas fa-square"></i>
                   </div>
                   <span className="nav-dropdown-text">Plaque</span>
-                </div>
-                <div className="nav-dropdown-item" onClick={(e) => { e.stopPropagation(); handleCategoryClick('talisman card'); }}>
+                </Link>
+                <Link to="/category/talisman-card" className="nav-dropdown-item" onClick={closeMobileMenu}>
                   <div className="nav-dropdown-icon">
                     <i className="fas fa-id-card"></i>
                   </div>
                   <span className="nav-dropdown-text">Talisman Card</span>
-                </div>
+                </Link>
               </div>
             </div>
             
-            <div className="nav-item" onClick={() => handleCategoryClick('auspicious home decor')}>
+            <Link to="/category/auspicious-home-decor" className="nav-item" onClick={closeMobileMenu}>
               <div className="nav-icon">
                 <i className="fas fa-home" style={{color: '#A2201A'}}></i>
               </div>
               <span className="nav-text">AUSPICIOUS HOME DECOR</span>
-            </div>
+            </Link>
             
-            <div className="nav-item" onClick={() => handleCategoryClick('feng shui bracelets')}>
+            <Link to="/category/feng-shui-bracelets" className="nav-item" onClick={closeMobileMenu}>
               <div className="nav-icon">
                 <i className="fas fa-circle" style={{color: '#A2201A'}}></i>
               </div>
               <span className="nav-text">FENG SHUI BRACELETS</span>
-        </div>
+        </Link>
         
-            <div className="nav-item" onClick={() => handleCategoryClick('feng shui books')}>
+            <Link to="/category/feng-shui-books" className="nav-item" onClick={closeMobileMenu}>
               <div className="nav-icon">
                 <i className="fas fa-book" style={{color: '#A2201A'}}></i>
               </div>
               <span className="nav-text">FENG SHUI BOOKS</span>
-            </div>
+            </Link>
             
-            <div className="nav-item expandable" onClick={() => handleCategoryClick('feng shui fashion')}>
-              <div className="nav-icon">
-                <i className="fas fa-tshirt" style={{color: '#A2201A'}}></i>
+            <div className="nav-item expandable">
+              <div 
+                className="nav-item-header"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleDropdown('feng-shui-fashion');
+                }}
+              >
+                <div className="nav-icon">
+                  <i className="fas fa-tshirt" style={{color: '#A2201A'}}></i>
+                </div>
+                <span className="nav-text">FENG SHUI FASHION</span>
+                <i className={`fas fa-chevron-right nav-arrow ${expandedDropdowns.has('feng-shui-fashion') ? 'expanded' : ''}`}></i>
               </div>
-              <span className="nav-text">FENG SHUI FASHION</span>
-              <i className="fas fa-chevron-right nav-arrow"></i>
-              <div className="nav-dropdown">
-                <div className="nav-dropdown-item" onClick={(e) => { e.stopPropagation(); handleCategoryClick('earrings'); }}>
+              <div className={`nav-dropdown ${expandedDropdowns.has('feng-shui-fashion') ? 'expanded' : ''}`}>
+                <Link to="/category/earrings" className="nav-dropdown-item" onClick={closeMobileMenu}>
                   <div className="nav-dropdown-icon">
                     <i className="fas fa-circle"></i>
                   </div>
                   <span className="nav-dropdown-text">Earrings</span>
-                </div>
-                <div className="nav-dropdown-item" onClick={(e) => { e.stopPropagation(); handleCategoryClick('necklaces'); }}>
+                </Link>
+                <Link to="/category/necklaces" className="nav-dropdown-item" onClick={closeMobileMenu}>
                   <div className="nav-dropdown-icon">
                     <i className="fas fa-gem"></i>
                   </div>
                   <span className="nav-dropdown-text">Necklaces</span>
-                </div>
-                <div className="nav-dropdown-item" onClick={(e) => { e.stopPropagation(); handleCategoryClick('pendants'); }}>
+                </Link>
+                <Link to="/category/pendants" className="nav-dropdown-item" onClick={closeMobileMenu}>
                   <div className="nav-dropdown-icon">
                     <i className="fas fa-star"></i>
                   </div>
                   <span className="nav-dropdown-text">Pendants</span>
-                </div>
-                <div className="nav-dropdown-item" onClick={(e) => { e.stopPropagation(); handleCategoryClick('rings'); }}>
+                </Link>
+                <Link to="/category/rings" className="nav-dropdown-item" onClick={closeMobileMenu}>
                   <div className="nav-dropdown-icon">
                     <i className="fas fa-circle"></i>
                   </div>
                   <span className="nav-dropdown-text">Rings</span>
-                </div>
-                <div className="nav-dropdown-item" onClick={(e) => { e.stopPropagation(); handleCategoryClick('scarves & shawls'); }}>
+                </Link>
+                <Link to="/category/scarves-shawls" className="nav-dropdown-item" onClick={closeMobileMenu}>
                   <div className="nav-dropdown-icon">
                     <i className="fas fa-tshirt"></i>
                   </div>
                   <span className="nav-dropdown-text">Scarves & Shawls</span>
-                </div>
-                <div className="nav-dropdown-item" onClick={(e) => { e.stopPropagation(); handleCategoryClick('wallets'); }}>
+                </Link>
+                <Link to="/category/wallets" className="nav-dropdown-item" onClick={closeMobileMenu}>
                   <div className="nav-dropdown-icon">
                     <i className="fas fa-wallet"></i>
                     </div>
                   <span className="nav-dropdown-text">Wallets</span>
-                </div>
+                </Link>
               </div>
             </div>
             
-            <div className="nav-item expandable" onClick={() => handleCategoryClick('incense & space clearing')}>
-              <div className="nav-icon">
-                <i className="fas fa-fire" style={{color: '#A2201A'}}></i>
+            <div className="nav-item expandable">
+              <div 
+                className="nav-item-header"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleDropdown('incense-space-clearing');
+                }}
+              >
+                <div className="nav-icon">
+                  <i className="fas fa-fire" style={{color: '#A2201A'}}></i>
+                </div>
+                <span className="nav-text">INCENSE & SPACE CLEARING</span>
+                <i className={`fas fa-chevron-right nav-arrow ${expandedDropdowns.has('incense-space-clearing') ? 'expanded' : ''}`}></i>
               </div>
-              <span className="nav-text">INCENSE & SPACE CLEARING</span>
-              <i className="fas fa-chevron-right nav-arrow"></i>
-              <div className="nav-dropdown">
-                <div className="nav-dropdown-item" onClick={(e) => { e.stopPropagation(); handleCategoryClick('incense holder & burner'); }}>
+              <div className={`nav-dropdown ${expandedDropdowns.has('incense-space-clearing') ? 'expanded' : ''}`}>
+                <Link to="/category/incense-holder-burner" className="nav-dropdown-item" onClick={closeMobileMenu}>
                   <div className="nav-dropdown-icon">
                     <i className="fas fa-fire"></i>
                   </div>
                   <span className="nav-dropdown-text">Incense Holder & Burner</span>
-                </div>
-                <div className="nav-dropdown-item" onClick={(e) => { e.stopPropagation(); handleCategoryClick('incense sticks'); }}>
+                </Link>
+                <Link to="/category/incense-sticks" className="nav-dropdown-item" onClick={closeMobileMenu}>
                   <div className="nav-dropdown-icon">
                     <i className="fas fa-fire-alt"></i>
                   </div>
                   <span className="nav-dropdown-text">Incense Sticks</span>
-                </div>
-                <div className="nav-dropdown-item" onClick={(e) => { e.stopPropagation(); handleCategoryClick('singing bowl'); }}>
+                </Link>
+                <Link to="/category/singing-bowl" className="nav-dropdown-item" onClick={closeMobileMenu}>
                   <div className="nav-dropdown-icon">
                     <i className="fas fa-circle-notch"></i>
                   </div>
                   <span className="nav-dropdown-text">Singing Bowl</span>
-                </div>
-                <div className="nav-dropdown-item" onClick={(e) => { e.stopPropagation(); handleCategoryClick('smudge kit'); }}>
+                </Link>
+                <Link to="/category/smudge-kit" className="nav-dropdown-item" onClick={closeMobileMenu}>
                   <div className="nav-dropdown-icon">
                     <i className="fas fa-seedling"></i>
                   </div>
                   <span className="nav-dropdown-text">Smudge Kit</span>
-                </div>
-                <div className="nav-dropdown-item" onClick={(e) => { e.stopPropagation(); handleCategoryClick('wishing paper'); }}>
+                </Link>
+                <Link to="/category/wishing-paper" className="nav-dropdown-item" onClick={closeMobileMenu}>
                   <div className="nav-dropdown-icon">
                     <i className="fas fa-file-alt"></i>
                   </div>
                   <span className="nav-dropdown-text">Wishing Paper</span>
-                </div>
-        </div>
-      </div>
+                </Link>
+              </div>
+            </div>
 
-            <div className="nav-item" onClick={() => handleCategoryClick('windchimes')}>
+            <Link to="/category/windchimes" className="nav-item" onClick={closeMobileMenu}>
               <div className="nav-icon">
                 <i className="fas fa-music" style={{color: '#A2201A'}}></i>
               </div>
               <span className="nav-text">WINDCHIMES</span>
-            </div>
+            </Link>
           </div>
         </div>
         
@@ -552,6 +649,13 @@ const ProductPage = () => {
           {/* Mobile Quick Navigation - Shows after carousel on mobile only */}
           <div className="mobile-quick-nav">
             <div className="mobile-quick-nav-scroll">
+              <Link to="/shop" className="mobile-quick-nav-item">
+                <div className="mobile-quick-nav-icon">
+                  <i className="fas fa-store"></i>
+                </div>
+                <span className="mobile-quick-nav-text">ALL PRODUCTS</span>
+              </Link>
+
               <div className="mobile-quick-nav-item" onClick={() => scrollToSection('new-arrivals-section')}>
                 <div className="mobile-quick-nav-icon">
                   <i className="fas fa-star"></i>
@@ -573,54 +677,54 @@ const ProductPage = () => {
                 <span className="mobile-quick-nav-text">FLASH DEALS</span>
               </div>
               
-              <div className="mobile-quick-nav-item" onClick={() => handleCategoryClick('amulets')}>
+              <Link to="/category/amulets" className="mobile-quick-nav-item">
                 <div className="mobile-quick-nav-icon">
                   <i className="fas fa-gem"></i>
                 </div>
                 <span className="mobile-quick-nav-text">AMULETS</span>
-              </div>
+              </Link>
               
-              <div className="mobile-quick-nav-item" onClick={() => handleCategoryClick('auspicious home decor')}>
+              <Link to="/category/auspicious-home-decor" className="mobile-quick-nav-item">
                 <div className="mobile-quick-nav-icon">
                   <i className="fas fa-home"></i>
                 </div>
                 <span className="mobile-quick-nav-text">AUSPICIOUS HOME DECOR</span>
-              </div>
+              </Link>
               
-              <div className="mobile-quick-nav-item" onClick={() => handleCategoryClick('feng shui bracelets')}>
+              <Link to="/category/feng-shui-bracelets" className="mobile-quick-nav-item">
                 <div className="mobile-quick-nav-icon">
                   <i className="fas fa-circle"></i>
                 </div>
                 <span className="mobile-quick-nav-text">FENG SHUI BRACELETS</span>
-              </div>
+              </Link>
               
-              <div className="mobile-quick-nav-item" onClick={() => handleCategoryClick('feng shui books')}>
+              <Link to="/category/feng-shui-books" className="mobile-quick-nav-item">
                 <div className="mobile-quick-nav-icon">
                   <i className="fas fa-book"></i>
                 </div>
                 <span className="mobile-quick-nav-text">FENG SHUI BOOKS</span>
-              </div>
+              </Link>
               
-              <div className="mobile-quick-nav-item" onClick={() => handleCategoryClick('feng shui fashion')}>
+              <Link to="/category/feng-shui-fashion" className="mobile-quick-nav-item">
                 <div className="mobile-quick-nav-icon">
                   <i className="fas fa-tshirt"></i>
                 </div>
                 <span className="mobile-quick-nav-text">FENG SHUI FASHION</span>
-              </div>
+              </Link>
               
-              <div className="mobile-quick-nav-item" onClick={() => handleCategoryClick('incense & space clearing')}>
+              <Link to="/category/incense-space-clearing" className="mobile-quick-nav-item">
                 <div className="mobile-quick-nav-icon">
                   <i className="fas fa-fire"></i>
                 </div>
                 <span className="mobile-quick-nav-text">INCENSE & SPACE CLEARING</span>
-              </div>
+              </Link>
               
-              <div className="mobile-quick-nav-item" onClick={() => handleCategoryClick('windchimes')}>
+              <Link to="/category/windchimes" className="mobile-quick-nav-item">
                 <div className="mobile-quick-nav-icon">
                   <i className="fas fa-music"></i>
                 </div>
                 <span className="mobile-quick-nav-text">WINDCHIMES</span>
-              </div>
+              </Link>
             </div>
           </div>
 

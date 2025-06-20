@@ -16,6 +16,7 @@ import Purchases from './components/Account/Purchases'
 import OrderConfirmation from './components/Account/OrderConfirmation'
 import ProductManagement from './components/Admin/ProductManagement'
 import ProductPage from './components/Shop/ProductPage'
+import CategoryPage from './components/Shop/CategoryPage'
 import ProductDetailPage from './components/Shop/ProductDetailPage'
 import Cart from './components/Shop/Cart'
 import Checkout from './components/Shop/Checkout'
@@ -116,6 +117,7 @@ function AppContent() {
         <Route path="/purchases" element={<Navigate to="/account/purchases" replace />} />
         <Route path="/admin/products" element={<ProductManagement />} />
         <Route path="/shop" element={<ProductPage />} />
+        <Route path="/category/:category" element={<CategoryPage />} />
         <Route path="/product/:id" element={<ProductDetailPage />} />
         <Route path="/cart" element={<Cart />} />
         <Route path="/checkout" element={<Checkout />} />
