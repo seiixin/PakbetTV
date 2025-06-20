@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
 import SocialLogin from './SocialLogin';
-import { PrivacyPolicy } from '../Legal/PrivacyPolicy';
+import LegalModal from '../common/LegalModal';
 import './Auth.css';
 
 function Signup() {
@@ -140,23 +140,8 @@ function Signup() {
     }
   };
 
-  const PrivacyPolicyModal = () => {
-    if (!showPrivacyPolicy) return null;
-
-    return (
-      <div className="modal-overlay" onClick={() => setShowPrivacyPolicy(false)}>
-        <div className="modal-content" onClick={e => e.stopPropagation()}>
-          <button 
-            className="modal-close" 
-            onClick={() => setShowPrivacyPolicy(false)}
-            aria-label="Close privacy policy"
-          >
-            ×
-          </button>
-          <PrivacyPolicy />
-        </div>
-      </div>
-    );
+  const closeLegalModal = () => {
+    setShowPrivacyPolicy(false);
   };
 
   const renderStepContent = () => {
@@ -380,7 +365,11 @@ function Signup() {
         </div>
       </form>
 
-      <PrivacyPolicyModal />
+      <LegalModal 
+        isOpen={showPrivacyPolicy} 
+        onClose={closeLegalModal} 
+        type="privacy" 
+      />
     </div>
   );
 }

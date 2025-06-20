@@ -65,7 +65,7 @@
 }
 
 .legal-modal-button {
-  background-color: #2563eb;
+  background-color: #800000;
   color: white;
   border: none;
   padding: 10px 24px;
@@ -76,7 +76,7 @@
 }
 
 .legal-modal-button:hover {
-  background-color: #1d4ed8;
+  background-color: #660000;
 }
 
 .legal-content h2 {
@@ -119,6 +119,19 @@
 
 .legal-section li {
   margin-bottom: 8px;
+}
+
+.legal-content a {
+  color: #800000;
+  text-decoration: none;
+  border-bottom: 1px solid #800000;
+  transition: all 0.2s ease;
+}
+
+.legal-content a:hover {
+  color: #660000;
+  border-bottom-color: #660000;
+  text-decoration: none;
 }
 
 /* Mobile responsiveness */
