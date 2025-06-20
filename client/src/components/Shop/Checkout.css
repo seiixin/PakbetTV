@@ -379,6 +379,89 @@
   border-radius: 2px;
 }
 
+/* Terms and Conditions Section */
+.terms-acceptance {
+  background-color: #f9f9f9;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.terms-checkbox-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  cursor: pointer;
+  line-height: 1.5;
+  position: relative;
+}
+
+.terms-checkbox {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #800000;
+  border-radius: 3px;
+  margin: 0;
+  flex-shrink: 0;
+  position: relative;
+  background-color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.terms-checkbox:checked {
+  background-color: #800000;
+  border-color: #800000;
+}
+
+.terms-checkbox:checked::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.terms-checkbox:hover {
+  border-color: #660000;
+}
+
+.terms-text {
+  color: #333;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.terms-link {
+  background: none;
+  border: none;
+  color: #800000;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: inherit;
+  font-family: inherit;
+  padding: 0;
+  margin: 0;
+  transition: color 0.2s ease;
+}
+
+.terms-link:hover {
+  color: #660000;
+  text-decoration: none;
+}
+
+/* Disabled button styles when terms not accepted */
+.place-order-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-color: #cccccc;
+  border-color: #cccccc;
+}
+
 /* Checkout Container - Remove conflicting margin, body padding handles navbar overlap */
 .checkout-shop-container {
   padding: 2rem;

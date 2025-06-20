@@ -1,8 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import './Footer.css';
+import LegalModal from './common/LegalModal';
 
 const Footer = ({ forceShow = true }) => {
+  const [legalModal, setLegalModal] = useState({ isOpen: false, type: 'terms' });
+
+  const openLegalModal = (type) => {
+    setLegalModal({ isOpen: true, type });
+  };
+
+  const closeLegalModal = () => {
+    setLegalModal({ isOpen: false, type: 'terms' });
+  };
+
   return (
     <footer className={`modern-footer ${!forceShow ? 'scroll-visible' : ''}`}>
       <div className="footer-content">
@@ -61,11 +72,28 @@ const Footer = ({ forceShow = true }) => {
             <p>COPYRIGHT 2025 FENG SHUI BY PAKBET TV. ALL RIGHTS RESERVED.</p>
           </div>
           <div className="footer-links">
-            <Link to="#">Terms of Use</Link>
+            <button 
+              className="footer-link-button" 
+              onClick={() => openLegalModal('terms')}
+            >
+              Terms of Use
+            </button>
             <Link to="#">Privacy Policy</Link>
+            <button 
+              className="footer-link-button" 
+              onClick={() => openLegalModal('refund')}
+            >
+              Refund Policy
+            </button>
           </div>
         </div>
       </div>
+      
+      <LegalModal 
+        isOpen={legalModal.isOpen} 
+        onClose={closeLegalModal} 
+        type={legalModal.type} 
+      />
     </footer>
   );
 };

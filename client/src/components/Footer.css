@@ -183,6 +183,22 @@
   color: var(--footer-text) !important;
 }
 
+.footer-link-button {
+  background: none;
+  border: none;
+  color: white;
+  text-decoration: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
+  transition: color 0.2s ease;
+  padding: 0;
+}
+
+.footer-link-button:hover {
+  color: var(--footer-text) !important;
+}
+
 /* Responsive Design */
 @media (max-width: 1024px) {
   .footer-content {

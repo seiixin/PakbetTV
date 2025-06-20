@@ -9,6 +9,7 @@ import Footer from '../Footer';
 import { notify } from '../../utils/notifications';
 import { authService } from '../../services/api';
 import ninjaVanService from '../../services/ninjaVanService';
+import LegalModal from '../common/LegalModal';
 
 const Checkout = () => {
   const [loading, setLoading] = useState(false);
@@ -28,6 +29,10 @@ const Checkout = () => {
   const [shippingFee, setShippingFee] = useState(0);
   const [shippingLoading, setShippingLoading] = useState(false);
   const [shippingError, setShippingError] = useState(null);
+  
+  // Legal terms state
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [legalModal, setLegalModal] = useState({ isOpen: false, type: 'terms' });
   
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -352,6 +357,14 @@ const Checkout = () => {
     navigate('/account');
   };
 
+  const openLegalModal = (type) => {
+    setLegalModal({ isOpen: true, type });
+  };
+
+  const closeLegalModal = () => {
+    setLegalModal({ isOpen: false, type: 'terms' });
+  };
+
   const formatPrice = (price) => {
     if (isNaN(price)) return '₱--.--';
     return '₱' + parseFloat(price).toFixed(2);
@@ -505,6 +518,39 @@ const Checkout = () => {
           </div>
         </div>
 
+        {/* Terms and Conditions Section */}
+        <div className="checkout-section">
+          <div className="terms-acceptance">
+            <label className="terms-checkbox-label">
+              <input 
+                type="checkbox" 
+                checked={termsAccepted}
+                onChange={(e) => setTermsAccepted(e.target.checked)}
+                className="terms-checkbox"
+              />
+              <span className="checkmark"></span>
+              <span className="terms-text">
+                By checking this box, you confirm that you have read and agree to our{' '}
+                <button 
+                  type="button"
+                  className="terms-link" 
+                  onClick={() => openLegalModal('terms')}
+                >
+                  Terms and Conditions
+                </button>
+                {' '}and{' '}
+                <button 
+                  type="button"
+                  className="terms-link" 
+                  onClick={() => openLegalModal('refund')}
+                >
+                  Refund Policy
+                </button>
+              </span>
+            </label>
+          </div>
+        </div>
+
         {/* Action Buttons */}
         <div className="checkout-actions">
           <button 
@@ -517,7 +563,7 @@ const Checkout = () => {
           <button 
             className="place-order-button" 
             onClick={handlePlaceOrder}
-            disabled={loading || !hasShippingAddress}
+            disabled={loading || !hasShippingAddress || !termsAccepted}
           >
             {loading ? 'Processing...' : 'Place Order'}
           </button>
@@ -530,6 +576,12 @@ const Checkout = () => {
         )}
       </div>
       <Footer />
+      
+      <LegalModal 
+        isOpen={legalModal.isOpen} 
+        onClose={closeLegalModal} 
+        type={legalModal.type} 
+      />
     </div>
   );
 };
