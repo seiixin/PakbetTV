@@ -5,7 +5,7 @@ import axios from 'axios'
 const isDevelopment = process.env.NODE_ENV === 'development';
 const API_URL = isDevelopment 
   ? '/api' 
-  : 'https://pakbettv.gghsoftwaredev.com/api';
+  : 'https://michaeldemesa.com/api';
 
 console.log('useProducts API_URL:', API_URL, 'isDevelopment:', isDevelopment);
 

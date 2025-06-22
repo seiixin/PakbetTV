@@ -118,7 +118,7 @@ const ProductPage = () => {
         const isDev = process.env.NODE_ENV === 'development';
         const apiUrl = isDev 
           ? '/api' 
-          : 'https://pakbettv.gghsoftwaredev.com/api';
+          : 'https://michaeldemesa.com/api';
         
         console.log('Testing categories API directly:', `${apiUrl}/categories`);
         const response = await fetch(`${apiUrl}/categories`);

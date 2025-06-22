@@ -34,7 +34,7 @@ const getAllowedOrigins = () => {
     return ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5174'];
   } else {
     // In production, use the specific client URL
-    return clientUrl ? [clientUrl] : ['https://pakbettv.gghsoftwaredev.com'];
+    return clientUrl ? [clientUrl] : ['https://michaeldemesa.com'];
   }
 };
 

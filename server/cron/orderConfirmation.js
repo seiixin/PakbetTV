@@ -7,7 +7,7 @@ const scheduleOrderConfirmation = () => {
     try {
       console.log('Running order auto-completion cron job...');
       
-      const serverUrl = process.env.SERVER_URL || 'https://pakbettv.gghsoftwaredev.com';
+      const serverUrl = process.env.SERVER_URL || 'https://michaeldemesa.com';
       const response = await axios.post(
         `${serverUrl}/api/orders/auto-complete`
       );

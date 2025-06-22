@@ -579,7 +579,7 @@ router.post('/forgot-password', async (req, res) => {
     console.log('Reset token saved for user:', email);
 
     // Get the origin from the request headers
-    const origin = req.get('origin') || process.env.CLIENT_URL || 'http://pakbettv.gghsoftwaredev.com';
+    const origin = req.get('origin') || process.env.CLIENT_URL || 'http://michaeldemesa.com';
     console.log('Using origin for reset URL:', origin);
 
     // Create reset password URL using the origin
@@ -761,7 +761,7 @@ router.get('*/social-auth-success', (req, res) => {
   const token = req.query.token;
   if (token) {
     // If we have a token, redirect to the correct frontend URL
-    const clientUrl = process.env.CLIENT_URL || 'https://pakbettv.gghsoftwaredev.com';
+    const clientUrl = process.env.CLIENT_URL || 'https://michaeldemesa.com';
     const redirectUrl = clientUrl.startsWith('http') 
       ? `${clientUrl}/social-auth-success?token=${token}`
       : `https://${clientUrl}/social-auth-success?token=${token}`;
@@ -775,20 +775,20 @@ router.get('*/social-auth-success', (req, res) => {
 });
 
 // Specific handler for the exact URL pattern seen in production logs
-router.get('/google/pakbettv.gghsoftwaredev.com/social-auth-success', (req, res) => {
+router.get('/google/michaeldemesa.com/social-auth-success', (req, res) => {
   console.log('Caught specific malformed Google auth URL');
   console.log('Query params:', req.query);
   
   const token = req.query.token;
   if (token) {
     // Redirect to the correct frontend URL
-    const redirectUrl = `https://pakbettv.gghsoftwaredev.com/social-auth-success?token=${token}`;
+    const redirectUrl = `https://michaeldemesa.com/social-auth-success?token=${token}`;
     console.log('Redirecting specific malformed request to:', redirectUrl);
     return res.redirect(redirectUrl);
   }
   
   // If no token, redirect to login with error
-  res.redirect('https://pakbettv.gghsoftwaredev.com/login?error=malformed_google_auth');
+  res.redirect('https://michaeldemesa.com/login?error=malformed_google_auth');
 });
 
 module.exports = router; 

@@ -1,7 +1,7 @@
 // In development, use relative paths to leverage Vite's proxy
 // In production, use the full URL from environment variables
 const isDevelopment = process.env.NODE_ENV === 'development';
-const API_BASE_URL = isDevelopment ? '' : 'https://pakbettv.gghsoftwaredev.com';
+const API_BASE_URL = isDevelopment ? '' : 'https://michaeldemesa.com';
 
 export default API_BASE_URL;
 
