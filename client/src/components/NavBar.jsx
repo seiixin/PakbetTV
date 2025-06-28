@@ -444,8 +444,20 @@ const NavBar = () => {
               <li className="navbar-navbar-item">
                 <Link to="/" className="navbar-navbar-link">Home</Link>
               </li>
+              <li className="navbar-navbar-item navbar-dropdown-wrapper">
+                <span className="navbar-navbar-link">Shop</span>
+                <div className="navbar-submenu">
+                  <Link to="/shop" className="navbar-submenu-link">All Products</Link>
+                  <Link to="/category/amulets" className="navbar-submenu-link">Amulets</Link>
+                  <Link to="/category/auspicious-home-decor" className="navbar-submenu-link">Home Decor</Link>
+                  <Link to="/category/feng-shui-bracelets" className="navbar-submenu-link">Bracelets</Link>
+                  <Link to="/category/feng-shui-fashion" className="navbar-submenu-link">Fashion</Link>
+                  <Link to="/category/incense-space-clearing" className="navbar-submenu-link">Incense & Clearing</Link>
+                  <Link to="/category/prosperity-bowls" className="navbar-submenu-link">Prosperity Bowls</Link>
+                </div>
+              </li>
               <li className="navbar-navbar-item">
-                <Link to="/shop" className="navbar-navbar-link">Shop</Link>
+                <Link to="/consultation" className="navbar-navbar-link">Consultation</Link>
               </li>
               <li className="navbar-navbar-item">
                 <Link to="/horoscope" className="navbar-navbar-link">Horoscope</Link>
@@ -476,7 +488,7 @@ const NavBar = () => {
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
               </svg>
-              <span>0976-120-3535</span>
+              <span>0981-194-9999</span>
             </div>
           </div>
         </div>
@@ -536,6 +548,16 @@ const NavBar = () => {
               <path d="M16 10a4 4 0 0 1-8 0"></path>
             </svg>
             <span>Shop</span>
+          </Link>
+          <Link to="/consultation" className="mobile-nav-link" onClick={handleMobileNavClick}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14,2 14,8 20,8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10,9 9,9 8,9"></polyline>
+            </svg>
+            <span>Consultation</span>
           </Link>
           <Link to="/horoscope" className="mobile-nav-link" onClick={handleMobileNavClick}>
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -598,7 +620,7 @@ const NavBar = () => {
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
               </svg>
-              <span>Call Us: 0976-120-3535</span>
+              <span>Call Us: 0981-194-9999</span>
             </div>
           </div>
         </div>

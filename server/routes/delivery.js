@@ -591,6 +591,24 @@ async function createShippingOrder(orderId) {
     
     console.log(`✅ Payment confirmed for order ${orderId} (${order.payment_status}), proceeding with shipping order creation`);
     
+    // Validate required customer information - STRICT: No fallbacks allowed
+    if (!order.phone || !order.phone.trim()) {
+      await connection.rollback();
+      throw new Error(`Customer phone number is required for shipping. Order ${orderId} cannot proceed without a valid phone number. Please ensure the customer provides their phone number before creating shipping orders.`);
+    }
+    
+    if (!order.email || !order.email.trim()) {
+      await connection.rollback();
+      throw new Error(`Customer email is required for shipping. Order ${orderId} cannot proceed without a valid email.`);
+    }
+    
+    if (!order.first_name || !order.first_name.trim()) {
+      await connection.rollback();
+      throw new Error(`Customer name is required for shipping. Order ${orderId} cannot proceed without a valid name.`);
+    }
+    
+    console.log(`✅ Customer information validated for order ${orderId}: phone=${order.phone}, email=${order.email}, name=${order.first_name} ${order.last_name}`);
+    
     // Get user's shipping details
     const [shippingDetails] = await connection.query(
       'SELECT * FROM user_shipping_details WHERE user_id = ? AND is_default = 1',
@@ -697,7 +715,7 @@ async function createShippingOrder(orderId) {
       },
       from: {
         name: "Feng Shui by Pakbet TV",
-        phone_number: "+6591234567",
+        phone_number: "+639811949999",
         email: "store@fengshui-ecommerce.com",
         address: {
           address1: "Unit 1004 Cityland Shaw Tower",
@@ -712,7 +730,7 @@ async function createShippingOrder(orderId) {
       },
       to: {
         name: `${order.first_name} ${order.last_name}`,
-        phone_number: order.phone || "+6591234567",
+        phone_number: order.phone,
         email: order.email,
         address: {
           address1: userShipping.address1,

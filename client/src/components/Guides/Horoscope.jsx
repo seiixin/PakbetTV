@@ -24,7 +24,7 @@ const Navbar = () => {
                     </div>
                     <div className="flex items-center space-x-1">
                         <i className="fas fa-phone-alt"></i>
-                        <span>0976-120-3535</span>
+                        <span>0981-194-9999</span>
                     </div>
                 </div>
             </div>

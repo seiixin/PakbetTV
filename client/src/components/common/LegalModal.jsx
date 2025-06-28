@@ -70,7 +70,7 @@ const LegalModal = ({
         </p>
         <ul>
           <li>Email: admin@pakbettv.com</li>
-          <li>Phone: 0976 120 3535</li>
+          <li>Phone: 0981-194-9999</li>
           <li>Address: Unit 1004 Cityland Shaw Tower, Corner St. Francis, Shaw Blvd. Mandaluyong City, Philippines</li>
         </ul>
       </section>
@@ -157,7 +157,7 @@ const LegalModal = ({
         </p>
         <ul>
           <li>Email: admin@pakbettv.com</li>
-          <li>Phone: 0976 120 3535</li>
+          <li>Phone: 0981-194-9999</li>
           <li>Address: Unit 1004 Cityland Shaw Tower, Corner St. Francis, Shaw Blvd. Mandaluyong City, Philippines</li>
         </ul>
       </section>
@@ -270,7 +270,7 @@ const LegalModal = ({
         <p>If you have any questions about this Privacy Policy, please contact us:</p>
         <ul>
           <li>Email: <a href="mailto:admin@pakbettv.com">admin@pakbettv.com</a></li>
-          <li>Phone: 0976 120 3535</li>
+          <li>Phone: 0981-194-9999</li>
           <li>Address: Unit 1004 Cityland Shaw Tower, Corner St. Francis, Shaw Blvd. Mandaluyong City, Philippines</li>
         </ul>
       </section>

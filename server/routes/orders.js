@@ -13,6 +13,19 @@ const CLIENT_ID = config.NINJAVAN_CLIENT_ID;
 const CLIENT_SECRET = config.NINJAVAN_CLIENT_SECRET;
 async function createNinjaVanDelivery(orderData, shippingAddress, customerInfo) {
   try {
+    // Validate required customer information - STRICT: No fallbacks allowed
+    if (!customerInfo.phone || !customerInfo.phone.trim()) {
+      throw new Error('Customer phone number is required for delivery. Order cannot proceed without a valid phone number.');
+    }
+    
+    if (!customerInfo.email || !customerInfo.email.trim()) {
+      throw new Error('Customer email is required for delivery. Order cannot proceed without a valid email.');
+    }
+    
+    if (!customerInfo.first_name || !customerInfo.first_name.trim()) {
+      throw new Error('Customer name is required for delivery. Order cannot proceed without a valid name.');
+    }
+
     const token = await ninjaVanAuth.getValidToken();
     const totalWeight = orderData.items.reduce((sum, item) => sum + (item.quantity * 0.5), 0);
     const deliveryRequest = {
@@ -35,7 +48,7 @@ async function createNinjaVanDelivery(orderData, shippingAddress, customerInfo) 
       },
       to: {
         name: `${customerInfo.first_name} ${customerInfo.last_name}`,
-        phone_number: customerInfo.phone || "+6502700553", 
+        phone_number: customerInfo.phone,
         email: customerInfo.email,
         address: {
           address1: shippingAddress.split(',')[0] || shippingAddress, 

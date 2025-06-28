@@ -394,13 +394,14 @@ button.navbar-search-button svg {
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   padding: 8px 0;
-  min-width: 180px;
+  min-width: 200px;
   opacity: 0;
   visibility: hidden;
   transform: translateY(-10px);
   transition: all 0.3s ease;
-  z-index: 1000;
+  z-index: 9999;
   margin-top: 8px;
+  border: 1px solid #eee;
 }
 
 .navbar-submenu-link {

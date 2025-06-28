@@ -311,8 +311,22 @@ const Checkout = () => {
     const missingFields = requiredFields.filter(field => !shippingDetails[field]?.trim());
     
     if (missingFields.length > 0) {
-      setError(`Please provide your ${missingFields.map(f => f.replace('_', ' ')).join(', ')}`);
-      notify.error('Please complete all required shipping information');
+      const fieldNames = missingFields.map(f => {
+        switch(f) {
+          case 'phone': return 'mobile number';
+          case 'postal_code': return 'postal code';
+          default: return f.replace('_', ' ');
+        }
+      });
+      setError(`Please provide your ${fieldNames.join(', ')}. Mobile number is required for order processing and delivery coordination.`);
+      notify.error('Please complete all required shipping information including your mobile number');
+      return;
+    }
+    
+    // Extra validation for phone number specifically
+    if (!shippingDetails.phone || !shippingDetails.phone.trim()) {
+      setError('Mobile number is required. We need your contact number for order updates and delivery coordination.');
+      notify.error('Mobile number is required for checkout');
       return;
     }
 

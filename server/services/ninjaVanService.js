@@ -16,6 +16,19 @@ const CLIENT_SECRET = config.NINJAVAN_CLIENT_SECRET;
  */
 async function createDeliveryOrder(orderData, shippingAddress, customerInfo) {
   try {
+    // Validate required customer information
+    if (!customerInfo.phone || !customerInfo.phone.trim()) {
+      throw new Error('Customer phone number is required for delivery');
+    }
+    
+    if (!customerInfo.email || !customerInfo.email.trim()) {
+      throw new Error('Customer email is required for delivery');
+    }
+    
+    if (!customerInfo.first_name || !customerInfo.first_name.trim()) {
+      throw new Error('Customer name is required for delivery');
+    }
+
     let address1 = '', address2 = '', area = '', city = '', state = '', postcode = '';
     
     // Validate and format shipping address
@@ -76,7 +89,7 @@ async function createDeliveryOrder(orderData, shippingAddress, customerInfo) {
       },
       from: {
         name: "FengShui E-Commerce Store",
-        phone_number: "+60138201527",
+        phone_number: "+639811949999",
         email: "store@fengshui-ecommerce.com",
         address: {
           address1: "30 Jln Kilang Barat",
@@ -91,7 +104,7 @@ async function createDeliveryOrder(orderData, shippingAddress, customerInfo) {
       },
       to: {
         name: `${customerInfo.first_name} ${customerInfo.last_name || ''}`.trim(),
-        phone_number: customerInfo.phone || "+60103067174",
+        phone_number: customerInfo.phone,
         email: customerInfo.email,
         address: {
           address1: address1,

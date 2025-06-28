@@ -18,19 +18,6 @@ const Footer = ({ forceShow = true }) => {
     <footer className={`modern-footer ${!forceShow ? 'scroll-visible' : ''}`}>
       <div className="footer-content">
         <div className="footer-section">
-          <h3>FAQ</h3>
-          <ul>
-            <li><Link to="/faqs">Frequently Asked Questions</Link></li>
-            <li><Link to="/faqs?category=delivery">Delivery</Link></li>
-            <li><Link to="/faqs?category=returns">Return/Exchange</Link></li>
-            <li><Link to="/faqs?category=orders">Order/Cancellation</Link></li>
-            <li><Link to="/faqs?category=payment">Payment</Link></li>
-            <li><Link to="/faqs?category=products">Product Availability</Link></li>
-            <li><Link to="/faqs?category=services">Gift Wrapping Services</Link></li>
-          </ul>
-        </div>
-
-        <div className="footer-section">
           <h3>VISIT US</h3>
           <div className="location-info">
             <p>Feng Shui by Pakbet TV</p>
@@ -54,6 +41,9 @@ const Footer = ({ forceShow = true }) => {
             <a href="https://www.instagram.com/pakbettv/" className="social-icon">
               <i className="fab fa-instagram"></i>
             </a>
+            <a href="https://www.tiktok.com/@pakbettv.com?is_from_webapp=1&sender_device=pc" className="social-icon">
+              <i className="fab fa-tiktok"></i>
+            </a>
             <a href="https://www.youtube.com/c/PakBetTV" className="social-icon">
               <i className="fab fa-youtube"></i>
             </a>
@@ -61,7 +51,7 @@ const Footer = ({ forceShow = true }) => {
           <div className="contact-info">
             <h4>NEED HELP?</h4>
             <p><i className="far fa-envelope"></i> admin@pakbettv.com</p>
-            <p><i className="fas fa-phone-alt"></i> 0976 120 3535</p>
+            <p><i className="fas fa-phone-alt"></i> 0981-194-9999</p>
           </div>
         </div>
       </div>
