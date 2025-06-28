@@ -459,28 +459,6 @@ const ProductPage = () => {
                 </Link>
               </div>
             </div>
-            
-            <Link to="/category/auspicious-home-decor" className="nav-item" onClick={closeMobileMenu}>
-              <div className="nav-icon">
-                <i className="fas fa-home" style={{color: '#A2201A'}}></i>
-              </div>
-              <span className="nav-text">AUSPICIOUS HOME DECOR</span>
-            </Link>
-            
-            <Link to="/category/feng-shui-bracelets" className="nav-item" onClick={closeMobileMenu}>
-              <div className="nav-icon">
-                <i className="fas fa-circle" style={{color: '#A2201A'}}></i>
-              </div>
-              <span className="nav-text">FENG SHUI BRACELETS</span>
-        </Link>
-        
-            <Link to="/category/feng-shui-books" className="nav-item" onClick={closeMobileMenu}>
-              <div className="nav-icon">
-                <i className="fas fa-book" style={{color: '#A2201A'}}></i>
-              </div>
-              <span className="nav-text">FENG SHUI BOOKS</span>
-            </Link>
-            
             <div className="nav-item expandable">
               <div 
                 className="nav-item-header"
@@ -582,6 +560,27 @@ const ProductPage = () => {
                 </Link>
               </div>
             </div>
+            
+            <Link to="/category/auspicious-home-decor" className="nav-item" onClick={closeMobileMenu}>
+              <div className="nav-icon">
+                <i className="fas fa-home" style={{color: '#A2201A'}}></i>
+              </div>
+              <span className="nav-text">AUSPICIOUS HOME DECOR</span>
+            </Link>
+            
+            <Link to="/category/feng-shui-bracelets" className="nav-item" onClick={closeMobileMenu}>
+              <div className="nav-icon">
+                <i className="fas fa-circle" style={{color: '#A2201A'}}></i>
+              </div>
+              <span className="nav-text">FENG SHUI BRACELETS</span>
+        </Link>
+        
+            <Link to="/category/feng-shui-books" className="nav-item" onClick={closeMobileMenu}>
+              <div className="nav-icon">
+                <i className="fas fa-book" style={{color: '#A2201A'}}></i>
+              </div>
+              <span className="nav-text">FENG SHUI BOOKS</span>
+            </Link>
 
             <Link to="/category/windchimes" className="nav-item" onClick={closeMobileMenu}>
               <div className="nav-icon">
