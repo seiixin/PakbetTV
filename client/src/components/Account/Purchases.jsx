@@ -196,22 +196,9 @@ function Purchases() {
   };
 
   const getShippingAddress = (order) => {
-    // Try to build full address from available data
+    // Use the exact shipping address that was sent to Ninja Van
     if (order.shipping_address) {
       return order.shipping_address;
-    }
-    
-    // Try to build from individual address components
-    const addressParts = [];
-    if (order.address1) addressParts.push(order.address1);
-    if (order.address2) addressParts.push(order.address2);
-    if (order.city) addressParts.push(order.city);
-    if (order.state) addressParts.push(order.state);
-    if (order.postcode) addressParts.push(order.postcode);
-    if (order.country) addressParts.push(order.country);
-    
-    if (addressParts.length > 0) {
-      return addressParts.join(', ');
     }
     
     return 'Address information not available';

@@ -162,7 +162,7 @@
 }
 
 .regular-price, .discounted-price {
-  font-size: 1.4rem;
+  font-size: 1.8rem;
   font-weight: 700;
   color: var(--dark-gray);
   display: flex;
@@ -831,7 +831,7 @@
   }
 
   .regular-price, .discounted-price {
-    font-size: 1.2rem;
+    font-size: 1.6rem;
   }
   
   .original-price {
@@ -955,7 +955,7 @@
   }
   
   .regular-price, .discounted-price {
-    font-size: 1.1rem;
+    font-size: 1.5rem;
   }
   
   .product-detail-price-section {
