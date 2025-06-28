@@ -21,7 +21,6 @@ const Footer = ({ forceShow = true }) => {
           <h3>FAQ</h3>
           <div className="faq-links">
             <ul>
-              <li><Link to="/faqs">Frequently Asked Questions</Link></li>
               <li><Link to="/faqs?category=Delivery">Delivery Information</Link></li>
               <li><Link to="/faqs?category=Returns">Returns & Exchanges</Link></li>
               <li><Link to="/faqs?category=Payment">Payment Methods</Link></li>

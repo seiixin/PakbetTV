@@ -10,6 +10,7 @@ const fetch = require('node-fetch');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const rateLimit = require('express-rate-limit');
+const path = require('path');
 
 // Email configuration
 const transporter = nodemailer.createTransport({
@@ -592,34 +593,69 @@ router.post('/forgot-password', async (req, res) => {
       to: email,
       subject: 'Password Reset Request',
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background-color: #A2201A; padding: 24px; text-align: center;">
-            <h1 style="color: #FFFFFF; margin: 0;">Reset Your Password</h1>
-          </div>
-          <div style="padding: 32px; background-color: #FFFFFF; border: 1px solid #ddd;">
-            <h2 style="color: #A2201A; margin-top: 0;">Hello,</h2>
-            <p>You recently requested to reset your password. Click the button below to proceed:</p>
-            <div style="text-align: center; margin: 32px 0;">
-              <a href="${resetUrl}" 
-                 style="background-color: #FEC16E; 
-                        color: #000000; 
-                        padding: 12px 28px; 
-                        text-decoration: none; 
-                        border-radius: 6px; 
-                        font-weight: bold;">
-                Reset Password
-              </a>
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { text-align: center; margin-bottom: 30px; }
+            .header img { width: 100%; max-width: 600px; height: auto; }
+            .order-details { margin-bottom: 30px; }
+            .tracking-info { background-color: #f9f9f9; padding: 15px; margin: 20px 0; }
+            .footer { text-align: center; margin-top: 30px; font-size: 12px; color: #666; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <img src="cid:emailHeader" alt="Email Header"/>
+              <h2>Reset Your Password</h2>
             </div>
-            <p>If you did not request a password reset, please ignore this email or contact support if you have concerns.</p>
-            <p>This link will expire in 1 hour.</p>
-            <p>Alternatively, you can copy and paste this URL into your browser:</p>
-            <p style="word-break: break-all;">${resetUrl}</p>
+            
+            <div class="order-details">
+              <p>Dear Valued Customer,</p>
+              <p>You recently requested to reset your password. We're here to help you regain access to your account.</p>
+              
+              <h3>Reset Information:</h3>
+              <p><strong>Request Time:</strong> ${new Date().toLocaleString()}</p>
+              <p><strong>Expires In:</strong> 1 hour</p>
+              
+              <div class="tracking-info">
+                <h3>Reset Instructions:</h3>
+                <p>Click the button below to proceed with your password reset:</p>
+                <div style="text-align: center; margin: 20px 0;">
+                  <a href="${resetUrl}" 
+                     style="background-color: #FEC16E; 
+                            color: #000000; 
+                            padding: 12px 28px; 
+                            text-decoration: none; 
+                            border-radius: 6px; 
+                            font-weight: bold;">
+                    Reset Password
+                  </a>
+                </div>
+                <p>If you did not request a password reset, please ignore this email or contact support if you have concerns.</p>
+                <p>Alternatively, you can copy and paste this URL into your browser:</p>
+                <p style="word-break: break-all; background-color: #f0f0f0; padding: 10px; border-radius: 4px;">${resetUrl}</p>
+              </div>
+            </div>
+            
+            <div class="footer">
+              <p>If you have any questions, please contact our customer service.</p>
+              <p>© 2025 PakBet TV - Feng Shui by Michael de Mesa. All rights reserved.</p>
+            </div>
           </div>
-          <div style="padding: 16px; text-align: center; font-size: 12px; color: #666666;">
-            © 2025 PakBet TV - Feng Shui by Michael de Mesa. All rights reserved.
-          </div>
-        </div>
-      `
+        </body>
+        </html>
+      `,
+      attachments: [
+        {
+          filename: 'emailheader.png',
+          path: path.join(__dirname, '../../client/public/Emailheader.png'),
+          cid: 'emailHeader'
+        }
+      ]
     };
 
     console.log('Attempting to send email with options:', {

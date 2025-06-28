@@ -171,11 +171,11 @@ const FAQs = () => {
         const response = await fetch(`${API_BASE_URL}/api/cms/faqs`);
         if (response.ok) {
           const data = await response.json();
-          const processedData = data.map(faq => ({
-            ...faq,
+        const processedData = data.map(faq => ({
+          ...faq,
             question: faq.question.replace(/<\/?p>/g, ''),
-            answer: faq.answer
-          }));
+          answer: faq.answer
+        }));
           
           // Combine API FAQs with static FAQs
           const combinedFaqs = [...staticFaqs, ...processedData];
@@ -186,7 +186,7 @@ const FAQs = () => {
         // Static FAQs are already set in initial state
       }
       
-      setLoading(false);
+        setLoading(false);
     };
 
     initializeFaqs();
