@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { auth } = require('../middleware/auth');
-const { sendOrderConfirmationEmail } = require('../services/emailService');
+const { sendOrderConfirmationEmail, sendContactFormEmail } = require('../services/emailService');
 
 // Test email endpoint
 router.post('/test', async (req, res) => {
@@ -107,6 +107,55 @@ router.post('/order-confirmation', auth, async (req, res) => {
       success: false,
       message: 'Error sending order confirmation email',
       error: error.message
+    });
+  }
+});
+
+// Contact form submission endpoint
+router.post('/contact', async (req, res) => {
+  const { name, email, phone, message } = req.body;
+
+  // Validate required fields
+  if (!name || !email || !message) {
+    return res.status(400).json({
+      success: false,
+      message: 'Name, email, and message are required fields'
+    });
+  }
+
+  // Basic email validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Please provide a valid email address'
+    });
+  }
+
+  try {
+    const result = await sendContactFormEmail({
+      name,
+      email,
+      phone: phone || 'Not provided',
+      message
+    });
+
+    if (result.success) {
+      return res.status(200).json({
+        success: true,
+        message: 'Your message has been sent successfully! We will get back to you soon.'
+      });
+    } else {
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to send message. Please try again later.'
+      });
+    }
+  } catch (error) {
+    console.error('Error processing contact form:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'An error occurred while sending your message. Please try again later.'
     });
   }
 });

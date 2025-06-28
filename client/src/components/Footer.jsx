@@ -18,6 +18,20 @@ const Footer = ({ forceShow = true }) => {
     <footer className={`modern-footer ${!forceShow ? 'scroll-visible' : ''}`}>
       <div className="footer-content">
         <div className="footer-section">
+          <h3>FAQ</h3>
+          <div className="faq-links">
+            <ul>
+              <li><Link to="/faqs">Frequently Asked Questions</Link></li>
+              <li><Link to="/faqs?category=Delivery">Delivery Information</Link></li>
+              <li><Link to="/faqs?category=Returns">Returns & Exchanges</Link></li>
+              <li><Link to="/faqs?category=Payment">Payment Methods</Link></li>
+              <li><Link to="/faqs?category=Products">Product Availability</Link></li>
+              <li><Link to="/contact">Contact Support</Link></li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="footer-section">
           <h3>VISIT US</h3>
           <div className="location-info">
             <p>Feng Shui by Pakbet TV</p>

@@ -148,6 +148,20 @@
   font-size: 1.1rem;
 }
 
+.faq-links {
+  width: 100%;
+}
+
+.faq-links ul li {
+  padding: 0.3rem 0;
+  border-bottom: 1px solid transparent;
+  transition: border-bottom 0.2s ease;
+}
+
+.faq-links ul li:hover {
+  border-bottom: 1px solid var(--footer-text);
+}
+
 .footer-bottom {
   background-color: black !important;
   padding: 1.5rem 0;

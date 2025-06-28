@@ -152,7 +152,78 @@ const sendTestEmail = async (recipientEmail) => {
   return sendOrderConfirmationEmail(sampleOrderDetails);
 };
 
+// Function to send contact form email
+const sendContactFormEmail = async (contactDetails) => {
+  const {
+    name,
+    email,
+    phone,
+    message
+  } = contactDetails;
+
+  // Email template for contact form
+  const emailHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { text-align: center; margin-bottom: 30px; background-color: #8B0000; color: white; padding: 20px; }
+        .content { padding: 20px; background-color: #f9f9f9; }
+        .contact-info { margin-bottom: 20px; }
+        .message-section { background-color: white; padding: 15px; border-left: 4px solid #8B0000; }
+        .footer { text-align: center; margin-top: 30px; font-size: 12px; color: #666; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h2>New Contact Form Submission</h2>
+        </div>
+        
+        <div class="content">
+          <div class="contact-info">
+            <h3>Contact Information:</h3>
+            <p><strong>Name:</strong> ${name}</p>
+            <p><strong>Email:</strong> ${email}</p>
+            <p><strong>Phone:</strong> ${phone}</p>
+          </div>
+          
+          <div class="message-section">
+            <h3>Message:</h3>
+            <p>${message.replace(/\n/g, '<br>')}</p>
+          </div>
+        </div>
+        
+        <div class="footer">
+          <p>This message was sent from the contact form on your website.</p>
+          <p>Please respond directly to the sender's email address: ${email}</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  try {
+    const info = await transporter.sendMail({
+      from: `"Website Contact Form" <${process.env.SMTP_USER}>`,
+      to: process.env.SMTP_USER, // Send to the admin email
+      replyTo: email, // Set reply-to as the sender's email
+      subject: `New Contact Form Message from ${name}`,
+      html: emailHtml
+    });
+
+    console.log('Contact form email sent:', info.messageId);
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    console.error('Error sending contact form email:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 module.exports = {
   sendOrderConfirmationEmail,
-  sendTestEmail
+  sendTestEmail,
+  sendContactFormEmail
 }; 

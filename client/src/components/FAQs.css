@@ -128,6 +128,10 @@
   transition: transform 0.3s ease;
 }
 
+.accordion-button:not(.collapsed)::after {
+  filter: brightness(0) invert(1); /* Makes the arrow white */
+}
+
 .accordion-body {
   padding: 20px;
   font-size: 1rem;
@@ -174,6 +178,25 @@
   background-color: #8a1b16;
   transform: translateY(-2px);
   color: white;
+  text-decoration: none;
+}
+
+/* Remove underlines from all FAQ links */
+.faq-container a {
+  text-decoration: none;
+}
+
+.faq-container a:hover {
+  text-decoration: none;
+}
+
+/* Ensure footer FAQ links don't have double underlines */
+.faq-links a {
+  text-decoration: none;
+}
+
+.faq-links a:hover {
+  text-decoration: none;
 }
 
 /* Responsive Adjustments */
