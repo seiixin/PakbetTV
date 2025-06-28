@@ -37,6 +37,7 @@ import Consultation from './components/Consultation'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
 import PrivacyPolicy from './components/Legal/PrivacyPolicy'
+import ChatButton from './components/common/ChatButton'
 
 function AppContent() {
   const location = useLocation();
@@ -157,6 +158,7 @@ function App() {
       <AuthProvider>
         <CartProvider>
           <AppContent />
+          <ChatButton />
         </CartProvider>
       </AuthProvider>
       <ToastContainer
