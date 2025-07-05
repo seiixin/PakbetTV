@@ -27,41 +27,29 @@ const auth = (req, res, next) => {
 
   try {
     const token = authHeader.split(' ')[1];
+    
+    if (!process.env.JWT_SECRET) {
+      console.error('JWT_SECRET is not set in environment variables');
+      return res.status(500).json({ message: 'Server configuration error' });
+    }
+    
     console.log('Processing token:', token.substring(0, 10) + '...');
     
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     console.log('Decoded token payload:', JSON.stringify(decoded));
     
-    // Handle different token payload structures
-    let userId, userType;
-    
-    if (decoded.user && decoded.user.id) {
-      // Standard structure
-      userId = decoded.user.id;
-      userType = decoded.user.userType;
-    } else if (decoded.id) {
-      // Simplified structure
-      userId = decoded.id;
-      userType = decoded.userType;
-    } else if (decoded.user_id) {
-      // Alternative structure
-      userId = decoded.user_id;
-      userType = decoded.user_type;
-    } else {
-      console.log('Auth Error: Could not extract user ID from token');
-      return res.status(401).json({ message: 'Invalid token structure - no user ID found' });
+    // Check for either id or user_id in token
+    const userId = decoded.id || decoded.user_id;
+    if (!userId) {
+      console.log('Auth Error: No user ID in token');
+      return res.status(401).json({ message: 'Invalid token - missing user ID' });
     }
     
     // Set user object with consistent structure
     req.user = {
       id: userId,
-      userType: userType || 'customer' // Default to customer if not provided
-    };
-    
-    // Also set the legacy structure for backward compatibility
-    req.user.user = {
-      id: userId,
-      userType: userType || 'customer'
+      email: decoded.email,
+      userType: decoded.userType || 'customer'
     };
     
     console.log('Token verified successfully:', {
@@ -81,10 +69,16 @@ const auth = (req, res, next) => {
     }
     
     if (err.name === 'JsonWebTokenError') {
-      return res.status(401).json({ message: 'Invalid token' });
+      return res.status(401).json({ 
+        message: 'Invalid token',
+        details: process.env.NODE_ENV === 'development' ? err.message : undefined
+      });
     }
     
-    res.status(401).json({ message: 'Token verification failed' });
+    res.status(401).json({ 
+      message: 'Token verification failed',
+      details: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
   }
 };
 
@@ -100,7 +94,7 @@ const admin = (req, res, next) => {
   }
 
   // Case-insensitive check for admin rights
-  if (req.user.userType.toLowerCase() === 'admin') {
+  if (req.user.userType?.toLowerCase() === 'admin') {
     console.log('Admin access granted');
     next();
   } else {
