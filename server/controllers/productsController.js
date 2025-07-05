@@ -146,16 +146,24 @@ async function createProduct(req, res) {
 // Handler for GET /api/products (get products list)
 async function getProducts(req, res) {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 1000;
-    const offset = (page - 1) * limit;
-    const category = req.query.category;
+    // ----- Pagination params -----
+    const limitParam = parseInt(req.query.limit, 10);
+    const limit = Number.isInteger(limitParam) && limitParam > 0 ? Math.min(limitParam, 50) : 20;
 
-    console.log('Fetching products with params:', { page, limit, offset, category });
+    const category = req.query.category || null;
+    const cursorCreatedAt = req.query.cursorCreatedAt; // ISO date string
+    const cursorId = req.query.cursorId;               // last seen product_id
 
-    // Base query to get product IDs first
-    let baseQuery = `
-      SELECT 
+    // ----- Simple in-memory cache -----
+    const cacheKey = JSON.stringify({ limit, category, cursorCreatedAt, cursorId });
+    const cached = productCache.get(cacheKey);
+    if (cached) {
+      return res.json(cached);
+    }
+
+    // ----- Build SQL (key-set pagination) -----
+    let sql = `
+      SELECT
         p.product_id,
         p.name,
         p.product_code,
@@ -164,126 +172,132 @@ async function getProducts(req, res) {
         p.created_at,
         p.updated_at,
         p.is_featured,
-        p.price as base_price,
+        p.price                        AS base_price,
         p.average_rating,
         p.review_count,
-        c.name as category_name,
-        COALESCE(SUM(pv.stock), 0) as stock
+        c.name                          AS category_name,
+        COALESCE(SUM(pv.stock), 0)      AS stock
       FROM products p
-      LEFT JOIN categories c ON p.category_id = c.category_id
+      LEFT JOIN categories c     ON p.category_id = c.category_id
       LEFT JOIN product_variants pv ON p.product_id = pv.product_id
-    `;
+      WHERE 1 = 1`;
 
-    let countQuery = 'SELECT COUNT(DISTINCT p.product_id) AS total FROM products p';
-    const queryParams = [];
-    let countQueryParams = [];
+    const params = [];
 
     if (category) {
-      const whereClause = ' WHERE p.category_id = ?';
-      baseQuery += whereClause;
-      countQuery += whereClause;
-      queryParams.push(category);
-      countQueryParams.push(category);
+      sql += ' AND p.category_id = ?';
+      params.push(category);
     }
 
-    baseQuery += ' GROUP BY p.product_id, p.name, p.product_code, p.description, p.category_id, p.created_at, p.updated_at, c.name, p.price, p.is_featured';
-    baseQuery += ' ORDER BY p.created_at DESC LIMIT ? OFFSET ?';
-    queryParams.push(limit, offset);
+    if (cursorCreatedAt && cursorId) {
+      // Fetch rows *before* the cursor (key-set pagination)
+      sql += ' AND (p.created_at < ? OR (p.created_at = ? AND p.product_id < ?))';
+      params.push(cursorCreatedAt, cursorCreatedAt, cursorId);
+    }
 
-    // Execute queries in parallel
-    const [productsResult, countResult] = await Promise.all([
-      db.query(baseQuery, queryParams),
-      db.query(countQuery, countQueryParams)
-    ]);
+    sql += `
+      GROUP BY p.product_id, p.name, p.product_code, p.description, p.category_id,
+               p.created_at, p.updated_at, c.name, p.price, p.is_featured
+      ORDER BY p.created_at DESC, p.product_id DESC
+      LIMIT ?`;
+    params.push(limit + 1); // ask for one extra row to know if next page exists
 
-    const products = productsResult[0];
-    const totalProducts = countResult[0][0].total;
-    const totalPages = Math.ceil(totalProducts / limit);
+    const [productsResult] = await db.query(sql, params);
+    let products = productsResult;
 
-    // Process each product
+    // ----- Determine if there is a next page -----
+    const hasNextPage = products.length > limit;
+    if (hasNextPage) {
+      products = products.slice(0, limit);
+    }
+
+    // ----- Post-process products (images, numeric fields) -----
+    const productIds = products.map(p => p.product_id);
+    const includeImages = req.query.includeImages !== 'false' && req.query.includeImages !== '0';
+    let imageMap = {};
+    if (includeImages && productIds.length) {
+      const [imgRows] = await db.query(
+        `SELECT pi.product_id, pi.image_url
+         FROM product_images pi
+         WHERE pi.product_id IN (?)
+         ORDER BY pi.product_id, pi.sort_order`, [productIds]);
+      for (const row of imgRows) {
+        if (!imageMap[row.product_id]) {
+          imageMap[row.product_id] = row.image_url;
+        }
+      }
+      const missingIds = productIds.filter(id => !imageMap[id]);
+      if (missingIds.length) {
+        const [variantRows] = await db.query(
+          `SELECT pv.product_id, pv.image_url
+           FROM product_variants pv
+           WHERE pv.product_id IN (?) AND pv.image_url IS NOT NULL`, [missingIds]);
+        for (const row of variantRows) {
+          if (!imageMap[row.product_id]) {
+            imageMap[row.product_id] = row.image_url;
+          }
+        }
+      }
+    }
+
     for (const product of products) {
-      // Format numeric values
       product.price = Number(product.base_price) || 0;
       product.discounted_price = 0;
       product.discount_percentage = 0;
       product.average_rating = product.average_rating !== null ? Number(product.average_rating) : 0;
       product.review_count = Number(product.review_count) || 0;
       product.stock = Number(product.stock) || 0;
-
       delete product.base_price;
 
-      // Get product images
-      const [productImages] = await db.query(
-        'SELECT image_id, image_url, alt_text, sort_order FROM product_images WHERE product_id = ? ORDER BY sort_order LIMIT 1',
-        [product.product_id]
-      );
-
-      if (productImages.length > 0) {
-        const image = productImages[0];
-        if (image.image_url && Buffer.isBuffer(image.image_url)) {
-          product.images = [{
-            id: image.image_id,
-            url: `data:image/jpeg;base64,${image.image_url.toString('base64')}`,
-            alt: image.alt_text || product.name,
-            order: image.sort_order
-          }];
-        } else {
-          product.images = [{
-            id: image.image_id,
-            url: `/uploads/${image.image_url}`,
-            alt: image.alt_text || product.name,
-            order: image.sort_order
-          }];
-        }
-      } else {
-        // Get variant images as fallback
-        const [variantImages] = await db.query(
-          'SELECT DISTINCT image_url FROM product_variants WHERE product_id = ? AND image_url IS NOT NULL',
-          [product.product_id]
-        );
-        
-        if (variantImages.length > 0) {
-          product.images = variantImages.map((img, index) => ({
-            url: `/uploads/${img.image_url}`,
-            alt: `${product.name} - Variant ${index + 1}`,
-            order: index
-          }));
+      if (includeImages) {
+        const rawImg = imageMap[product.product_id];
+        if (rawImg) {
+          let url;
+          if (Buffer.isBuffer(rawImg)) {
+            url = `data:image/jpeg;base64,${rawImg.toString('base64')}`;
+          } else {
+            // Ensure single leading /uploads/ prefix
+            if (rawImg.startsWith('/')) {
+              url = rawImg;
+            } else if (rawImg.startsWith('uploads/')) {
+              url = `/${rawImg}`;
+            } else {
+              url = `/uploads/${rawImg}`;
+            }
+          }
+          product.images = [{ id: null, url, alt: product.name, order: 0 }];
         } else {
           product.images = [];
         }
+      } else {
+        product.images = [];
       }
-
-      // Initialize empty variants array
       product.variants = [];
     }
 
-    res.json({
+    // Prepare next cursor (if any)
+    let nextCursor = null;
+    if (hasNextPage) {
+      const last = products[products.length - 1];
+      nextCursor = { createdAt: last.created_at, id: last.product_id };
+    }
+
+    const responsePayload = {
       products,
       pagination: {
-        currentPage: page,
-        totalPages,
-        totalProducts,
-        hasNextPage: page < totalPages,
-        hasPrevPage: page > 1
+        limit,
+        hasNextPage,
+        nextCursor
       }
-    });
+    };
 
+    // Cache the response for 5 minutes (stdTTL already set in constructor)
+    productCache.set(cacheKey, responsePayload);
+
+    return res.json(responsePayload);
   } catch (err) {
-    console.error("Error in products route:", {
-      name: err.name,
-      message: err.message,
-      stack: err.stack,
-      code: err.code
-    });
-    
-    res.status(500).json({ 
-      message: 'Server error while fetching products',
-      error: process.env.NODE_ENV === 'development' ? {
-        message: err.message,
-        code: err.code,
-        stack: err.stack
-      } : undefined
-    });
+    console.error('Error in products route:', err);
+    return res.status(500).json({ message: 'Server error while fetching products' });
   }
 }
 
