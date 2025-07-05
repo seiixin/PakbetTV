@@ -117,7 +117,7 @@ const sendOrderConfirmationEmail = async (orderDetails) => {
     console.log('Order confirmation email sent:', info.messageId);
     return { success: true, messageId: info.messageId };
   } catch (error) {
-    console.error('Error sending order confirmation email:', error);
+    console.error('Order confirmation email error:', error.message);
     return { success: false, error: error.message };
   }
 };
@@ -226,7 +226,7 @@ const sendContactFormEmail = async (contactDetails) => {
     console.log('Contact form email sent:', info.messageId);
     return { success: true, messageId: info.messageId };
   } catch (error) {
-    console.error('Error sending contact form email:', error);
+    console.error('Contact form email error:', error.message);
     return { success: false, error: error.message };
   }
 };
@@ -311,7 +311,7 @@ const sendPasswordResetEmail = async (email, resetToken, origin) => {
     console.log('Password reset email sent:', info.messageId);
     return { success: true, messageId: info.messageId };
   } catch (error) {
-    console.error('Error sending password reset email:', error);
+    console.error('Password reset email error:', error.message);
     return { success: false, error: error.message };
   }
 };

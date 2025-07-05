@@ -34,7 +34,7 @@ function formatPostalCode(postcode) {
 // Handler for GET /api/admin/check-payments
 async function checkPayments(req, res) {
   try {
-    console.log('🔧 Manual Dragonpay Transaction Status Query check triggered via API');
+    console.log('Manual Dragonpay status check triggered via API');
     
     const result = await runManualPaymentCheck();
     
@@ -53,7 +53,7 @@ async function checkPayments(req, res) {
       }
     });
     
-    console.log(`✅ Manual check completed via API: ${result.updated || 0} orders updated`);
+    console.log(`Manual check done: ${result.updated || 0} orders updated`);
     
   } catch (error) {
     console.error('❌ Error in manual payment check API:', error.message);
@@ -70,7 +70,7 @@ async function checkPayments(req, res) {
 // Handler for GET /api/admin/payments/check
 async function paymentsCheck(req, res) {
   try {
-    console.log('🌐 Global Dragonpay check triggered from frontend');
+    console.log('Global Dragonpay check triggered from frontend');
     
     const result = await runManualPaymentCheck();
     
@@ -184,7 +184,7 @@ async function confirmPayment(req, res) {
     // Send confirmation email
     try {
       await sendOrderConfirmationEmail(emailDetails);
-      console.log('Order confirmation email sent successfully');
+      console.log('Order confirmation email sent');
     } catch (emailError) {
       console.error('Failed to send order confirmation email:', emailError);
       // Don't fail the transaction if email fails
@@ -205,7 +205,7 @@ async function confirmPayment(req, res) {
 
         try {
           await sendOrderConfirmationEmail(updatedEmailDetails);
-          console.log('Updated order confirmation email sent with tracking number');
+          console.log('Order confirmation email sent with tracking number');
         } catch (emailError) {
           console.error('Failed to send updated order confirmation email:', emailError);
         }

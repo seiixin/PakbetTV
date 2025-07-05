@@ -43,7 +43,7 @@ class NinjaVanAuthService {
       await this.storeToken(access_token, expires_in);
       return access_token;
     } catch (error) {
-      console.error('Error generating NinjaVan token:', error.response?.data || error.message);
+      console.error('NinjaVan token error:', error.message);
       throw new Error('Failed to authenticate with NinjaVan');
     }
   }
@@ -64,7 +64,7 @@ class NinjaVanAuthService {
       
       return storedToken.token;
     } catch (error) {
-      console.error('Error getting valid token:', error);
+      console.error('NinjaVan get token error:', error.message);
       throw error;
     }
   }

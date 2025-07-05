@@ -97,7 +97,7 @@ exports.signup = async (req, res) => {
       }
     });
   } catch (err) {
-    console.error(err);
+    console.error('Auth error:', err.message);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -145,7 +145,7 @@ exports.login = async (req, res) => {
       }
     });
   } catch (err) {
-    console.error(err);
+    console.error('Auth error:', err.message);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -172,7 +172,7 @@ exports.me = async (req, res) => {
       userType: user.user_type || 'customer'
     });
   } catch (err) {
-    console.error('Get user profile error:', err);
+    console.error('Auth error:', err.message);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -199,7 +199,7 @@ exports.refresh = async (req, res) => {
     const newToken = generateToken(user);
     res.json({ token: newToken });
   } catch (err) {
-    console.error('Token refresh error:', err);
+    console.error('Auth error:', err.message);
     res.status(401).json({ message: 'Invalid token' });
   }
 };
@@ -246,7 +246,7 @@ exports.forgotPassword = async (req, res) => {
 
     res.json({ message: 'Password reset email sent' });
   } catch (err) {
-    console.error(err);
+    console.error('Auth error:', err.message);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -266,7 +266,7 @@ exports.verifyResetToken = async (req, res) => {
 
     res.json({ message: 'Token is valid' });
   } catch (err) {
-    console.error(err);
+    console.error('Auth error:', err.message);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -296,7 +296,7 @@ exports.resetPassword = async (req, res) => {
 
     res.json({ message: 'Password has been reset' });
   } catch (err) {
-    console.error(err);
+    console.error('Auth error:', err.message);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -327,7 +327,7 @@ exports.updatePassword = async (req, res) => {
 
     res.json({ message: 'Password updated successfully' });
   } catch (err) {
-    console.error(err);
+    console.error('Auth error:', err.message);
     res.status(500).json({ message: 'Server error' });
   }
 };

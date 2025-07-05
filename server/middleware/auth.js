@@ -6,22 +6,15 @@ const auth = (req, res, next) => {
   const authHeader = req.header('Authorization');
   
   // Log the incoming request for debugging
-  console.log('Auth Middleware - Request:', {
-    method: req.method,
-    path: req.path,
-    headers: {
-      authorization: authHeader ? 'Bearer [token]' : 'Not provided',
-      'content-type': req.header('Content-Type')
-    }
-  });
+  console.log(`Auth: ${req.method} ${req.path}`);
 
   if (!authHeader) {
-    console.log('Auth Error: No Authorization header found');
+    console.log('Auth Error: No Authorization header');
     return res.status(401).json({ message: 'No authorization header, authentication required' });
   }
 
   if (!authHeader.startsWith('Bearer ')) {
-    console.log('Auth Error: Invalid Authorization header format');
+    console.log('Auth Error: Invalid Authorization header');
     return res.status(401).json({ message: 'Invalid authorization format, Bearer token required' });
   }
 
@@ -36,7 +29,7 @@ const auth = (req, res, next) => {
     console.log('Processing token:', token.substring(0, 10) + '...');
     
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log('Decoded token payload:', JSON.stringify(decoded));
+    console.log('Decoded token for user:', decoded.id || decoded.user_id);
     
     // Check for either id or user_id in token
     const userId = decoded.id || decoded.user_id;
@@ -52,10 +45,7 @@ const auth = (req, res, next) => {
       userType: decoded.userType || 'customer'
     };
     
-    console.log('Token verified successfully:', {
-      userId: req.user.id,
-      userType: req.user.userType
-    });
+    console.log(`Token OK: ${req.user.id}, ${req.user.userType}`);
     
     next();
   } catch (err) {
@@ -83,13 +73,10 @@ const auth = (req, res, next) => {
 };
 
 const admin = (req, res, next) => {
-  console.log('Admin Middleware - Checking permissions for user:', {
-    userId: req.user?.id,
-    userType: req.user?.userType
-  });
+  console.log(`Admin check for user: ${req.user?.id}, ${req.user?.userType}`);
 
   if (!req.user) {
-    console.log('Admin Error: No user object found');
+    console.log('Admin Error: No user object');
     return res.status(401).json({ message: 'Authentication required' });
   }
 
@@ -98,7 +85,7 @@ const admin = (req, res, next) => {
     console.log('Admin access granted');
     next();
   } else {
-    console.log('Admin Error: Insufficient permissions');
+    console.log('Admin Error: Not admin');
     res.status(403).json({ message: 'Access denied. Admin privileges required.' });
   }
 };

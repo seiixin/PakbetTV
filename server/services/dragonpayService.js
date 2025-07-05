@@ -26,8 +26,8 @@ class DragonpayService {
       // Build the inquiry URL
       const inquiryUrl = `${this.baseUrl}/Query.aspx?merchantid=${this.merchantId}&txnid=${txnId}&digest=${digest}`;
       
-      console.log(`Dragonpay inquiry for transaction: ${txnId}`);
-      console.log(`Inquiry URL: ${inquiryUrl.replace(digest, '***DIGEST***')}`);
+      console.log(`Dragonpay inquiry: ${txnId}`);
+      console.log('Inquiry URL:', '[REDACTED]');
 
       // Make the API call
       const response = await axios.get(inquiryUrl, {
@@ -39,16 +39,16 @@ class DragonpayService {
 
       // Parse the response
       const responseText = response.data.trim();
-      console.log(`Dragonpay response for ${txnId}: ${responseText}`);
+      console.log(`Dragonpay response: ${txnId}`);
 
       return this.parseInquiryResponse(responseText, txnId);
 
     } catch (error) {
-      console.error(`Error inquiring Dragonpay transaction ${txnId}:`, error.message);
+      console.error(`Dragonpay inquiry error: ${txnId}:`, error.message);
       
       if (error.response) {
-        console.error('Response status:', error.response.status);
-        console.error('Response data:', error.response.data);
+        console.error('Response status:', error.response?.status);
+        console.error('Response data:', error.response?.data);
       }
       
       return {
