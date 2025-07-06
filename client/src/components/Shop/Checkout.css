@@ -200,6 +200,11 @@
   font-size: 15px;
 }
 
+.summary-row span:last-child {
+  text-align: right;
+  min-width: 100px;
+}
+
 .summary-row.total {
   border-top: 2px solid #d4af37;
   margin-top: 10px;
@@ -207,6 +212,11 @@
   font-weight: 600;
   color: #800000;
   font-size: 18px;
+}
+
+.summary-row.total span:last-child {
+  text-align: right;
+  min-width: 100px;
 }
 
 /* Shipping fee section styling */

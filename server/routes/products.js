@@ -30,4 +30,7 @@ router.put('/:id', productsController.handleCombinedUpload, productsController.u
 router.delete('/:id', productsController.deleteProduct);
 router.delete('/images/:imageId', productsController.deleteProductImage);
 
+// Serve product image
+router.get('/image/:id', productsController.serveProductImage);
+
 module.exports = router; 

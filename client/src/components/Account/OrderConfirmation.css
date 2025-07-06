@@ -304,6 +304,11 @@
   color: #666;
 }
 
+.summary-row span:last-child {
+  text-align: right;
+  min-width: 100px;
+}
+
 .summary-row.total {
   color: #333;
   font-weight: 600;
@@ -314,6 +319,8 @@
 }
 
 .summary-row.total span:last-child {
+  text-align: right;
+  min-width: 100px;
   color: var(--primary-color);
 }
 

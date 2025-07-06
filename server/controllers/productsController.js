@@ -532,6 +532,66 @@ async function deleteProductImage(req, res) {
   // (Insert the full logic from the DELETE /images/:imageId route handler here)
 }
 
+// Serve product image by product ID
+const serveProductImage = async (req, res) => {
+  try {
+    const productId = req.params.id;
+    
+    // Get the first image for the product
+    const [images] = await db.query(
+      'SELECT image_url FROM product_images WHERE product_id = ? ORDER BY sort_order LIMIT 1',
+      [productId]
+    );
+
+    if (images.length === 0 || !images[0].image_url) {
+      console.log(`No image found for product ${productId}`);
+      return res.status(404).send('Image not found');
+    }
+
+    const imageData = images[0].image_url;
+    console.log(`Found image data for product ${productId}, type:`, typeof imageData);
+
+    // Set appropriate headers
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 1 day
+
+    // If the image is stored as a Buffer in the database, send it directly
+    if (Buffer.isBuffer(imageData)) {
+      return res.send(imageData);
+    }
+
+    // If it's a string URL/path
+    if (typeof imageData === 'string') {
+      // If it's an external URL, redirect
+      if (imageData.startsWith('http')) {
+        return res.redirect(imageData);
+      }
+
+      // For local files, serve from uploads directory
+      // Remove any leading 'uploads/' or '/' from the imageUrl
+      const cleanImageUrl = imageData.replace(/^(uploads\/|\/)/, '');
+      const filePath = path.join(__dirname, '..', 'uploads', cleanImageUrl);
+      
+      console.log('Attempting to serve file from:', filePath);
+      
+      // Check if file exists
+      if (!fs.existsSync(filePath)) {
+        console.log('File not found at path:', filePath);
+        return res.status(404).send('Image file not found');
+      }
+
+      return res.sendFile(filePath);
+    }
+
+    // If we get here, the image data is in an unknown format
+    console.error('Invalid image data format:', typeof imageData);
+    return res.status(500).send('Invalid image format');
+  } catch (err) {
+    console.error('Error serving product image:', err);
+    res.status(500).send('Server error');
+  }
+};
+
 module.exports = {
   handleCombinedUpload,
   createProduct,
@@ -540,5 +600,6 @@ module.exports = {
   getProductById,
   updateProduct,
   deleteProduct,
-  deleteProductImage
+  deleteProductImage,
+  serveProductImage,
 };

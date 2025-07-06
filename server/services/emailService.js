@@ -4,55 +4,163 @@ const fs = require('fs');
 const fsPromises = require('fs').promises;
 const https = require('https');
 const http = require('http');
+const db = require('../config/db');
 
-// Create reusable transporter object using SMTP transport
+// Create reusable transporter object using SMTP transport with connection pooling
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
   port: process.env.SMTP_PORT,
-  secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
+  secure: process.env.SMTP_SECURE === 'true',
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
+  // Enable connection pooling for better performance
+  pool: true,
+  maxConnections: 5,
+  maxMessages: 100,
+  // Keep connections alive
+  connectionTimeout: 60000,
+  greetingTimeout: 30000,
+  socketTimeout: 60000,
 });
 
-// Function to download image from URL
-const downloadImage = async (url, filename) => {
-  return new Promise((resolve, reject) => {
-    const file = fs.createWriteStream(filename);
-    
-    // Choose protocol based on URL
-    const protocol = url.startsWith('https:') ? https : http;
-    
-    protocol.get(url, (response) => {
-      // Handle redirects
-      if (response.statusCode === 301 || response.statusCode === 302) {
-        file.close();
-        fs.unlink(filename, () => {});
-        downloadImage(response.headers.location, filename)
-          .then(resolve)
-          .catch(reject);
-        return;
-      }
-      
-      // Check for successful response
-      if (response.statusCode !== 200) {
-        file.close();
-        fs.unlink(filename, () => {});
-        reject(new Error(`Failed to download image: ${response.statusCode} ${response.statusMessage}`));
-        return;
-      }
+// Enhanced caching with TTL and size limits
+class EnhancedImageCache {
+  constructor(maxSize = 100, ttl = 3600000) { // 1 hour TTL
+    this.cache = new Map();
+    this.maxSize = maxSize;
+    this.ttl = ttl;
+  }
 
-      response.pipe(file);
-      file.on('finish', () => {
-        file.close();
-        resolve(filename);
-      });
-    }).on('error', (err) => {
-      fs.unlink(filename, () => {}); // Ignore errors when deleting
-      reject(err);
+  set(key, value) {
+    // Remove oldest entries if cache is full
+    if (this.cache.size >= this.maxSize) {
+      const firstKey = this.cache.keys().next().value;
+      this.cache.delete(firstKey);
+    }
+    
+    this.cache.set(key, {
+      data: value,
+      timestamp: Date.now()
     });
-  });
+  }
+
+  get(key) {
+    const item = this.cache.get(key);
+    if (!item) return null;
+    
+    // Check if item has expired
+    if (Date.now() - item.timestamp > this.ttl) {
+      this.cache.delete(key);
+      return null;
+    }
+    
+    return item.data;
+  }
+
+  has(key) {
+    const item = this.cache.get(key);
+    if (!item) return false;
+    
+    // Check if item has expired
+    if (Date.now() - item.timestamp > this.ttl) {
+      this.cache.delete(key);
+      return false;
+    }
+    
+    return true;
+  }
+
+  clear() {
+    this.cache.clear();
+  }
+}
+
+// Enhanced cache instance
+const imageCache = new EnhancedImageCache(100, 3600000); // 100 items, 1 hour TTL
+
+// Connection pool for database connections
+let connectionPool = null;
+
+const getConnectionPool = async () => {
+  return db; // Use the existing db configuration instead of creating a new pool
+};
+
+// Optimized batch image fetching
+const getBatchProductImages = async (productIds) => {
+  if (!productIds.length) return new Map();
+  
+  const results = new Map();
+  const uncachedIds = [];
+  
+  // First, check cache for all product IDs
+  for (const id of productIds) {
+    if (imageCache.has(id)) {
+      results.set(id, imageCache.get(id));
+    } else {
+      uncachedIds.push(id);
+    }
+  }
+  
+  // If all images are cached, return immediately
+  if (uncachedIds.length === 0) {
+    return results;
+  }
+  
+  // Fetch uncached images in a single query
+  try {
+    const placeholders = uncachedIds.map(() => '?').join(',');
+    const [images] = await db.query(
+      `SELECT DISTINCT product_id, image_url 
+       FROM product_images 
+       WHERE product_id IN (${placeholders}) 
+       ORDER BY product_id, sort_order`,
+      uncachedIds
+    );
+    
+    // Group images by product_id and take the first one
+    const imageMap = new Map();
+    for (const image of images) {
+      if (!imageMap.has(image.product_id)) {
+        imageMap.set(image.product_id, image.image_url);
+      }
+    }
+    
+    // Cache and add to results
+    for (const id of uncachedIds) {
+      const imageUrl = imageMap.get(id) || null;
+      imageCache.set(id, imageUrl);
+      results.set(id, imageUrl);
+    }
+    
+  } catch (error) {
+    console.error('Error fetching batch product images:', error);
+    // For failed IDs, set null in cache to avoid repeated queries
+    for (const id of uncachedIds) {
+      if (!results.has(id)) {
+        imageCache.set(id, null);
+        results.set(id, null);
+      }
+    }
+  }
+  
+  return results;
+};
+
+// Function to format price with right alignment
+const formatPrice = (price) => {
+  return `₱${Number(price).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
+
+// Dynamic API base URL based on environment
+const API_BASE_URL = process.env.NODE_ENV === 'production'
+  ? 'https://api.michaeldemesa.com'
+  : process.env.API_BASE_URL || 'http://localhost:5000';
+
+// Function to get full image URL
+const getImageUrl = (productId) => {
+  return `${API_BASE_URL}/api/products/image/${productId}`;
 };
 
 // Function to generate common footer HTML
@@ -68,22 +176,6 @@ const generateFooterHtml = () => `
     </p>
   </div>
 `;
-
-// Function to format price
-const formatPrice = (price) => {
-  return `₱${Number(price).toFixed(2)}`;
-};
-
-// Function to generate order items HTML (updated to remove Subtotal column)
-const generateOrderItemsHtml = (items) => {
-  return items.map(item => `
-    <tr>
-      <td style="padding: 8px; border: 1px solid #ddd;">${item.name}</td>
-      <td style="padding: 8px; text-align: center; border: 1px solid #ddd;">${item.quantity}</td>
-      <td style="padding: 8px; text-align: right; border: 1px solid #ddd;">${formatPrice(item.price)}</td>
-    </tr>
-  `).join('');
-};
 
 // Update all email templates to use the common footer
 const generateEmailTemplate = (content) => `
@@ -109,7 +201,30 @@ const generateEmailTemplate = (content) => `
   </html>
 `;
 
-// Function to send order confirmation email
+// Function to sanitize filename
+const sanitizeFilename = (name) => {
+  return name.replace(/[^a-z0-9]/gi, '-').toLowerCase();
+};
+
+// Function to get email header attachment
+const getEmailHeaderAttachment = () => ({
+  filename: 'Michael De Mesa Feng Shui Consultancy-header.png',
+  path: path.join(__dirname, '../../client/public/Emailheader-Latest.png'),
+  cid: 'emailHeader',
+  contentDisposition: 'inline'
+});
+
+// Function to create image attachment
+const createImageAttachment = (imageData, name, cid) => ({
+  filename: `Michael De Mesa Feng Shui Consultancy-${sanitizeFilename(name)}.jpg`,
+  content: imageData,
+  cid: cid,
+  encoding: 'base64',
+  contentType: 'image/jpeg',
+  contentDisposition: 'inline'
+});
+
+// Optimized function to send order confirmation email
 const sendOrderConfirmationEmail = async (orderDetails) => {
   const {
     orderNumber,
@@ -128,6 +243,44 @@ const sendOrderConfirmationEmail = async (orderDetails) => {
 
   const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
+  // Prepare attachments array with header image
+  const attachments = [getEmailHeaderAttachment()];
+
+  // Get all product IDs that have images
+  const productIds = items
+    .filter(item => item.product_id)
+    .map(item => item.product_id);
+
+  // Batch fetch all images at once
+  const imageMap = await getBatchProductImages(productIds);
+
+  // Generate items HTML using pre-fetched images
+  const itemsHtml = items.map(item => {
+    let imageHtml = `<div style="width:50px; height:50px; background-color:#f5f5f5; margin-right:10px; border-radius:4px; display:flex; align-items:center; justify-content:center;"><span style="color:#999; font-size:10px;">No Image</span></div>`;
+    
+    if (item.product_id && imageMap.has(item.product_id)) {
+      const imageData = imageMap.get(item.product_id);
+      if (imageData) {
+        const imageCid = `product-${item.product_id}`;
+        attachments.push(createImageAttachment(imageData, item.name, imageCid));
+        imageHtml = `<img src="cid:${imageCid}" alt="${item.name}" style="width:50px; height:50px; object-fit:cover; margin-right:10px; border-radius:4px;" />`;
+      }
+    }
+
+    return `
+      <tr>
+        <td style="padding: 8px; border: 1px solid #ddd;">
+          <div style="display: flex; align-items: center;">
+            ${imageHtml}
+            <span style="flex: 1;">${item.name}</span>
+          </div>
+        </td>
+        <td style="padding: 8px; text-align: right; border: 1px solid #ddd; width: 100px;">${item.quantity}</td>
+        <td style="padding: 8px; text-align: right; border: 1px solid #ddd; width: 120px;">${formatPrice(item.price)}</td>
+      </tr>
+    `;
+  });
+
   const content = `
     <h2>Order Confirmation</h2>
     <p>Dear ${customerName},</p>
@@ -143,33 +296,33 @@ const sendOrderConfirmationEmail = async (orderDetails) => {
       <thead>
         <tr style="background-color:#f5f5f5;">
           <th style="text-align:left; padding:8px; border:1px solid #ddd;">Product</th>
-          <th style="text-align:center; padding:8px; border:1px solid #ddd;">Quantity</th>
-          <th style="text-align:right; padding:8px; border:1px solid #ddd;">Price</th>
+          <th style="text-align:right; padding:8px; border:1px solid #ddd; width: 100px;">Quantity</th>
+          <th style="text-align:right; padding:8px; border:1px solid #ddd; width: 120px;">Price</th>
         </tr>
       </thead>
       <tbody>
-        ${generateOrderItemsHtml(items)}
+        ${itemsHtml.join('')}
       </tbody>
     </table>
 
     <div style="max-width:300px; margin-left:auto; margin-bottom:20px;">
       <div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid #eee;">
         <span>Subtotal:</span>
-        <span>${formatPrice(subtotal)}</span>
+        <span style="text-align:right; min-width:120px;">${formatPrice(subtotal)}</span>
       </div>
       ${discount > 0 ? `
         <div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid #eee;">
           <span>Discount:</span>
-          <span>-${formatPrice(discount)}</span>
+          <span style="text-align:right; min-width:120px;">-${formatPrice(discount)}</span>
         </div>
       ` : ''}
       <div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid #eee;">
         <span>Shipping:</span>
-        <span>${formatPrice(shippingFee)}</span>
+        <span style="text-align:right; min-width:120px;">${formatPrice(shippingFee)}</span>
       </div>
       <div style="display:flex; justify-content:space-between; padding:8px 0; font-weight:bold; font-size:16px; border-top:2px solid #333;">
         <span>Total:</span>
-        <span>${formatPrice(totalAmount)}</span>
+        <span style="text-align:right; min-width:120px;">${formatPrice(totalAmount)}</span>
       </div>
     </div>
 
@@ -191,13 +344,7 @@ const sendOrderConfirmationEmail = async (orderDetails) => {
       to: customerEmail,
       subject: `Order Confirmation #${orderNumber}`,
       html: generateEmailTemplate(content),
-      attachments: [
-        {
-          filename: 'emailheader.png',
-          path: path.join(__dirname, '../../client/public/Emailheader-Latest.png'),
-          cid: 'emailHeader'
-        }
-      ]
+      attachments: attachments
     });
 
     console.log('Order confirmation email sent:', info.messageId);
@@ -208,44 +355,102 @@ const sendOrderConfirmationEmail = async (orderDetails) => {
   }
 };
 
-// Test function to send a sample order confirmation email
-const sendTestEmail = async (recipientEmail) => {
-  const sampleOrderDetails = {
-    orderNumber: "TEST123",
-    customerName: "John Doe",
-    customerEmail: recipientEmail,
-    customerPhone: "+63 912 345 6789",
-    items: [
-      {
-        name: "Lucky Bamboo Plant",
-        quantity: 2,
-        price: 250.00
-      },
-      {
-        name: "Crystal Ball",
-        quantity: 1,
-        price: 599.00
-      }
-    ],
-    totalAmount: 1099.00,
-    shippingFee: 150.00,
-    shippingAddress: "123 Test Street, Makati City, Metro Manila, Philippines, 1234",
-    paymentMethod: "DragonPay",
-    paymentReference: "DP123456789",
-    trackingNumber: "TRACK123456789"
-  };
+// Optimized review request email
+const sendReviewRequestEmail = async (details) => {
+  const {
+    orderNumber,
+    customerName,
+    customerEmail,
+    items = []
+  } = details;
 
-  return sendOrderConfirmationEmail(sampleOrderDetails);
+  const FRONTEND_BASE_URL = process.env.FRONTEND_BASE_URL || 'https://michaeldemesa.com';
+  const attachments = [getEmailHeaderAttachment()];
+
+  // Get all product IDs that have images
+  const productIds = items
+    .filter(item => item.product_id)
+    .map(item => item.product_id);
+
+  // Batch fetch all images at once
+  const imageMap = await getBatchProductImages(productIds);
+
+  // Generate items HTML using pre-fetched images
+  const itemsHtml = items.map(item => {
+    let imageHtml = `<div style="width:100%; height:100%; background-color:#e0e0e0; display:flex; align-items:center; justify-content:center; font-size:10px; color:#666;">No Image</div>`;
+    
+    if (item.product_id && imageMap.has(item.product_id)) {
+      const imageData = imageMap.get(item.product_id);
+      if (imageData) {
+        const imageCid = `product-${item.product_id}`;
+        attachments.push(createImageAttachment(imageData, item.name, imageCid));
+        imageHtml = `<img src="cid:${imageCid}" alt="${item.name}" style="width:100%; height:100%; object-fit:cover; display:block;" />`;
+      }
+    }
+
+    return `
+      <li style="display:flex; align-items:center; margin-bottom:16px; background-color:#ffffff; border-radius:6px; box-shadow:0 1px 3px rgba(0,0,0,0.08); padding:12px;">
+        <div style="flex-shrink:0; width:64px; height:64px; border-radius:4px; overflow:hidden; margin-right:12px; background-color:#f5f5f5;">
+          ${imageHtml}
+        </div>
+        <div style="flex:1;">
+          <p style="margin:0 0 8px 0; font-weight:600; color:#333333; font-size:14px;">${item.name}</p>
+          <a href="${FRONTEND_BASE_URL}/product/${item.product_id}" target="_blank" style="background-color:#FEC16E; color:#000000; padding:6px 14px; text-decoration:none; border-radius:4px; font-size:12px; display:inline-block;">Leave a Review</a>
+        </div>
+      </li>
+    `;
+  });
+
+  const content = `
+    <h2>Order Review Request</h2>
+    <p>Hi ${customerName},</p>
+    <p>Once again, thanks for ordering online from PakBet TV and we look forward to serving you again soon!</p>
+    
+    <div class="review-request" style="background-color: #f9f9f9; padding: 15px; margin: 20px 0; border-radius: 4px;">
+      <p>Please rate your overall satisfaction with your experience online and spare a moment to leave some product review and feedback.</p>
+      <p style="color: #666;"><em>As a token of our appreciation, PakBet TV will give you a surprise coupon code that you can use on your next purchase!</em></p>
+    </div>
+
+    <h3>Your Products:</h3>
+    <ul style="padding-left: 0; list-style: none;">
+      ${itemsHtml.join('')}
+    </ul>
+
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="${FRONTEND_BASE_URL}" 
+         target="_blank" 
+         style="background-color: #FEC16E; 
+                color: #000000; 
+                padding: 12px 28px; 
+                text-decoration: none; 
+                border-radius: 6px; 
+                font-weight: bold; 
+                display: inline-block;">
+        Shop More Feng Shui Items
+      </a>
+    </div>
+  `;
+
+  try {
+    const info = await transporter.sendMail({
+      from: `"MICHAEL DE MESA - BAZI & FENG SHUI CONSULTANCY" <${process.env.SMTP_USER}>`,
+      to: customerEmail,
+      subject: `How was your order #${orderNumber}? Leave a review`,
+      html: generateEmailTemplate(content),
+      attachments: attachments
+    });
+    
+    console.log('Review request email sent:', info.messageId);
+    return { success: true, messageId: info.messageId };
+  } catch (err) {
+    console.error('Review email error:', err.message);
+    return { success: false, error: err.message };
+  }
 };
 
-// Function to send contact form email
+// Other email functions remain the same but with optimized transporter
 const sendContactFormEmail = async (contactDetails) => {
-  const {
-    name,
-    email,
-    phone,
-    message
-  } = contactDetails;
+  const { name, email, phone, message } = contactDetails;
 
   const content = `
     <h2>New Contact Form Submission</h2>
@@ -270,13 +475,7 @@ const sendContactFormEmail = async (contactDetails) => {
       replyTo: email,
       subject: `New Contact Form Message from ${name}`,
       html: generateEmailTemplate(content),
-      attachments: [
-        {
-          filename: 'emailheader.png',
-          path: path.join(__dirname, '../../client/public/Emailheader-Latest.png'),
-          cid: 'emailHeader'
-        }
-      ]
+      attachments: [getEmailHeaderAttachment()]
     });
 
     console.log('Contact form email sent:', info.messageId);
@@ -287,7 +486,6 @@ const sendContactFormEmail = async (contactDetails) => {
   }
 };
 
-// Function to send password reset email
 const sendPasswordResetEmail = async (email, resetToken, origin) => {
   const resetUrl = `${origin}/reset-password/${resetToken}`;
   
@@ -326,13 +524,7 @@ const sendPasswordResetEmail = async (email, resetToken, origin) => {
       to: email,
       subject: 'Password Reset Request',
       html: generateEmailTemplate(content),
-      attachments: [
-        {
-          filename: 'emailheader.png',
-          path: path.join(__dirname, '../../client/public/Emailheader-Latest.png'),
-          cid: 'emailHeader'
-        }
-      ]
+      attachments: [getEmailHeaderAttachment()]
     });
 
     console.log('Password reset email sent:', info.messageId);
@@ -343,13 +535,8 @@ const sendPasswordResetEmail = async (email, resetToken, origin) => {
   }
 };
 
-// Function to send parcel picked-up / dispatched email
 const sendOrderDispatchedEmail = async (details) => {
-  const {
-    customerName,
-    customerEmail,
-    trackingNumber
-  } = details;
+  const { customerName, customerEmail, trackingNumber } = details;
 
   const trackingLink = `https://www.ninjavan.co/en-ph/tracking?id=${encodeURIComponent(trackingNumber)}`;
 
@@ -389,13 +576,7 @@ const sendOrderDispatchedEmail = async (details) => {
       to: customerEmail,
       subject: 'Your order is on its way!',
       html: generateEmailTemplate(content),
-      attachments: [
-        {
-          filename: 'emailheader.png',
-          path: path.join(__dirname, '../../client/public/Emailheader-Latest.png'),
-          cid: 'emailHeader'
-        }
-      ]
+      attachments: [getEmailHeaderAttachment()]
     });
 
     console.log('Dispatched email sent:', info.messageId);
@@ -406,136 +587,42 @@ const sendOrderDispatchedEmail = async (details) => {
   }
 };
 
-const FRONTEND_BASE_URL = process.env.FRONTEND_BASE_URL || 'https://michaeldemesa.com';
+// Test function remains the same
+const sendTestEmail = async (recipientEmail) => {
+  const sampleOrderDetails = {
+    orderNumber: "TEST123",
+    customerName: "John Doe",
+    customerEmail: recipientEmail,
+    customerPhone: "+63 912 345 6789",
+    items: [
+      { name: "Lucky Bamboo Plant", quantity: 2, price: 250.00 },
+      { name: "Crystal Ball", quantity: 1, price: 599.00 }
+    ],
+    totalAmount: 1099.00,
+    shippingFee: 150.00,
+    shippingAddress: "123 Test Street, Makati City, Metro Manila, Philippines, 1234",
+    paymentMethod: "DragonPay",
+    paymentReference: "DP123456789",
+    trackingNumber: "TRACK123456789"
+  };
 
-// Send review request email after order delivered (updated with embedded images)
-const sendReviewRequestEmail = async (details) => {
-  const {
-    orderNumber,
-    customerName,
-    customerEmail,
-    items = []
-  } = details;
+  return sendOrderConfirmationEmail(sampleOrderDetails);
+};
 
-  // Prepare attachments array
-  const attachments = [
-    {
-      filename: 'emailheader.png',
-      path: path.join(__dirname, '../../client/public/Emailheader-Latest.png'),
-      cid: 'emailHeader'
-    }
-  ];
-
-  // Download and attach product images
-  const tempDir = path.join(__dirname, '../temp');
-  
+// Cleanup function to close connections gracefully
+const cleanup = async () => {
   try {
-    // Ensure temp directory exists
-    await fsPromises.mkdir(tempDir, { recursive: true });
-  } catch (err) {
-    console.log('Temp directory already exists or error creating:', err.message);
-  }
-
-  // Process items and download images
-  const processedItems = await Promise.all(items.map(async (item, index) => {
-    let imageCid = null;
-    
-    if (item.image_url && item.image_url.startsWith('http')) {
-      try {
-        const tempImagePath = path.join(tempDir, `product-${index}-${Date.now()}.jpg`);
-        await downloadImage(item.image_url, tempImagePath);
-        
-        imageCid = `product-image-${index}`;
-        attachments.push({
-          filename: `product-${index}.jpg`,
-          path: tempImagePath,
-          cid: imageCid
-        });
-      } catch (err) {
-        console.error(`Failed to download image for ${item.name}:`, err.message);
-      }
-    }
-    
-    return {
-      ...item,
-      imageCid
-    };
-  }));
-
-  const content = `
-    <h2>Order Review Request</h2>
-    <p>Hi ${customerName},</p>
-    <p>Once again, thanks for ordering online from PakBet TV and we look forward to serving you again soon!</p>
-    
-    <div class="review-request" style="background-color: #f9f9f9; padding: 15px; margin: 20px 0; border-radius: 4px;">
-      <p>Please rate your overall satisfaction with your experience online and spare a moment to leave some product review and feedback.</p>
-      <p style="color: #666;"><em>As a token of our appreciation, PakBet TV will give you a surprise coupon code that you can use on your next purchase!</em></p>
-    </div>
-
-    <h3>Your Products:</h3>
-    <ul style="padding-left: 0; list-style: none;">
-      ${processedItems.map(item => `
-        <li style="display:flex; align-items:center; margin-bottom:16px; background-color:#ffffff; border-radius:6px; box-shadow:0 1px 3px rgba(0,0,0,0.08); padding:12px;">
-          <div style="flex-shrink:0; width:64px; height:64px; border-radius:4px; overflow:hidden; margin-right:12px; background-color:#f5f5f5;">
-            ${item.imageCid ? 
-              `<img src="cid:${item.imageCid}" alt="${item.name}" style="width:100%; height:100%; object-fit:cover; display:block;" />` :
-              `<div style="width:100%; height:100%; background-color:#e0e0e0; display:flex; align-items:center; justify-content:center; font-size:10px; color:#666;">No Image</div>`
-            }
-          </div>
-          <div style="flex:1;">
-            <p style="margin:0 0 8px 0; font-weight:600; color:#333333; font-size:14px;">${item.name}</p>
-            <a href="${FRONTEND_BASE_URL}/product/${item.product_id}" target="_blank" style="background-color:#FEC16E; color:#000000; padding:6px 14px; text-decoration:none; border-radius:4px; font-size:12px; display:inline-block;">Leave a Review</a>
-          </div>
-        </li>
-      `).join('')}
-    </ul>
-
-    <div style="text-align: center; margin: 30px 0;">
-      <a href="${FRONTEND_BASE_URL}" 
-         target="_blank" 
-         style="background-color: #FEC16E; 
-                color: #000000; 
-                padding: 12px 28px; 
-                text-decoration: none; 
-                border-radius: 6px; 
-                font-weight: bold; 
-                display: inline-block;">
-        Shop More Feng Shui Items
-      </a>
-    </div>
-  `;
-
-  try {
-    const info = await transporter.sendMail({
-      from: `"MICHAEL DE MESA - BAZI & FENG SHUI CONSULTANCY" <${process.env.SMTP_USER}>`,
-      to: customerEmail,
-      subject: `How was your order #${orderNumber}? Leave a review`,
-      html: generateEmailTemplate(content),
-      attachments: attachments
-    });
-    
-    console.log('Review request email sent:', info.messageId);
-    
-    // Clean up temporary files
-    try {
-      for (const item of processedItems) {
-        if (item.imageCid) {
-          const tempImagePath = attachments.find(att => att.cid === item.imageCid)?.path;
-          if (tempImagePath) {
-            await fsPromises.unlink(tempImagePath);
-          }
-        }
-      }
-    } catch (cleanupErr) {
-      console.warn('Error cleaning up temp files:', cleanupErr.message);
-    }
-    
-    return { success: true, messageId: info.messageId };
-  } catch (err) {
-    console.error('Review email error:', err.message);
-    return { success: false, error: err.message };
+    transporter.close();
+    imageCache.clear();
+    console.log('Email service cleanup completed');
+  } catch (error) {
+    console.error('Error during cleanup:', error);
   }
 };
+
+// Handle process termination
+process.on('SIGTERM', cleanup);
+process.on('SIGINT', cleanup);
 
 module.exports = {
   sendOrderConfirmationEmail,
@@ -543,5 +630,6 @@ module.exports = {
   sendContactFormEmail,
   sendPasswordResetEmail,
   sendOrderDispatchedEmail,
-  sendReviewRequestEmail
+  sendReviewRequestEmail,
+  cleanup
 }; 
