@@ -1,19 +1,32 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import NavBar from './NavBar';
 import Footer from './Footer';
 import './Consultation.css';
 
 export const Consultation = () => {
+  const navigate = useNavigate();
+
+  const handleBookConsultation = (service) => {
+    const message = `Hi, I would like to book a ${service.title} consultation.\n\nService Details:\nDuration: ${service.duration}\nPrice: ${service.price}\n\nPlease let me know the available schedule. Thank you!`;
+    
+    navigate('/contact', {
+      state: {
+        prefilledMessage: message,
+        subject: `Book ${service.title} Consultation`
+      }
+    });
+  };
+
   // Temporary consultation services data
   const consultationServices = [
     {
       id: 1,
-      title: "Personal Feng Shui Assessment",
-      description: "Get a personalized assessment of your living space and discover how to optimize energy flow for prosperity, health, and happiness.",
+      title: "FENG SHUI DATE SELECTION",
+      description: "Ang Date Selection ay proseso ng pagpili ng pinaka-auspicious na araw batay sa Chinese Almanac, Feng Shui, at birth dates upang matiyak ang tamang timing para sa mga mahahalagang hakbang sa buhay at mapataas ang tsansa ng tagumpay.",
       price: "₱2,500.00",
       duration: "60 minutes",
-      image: "/consultation-personal.jpg"
+      image: "/Consultation-1.jpg"
     },
     {
       id: 2,
@@ -100,7 +113,12 @@ export const Consultation = () => {
                   <span className="service-duration"><i className="far fa-clock"></i> {service.duration}</span>
                   <span className="service-price">{service.price}</span>
                 </div>
-                <button className="book-button">Book Consultation</button>
+                <button 
+                  className="book-button"
+                  onClick={() => handleBookConsultation(service)}
+                >
+                  Book Consultation
+                </button>
               </div>
             </div>
           ))}
@@ -135,7 +153,7 @@ export const Consultation = () => {
         <div className="consultation-cta">
           <h2>Ready to transform your space?</h2>
           <p>Schedule a consultation with our Feng Shui experts today</p>
-          <button className="cta-button">Contact Us Now</button>
+          <Link to="/contact" className="cta-button">Contact Us Now</Link>
         </div>
       </div>
       

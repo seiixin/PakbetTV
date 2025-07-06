@@ -1,40 +1,97 @@
 import React, { useRef, useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import Swal from "sweetalert2";
 import NavBar from "./NavBar";
 import Footer from "./Footer";
 import { useAuth } from "../context/AuthContext";
 import API_BASE_URL from "../config";
 import axios from "axios";
+import { authService } from "../services/api";
 import "./Contact.css";
+
+const CONTACT_FORM_STORAGE_KEY = 'contactFormData';
 
 const ContactForm = () => {
   const form = useRef();
-  const { user } = useAuth();
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    message: ''
+  const { user, isAuthenticated } = useAuth();
+  const location = useLocation();
+  const [formData, setFormData] = useState(() => {
+    // Initialize from localStorage if available
+    const savedData = localStorage.getItem(CONTACT_FORM_STORAGE_KEY);
+    return savedData ? JSON.parse(savedData) : {
+      name: '',
+      email: '',
+      phone: '',
+      message: '',
+      subject: ''
+    };
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Pre-fill form with user data if logged in
-  useEffect(() => {
-    if (user) {
-      setFormData(prev => ({
-        ...prev,
-        name: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName || '',
-        email: user.email || ''
-      }));
+  const fetchUserProfile = async () => {
+    try {
+      console.log('Fetching user profile and shipping data...');
+      const [profileResponse, shippingResponse] = await Promise.all([
+        authService.getProfile(),
+        authService.getShippingAddresses()
+      ]);
+      
+      console.log('Profile Response:', profileResponse.data);
+      console.log('Shipping Response:', shippingResponse.data);
+      
+      const profileData = profileResponse.data;
+      const addresses = shippingResponse.data;
+      const defaultAddress = addresses && addresses.length > 0 ? 
+        (addresses.find(addr => addr.is_default) || addresses[0]) : null;
+
+      console.log('Default Address:', defaultAddress);
+      console.log('Profile Phone:', profileData.phone);
+      console.log('Address Phone:', defaultAddress?.phone);
+
+      const userInfo = {
+        name: profileData.firstName && profileData.lastName ? 
+          `${profileData.firstName} ${profileData.lastName}` : 
+          profileData.firstName || '',
+        email: profileData.email || '',
+        phone: defaultAddress?.phone || profileData.phone || '',
+        message: location.state?.prefilledMessage || formData.message || '',
+        subject: location.state?.subject || formData.subject || ''
+      };
+      
+      console.log('Setting form data with:', userInfo);
+      setFormData(userInfo);
+      localStorage.setItem(CONTACT_FORM_STORAGE_KEY, JSON.stringify(userInfo));
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data
+      });
     }
-  }, [user]);
+  };
+
+  // Pre-fill form with user data and consultation booking info if available
+  useEffect(() => {
+    console.log('useEffect triggered with:', {
+      isAuthenticated,
+      hasUser: !!user,
+      userData: user
+    });
+    
+    if (isAuthenticated && user) {
+      fetchUserProfile();
+    }
+  }, [user, isAuthenticated, location.state]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
+    console.log('Input changed:', { field: name, value });
+    const updatedFormData = {
+      ...formData,
       [name]: value
-    }));
+    };
+    setFormData(updatedFormData);
+    localStorage.setItem(CONTACT_FORM_STORAGE_KEY, JSON.stringify(updatedFormData));
   };
 
   const sendMessage = async (e) => {
@@ -58,13 +115,16 @@ const ContactForm = () => {
           confirmButtonColor: "#8B0000",
         });
         
-        // Reset form
-        setFormData({
-          name: user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : user?.firstName || '',
-          email: user?.email || '',
-          phone: '',
-          message: ''
-        });
+        // Clear form and localStorage after successful submission
+        const emptyForm = {
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          message: '',
+          subject: ''
+        };
+        setFormData(emptyForm);
+        localStorage.setItem(CONTACT_FORM_STORAGE_KEY, JSON.stringify(emptyForm));
       }
     } catch (error) {
       console.error('Contact form error:', error);
@@ -104,7 +164,6 @@ const ContactForm = () => {
                   id="name"
                   name="name"
                   type="text"
-                  placeholder="John Doe"
                   value={formData.name}
                   onChange={handleInputChange}
                   required
@@ -123,7 +182,6 @@ const ContactForm = () => {
                   id="email"
                   name="email"
                   type="email"
-                  placeholder="you@example.com"
                   value={formData.email}
                   onChange={handleInputChange}
                   required
@@ -142,7 +200,6 @@ const ContactForm = () => {
                   id="phone"
                   name="phone"
                   type="tel"
-                  placeholder="09123456789"
                   value={formData.phone}
                   onChange={handleInputChange}
                   required
@@ -150,6 +207,25 @@ const ContactForm = () => {
                 />
               </div>
             </div>
+
+            {/* Subject - Only show if we have a subject */}
+            {formData.subject && (
+              <div className="form-group">
+                <label htmlFor="subject" className="form-label">
+                  Subject
+                </label>
+                <div className="input-wrapper">
+                  <input
+                    id="subject"
+                    name="subject"
+                    type="text"
+                    value={formData.subject}
+                    readOnly
+                    className="form-input"
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Message */}
             <div className="form-group">
@@ -161,7 +237,6 @@ const ContactForm = () => {
                   id="message"
                   name="message"
                   rows="5"
-                  placeholder="Type your message here..."
                   value={formData.message}
                   onChange={handleInputChange}
                   required
