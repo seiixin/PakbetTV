@@ -259,17 +259,33 @@ exports.deleteAccount = async (req, res) => {
   }
 };
 
-// Check if account can be deleted
+// Check if user can delete account
 exports.canDeleteAccount = async (req, res) => {
   try {
-    // Check for any pending orders or other constraints
-    const [pendingOrdersRows] = await db.query(
-      'SELECT COUNT(*) as count FROM orders WHERE user_id = ? AND status IN ("pending", "processing")',
+    // First check if user exists
+    const [user] = await db.query(
+      'SELECT user_id FROM users WHERE user_id = ?',
       [req.user.id]
     );
 
-    const canDelete = pendingOrdersRows[0].count === 0;
-    res.json({ canDelete });
+    if (!user.length) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Check for active orders
+    const [activeOrders] = await db.query(
+      'SELECT 1 FROM orders WHERE user_id = ? AND order_status NOT IN ("completed", "cancelled") LIMIT 1',
+      [req.user.id]
+    );
+
+    const canDelete = activeOrders.length === 0;
+
+    res.json({ 
+      canDelete,
+      message: canDelete ? 
+        'Account can be deleted' : 
+        'Cannot delete account while there are active orders'
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });

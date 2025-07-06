@@ -259,7 +259,6 @@
   min-width: 140px;
   height: 40px;
   white-space: nowrap;
-  background: linear-gradient(135deg, rgba(162, 32, 26, 0.1) 0%, rgba(162, 32, 26, 0.05) 100%);
   color: var(--primary-color);
   border: 2px solid rgba(162, 32, 26, 0.2);
   position: relative;
@@ -281,22 +280,18 @@
 /* Payment Status */
 .purchase-payment-status {
   font-size: 0.85rem;
-  color: var(--light-text-color);
+  color: var(--text-color);
   margin-top: 0.5rem;
   padding: 0.5rem 1rem;
-  background: rgba(248, 249, 250, 0.8);
   border-radius: 8px;
-  border-left: 3px solid var(--accent-color);
 }
 
 .purchase-tracking-info {
   font-size: 0.85rem;
-  color: var(--light-text-color);
+  color: var(--text-color);
   margin-top: 0.5rem;
   padding: 0.5rem 1rem;
-  background: rgba(254, 193, 110, 0.1);
   border-radius: 8px;
-  border-left: 3px solid var(--secondary-color);
 }
 
 .purchase-tracking-label {
@@ -311,7 +306,6 @@
   padding: 0.5rem 1rem;
   background: rgba(162, 32, 26, 0.05);
   border-radius: 8px;
-  border-left: 3px solid var(--primary-color);
   max-width: 350px;
 }
 
@@ -340,7 +334,6 @@
   padding: 1rem;
   background: rgba(248, 249, 250, 0.5);
   border-radius: 12px;
-  border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .purchase-order-count {
@@ -363,7 +356,6 @@
   padding: 1.5rem 2rem;
   display: flex;
   gap: 1rem;
-  border-top: 1px solid rgba(0, 0, 0, 0.05);
   background: rgba(248, 249, 250, 0.3);
 }
 

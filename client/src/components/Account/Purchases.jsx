@@ -178,23 +178,6 @@ function Purchases() {
     return statusColors[status.toLowerCase()] || '#757575';
   };
 
-  const getStatusBgColor = (status) => {
-    const statusBgColors = {
-      'pending_payment': 'rgba(255, 215, 0, 0.15)', // Gold with transparency
-      'processing': 'rgba(128, 0, 0, 0.1)', // Maroon with transparency
-      'for_packing': 'rgba(165, 42, 42, 0.1)', // Darker maroon with transparency
-      'packed': 'rgba(184, 134, 11, 0.1)', // Dark goldenrod with transparency
-      'for_shipping': 'rgba(128, 0, 0, 0.1)', // Maroon with transparency
-      'shipped': 'rgba(139, 0, 0, 0.1)', // Dark red with transparency
-      'picked_up': 'rgba(218, 165, 32, 0.1)', // Goldenrod with transparency
-      'delivered': 'rgba(0, 100, 0, 0.1)', // Dark green with transparency
-      'completed': 'rgba(34, 139, 34, 0.1)', // Forest green with transparency
-      'returned': 'rgba(139, 0, 0, 0.1)', // Dark red with transparency
-      'cancelled': 'rgba(139, 0, 0, 0.1)' // Dark red with transparency
-    };
-    return statusBgColors[status.toLowerCase()] || 'rgba(117, 117, 117, 0.1)';
-  };
-
   const getShippingAddress = (order) => {
     // Use the exact shipping address that was sent to Ninja Van
     if (order.shipping_address) {
@@ -265,7 +248,6 @@ function Purchases() {
                     className="purchase-order-status" 
                     style={{ 
                       color: getStatusColor(order.order_status),
-                      backgroundColor: getStatusBgColor(order.order_status),
                       borderColor: getStatusColor(order.order_status),
                       width: '120px', // Fixed width for uniform appearance
                       display: 'flex',

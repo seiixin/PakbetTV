@@ -16,7 +16,36 @@ async function createOrder(req, res) {
 }
 
 async function getOrders(req, res) {
-  // ...migrated as-is from the route file
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+    const [orders] = await db.query(
+      `SELECT 
+         o.order_id,
+         o.order_code,
+         o.order_status,
+         o.payment_status,
+         o.total_price,
+         o.created_at,
+         COALESCE(s.tracking_number, '')       AS tracking_number,
+         COALESCE(s.address, '')              AS shipping_address,
+         COUNT(oi.order_item_id)               AS item_count
+       FROM orders o
+       LEFT JOIN order_items oi ON oi.order_id = o.order_id
+       LEFT JOIN shipping     s ON s.order_id  = o.order_id
+       WHERE o.user_id = ?
+       GROUP BY o.order_id
+       ORDER BY o.created_at DESC`,
+       [userId]
+    );
+
+    res.json(orders);
+  } catch (error) {
+    console.error('Error fetching orders:', error);
+    res.status(500).json({ message: 'Failed to fetch orders', error: error.message });
+  }
 }
 
 async function getOrderById(req, res) {

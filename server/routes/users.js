@@ -21,6 +21,7 @@ router.put('/profile', auth, [
   body('email', 'Please include a valid email').isEmail(),
   body('username', 'Username is required').notEmpty()
 ], usersController.updateProfile);
+router.get('/can-delete-account', auth, usersController.canDeleteAccount);
 router.get('/:id', auth, usersController.getUserById);
 router.put('/:id', auth, usersController.updateUserById);
 router.delete('/:id', [auth, admin], usersController.deleteUserById);
@@ -39,6 +40,5 @@ router.put('/update-username', auth, [
   body('username', 'Username is required').not().isEmpty()
 ], usersController.updateUsername);
 router.post('/delete-account', auth, usersController.deleteAccount);
-router.get('/can-delete-account', auth, usersController.canDeleteAccount);
 
 module.exports = router; 

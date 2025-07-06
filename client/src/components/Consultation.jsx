@@ -31,26 +31,26 @@ export const Consultation = () => {
     {
       id: 2,
       title: "Home Feng Shui Consultation",
-      description: "A comprehensive analysis of your home to identify energy blockages and provide actionable recommendations for improvement.",
+      description: "Napapaisip ka ba, Ka-PakBet, kung bakit parang laging may tensyon o kulang sa swerte sa bahay mo? Baka kailangan mo na ng House Feng Shui Audit mula kay Master Michael De Mesa para maibalik ang maayos na energy flow at mapasok ulit ang blessings sa buhay mo.",
       price: "₱5,000.00",
-      duration: "90 minutes",
-      image: "/consultation-home.jpg"
+      duration: "120 minutes",
+      image: "/Consultation-2.jpg"
     },
     {
       id: 3,
-      title: "Business Feng Shui Consultation",
-      description: "Enhance productivity, employee well-being, and business success through expert feng shui arrangement of your office or business space.",
+      title: "Bazi Reading Consultation",
+      description: "Ka-Pakbet, kung napapatanong ka kung saan ka patungo sa buhay, baka panahon na para ipa-BaZi mo na ‘yan at matuklasan ang mas malinaw na direksyon gamit ang iyong kapanganakan chart.",
       price: "₱8,000.00",
-      duration: "120 minutes",
-      image: "/consultation-business.jpg"
+      duration: "180 minutes",
+      image: "/Consultation-3.jpg"
     },
     {
       id: 4,
-      title: "Virtual Feng Shui Assessment",
-      description: "Remote consultation via video call where our experts will guide you through feng shui principles and offer personalized advice.",
-      price: "₱1,800.00",
-      duration: "45 minutes",
-      image: "/consultation-virtual.jpg"
+      title: "Yearly Residential Feng Shui Analysis",
+      description: "Book a Yearly Residential Feng Shui Analysis with Master Michael De Mesa to activate your home's lucky sectors, attract positivity, and boost your family's overall luck and harmony this 2023.",
+      price: "₱10,000.00",
+      duration: "240 minutes",
+      image: "/Consultation-4.jpg"
     }
   ];
 
@@ -85,7 +85,7 @@ export const Consultation = () => {
           </div>
           <div className="benefit-item">
             <i className="fas fa-heart"></i>
-            <h3>Enhance Relationships</h3>
+            <h3>Build harmony</h3>
             <p>Create harmony in your personal connections</p>
           </div>
           <div className="benefit-item">
