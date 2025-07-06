@@ -48,16 +48,16 @@ const Footer = ({ forceShow = true }) => {
         <div className="footer-section">
           <h3>FOLLOW US</h3>
           <div className="social-icons">
-            <a href="https://www.facebook.com/pakbettv" className="social-icon">
+            <a href="https://www.facebook.com/pakbettv" className="social-icon" target="_blank" rel="noopener noreferrer">
               <i className="fab fa-facebook-f"></i>
             </a>
-            <a href="https://www.instagram.com/pakbettv/" className="social-icon">
+            <a href="https://www.instagram.com/pakbettv/" className="social-icon" target="_blank" rel="noopener noreferrer">
               <i className="fab fa-instagram"></i>
             </a>
-            <a href="https://www.tiktok.com/@pakbettv.com?is_from_webapp=1&sender_device=pc" className="social-icon">
+            <a href="https://www.tiktok.com/@pakbettv.com?is_from_webapp=1&sender_device=pc" className="social-icon" target="_blank" rel="noopener noreferrer">
               <i className="fab fa-tiktok"></i>
             </a>
-            <a href="https://www.youtube.com/c/PakBetTV" className="social-icon">
+            <a href="https://www.youtube.com/c/PakBetTV" className="social-icon" target="_blank" rel="noopener noreferrer">
               <i className="fab fa-youtube"></i>
             </a>
           </div>

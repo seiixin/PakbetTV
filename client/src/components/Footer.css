@@ -92,6 +92,36 @@
   font-weight: 500;
 }
 
+/* Specific styles for FAQ links */
+.faq-links {
+  width: 100%;
+}
+
+.faq-links ul li {
+  padding: 0.3rem 0;
+}
+
+/* FAQ links hover effect - no border */
+.faq-links a {
+  transition: color 0.2s ease;
+  display: inline-block;
+}
+
+.faq-links a:hover {
+  color: var(--footer-text) !important;
+  font-weight: 500;
+}
+
+/* Social icons specific styles */
+.social-icons a {
+  border-bottom: none !important;
+}
+
+.social-icons a:hover {
+  border-bottom: none !important;
+  font-weight: normal !important;
+}
+
 .location-info,
 .contact-info {
   width: 100%;
@@ -132,10 +162,12 @@
   color: var(--footer-text) !important;
   border-radius: 50%;
   text-decoration: none !important;
+  border-bottom: none !important;
 }
 
 .social-icon:hover {
   text-decoration: none !important;
+  border-bottom: none !important;
 }
 
 .social-icon i {
@@ -146,20 +178,6 @@
 .contact-info i {
   color: var(--footer-text) !important;
   font-size: 1.1rem;
-}
-
-.faq-links {
-  width: 100%;
-}
-
-.faq-links ul li {
-  padding: 0.3rem 0;
-  border-bottom: 1px solid transparent;
-  transition: border-bottom 0.2s ease;
-}
-
-.faq-links ul li:hover {
-  border-bottom: 1px solid var(--footer-text);
 }
 
 .footer-bottom {
