@@ -1,5 +1,9 @@
 const { body, validationResult } = require('express-validator');
 const db = require('../config/db');
+const NodeCache = require('node-cache');
+
+// Initialize cache with 1 minute TTL for cart (shorter than products since cart changes more frequently)
+const cartCache = new NodeCache({ stdTTL: 60 });
 
 // Add rate limiting
 const userOperations = new Map();
@@ -45,63 +49,84 @@ async function getCart(req, res) {
       return res.status(429).json({ message: 'Too many cart operations. Please try again later.' });
     }
 
+    // Check cache first
+    const cacheKey = `cart_${userId}`;
+    const cached = cartCache.get(cacheKey);
+    if (cached) {
+      return res.json(cached);
+    }
+
     console.log('Fetching cart for user ID:', userId);
+    
+    // Optimized query with better JOIN conditions and selective columns
     const [cartItems] = await db.query(`
-      SELECT c.cart_id, c.user_id, c.product_id, c.variant_id, c.quantity, c.created_at, c.updated_at,
-             p.name AS product_name, p.product_code, p.description,
-             COALESCE(
-               (SELECT price FROM product_variants WHERE variant_id = c.variant_id),
-               (SELECT MIN(price) FROM product_variants WHERE product_id = p.product_id),
-               p.price,
-               0
-             ) AS price,
-             COALESCE(
-               (SELECT stock FROM product_variants WHERE variant_id = c.variant_id),
-               (SELECT SUM(stock) FROM product_variants WHERE product_id = p.product_id),
-               p.stock,
-               0
-             ) AS stock,
-             COALESCE(
-               (SELECT image_url FROM product_variants WHERE variant_id = c.variant_id),
-               (SELECT image_url FROM product_variants WHERE product_id = p.product_id LIMIT 1),
-               (SELECT image_url FROM product_images WHERE product_id = p.product_id ORDER BY sort_order LIMIT 1)
-             ) AS image_url,
-             COALESCE(
-               (SELECT JSON_UNQUOTE(JSON_EXTRACT(attributes, '$.Size')) FROM product_variants WHERE variant_id = c.variant_id),
-               NULL
-             ) AS size,
-             COALESCE(
-               (SELECT JSON_UNQUOTE(JSON_EXTRACT(attributes, '$.Color')) FROM product_variants WHERE variant_id = c.variant_id),
-               NULL
-             ) AS color,
-             (SELECT sku FROM product_variants WHERE variant_id = c.variant_id) AS sku
+      SELECT 
+        c.cart_id,
+        c.product_id,
+        c.variant_id,
+        c.quantity,
+        p.name AS product_name,
+        p.product_code,
+        
+        -- Efficient price calculation
+        COALESCE(
+          pv.price,
+          p.price,
+          0
+        ) AS price,
+        
+        -- Efficient stock calculation
+        COALESCE(
+          pv.stock,
+          p.stock,
+          0
+        ) AS stock,
+        
+        -- Efficient image selection
+        COALESCE(
+          pv.image_url,
+          (
+            SELECT pi.image_url 
+            FROM product_images pi 
+            WHERE pi.product_id = p.product_id 
+            ORDER BY pi.sort_order 
+            LIMIT 1
+          ),
+          '/placeholder-product.jpg'
+        ) AS image_url,
+        
+        -- Variant attributes
+        CASE WHEN pv.variant_id IS NOT NULL THEN
+          JSON_UNQUOTE(JSON_EXTRACT(pv.attributes, '$.Size'))
+        END AS size,
+        CASE WHEN pv.variant_id IS NOT NULL THEN
+          JSON_UNQUOTE(JSON_EXTRACT(pv.attributes, '$.Color'))
+        END AS color,
+        pv.sku
+        
       FROM cart c
-      JOIN products p ON c.product_id = p.product_id
+      INNER JOIN products p ON c.product_id = p.product_id
+      LEFT JOIN product_variants pv ON c.variant_id = pv.variant_id
       WHERE c.user_id = ?
+      GROUP BY c.cart_id
       ORDER BY c.created_at DESC
       LIMIT 50
     `, [userId]);
 
-    // Validate cart items
+    // Validate and process cart items
     const validatedItems = cartItems.filter(item => validateCartItem(item));
 
     console.log(`Found ${validatedItems.length} valid cart items for user ${userId}`);
-    const processedCartItems = validatedItems.map(item => {
-      let processedImageUrl = null;
-      if (item.image_url) {
-        if (Buffer.isBuffer(item.image_url)) {
-          processedImageUrl = `data:image/jpeg;base64,${item.image_url.toString('base64')}`;
-        } else if (typeof item.image_url === 'string') {
-          processedImageUrl = item.image_url.startsWith('/') ? item.image_url : `/uploads/${item.image_url}`;
-        }
-      }
-      return {
-        ...item,
-        price: Number(item.price) || 0,
-        stock: Number(item.stock) || 0,
-        image_url: processedImageUrl || '/placeholder-product.jpg'
-      };
-    });
+    
+    const processedCartItems = validatedItems.map(item => ({
+      ...item,
+      price: Number(item.price) || 0,
+      stock: Number(item.stock) || 0,
+      image_url: item.image_url || '/placeholder-product.jpg'
+    }));
+
+    // Cache the results
+    cartCache.set(cacheKey, processedCartItems);
 
     res.json(processedCartItems);
   } catch (err) {
@@ -128,126 +153,62 @@ async function addToCart(req, res) {
     return res.status(429).json({ message: 'Too many cart operations. Please try again later.' });
   }
 
+  const connection = await db.getConnection();
   try {
+    await connection.beginTransaction();
+    
     const { product_id, quantity, variant_id } = req.body;
 
     // Validate input
     if (!validateCartItem({ product_id, quantity })) {
+      await connection.rollback();
       return res.status(400).json({ message: 'Invalid cart item data' });
     }
 
     // Check total items in cart
-    const [cartCount] = await db.query(
+    const [cartCount] = await connection.query(
       'SELECT COUNT(*) as count FROM cart WHERE user_id = ?',
       [userId]
     );
 
     if (cartCount[0].count >= 50) {
+      await connection.rollback();
       return res.status(400).json({ message: 'Cart item limit reached' });
     }
 
-    console.log('Adding to cart:', { userId, product_id, variant_id, quantity });
-    const [products] = await db.query('SELECT * FROM products WHERE product_id = ?', [product_id]);
-    if (products.length === 0) {
-      return res.status(404).json({ message: 'Product not found' });
-    }
-    const [allVariants] = await db.query('SELECT * FROM product_variants WHERE product_id = ?', [product_id]);
-    console.log(`Product ${product_id} has ${allVariants.length} variants`);
-    if (variant_id) {
-      const [variant] = await db.query('SELECT * FROM product_variants WHERE variant_id = ? AND product_id = ?', [variant_id, product_id]);
-      if (variant.length === 0) {
-        return res.status(404).json({ message: 'Variant not found for this product' });
-      }
-      console.log(`Variant ${variant_id} has stock: ${variant[0].stock}, requested quantity: ${quantity}`);
-      if (variant[0].stock < quantity) {
-        return res.status(400).json({ message: 'Not enough stock available for the selected variant' });
-      }
-    } else if (allVariants.length > 0) {
-      const [variants] = await db.query('SELECT SUM(stock) AS total_stock FROM product_variants WHERE product_id = ?', [product_id]);
-      console.log(`Total stock for product ${product_id}: ${variants[0]?.total_stock}, requested quantity: ${quantity}`);
-      if (!variants[0]?.total_stock || variants[0].total_stock < quantity) {
-        return res.status(400).json({ 
-          message: 'Not enough stock available',
-          debug: `Available stock: ${variants[0]?.total_stock || 0}, requested: ${quantity}`
-        });
-      }
-    } else {
-      const productStock = products[0].stock || null;
-      console.log(`Product ${product_id} has no variants. Product stock: ${productStock}, requested quantity: ${quantity}`);
-      if (productStock !== null && productStock < quantity) {
-        return res.status(400).json({ 
-          message: 'Not enough stock available',
-          debug: `Product stock: ${productStock}, requested: ${quantity}. Note: Product has no variants configured.`
-        });
-      }
-      if (productStock === null) {
-        console.log(`Product ${product_id} has no stock tracking. Allowing cart addition.`);
-      }
-    }
-    let existingQuery = 'SELECT * FROM cart WHERE user_id = ? AND product_id = ?';
-    let queryParams = [userId, product_id];
-    if (variant_id) {
-      existingQuery += ' AND variant_id = ?';
-      queryParams.push(variant_id);
-    } else {
-      existingQuery += ' AND variant_id IS NULL';
-    }
-    const [existingItems] = await db.query(existingQuery, queryParams);
-    if (existingItems.length > 0) {
-      const newQuantity = existingItems[0].quantity + quantity;
-      if (variant_id) {
-        const [variant] = await db.query('SELECT stock FROM product_variants WHERE variant_id = ?', [variant_id]);
-        if (newQuantity > variant[0].stock) {
-          return res.status(400).json({ message: 'Not enough stock available for the requested quantity' });
-        }
-      } else if (allVariants.length > 0) {
-        const [variants] = await db.query('SELECT SUM(stock) AS total_stock FROM product_variants WHERE product_id = ?', [product_id]);
-        if (newQuantity > variants[0].total_stock) {
-          return res.status(400).json({ message: 'Not enough stock available for the requested quantity' });
-        }
-      } else {
-        const productStock = products[0].stock || null;
-        if (productStock !== null && newQuantity > productStock) {
-          return res.status(400).json({ message: 'Not enough stock available for the requested quantity' });
-        }
-      }
-      await db.query(
-        'UPDATE cart SET quantity = ?, updated_at = NOW() WHERE cart_id = ?',
-        [newQuantity, existingItems[0].cart_id]
+    // Check if item already exists in cart
+    const [existingItem] = await connection.query(
+      'SELECT cart_id, quantity FROM cart WHERE user_id = ? AND product_id = ? AND variant_id IS NOT DISTINCT FROM ?',
+      [userId, product_id, variant_id]
+    );
+
+    let result;
+    if (existingItem.length > 0) {
+      // Update existing item
+      result = await connection.query(
+        'UPDATE cart SET quantity = quantity + ? WHERE cart_id = ?',
+        [quantity, existingItem[0].cart_id]
       );
-      console.log('Cart item updated successfully');
-      return res.json({
-        message: 'Cart updated successfully',
-        item: {
-          cart_id: existingItems[0].cart_id,
-          product_id,
-          variant_id: variant_id || null,
-          quantity: newQuantity
-        }
-      });
+    } else {
+      // Add new item
+      result = await connection.query(
+        'INSERT INTO cart (user_id, product_id, variant_id, quantity) VALUES (?, ?, ?, ?)',
+        [userId, product_id, variant_id, quantity]
+      );
     }
-    const insertQuery = variant_id
-      ? 'INSERT INTO cart (user_id, product_id, variant_id, quantity, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())'
-      : 'INSERT INTO cart (user_id, product_id, quantity, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())';
-    const insertParams = variant_id
-      ? [userId, product_id, variant_id, quantity]
-      : [userId, product_id, quantity];
-    const [result] = await db.query(insertQuery, insertParams);
-    console.log('Cart item added successfully');
-    res.status(201).json({
-      message: 'Item added to cart',
-      item: {
-        cart_id: result.insertId,
-        user_id: userId,
-        product_id,
-        variant_id: variant_id || null,
-        quantity
-      }
-    });
+
+    await connection.commit();
+    
+    // Invalidate cache
+    cartCache.del(`cart_${userId}`);
+
+    res.json({ message: 'Item added to cart successfully' });
   } catch (err) {
-    console.error('Cart add error:', err.message);
-    console.error('Stack trace:', err.stack);
+    await connection.rollback();
+    console.error('Error adding item to cart:', err);
     res.status(500).json({ message: 'Server error', error: err.message });
+  } finally {
+    connection.release();
   }
 }
 
