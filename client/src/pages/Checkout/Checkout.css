@@ -162,11 +162,12 @@
   border-radius: 0.375rem;
   font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: all 0.3s ease;
 }
 
 .place-order-button {
-  background-color: #ef5a3f;
+  background: linear-gradient(135deg, #A2201A 0%, #c72c21 100%);
+  box-shadow: 0 1px 4px rgba(162, 32, 26, 0.12);
   color: white;
   border: none;
   margin-top: 1.5rem;
@@ -174,11 +175,13 @@
 }
 
 .place-order-button:hover:not(:disabled) {
-  background-color: #d54a2f;
+  background: linear-gradient(135deg, #8a1c16 0%, #a12319 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(162, 32, 26, 0.2);
 }
 
 .place-order-button:disabled {
-  background-color: #f6a69a;
+  background: linear-gradient(135deg, #d67b75 0%, #e08983 100%);
   cursor: not-allowed;
 }
 
@@ -190,6 +193,14 @@
 
 .back-button:hover:not(:disabled) {
   background-color: #f9fafb;
+  border-color: #d1d5db;
+}
+
+.back-button:focus,
+.back-button:focus-visible {
+  outline: none;
+  border-color: #d1d5db;
+  box-shadow: none;
 }
 
 .back-button:disabled {
@@ -223,18 +234,21 @@
 }
 
 .primary-button {
-  background-color: #ef5a3f;
+  background: linear-gradient(135deg, #A2201A 0%, #c72c21 100%);
+  box-shadow: 0 1px 4px rgba(162, 32, 26, 0.12);
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;
   border-radius: 0.375rem;
   font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: all 0.3s ease;
 }
 
 .primary-button:hover {
-  background-color: #d54a2f;
+  background: linear-gradient(135deg, #8a1c16 0%, #a12319 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(162, 32, 26, 0.2);
 }
 
 .shipping-form {

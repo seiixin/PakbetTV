@@ -16,13 +16,13 @@ exports.registerUser = async (req, res) => {
 
     const { firstName, lastName, username, email, password } = req.body;
 
-    // Check if user already exists
-    const userExists = await db.query(
-      'SELECT * FROM users WHERE email = ? OR username = ?',
+    // Check if user already exists (optimized / limit 1)
+    const [existingRows] = await db.query(
+      'SELECT 1 FROM users WHERE email = ? OR username = ? LIMIT 1',
       [email, username]
     );
 
-    if (userExists.length > 0) {
+    if (existingRows.length > 0) {
       return res.status(400).json({ 
         errors: [{ msg: 'User already exists' }] 
       });
@@ -33,14 +33,14 @@ exports.registerUser = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
 
     // Insert user into database
-    const result = await db.query(
+    const [insertResult] = await db.query(
       'INSERT INTO users (first_name, last_name, username, email, password) VALUES (?, ?, ?, ?, ?)',
       [firstName, lastName, username, email, hashedPassword]
     );
 
     res.status(201).json({
       message: 'User registered successfully',
-      userId: result.insertId
+      userId: insertResult.insertId
     });
   } catch (err) {
     console.error(err);
@@ -51,7 +51,7 @@ exports.registerUser = async (req, res) => {
 // Get all users (admin only)
 exports.getAllUsers = async (req, res) => {
   try {
-    const users = await db.query('SELECT user_id, first_name, last_name, username, email, created_at FROM users');
+    const [users] = await db.query('SELECT user_id, first_name, last_name, username, email, created_at FROM users');
     res.json(users);
   } catch (err) {
     console.error(err);
@@ -62,7 +62,7 @@ exports.getAllUsers = async (req, res) => {
 // Get user shipping addresses
 exports.getShippingAddresses = async (req, res) => {
   try {
-    const addresses = await db.query(
+    const [addresses] = await db.query(
       'SELECT * FROM user_shipping_details WHERE user_id = ?',
       [req.user.id]
     );
@@ -98,10 +98,12 @@ exports.updateProfile = async (req, res) => {
 // Get user by ID
 exports.getUserById = async (req, res) => {
   try {
-    const [user] = await db.query(
+    const [rows] = await db.query(
       'SELECT user_id, first_name, last_name, username, email, created_at FROM users WHERE user_id = ?',
       [req.params.id]
     );
+
+    const user = rows[0];
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -145,11 +147,11 @@ exports.deleteUserById = async (req, res) => {
 // Get user profile
 exports.getUserProfile = async (req, res) => {
   try {
-    const [user] = await db.query(
+    const [rowsProfile] = await db.query(
       'SELECT user_id, first_name, last_name, username, email, phone, created_at FROM users WHERE user_id = ?',
       [req.user.id]
     );
-    res.json(user);
+    res.json(rowsProfile[0]);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
@@ -179,7 +181,7 @@ exports.addOrUpdateShippingAddress = async (req, res) => {
 
     const { region, province, city_municipality, barangay, postcode, street_address, label } = req.body;
 
-    const result = await db.query(
+    const [insertAddress] = await db.query(
       `INSERT INTO user_shipping_details 
        (user_id, region, province, city_municipality, barangay, postcode, street_address, label)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -188,7 +190,7 @@ exports.addOrUpdateShippingAddress = async (req, res) => {
 
     res.status(201).json({
       message: 'Shipping address added successfully',
-      addressId: result.insertId
+      addressId: insertAddress.insertId
     });
   } catch (err) {
     console.error(err);
@@ -215,7 +217,7 @@ exports.updateShipping = async (req, res) => {
   try {
     const { addressId } = req.body;
     await db.query(
-      'UPDATE users SET default_shipping_id = ? WHERE id = ?',
+      'UPDATE users SET default_shipping_id = ? WHERE user_id = ?',
       [addressId, req.user.id]
     );
     res.json({ message: 'Shipping details updated successfully' });
@@ -235,7 +237,7 @@ exports.updateUsername = async (req, res) => {
 
     const { username } = req.body;
     await db.query(
-      'UPDATE users SET username = ? WHERE id = ?',
+      'UPDATE users SET username = ? WHERE user_id = ?',
       [username, req.user.id]
     );
     res.json({ message: 'Username updated successfully' });
@@ -261,12 +263,12 @@ exports.deleteAccount = async (req, res) => {
 exports.canDeleteAccount = async (req, res) => {
   try {
     // Check for any pending orders or other constraints
-    const pendingOrders = await db.query(
+    const [pendingOrdersRows] = await db.query(
       'SELECT COUNT(*) as count FROM orders WHERE user_id = ? AND status IN ("pending", "processing")',
       [req.user.id]
     );
 
-    const canDelete = pendingOrders[0].count === 0;
+    const canDelete = pendingOrdersRows[0].count === 0;
     res.json({ canDelete });
   } catch (err) {
     console.error(err);

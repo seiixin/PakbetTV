@@ -64,13 +64,13 @@ exports.signup = async (req, res) => {
 
     const { username, firstname, lastname, email, password } = req.body;
 
-    // Check if user exists
-    const existingUser = await db.query(
-      'SELECT * FROM users WHERE email = ? OR username = ?',
+    // Check if user exists (optimized / limit 1)
+    const [existingUserRows] = await db.query(
+      'SELECT 1 FROM users WHERE email = ? OR username = ? LIMIT 1',
       [email, username]
     );
 
-    if (existingUser.length > 0) {
+    if (existingUserRows.length > 0) {
       return res.status(400).json({
         errors: [{ msg: 'User already exists' }]
       });
@@ -81,17 +81,17 @@ exports.signup = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
 
     // Create user
-    const result = await db.query(
+    const [insertResult] = await db.query(
       'INSERT INTO users (username, first_name, last_name, email, password) VALUES (?, ?, ?, ?, ?)',
       [username, firstname, lastname, email, hashedPassword]
     );
 
-    const token = generateToken({ id: result.insertId, email });
+    const token = generateToken({ user_id: insertResult.insertId, email });
 
     res.status(201).json({
       token,
       user: {
-        id: result.insertId,
+        id: insertResult.insertId,
         username,
         email
       }
@@ -112,9 +112,9 @@ exports.login = async (req, res) => {
 
     const { emailOrUsername, password } = req.body;
 
-    // Find user with user_type
+    // Find user with user_type (select only needed columns)
     const [rows] = await db.query(
-      'SELECT * FROM users WHERE email = ? OR username = ?',
+      'SELECT user_id, username, email, password, user_type FROM users WHERE email = ? OR username = ? LIMIT 1',
       [emailOrUsername, emailOrUsername]
     );
 
@@ -138,7 +138,7 @@ exports.login = async (req, res) => {
     res.json({
       token,
       user: {
-        id: user.id,
+        id: user.user_id,
         username: user.username,
         email: user.email,
         userType: user.user_type || 'customer'
@@ -154,10 +154,9 @@ exports.login = async (req, res) => {
 exports.me = async (req, res) => {
   try {
     const [rows] = await db.query(
-      'SELECT user_id, username, email, first_name, last_name, phone, user_type FROM users WHERE user_id = ?',
+      'SELECT user_id, username, email, first_name, last_name, phone, user_type FROM users WHERE user_id = ? LIMIT 1',
       [req.user.id]
     );
-
     const user = rows[0];
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -224,7 +223,8 @@ exports.facebookCallback = (req, res) => {
 exports.forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
-    const [user] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
+    const [rows] = await db.query('SELECT user_id FROM users WHERE email = ? LIMIT 1', [email]);
+    const user = rows[0];
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -256,11 +256,12 @@ exports.forgotPassword = async (req, res) => {
 exports.verifyResetToken = async (req, res) => {
   try {
     const { token } = req.params;
-    const [user] = await db.query(
-      'SELECT * FROM users WHERE reset_token = ? AND reset_token_expiry > ?',
+    const [rows] = await db.query(
+      'SELECT user_id FROM users WHERE reset_token = ? AND reset_token_expiry > ? LIMIT 1',
       [token, Date.now()]
     );
 
+    const user = rows[0];
     if (!user) {
       return res.status(400).json({ message: 'Invalid or expired reset token' });
     }
@@ -278,11 +279,12 @@ exports.resetPassword = async (req, res) => {
     const { token } = req.params;
     const { password } = req.body;
 
-    const [user] = await db.query(
-      'SELECT * FROM users WHERE reset_token = ? AND reset_token_expiry > ?',
+    const [rows] = await db.query(
+      'SELECT user_id FROM users WHERE reset_token = ? AND reset_token_expiry > ? LIMIT 1',
       [token, Date.now()]
     );
 
+    const user = rows[0];
     if (!user) {
       return res.status(400).json({ message: 'Invalid or expired reset token' });
     }
@@ -311,7 +313,8 @@ exports.updatePassword = async (req, res) => {
     }
 
     const { currentPassword, newPassword } = req.body;
-    const [user] = await db.query('SELECT * FROM users WHERE user_id = ?', [req.user.id]);
+    const [rows] = await db.query('SELECT password FROM users WHERE user_id = ? LIMIT 1', [req.user.id]);
+    const user = rows[0];
 
     const isMatch = await bcrypt.compare(currentPassword, user.password);
     if (!isMatch) {
