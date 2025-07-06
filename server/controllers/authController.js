@@ -154,7 +154,7 @@ exports.login = async (req, res) => {
 exports.me = async (req, res) => {
   try {
     const [rows] = await db.query(
-      'SELECT user_id, username, email, first_name, last_name, user_type FROM users WHERE user_id = ?',
+      'SELECT user_id, username, email, first_name, last_name, phone, user_type FROM users WHERE user_id = ?',
       [req.user.id]
     );
 
@@ -169,6 +169,7 @@ exports.me = async (req, res) => {
       email: user.email,
       firstName: user.first_name,
       lastName: user.last_name,
+      phone: user.phone,
       userType: user.user_type || 'customer'
     });
   } catch (err) {
@@ -233,8 +234,8 @@ exports.forgotPassword = async (req, res) => {
     const resetTokenExpiry = Date.now() + 3600000; // 1 hour
 
     await db.query(
-      'UPDATE users SET reset_token = ?, reset_token_expiry = ? WHERE id = ?',
-      [resetToken, resetTokenExpiry, user.id]
+      'UPDATE users SET reset_token = ?, reset_token_expiry = ? WHERE user_id = ?',
+      [resetToken, resetTokenExpiry, user.user_id]
     );
 
     const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
@@ -290,8 +291,8 @@ exports.resetPassword = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
 
     await db.query(
-      'UPDATE users SET password = ?, reset_token = NULL, reset_token_expiry = NULL WHERE id = ?',
-      [hashedPassword, user.id]
+      'UPDATE users SET password = ?, reset_token = NULL, reset_token_expiry = NULL WHERE user_id = ?',
+      [hashedPassword, user.user_id]
     );
 
     res.json({ message: 'Password has been reset' });
@@ -310,7 +311,7 @@ exports.updatePassword = async (req, res) => {
     }
 
     const { currentPassword, newPassword } = req.body;
-    const [user] = await db.query('SELECT * FROM users WHERE id = ?', [req.user.id]);
+    const [user] = await db.query('SELECT * FROM users WHERE user_id = ?', [req.user.id]);
 
     const isMatch = await bcrypt.compare(currentPassword, user.password);
     if (!isMatch) {
@@ -321,7 +322,7 @@ exports.updatePassword = async (req, res) => {
     const hashedPassword = await bcrypt.hash(newPassword, salt);
 
     await db.query(
-      'UPDATE users SET password = ? WHERE id = ?',
+      'UPDATE users SET password = ? WHERE user_id = ?',
       [hashedPassword, req.user.id]
     );
 

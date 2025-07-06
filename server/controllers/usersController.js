@@ -51,7 +51,7 @@ exports.registerUser = async (req, res) => {
 // Get all users (admin only)
 exports.getAllUsers = async (req, res) => {
   try {
-    const users = await db.query('SELECT id, first_name, last_name, username, email, created_at FROM users');
+    const users = await db.query('SELECT user_id, first_name, last_name, username, email, created_at FROM users');
     res.json(users);
   } catch (err) {
     console.error(err);
@@ -81,11 +81,11 @@ exports.updateProfile = async (req, res) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { firstName, lastName, email, username } = req.body;
+    const { firstName, lastName, email, username, phone } = req.body;
 
     await db.query(
-      'UPDATE users SET first_name = ?, last_name = ?, email = ?, username = ? WHERE id = ?',
-      [firstName, lastName, email, username, req.user.id]
+      'UPDATE users SET first_name = ?, last_name = ?, email = ?, username = ?, phone = ? WHERE user_id = ?',
+      [firstName, lastName, email, username, phone || null, req.user.id]
     );
 
     res.json({ message: 'Profile updated successfully' });
@@ -99,7 +99,7 @@ exports.updateProfile = async (req, res) => {
 exports.getUserById = async (req, res) => {
   try {
     const [user] = await db.query(
-      'SELECT id, first_name, last_name, username, email, created_at FROM users WHERE id = ?',
+      'SELECT user_id, first_name, last_name, username, email, created_at FROM users WHERE user_id = ?',
       [req.params.id]
     );
 
@@ -117,11 +117,11 @@ exports.getUserById = async (req, res) => {
 // Update user by ID
 exports.updateUserById = async (req, res) => {
   try {
-    const { firstName, lastName, email, username } = req.body;
+    const { firstName, lastName, email, username, phone } = req.body;
 
     await db.query(
-      'UPDATE users SET first_name = ?, last_name = ?, email = ?, username = ? WHERE id = ?',
-      [firstName, lastName, email, username, req.params.id]
+      'UPDATE users SET first_name = ?, last_name = ?, email = ?, username = ?, phone = ? WHERE user_id = ?',
+      [firstName, lastName, email, username, phone || null, req.params.id]
     );
 
     res.json({ message: 'User updated successfully' });
@@ -134,7 +134,7 @@ exports.updateUserById = async (req, res) => {
 // Delete user by ID
 exports.deleteUserById = async (req, res) => {
   try {
-    await db.query('DELETE FROM users WHERE id = ?', [req.params.id]);
+    await db.query('DELETE FROM users WHERE user_id = ?', [req.params.id]);
     res.json({ message: 'User deleted successfully' });
   } catch (err) {
     console.error(err);
@@ -146,7 +146,7 @@ exports.deleteUserById = async (req, res) => {
 exports.getUserProfile = async (req, res) => {
   try {
     const [user] = await db.query(
-      'SELECT id, first_name, last_name, username, email, created_at FROM users WHERE id = ?',
+      'SELECT user_id, first_name, last_name, username, email, phone, created_at FROM users WHERE user_id = ?',
       [req.user.id]
     );
     res.json(user);
@@ -248,7 +248,7 @@ exports.updateUsername = async (req, res) => {
 // Delete account
 exports.deleteAccount = async (req, res) => {
   try {
-    await db.query('DELETE FROM users WHERE id = ?', [req.user.id]);
+    await db.query('DELETE FROM users WHERE user_id = ?', [req.user.id]);
     req.session.destroy();
     res.json({ message: 'Account deleted successfully' });
   } catch (err) {
