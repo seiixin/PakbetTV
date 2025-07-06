@@ -444,17 +444,8 @@ const NavBar = () => {
               <li className="navbar-navbar-item">
                 <Link to="/" className="navbar-navbar-link">Home</Link>
               </li>
-              <li className="navbar-navbar-item navbar-dropdown-wrapper">
-                <span className="navbar-navbar-link">Shop</span>
-                <div className="navbar-submenu">
-                  <Link to="/shop" className="navbar-submenu-link">All Products</Link>
-                  <Link to="/category/amulets" className="navbar-submenu-link">Amulets</Link>
-                  <Link to="/category/auspicious-home-decor" className="navbar-submenu-link">Home Decor</Link>
-                  <Link to="/category/feng-shui-bracelets" className="navbar-submenu-link">Bracelets</Link>
-                  <Link to="/category/feng-shui-fashion" className="navbar-submenu-link">Fashion</Link>
-                  <Link to="/category/incense-space-clearing" className="navbar-submenu-link">Incense & Clearing</Link>
-                  <Link to="/category/prosperity-bowls" className="navbar-submenu-link">Prosperity Bowls</Link>
-                </div>
+              <li className="navbar-navbar-item">
+                <Link to="/shop" className="navbar-navbar-link">Shop</Link>
               </li>
               <li className="navbar-navbar-item">
                 <Link to="/consultation" className="navbar-navbar-link">Consultation</Link>

@@ -1,5 +1,6 @@
 const enhancedDeliveryService = require('../services/enhancedDeliveryService');
 const db = require('../config/db');
+const { sendOrderDispatchedEmail, sendReviewRequestEmail } = require('../services/emailService');
 
 async function ninjavanWebhook(req, res) {
   try {
@@ -8,6 +9,71 @@ async function ninjavanWebhook(req, res) {
       return res.status(400).json({ error: 'Invalid webhook payload' });
     }
     await enhancedDeliveryService.processWebhook(req.body);
+
+    const eventType = String(req.body.event_type).toLowerCase();
+    if (eventType.includes('pickup')) {
+      try {
+        const trackingNumber = req.body.tracking_number || req.body.data?.tracking_number || req.body.data?.tracking_number || null;
+
+        if (trackingNumber) {
+          const [rows] = await db.query(
+            `SELECT o.order_id, o.tracking_number, u.first_name, u.last_name, u.email
+             FROM orders o JOIN users u ON o.user_id = u.user_id
+             WHERE o.tracking_number = ? LIMIT 1`,
+            [trackingNumber]
+          );
+
+          if (rows.length) {
+            const user = rows[0];
+            await sendOrderDispatchedEmail({
+              customerName: `${user.first_name} ${user.last_name}`.trim(),
+              customerEmail: user.email,
+              trackingNumber
+            });
+            console.log(`Dispatched email queued for tracking ${trackingNumber}`);
+          } else {
+            console.warn(`No order found for tracking ${trackingNumber}, email not sent.`);
+          }
+        } else {
+          console.warn('No tracking number in webhook payload for pickup event.');
+        }
+      } catch (emailErr) {
+        console.error('Error sending dispatched email:', emailErr.message);
+      }
+    }
+
+    // Send review request on delivered/completed events
+    if (eventType.includes('delivered')) {
+      try {
+        const trackingNumber = req.body.tracking_number || req.body.data?.tracking_number || null;
+        if (trackingNumber) {
+          const [orders] = await db.query(
+            `SELECT o.order_id, o.order_code, u.first_name, u.last_name, u.email
+             FROM orders o JOIN users u ON o.user_id = u.user_id
+             WHERE o.tracking_number = ? LIMIT 1`,
+            [trackingNumber]
+          );
+          if (orders.length) {
+            const order = orders[0];
+            // fetch items
+            const [items] = await db.query(
+              'SELECT oi.product_id, oi.quantity, p.name FROM order_items oi JOIN products p ON oi.product_id = p.product_id WHERE oi.order_id = ?',
+              [order.order_id]
+            );
+            await sendReviewRequestEmail({
+              orderNumber: order.order_code || order.order_id,
+              customerName: `${order.first_name} ${order.last_name}`.trim(),
+              customerEmail: order.email,
+              items
+            });
+            console.log(`Review request email sent for order ${order.order_id}`);
+          }
+        }
+      } catch (err) {
+        console.error('Error sending review email:', err.message);
+      }
+    }
+
     res.status(200).json({ status: 'success' });
   } catch (error) {
     console.error('Error processing NinjaVan webhook:', error);

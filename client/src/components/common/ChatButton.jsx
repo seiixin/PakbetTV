@@ -3,7 +3,8 @@ import './ChatButton.css';
 
 const ChatButton = () => {
   const handleChatClick = () => {
-    window.open('https://www.facebook.com/pakbettv', '_blank');
+    // Direct Messenger chat link
+    window.open('https://m.me/pakbettv', '_blank');
   };
 
   return (
