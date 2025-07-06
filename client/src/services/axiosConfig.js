@@ -42,6 +42,18 @@ api.interceptors.response.use(
   (error) => {
     console.error('API Response Error:', error.message);
     
+    // Handle network errors (like ECONNRESET)
+    if (error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK' || 
+        (error.message && error.message.includes('Network Error'))) {
+      console.error('Network error detected:', error.code || error.message);
+      // Don't redirect on network errors, just return the error
+      return Promise.reject({
+        ...error,
+        isNetworkError: true,
+        message: 'Network connection error. Please check your internet connection.'
+      });
+    }
+    
     if (error.response) {
       console.log('Error Response Status:', error.response.status);
       console.log('Error Response Data:', error.response.data);
@@ -57,6 +69,17 @@ api.interceptors.response.use(
           removeUser();
           window.location.href = '/login';
         }
+      }
+      
+      // Handle server errors (500)
+      if (error.response.status >= 500) {
+        console.error('Server error detected:', error.response.status);
+        // Don't redirect, just return the error with a flag
+        return Promise.reject({
+          ...error,
+          isServerError: true,
+          message: 'Server error. Please try again later.'
+        });
       }
     } else if (error.request) {
       // Request was made but no response received

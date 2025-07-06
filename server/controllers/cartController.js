@@ -1,13 +1,50 @@
 const { body, validationResult } = require('express-validator');
 const db = require('../config/db');
 
+// Add rate limiting
+const userOperations = new Map();
+const RATE_LIMIT_WINDOW = 60000; // 1 minute
+const MAX_OPERATIONS = 30; // 30 operations per minute
+
+const checkRateLimit = (userId) => {
+  const now = Date.now();
+  const userOps = userOperations.get(userId) || { count: 0, timestamp: now };
+  
+  if (now - userOps.timestamp > RATE_LIMIT_WINDOW) {
+    userOps.count = 1;
+    userOps.timestamp = now;
+  } else {
+    userOps.count++;
+  }
+  
+  userOperations.set(userId, userOps);
+  return userOps.count <= MAX_OPERATIONS;
+};
+
+// Validate cart item
+const validateCartItem = (item) => {
+  return (
+    item &&
+    typeof item.product_id === 'number' &&
+    typeof item.quantity === 'number' &&
+    item.quantity > 0 &&
+    item.quantity <= 100 // Maximum reasonable quantity
+  );
+};
+
 // Handler for GET /api/cart
 async function getCart(req, res) {
   try {
-    const userId = req.user?.user?.id || req.user?.id || req.user?.user_id;
+    const userId = req.user?.id;
     if (!userId) {
       return res.status(401).json({ message: 'User authentication failed' });
     }
+
+    // Check rate limit
+    if (!checkRateLimit(userId)) {
+      return res.status(429).json({ message: 'Too many cart operations. Please try again later.' });
+    }
+
     console.log('Fetching cart for user ID:', userId);
     const [cartItems] = await db.query(`
       SELECT c.cart_id, c.user_id, c.product_id, c.variant_id, c.quantity, c.created_at, c.updated_at,
@@ -42,9 +79,14 @@ async function getCart(req, res) {
       JOIN products p ON c.product_id = p.product_id
       WHERE c.user_id = ?
       ORDER BY c.created_at DESC
+      LIMIT 50
     `, [userId]);
-    console.log(`Found ${cartItems.length} cart items for user ${userId}`);
-    const processedCartItems = cartItems.map(item => {
+
+    // Validate cart items
+    const validatedItems = cartItems.filter(item => validateCartItem(item));
+
+    console.log(`Found ${validatedItems.length} valid cart items for user ${userId}`);
+    const processedCartItems = validatedItems.map(item => {
       let processedImageUrl = null;
       if (item.image_url) {
         if (Buffer.isBuffer(item.image_url)) {
@@ -60,6 +102,7 @@ async function getCart(req, res) {
         image_url: processedImageUrl || '/placeholder-product.jpg'
       };
     });
+
     res.json(processedCartItems);
   } catch (err) {
     console.error('Cart fetch error:', err.message);
@@ -74,12 +117,35 @@ async function addToCart(req, res) {
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
   }
+
+  const userId = req.user?.id;
+  if (!userId) {
+    return res.status(401).json({ message: 'User authentication failed' });
+  }
+
+  // Check rate limit
+  if (!checkRateLimit(userId)) {
+    return res.status(429).json({ message: 'Too many cart operations. Please try again later.' });
+  }
+
   try {
-    const userId = req.user?.user?.id || req.user?.id || req.user?.user_id;
-    if (!userId) {
-      return res.status(401).json({ message: 'User authentication failed' });
-    }
     const { product_id, quantity, variant_id } = req.body;
+
+    // Validate input
+    if (!validateCartItem({ product_id, quantity })) {
+      return res.status(400).json({ message: 'Invalid cart item data' });
+    }
+
+    // Check total items in cart
+    const [cartCount] = await db.query(
+      'SELECT COUNT(*) as count FROM cart WHERE user_id = ?',
+      [userId]
+    );
+
+    if (cartCount[0].count >= 50) {
+      return res.status(400).json({ message: 'Cart item limit reached' });
+    }
+
     console.log('Adding to cart:', { userId, product_id, variant_id, quantity });
     const [products] = await db.query('SELECT * FROM products WHERE product_id = ?', [product_id]);
     if (products.length === 0) {

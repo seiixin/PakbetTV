@@ -8,6 +8,12 @@ const auth = (req, res, next) => {
   // Log the incoming request for debugging
   console.log(`Auth: ${req.method} ${req.path}`);
 
+  // Skip auth for certain endpoints if needed
+  // const publicEndpoints = ['/api/products', '/api/categories'];
+  // if (publicEndpoints.some(endpoint => req.path.startsWith(endpoint))) {
+  //   return next();
+  // }
+
   if (!authHeader) {
     console.log('Auth Error: No Authorization header');
     return res.status(401).json({ message: 'No authorization header, authentication required' });

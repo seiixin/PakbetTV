@@ -7,7 +7,11 @@ const ordersController = require('../controllers/ordersController');
 router.post('/', [
     auth,
     body('address', 'Shipping address is required').notEmpty(),
-    body('payment_method', 'Payment method is required').isIn(['credit_card', 'paypal', 'bank_transfer', 'cod', 'dragonpay'])
+    body('payment_method', 'Payment method is required').isIn(['credit_card', 'paypal', 'bank_transfer', 'cod', 'dragonpay']),
+    body('shipping_details.phone', 'Valid Philippine phone number is required')
+        .notEmpty()
+        .matches(/^(\+63|0)[0-9]{10}$/)
+        .withMessage('Phone number must be in Philippine format (e.g., +639123456789 or 09123456789)')
 ], ordersController.createOrder);
 
 router.get('/', auth, ordersController.getOrders);

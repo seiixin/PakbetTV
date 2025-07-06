@@ -192,14 +192,25 @@ const Checkout = () => {
       return false;
     }
     
-    // Validate phone number (basic validation)
-    const phoneRegex = /^[0-9+\-\s()]{8,}$/;
-    if (!phoneRegex.test(shippingDetails.phone)) {
-      setError('Please enter a valid phone number');
+    // Enhanced phone number validation for Philippines format
+    const phoneRegex = /^(\+63|0)[0-9]{10}$/;
+    if (!phoneRegex.test(shippingDetails.phone.replace(/[\s-]/g, ''))) {
+      setError('Please enter a valid Philippine phone number (e.g., +639123456789 or 09123456789)');
       return false;
     }
     
     return true;
+  };
+  
+  // Add a function to check if form is valid for submit button
+  const isFormValid = () => {
+    return (
+      addressValid && 
+      shippingDetails.name && 
+      shippingDetails.email &&
+      shippingDetails.phone && // Check for phone presence
+      shippingDetails.phone.replace(/[\s-]/g, '').match(/^(\+63|0)[0-9]{10}$/) // Validate phone format
+    );
   };
   
   const handlePlaceOrder = async () => {
@@ -444,7 +455,7 @@ const Checkout = () => {
           <button
             className="place-order-button"
             onClick={handlePlaceOrder}
-            disabled={processingOrder || !addressValid}
+            disabled={processingOrder || !addressValid || !isFormValid()}
           >
             {processingOrder ? 'Processing...' : 'Place Order'}
           </button>

@@ -106,7 +106,16 @@ exports.createOrder = async (req, res) => {
     await connection.beginTransaction();
     console.log('Transaction started');
     
-    const { user_id, total_amount, subtotal, shipping_fee = 0, items } = req.body;
+    const { user_id, total_amount, subtotal, shipping_fee = 0, items, shipping_details } = req.body;
+
+    // Validate phone number
+    if (!shipping_details?.phone || !shipping_details.phone.replace(/[\s-]/g, '').match(/^(\+63|0)[0-9]{10}$/)) {
+      await connection.rollback();
+      return res.status(400).json({ 
+        message: 'Valid Philippine phone number is required (e.g., +639123456789 or 09123456789)'
+      });
+    }
+
     const orderCode = uuidv4();
     
     const [orderResult] = await connection.query(
