@@ -23,4 +23,6 @@ router.get('/check/:productId', auth, ordersController.checkProductPurchase);
 // Auto-completion endpoint for cron job
 router.post('/auto-complete', [auth, admin], ordersController.autoCompleteOrders);
 
+router.put('/:id/mark-received', auth, ordersController.markOrderReceived);
+
 module.exports = router; 
