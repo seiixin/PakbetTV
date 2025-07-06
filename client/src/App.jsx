@@ -29,6 +29,8 @@ import SocialAuthSuccess from './components/Auth/SocialAuthSuccess'
 import BaziCalculator from './components/BaziCalculator/BaziCalculator'
 import { AuthProvider } from './context/AuthContext'
 import { CartProvider } from './context/CartContext'
+import { LegalModalProvider, useLegalModal } from './context/LegalModalContext'
+import LegalModal from './components/common/LegalModal'
 import Blog from './components/Blog'
 import BlogDetail from './components/BlogDetail'
 import FAQs from './components/FAQs'
@@ -38,6 +40,17 @@ import ForgotPassword from './pages/ForgotPassword/ForgotPassword'
 import ResetPassword from './pages/ResetPassword/ResetPassword'
 import PrivacyPolicy from './components/Legal/PrivacyPolicy'
 import ChatButton from './components/common/ChatButton'
+
+function LegalModalContainer() {
+  const { modalState, closeModal } = useLegalModal();
+  return (
+    <LegalModal 
+      isOpen={modalState.isOpen}
+      onClose={closeModal}
+      type={modalState.type}
+    />
+  );
+}
 
 function AppContent() {
   const location = useLocation();
@@ -140,7 +153,6 @@ function AppContent() {
 function App() {
   console.log('App component rendering');
   
-  // Check if screen is mobile for toast positioning
   const [isMobile, setIsMobile] = useState(false);
   
   useEffect(() => {
@@ -157,8 +169,11 @@ function App() {
     <Router>
       <AuthProvider>
         <CartProvider>
-          <AppContent />
-          <ChatButton />
+          <LegalModalProvider>
+            <AppContent />
+            <ChatButton />
+            <LegalModalContainer />
+          </LegalModalProvider>
         </CartProvider>
       </AuthProvider>
       <ToastContainer
