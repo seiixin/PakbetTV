@@ -317,17 +317,35 @@ class PaymentStatusChecker {
           await connection.commit();
 
           // 2. Create shipping order and generate waybill (external API - separate from transaction)
-          console.log(`Creating shipping order for order ${order.order_id}`);
-          const shippingResult = await deliveryRouter.createShippingOrder(order.order_id);
-          
-          if (shippingResult && shippingResult.tracking_number) {
-            // Update with tracking number
-            await db.query(
-              'UPDATE orders SET tracking_number = ? WHERE order_id = ?',
-              [shippingResult.tracking_number, order.order_id]
-            );
-            console.log(`Tracking number assigned: ${shippingResult.tracking_number}`);
-            console.log(`Waybill ready: ${shippingResult.tracking_number}`);
+          console.log(`🚚 Creating shipping order for order ${order.order_id}`);
+          try {
+            const shippingResult = await deliveryRouter.createShippingOrder(order.order_id);
+            console.log(`✅ Shipping order created successfully for order ${order.order_id}:`, {
+              tracking_number: shippingResult?.tracking_number,
+              status: shippingResult?.status
+            });
+            
+            if (shippingResult && shippingResult.tracking_number) {
+              // Update with tracking number
+              await db.query(
+                'UPDATE orders SET tracking_number = ? WHERE order_id = ?',
+                [shippingResult.tracking_number, order.order_id]
+              );
+              console.log(`📦 Tracking number assigned: ${shippingResult.tracking_number}`);
+              console.log(`📄 Waybill ready: ${shippingResult.tracking_number}`);
+            } else {
+              console.warn(`⚠️ Shipping order created but no tracking number returned for order ${order.order_id}`);
+            }
+          } catch (shippingError) {
+            console.error(`❌ Failed to create shipping order for order ${order.order_id}:`, shippingError.message);
+            if (shippingError.response) {
+              console.error(`📋 Shipping API Error Details:`, {
+                status: shippingError.response.status,
+                statusText: shippingError.response.statusText,
+                data: shippingError.response.data
+              });
+            }
+            // Don't throw the error, continue with email sending
           }
 
           // 3. Send order confirmation email with all details

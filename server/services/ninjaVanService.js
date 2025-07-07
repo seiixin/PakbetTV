@@ -3,7 +3,7 @@ const config = require('../config/keys');
 const ninjaVanAuth = require('./ninjaVanAuth');
 
 const API_BASE_URL = config.NINJAVAN_API_URL || 'https://api.ninjavan.co';
-const COUNTRY_CODE = config.NINJAVAN_COUNTRY_CODE || 'MY';
+const COUNTRY_CODE = config.NINJAVAN_COUNTRY_CODE || 'SG';
 const CLIENT_ID = config.NINJAVAN_CLIENT_ID;
 const CLIENT_SECRET = config.NINJAVAN_CLIENT_SECRET;
 
@@ -76,30 +76,33 @@ async function createDeliveryOrder(orderData, shippingAddress, customerInfo) {
     
     // Generate consistent tracking number format
     const timestamp = Date.now();
-    const requestedTrackingNumber = `FES-${orderData.order_id}-${timestamp}`;
+    const requestedTrackingNumber = `${orderData.order_id}${timestamp}`.slice(-9);
     
-    // Create delivery request with validated address
+    // Calculate total weight from items
+    const totalWeight = orderData.items ? 
+      orderData.items.reduce((total, item) => total + ((item.quantity || 1) * 0.5), 0) : 0.5;
+    
+    // Create delivery request with validated address and updated from address
     const deliveryRequest = {
       requested_tracking_number: requestedTrackingNumber,
-      tracking_number: requestedTrackingNumber,
       service_type: "Parcel",
       service_level: "Standard",
       reference: {
         merchant_order_number: `SHIP-${orderData.order_id}`
       },
       from: {
-        name: "FengShui E-Commerce Store",
+        name: "Feng Shui by Pakbet TV",
         phone_number: "+639811949999",
         email: "store@fengshui-ecommerce.com",
         address: {
-          address1: "30 Jln Kilang Barat",
-          address2: "",
-          area: "Taman Sri Delima",
-          city: "Simpang Ampat",
-          state: "Pulau Pinang",
+          address1: "Unit 1004 Cityland Shaw Tower",
+          address2: "Corner St. Francis, Shaw Blvd.",
+          area: "Mandaluyong City",
+          city: "Mandaluyong City",
+          state: "NCR",
           address_type: "office",
           country: COUNTRY_CODE,
-          postcode: "51200"
+          postcode: "486015"
         }
       },
       to: {
@@ -125,7 +128,7 @@ async function createDeliveryOrder(orderData, shippingAddress, customerInfo) {
         pickup_timeslot: {
           start_time: "09:00",
           end_time: "12:00",
-          timezone: "Asia/Kuala_Lumpur"
+          timezone: "Asia/Singapore"
         },
         pickup_approximate_volume: "Less than 3 Parcels",
         pickup_instructions: "Pickup with care!",
@@ -133,7 +136,7 @@ async function createDeliveryOrder(orderData, shippingAddress, customerInfo) {
         delivery_timeslot: {
           start_time: "09:00",
           end_time: "12:00",
-          timezone: "Asia/Kuala_Lumpur"
+          timezone: "Asia/Singapore"
         },
         delivery_instructions: "If recipient is not around, leave parcel in power riser.",
         allow_weekend_delivery: true,
@@ -169,7 +172,7 @@ async function createDeliveryOrder(orderData, shippingAddress, customerInfo) {
     
     return response.data;
   } catch (error) {
-    console.error('NinjaVan delivery error:', error.message);
+    console.error('Error creating NinjaVan delivery:', error.response?.data || error.message);
     throw error;
   }
 }
@@ -195,7 +198,7 @@ async function getTrackingInfo(trackingNumber) {
     
     return response.data;
   } catch (error) {
-    console.error('NinjaVan tracking error:', error.message);
+    console.error('Error fetching tracking info:', error.response?.data || error.message);
     throw error;
   }
 }
@@ -221,7 +224,7 @@ async function cancelDelivery(trackingNumber) {
     
     return response.data;
   } catch (error) {
-    console.error('NinjaVan cancel error:', error.message);
+    console.error('Error cancelling delivery:', error.response?.data || error.message);
     throw error;
   }
 }

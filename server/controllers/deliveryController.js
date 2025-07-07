@@ -462,7 +462,335 @@ async function getTrackingInfo(req, res) {
 }
 
 async function createShippingOrder(orderId) {
-  // ... (migrated as-is from the route file)
+  console.log(`🚚 Starting createShippingOrder for order ${orderId}`);
+  const connection = await db.getConnection();
+  
+  try {
+    await connection.beginTransaction();
+    
+    // Get order details including payment status
+    const [orders] = await connection.query(
+      'SELECT o.*, u.first_name, u.last_name, u.email, u.phone, u.user_id FROM orders o ' +
+      'JOIN users u ON o.user_id = u.user_id ' +
+      'WHERE o.order_id = ?',
+      [orderId]
+    );
+    
+    if (orders.length === 0) {
+      await connection.rollback();
+      throw new Error('Order not found');
+    }
+    
+    const order = orders[0];
+    console.log(`📋 Order details: payment_status=${order.payment_status}, order_status=${order.order_status}`);
+    
+    // IMPORTANT: Check payment status before creating shipping order
+    if (order.payment_status !== 'paid') {
+      await connection.rollback();
+      throw new Error(`Cannot create shipping order for order ${orderId}. Payment status is '${order.payment_status}', but 'paid' is required. Please confirm payment first.`);
+    }
+    
+    // Additional validation for order status
+    const validOrderStatuses = ['for_packing', 'packed', 'for_shipping'];
+    if (!validOrderStatuses.includes(order.order_status)) {
+      await connection.rollback();
+      throw new Error(`Cannot create shipping order for order ${orderId}. Order status is '${order.order_status}', but one of [${validOrderStatuses.join(', ')}] is required.`);
+    }
+    
+    console.log(`✅ Payment confirmed for order ${orderId} (${order.payment_status}), proceeding with shipping order creation`);
+    
+    // Validate required customer information - STRICT: No fallbacks allowed
+    if (!order.phone || !order.phone.trim()) {
+      await connection.rollback();
+      throw new Error(`Customer phone number is required for shipping. Order ${orderId} cannot proceed without a valid phone number. Please ensure the customer provides their phone number before creating shipping orders.`);
+    }
+    
+    if (!order.email || !order.email.trim()) {
+      await connection.rollback();
+      throw new Error(`Customer email is required for shipping. Order ${orderId} cannot proceed without a valid email.`);
+    }
+    
+    if (!order.first_name || !order.first_name.trim()) {
+      await connection.rollback();
+      throw new Error(`Customer name is required for shipping. Order ${orderId} cannot proceed without a valid name.`);
+    }
+    
+    console.log(`✅ Customer information validated for order ${orderId}: phone=${order.phone}, email=${order.email}, name=${order.first_name} ${order.last_name}`);
+    
+    // Get user's shipping details
+    const [shippingDetails] = await connection.query(
+      'SELECT * FROM user_shipping_details WHERE user_id = ? AND is_default = 1',
+      [order.user_id]
+    );
+
+    if (shippingDetails.length === 0) {
+      await connection.rollback();
+      throw new Error('No default shipping address found for user');
+    }
+
+    const userShipping = shippingDetails[0];
+    console.log(`📍 Shipping address found: ${userShipping.address1}, ${userShipping.city}, ${userShipping.state} ${userShipping.postcode}`);
+    
+    // Create shipping address string for shipping table
+    const shippingAddressString = `${userShipping.address1}, ${userShipping.address2 || ''}, ${userShipping.city}, ${userShipping.state}, ${userShipping.postcode}, ${userShipping.country}`.trim().replace(/, ,/g, ',').replace(/,$/g, '');
+
+    // Check if shipping record exists
+    const [existingShipping] = await connection.query(
+      'SELECT * FROM shipping WHERE order_id = ?',
+      [orderId]
+    );
+
+    // Create or update shipping record
+    if (existingShipping.length === 0) {
+      await connection.query(
+        'INSERT INTO shipping (order_id, user_id, address, status, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())',
+        [orderId, order.user_id, shippingAddressString, 'pending']
+      );
+      console.log(`📦 Created shipping record for order ${orderId}`);
+    } else {
+      await connection.query(
+        'UPDATE shipping SET status = ?, updated_at = NOW() WHERE order_id = ?',
+        ['pending', orderId]
+      );
+      console.log(`📦 Updated shipping record for order ${orderId}`);
+    }
+
+    // Check if shipping_details record exists
+    const [existingShippingDetails] = await connection.query(
+      'SELECT * FROM shipping_details WHERE order_id = ?',
+      [orderId]
+    );
+
+    // Create or update shipping_details record
+    if (existingShippingDetails.length === 0) {
+      await connection.query(
+        `INSERT INTO shipping_details (
+          order_id, address1, address2, area, city, state, postcode, country, 
+          region, province, city_municipality, barangay, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+        [
+          orderId, userShipping.address1, userShipping.address2 || '', userShipping.area || '',
+          userShipping.city, userShipping.state, userShipping.postcode, userShipping.country || 'SG',
+          userShipping.region || '', userShipping.province || '', userShipping.city_municipality || '',
+          userShipping.barangay || ''
+        ]
+      );
+      console.log(`📋 Created shipping_details record for order ${orderId}`);
+    }
+
+    // Get order items
+    const [orderItems] = await connection.query(
+      'SELECT oi.*, p.name as product_name FROM order_items oi ' +
+      'JOIN products p ON oi.product_id = p.product_id ' +
+      'WHERE oi.order_id = ?',
+      [orderId]
+    );
+
+    console.log(`📦 Found ${orderItems.length} items for order ${orderId}`);
+
+    // Format items for NinjaVan
+    const items = orderItems.map(item => ({
+      item_description: item.product_name,
+      quantity: item.quantity,
+      is_dangerous_good: false
+    }));
+
+    // Calculate total weight
+    const totalWeight = items.reduce((total, item) => total + (item.quantity * 0.5), 0) || 1.5;
+    console.log(`⚖️ Calculated total weight: ${totalWeight}kg`);
+
+    // Create unique tracking number
+    const timestamp = Date.now().toString().slice(-4);
+    const uniqueTrackingNumber = `${orderId}${timestamp}`.slice(-9);
+    console.log(`🔢 Generated tracking number: ${uniqueTrackingNumber}`);
+
+    // Format postal code function
+    function formatPostalCode(postcode) {
+      if (!postcode) return "000000";
+      
+      // Convert to string and trim any whitespace
+      const cleanPostcode = postcode.toString().trim();
+      
+      // If it's already 6 digits, return as is
+      if (cleanPostcode.length === 6) return cleanPostcode;
+      
+      // If it's 4 digits, pad with leading zeros
+      if (cleanPostcode.length === 4) return `00${cleanPostcode}`;
+      
+      // For any other case, pad with zeros until 6 digits
+      return cleanPostcode.padStart(6, '0');
+    }
+
+    // Create the NinjaVan order payload
+    const orderPayload = {
+      service_type: "Parcel",
+      service_level: "Standard",
+      requested_tracking_number: uniqueTrackingNumber,
+      reference: {
+        merchant_order_number: `SHIP${orderId}${Date.now().toString().substring(7)}`
+      },
+      from: {
+        name: "Feng Shui by Pakbet TV",
+        phone_number: "+639811949999",
+        email: "store@fengshui-ecommerce.com",
+        address: {
+          address1: "Unit 1004 Cityland Shaw Tower",
+          address2: "Corner St. Francis, Shaw Blvd.",
+          area: "Mandaluyong City",
+          city: "Mandaluyong City",
+          state: "NCR",
+          address_type: "office",
+          country: "SG",
+          postcode: "486015"
+        }
+      },
+      to: {
+        name: `${order.first_name} ${order.last_name}`,
+        phone_number: order.phone,
+        email: order.email,
+        address: {
+          address1: userShipping.address1,
+          address2: userShipping.address2 || "",
+          area: userShipping.area || userShipping.district || "Default Area",
+          city: userShipping.city,
+          state: userShipping.state,
+          address_type: "home",
+          country: "SG",
+          postcode: formatPostalCode(userShipping.postcode)
+        }
+      },
+      parcel_job: {
+        is_pickup_required: true,
+        pickup_service_type: "Scheduled",
+        pickup_service_level: "Standard",
+        pickup_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        pickup_timeslot: {
+          start_time: "09:00",
+          end_time: "12:00",
+          timezone: "Asia/Singapore"
+        },
+        pickup_instructions: "Pickup with care!",
+        delivery_instructions: "If recipient is not around, leave parcel in power riser.",
+        delivery_start_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        delivery_timeslot: {
+          start_time: "09:00",
+          end_time: "12:00",
+          timezone: "Asia/Singapore"
+        },
+        dimensions: {
+          weight: totalWeight
+        },
+        items: items
+      }
+    };
+
+    console.log(`📤 Preparing to call NinjaVan API for order ${orderId}`);
+    console.log(`🌐 API URL: ${API_BASE_URL}/${COUNTRY_CODE}/4.2/orders`);
+    console.log(`📋 Payload preview:`, {
+      requested_tracking_number: orderPayload.requested_tracking_number,
+      from: orderPayload.from.name,
+      to: orderPayload.to.name,
+      items_count: orderPayload.parcel_job.items.length
+    });
+
+    try {
+      // Get NinjaVan token
+      console.log(`🔑 Getting NinjaVan token...`);
+      const token = await ninjaVanAuth.getValidToken();
+      console.log(`✅ NinjaVan token obtained successfully`);
+
+      // Create the order with NinjaVan
+      console.log(`🚀 Calling NinjaVan API...`);
+      const response = await axios.post(
+        `${API_BASE_URL}/${COUNTRY_CODE}/4.2/orders`,
+        orderPayload,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      console.log(`✅ NinjaVan API call successful!`);
+      console.log(`📦 NinjaVan response:`, {
+        tracking_number: response.data?.tracking_number,
+        status: response.data?.status,
+        order_id: response.data?.order_id
+      });
+
+      // Store tracking information with retry mechanism
+      if (response.data && response.data.tracking_number) {
+        let retryCount = 0;
+        const maxRetries = 3;
+        
+        while (retryCount < maxRetries) {
+          try {
+            await connection.query(
+              'UPDATE shipping SET tracking_number = ?, carrier = ?, status = ?, updated_at = NOW() WHERE order_id = ?',
+              [response.data.tracking_number, 'NinjaVan', 'pending', orderId]
+            );
+            
+            // Also save tracking info to orders table for easier retrieval
+            await connection.query(
+              'UPDATE orders SET tracking_number = ? WHERE order_id = ?',
+              [response.data.tracking_number, orderId]
+            );
+            
+            // Also store in tracking_events table
+            await connection.query(
+              'INSERT INTO tracking_events (tracking_number, order_id, status, description, created_at) VALUES (?, ?, ?, ?, NOW())',
+              [response.data.tracking_number, orderId, 'pending', 'Shipping order created']
+            );
+            
+            // Update shipping_details with NinjaVan information
+            if (existingShippingDetails.length > 0) {
+              await connection.query(
+                'UPDATE shipping_details SET updated_at = NOW() WHERE order_id = ?',
+                [orderId]
+              );
+            }
+            
+            console.log(`💾 Successfully stored tracking number ${response.data.tracking_number} in database`);
+            break; // Success, exit retry loop
+          } catch (updateError) {
+            retryCount++;
+            console.error(`❌ Database update error (attempt ${retryCount}/${maxRetries}):`, updateError.message);
+            if (retryCount === maxRetries) {
+              throw updateError;
+            }
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+          }
+        }
+      } else {
+        console.warn(`⚠️ NinjaVan response did not contain tracking_number:`, response.data);
+      }
+
+      await connection.commit();
+      console.log(`✅ Transaction committed successfully for order ${orderId}`);
+      return response.data;
+
+    } catch (shippingError) {
+      console.error(`❌ Error creating shipping order for order ${orderId}:`, shippingError.message);
+      if (shippingError.response) {
+        console.error(`📋 NinjaVan API Error Details:`, {
+          status: shippingError.response.status,
+          statusText: shippingError.response.statusText,
+          data: shippingError.response.data
+        });
+      }
+      await connection.commit(); // Still commit the transaction even if shipping creation fails
+      throw shippingError;
+    }
+
+  } catch (error) {
+    console.error(`❌ Error in createShippingOrder for order ${orderId}:`, error.message);
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+    console.log(`🔚 createShippingOrder completed for order ${orderId}`);
+  }
 }
 
 module.exports = {
