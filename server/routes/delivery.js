@@ -9,10 +9,10 @@ router.post('/ninjavan/webhook', express.json({
   }
 }), deliveryController.verifyNinjaVanSignature, deliveryController.ninjavanWebhookHandler);
 
-router.post('/ninjavan/create-order', deliveryController.createOrder);
+router.post('/ninjavan/create-order', auth, deliveryController.createOrder);
 router.get('/ninjavan/tracking/:trackingId', deliveryController.getTracking);
 router.get('/ninjavan/waybill/:trackingId', deliveryController.getWaybill);
-router.post('/ninjavan/estimate', deliveryController.estimateShipping);
+router.post('/ninjavan/estimate', auth, deliveryController.estimateShipping);
 router.delete('/ninjavan/orders/:trackingId', auth, deliveryController.cancelOrder);
 router.get('/tracking/:trackingId', deliveryController.getTrackingInfo);
 

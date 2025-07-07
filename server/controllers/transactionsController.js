@@ -14,11 +14,19 @@ const { runManualPaymentCheck, getPaymentStatusCheckerStatus } = require('../cro
 
 // Constants
 const MERCHANT_ID = process.env.DRAGONPAY_MERCHANT_ID || 'TEST';
-const API_KEY = process.env.DRAGONPAY_API_KEY || 'test_key';
+const DRAGONPAY_SECRET_KEY = process.env.DRAGONPAY_SECRET_KEY || 'test_key';
 const BASE_URL = process.env.NODE_ENV === 'production'
   ? 'https://gw.dragonpay.ph/api/collect/v1'
   : 'https://test.dragonpay.ph/api/collect/v1';
-const SECRET_KEY_SHA256 = process.env.DRAGONPAY_SECRET_KEY_SHA256 || 'test_sha256_key';
+
+console.log('DragonPay Configuration:', {
+  merchantId: MERCHANT_ID,
+  baseUrl: BASE_URL,
+  secretKeyLength: DRAGONPAY_SECRET_KEY ? DRAGONPAY_SECRET_KEY.length : 0,
+  secretKeyStartsWith: DRAGONPAY_SECRET_KEY ? DRAGONPAY_SECRET_KEY.substring(0, 4) + '...' : 'undefined',
+  nodeEnv: process.env.NODE_ENV,
+  clientUrl: process.env.CLIENT_URL || process.env.FRONTEND_URL || 'https://michaeldemesa.com'
+});
 
 // Helper function to map Dragonpay status to internal status
 function mapDragonpayStatus(dpStatus) {
@@ -108,13 +116,18 @@ exports.createOrder = async (req, res) => {
     
     const { user_id, total_amount, subtotal, shipping_fee = 0, items, shipping_details } = req.body;
 
-    // Validate phone number
-    if (!shipping_details?.phone || !shipping_details.phone.replace(/[\s-]/g, '').match(/^(\+63|0)[0-9]{10}$/)) {
+    // Validate phone number - accept more formats
+    const cleanPhone = shipping_details?.phone?.replace(/[\s\-\(\)\.]/g, '');
+    if (!cleanPhone || !cleanPhone.match(/^(\+?63|0)?[0-9]{10}$/)) {
       await connection.rollback();
       return res.status(400).json({ 
-        message: 'Valid Philippine phone number is required (e.g., +639123456789 or 09123456789)'
+        message: 'Invalid phone number format. Please provide a valid phone number (e.g., +63 912 345 6789, 0912-345-6789, or 09123456789)'
       });
     }
+
+    // Format phone to standard format
+    const standardPhone = cleanPhone.replace(/^0/, '+63');
+    shipping_details.phone = standardPhone;
 
     const orderCode = uuidv4();
     
@@ -238,17 +251,23 @@ exports.processPayment = async (req, res) => {
       [order_id, order.user_id, order.total_price, payment_method, 'pending']
     );
     
+    const paymentId = paymentResult.insertId;
+    
     if (payment_method === 'dragonpay') {
       const amount = parseFloat(order.total_price).toFixed(2);
       const description = `Order #${order_id}`;
       const email = payment_details.email || order.email;
       const returnUrl = `${process.env.CLIENT_URL || process.env.FRONTEND_URL || 'https://michaeldemesa.com'}/transaction-complete`;
-      
-      const digestString = `${MERCHANT_ID.toUpperCase()}:${txnId}:${amount}:PHP:${description}:${email}:${API_KEY}`;
-      const digest = crypto.createHash('sha1').update(digestString).digest('hex');
-      
+      const merchantIdUpper = MERCHANT_ID.toUpperCase();
+      const digestString = merchantIdUpper + ':' + txnId + ':' + amount + ':PHP:' + description + ':' + email + ':' + DRAGONPAY_SECRET_KEY;
+      console.log('Digest string format (without actual secret key):', 
+        merchantIdUpper + ':' + txnId + ':' + amount + ':PHP:' + description + ':' + email + ':***');
+      const digest = crypto.createHash('sha1')
+        .update(digestString)
+        .digest('hex');
+      console.log('Generated SHA1 digest:', digest);
       const payload = {
-        merchantid: MERCHANT_ID.toUpperCase(),
+        merchantid: merchantIdUpper,
         txnid: txnId,
         amount: amount,
         ccy: 'PHP',
@@ -256,19 +275,47 @@ exports.processPayment = async (req, res) => {
         email: email,
         param1: order_id.toString(),
         digest: digest,
-        returnurl: returnUrl
+        returnurl: returnUrl,
+        cancelurl: `${process.env.CLIENT_URL || process.env.FRONTEND_URL || 'https://michaeldemesa.com'}/cart`
       };
+      console.log('Dragonpay payload:', payload);
+      console.log('Dragonpay payload (stringified):', JSON.stringify(payload, null, 2));
       
-      const redirectUrl = `https://test.dragonpay.ph/Pay.aspx?${new URLSearchParams(payload).toString()}`;
+      // Build URL manually to ensure proper encoding
+      const queryParams = new URLSearchParams();
+      queryParams.append('merchantid', merchantIdUpper);
+      queryParams.append('txnid', txnId);
+      queryParams.append('amount', amount);
+      queryParams.append('ccy', 'PHP');
+      queryParams.append('description', description);
+      queryParams.append('email', email);
+      queryParams.append('param1', order_id.toString());
+      queryParams.append('digest', digest);
+      queryParams.append('returnurl', returnUrl);
+      queryParams.append('cancelurl', `${process.env.CLIENT_URL || process.env.FRONTEND_URL || 'https://michaeldemesa.com'}/cart`);
+      
+      const redirectUrl = `https://test.dragonpay.ph/Pay.aspx?${queryParams.toString()}`;
+      console.log('Redirecting to Dragonpay URL:', redirectUrl);
+      console.log('URL length:', redirectUrl.length);
+      console.log('URL parameters count:', Object.keys(payload).length);
+      console.log('Query string:', queryParams.toString());
+      
+      // Test URL accessibility (optional - for debugging)
+      try {
+        const testUrl = 'https://test.dragonpay.ph/Pay.aspx';
+        console.log('Testing DragonPay URL accessibility...');
+        // Note: In production, you might want to remove this test
+      } catch (urlTestError) {
+        console.warn('DragonPay URL test failed:', urlTestError.message);
+      }
       
       await db.query(
         'UPDATE payments SET reference_number = ? WHERE payment_id = ?',
-        [txnId, paymentResult.insertId]
+        [txnId, paymentId]
       );
-      
       res.json({
         success: true,
-        payment_id: paymentResult.insertId,
+        payment_id: paymentId,
         payment_url: redirectUrl,
         reference_number: txnId,
         order_code: order.order_code
@@ -284,21 +331,30 @@ exports.processPayment = async (req, res) => {
 
 // Verify Payment
 exports.verifyPayment = async (req, res) => {
+  const connection = await db.getConnection();
+  
   try {
     const { txnId, refNo, status } = req.query;
     console.log('Verifying transaction:', { txnId, refNo, status });
 
     if (!txnId || !refNo || !status) {
-      return res.status(400).json({ message: 'Missing required parameters' });
+      return res.status(400).json({ 
+        success: false,
+        message: 'Missing required parameters',
+        details: { txnId, refNo, status }
+      });
     }
 
     const orderCodeMatch = txnId.match(/order_(.+?)_\d+$/);
     if (!orderCodeMatch || !orderCodeMatch[1]) {
-      return res.status(400).json({ message: 'Invalid transaction ID format' });
+      return res.status(400).json({ 
+        success: false,
+        message: 'Invalid transaction ID format',
+        details: { txnId }
+      });
     }
     
     const orderCode = orderCodeMatch[1];
-    const connection = await db.getConnection();
 
     try {
       await connection.beginTransaction();
@@ -310,7 +366,10 @@ exports.verifyPayment = async (req, res) => {
 
       if (orders.length === 0) {
         await connection.rollback();
-        return res.status(404).json({ message: 'Order not found' });
+        return res.status(404).json({ 
+          success: false,
+          message: 'Order not found' 
+        });
       }
 
       const order = orders[0];
@@ -361,7 +420,38 @@ exports.verifyPayment = async (req, res) => {
           console.error('Failed to send confirmation email:', emailError.message);
         }
 
+        return res.json({
+          success: true,
+          status: 'success',
+          message: 'Payment successful',
+          order: {
+            ...order,
+            shipping: shipping.length > 0 ? shipping[0] : null
+          }
+        });
+
       } else if (status === 'F') {
+        // For failed transactions, we'll restore the stock
+        const [orderItems] = await connection.query(
+          'SELECT * FROM order_items WHERE order_id = ?',
+          [orderId]
+        );
+
+        // Restore stock for each item
+        for (const item of orderItems) {
+          if (item.variant_id) {
+            await connection.query(
+              'UPDATE product_variants SET stock = stock + ? WHERE variant_id = ?',
+              [item.quantity, item.variant_id]
+            );
+          } else {
+            await connection.query(
+              'UPDATE products SET stock = stock + ? WHERE product_id = ?',
+              [item.quantity, item.product_id]
+            );
+          }
+        }
+
         await connection.query(
           'UPDATE orders SET order_status = ?, payment_status = ?, updated_at = NOW() WHERE order_id = ?',
           ['cancelled', 'failed', orderId]
@@ -371,32 +461,50 @@ exports.verifyPayment = async (req, res) => {
           ['failed', refNo, orderId]
         );
         await connection.commit();
+        
+        return res.json({
+          success: false,
+          status: 'failed',
+          message: 'Payment failed. Please try again or choose a different payment method.',
+          order: {
+            ...order,
+            shipping: shipping.length > 0 ? shipping[0] : null
+          }
+        });
       } else {
         await connection.query(
           'UPDATE payments SET status = ?, reference_number = ?, updated_at = NOW() WHERE order_id = ?',
           ['pending', refNo, orderId]
         );
         await connection.commit();
+        
+        return res.json({
+          success: true,
+          status: 'pending',
+          message: 'Payment is pending confirmation',
+          order: {
+            ...order,
+            shipping: shipping.length > 0 ? shipping[0] : null
+          }
+        });
       }
-
-      res.json({
-        status: status === 'S' ? 'success' : status === 'F' ? 'failed' : 'pending',
-        message: status === 'S' ? 'Payment successful' : status === 'F' ? 'Payment failed' : 'Payment pending',
-        order: {
-          ...order,
-          shipping: shipping.length > 0 ? shipping[0] : null
-        }
-      });
 
     } catch (error) {
       await connection.rollback();
-      throw error;
+      console.error('Error during payment verification:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'An error occurred while verifying the payment'
+      });
     } finally {
       connection.release();
     }
   } catch (error) {
-    console.error('Error in verify endpoint:', error);
-    res.status(500).json({ message: 'Internal server error', error: error.message });
+    console.error('Error in payment verification:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'An error occurred while verifying the payment'
+    });
   }
 };
 
@@ -420,14 +528,17 @@ exports.handlePostback = async (req, res) => {
     
     const orderCode = orderCodeMatch[1];
     
+    // Validate the digest if provided (security measure)
     if (digest) {
       const expectedDigest = crypto.createHash('sha1')
-        .update(`${txnid}:${refno}:${status}:${message}:${process.env.DRAGONPAY_SECRET_KEY}`)
+        .update(`${txnid}:${refno}:${status}:${message}:${DRAGONPAY_SECRET_KEY}`)
         .digest('hex');
       
       if (digest !== expectedDigest) {
+        console.error('❌ IPN digest validation failed - possible security issue');
         return res.status(400).send('result=Invalid digest');
       }
+      console.log('✅ IPN digest validated successfully');
     }
 
     try {

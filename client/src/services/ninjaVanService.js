@@ -1,10 +1,10 @@
-import axios from 'axios';
+import api from './axiosConfig';
 import API_BASE_URL from '../config';
 
 class NinjaVanService {
   async createDeliveryOrder(orderData) {
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/delivery/ninjavan/create-order`, orderData);
+      const response = await api.post('/delivery/ninjavan/create-order', orderData);
       return response.data;
     } catch (error) {
       console.error('Error creating NinjaVan delivery order:', error);
@@ -14,7 +14,7 @@ class NinjaVanService {
 
   async getTrackingInfo(trackingId) {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/delivery/ninjavan/tracking/${trackingId}`);
+      const response = await api.get(`/delivery/ninjavan/tracking/${trackingId}`);
       return response.data;
     } catch (error) {
       console.error('Error fetching NinjaVan tracking info:', error);
@@ -24,7 +24,7 @@ class NinjaVanService {
 
   async generateWaybill(trackingId) {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/delivery/ninjavan/waybill/${trackingId}`, {
+      const response = await api.get(`/delivery/ninjavan/waybill/${trackingId}`, {
         responseType: 'blob'
       });
       return response.data;
@@ -43,7 +43,7 @@ class NinjaVanService {
 
       const cleanTrackingId = trackingId.trim();
       
-      const response = await axios.delete(`${API_BASE_URL}/api/delivery/ninjavan/orders/${cleanTrackingId}`);
+      const response = await api.delete(`/delivery/ninjavan/orders/${cleanTrackingId}`);
       
       // Return standardized response
       return {
@@ -129,35 +129,22 @@ class NinjaVanService {
         throw new Error('Missing required address fields for shipping estimate');
       }
 
-      const response = await axios.post(`${API_BASE_URL}/api/delivery/ninjavan/estimate`, {
-        toAddress: {
-          address1: address.address1 || address.street,
-          address2: address.address2 || '',
-          city: address.city,
-          state: address.state,
-          country: address.country || 'SG',
-          postcode: address.postcode
-        },
-        weight: weight || 1.0,
-        dimensions: dimensions || { length: 20, width: 15, height: 10 }
+      const response = await api.post('/delivery/ninjavan/estimate', {
+        ...addressData,
+        to: {
+          ...addressData.address,
+          country: 'SG' // Using Singapore for NinjaVan sandbox
+        }
       });
-      
-      return {
-        success: true,
-        estimatedFee: response.data.estimatedFee || 0,
-        currency: response.data.currency || 'SGD',
-        serviceType: response.data.service_type || 'Standard',
-        details: response.data.rates
-      };
+
+      return response.data;
     } catch (error) {
       console.error('Error getting shipping estimate:', error);
-      
-      // Return fallback estimate
+      if (error.response?.status === 401) {
+        throw new Error('Authentication required. Please log in again.');
+      }
       return {
         success: false,
-        estimatedFee: 50.00, // Fallback shipping fee
-        currency: 'SGD',
-        serviceType: 'Standard',
         error: error.message || 'Failed to get shipping estimate'
       };
     }

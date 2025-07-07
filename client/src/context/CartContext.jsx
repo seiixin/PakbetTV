@@ -452,7 +452,7 @@ export const CartProvider = ({ children }) => {
   };
 
   // Create order function - using the transactions API instead of orders
-  const createOrder = async (userId, shippingFee = 0) => {
+  const createOrder = async (userId, shippingFee = 0, shippingDetails = {}) => {
     try {
       const selectedItems = cartItems.filter(item => item.selected);
       if (selectedItems.length === 0) {
@@ -476,7 +476,8 @@ export const CartProvider = ({ children }) => {
         items: orderItems,
         subtotal: subtotal,
         shipping_fee: shippingFee,
-        total_amount: totalAmount
+        total_amount: totalAmount,
+        shipping_details: shippingDetails
       };
 
       const token = getAuthToken(); // Get token from cookies

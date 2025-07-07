@@ -18,21 +18,27 @@ const TransactionComplete = () => {
   useEffect(() => {
     const verifyTransaction = async (txnId, refNo, status) => {
       try {
+        setLoading(true);
         console.log('Verifying transaction:', { txnId, refNo, status });
         const token = getAuthToken();
+        
+        if (!token) {
+          throw new Error('Authentication required. Please log in.');
+        }
+
         const response = await fetch(`${API_BASE_URL}/api/transactions/verify?txnId=${txnId}&refNo=${refNo}&status=${status}`, {
           headers: {
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
           }
         });
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Failed to verify transaction');
-        }
-
         const data = await response.json();
         console.log('Verification response:', data);
+
+        if (!response.ok) {
+          throw new Error(data.message || 'Failed to verify transaction');
+        }
 
         setOrderDetails(data.order);
         if (data.status) {
@@ -42,6 +48,9 @@ const TransactionComplete = () => {
       } catch (error) {
         console.error('Error verifying transaction:', error);
         setError(error.message);
+        setStatus('failed');
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -56,7 +65,6 @@ const TransactionComplete = () => {
 
     if (txnId && refNo) {
       verifyTransaction(txnId, refNo, status);
-      setStatus(status);
       setMessage(message || '');
     } else {
       setStatus('unknown');
@@ -76,7 +84,7 @@ const TransactionComplete = () => {
     return (
       <div className="transaction-complete-container">
         <div className="transaction-complete">
-          <div className="loading-spinner">Verifying your transaction...</div>
+          <div>Verifying your transaction...</div>
         </div>
       </div>
     );

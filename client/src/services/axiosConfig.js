@@ -1,9 +1,10 @@
 import axios from 'axios';
 import { getAuthToken, removeAuthToken, removeUser } from '../utils/cookies';
+import API_BASE_URL from '../config';
 
 // Create axios instance with base URL
 const api = axios.create({
-  baseURL: '/api'  // Use relative path to trigger the proxy
+  baseURL: API_BASE_URL + '/api'  // Use the full API URL
 });
 
 // Add request interceptor to automatically add auth token

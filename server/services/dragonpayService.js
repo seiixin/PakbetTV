@@ -3,11 +3,16 @@ const axios = require('axios');
 
 class DragonpayService {
   constructor() {
-    this.merchantId = process.env.DRAGONPAY_MERCHANT_ID || 'TEST';
+    this.merchantId = process.env.DRAGONPAY_MERCHANT_ID || 'PAKBETTV';
     this.secretKey = process.env.DRAGONPAY_SECRET_KEY || 'test_key';
     this.baseUrl = process.env.NODE_ENV === 'production' 
       ? 'https://gw.dragonpay.ph' 
       : 'https://test.dragonpay.ph';
+    
+    console.log('DragonPay Service initialized with:', {
+      merchantId: this.merchantId,
+      baseUrl: this.baseUrl
+    });
   }
 
   /**

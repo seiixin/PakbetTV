@@ -34,6 +34,9 @@ const Checkout = () => {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [legalModal, setLegalModal] = useState({ isOpen: false, type: 'terms' });
   
+  const [paymentUrl, setPaymentUrl] = useState(null);
+  const [showManualRedirect, setShowManualRedirect] = useState(false);
+  
   const navigate = useNavigate();
   const { user } = useAuth();
   const { 
@@ -71,7 +74,7 @@ const Checkout = () => {
           city: address.city,
           state: address.state,
           postcode: address.postal_code,
-          country: 'SG' // Default to Singapore
+          country: 'PH' // Default to Philippines
         },
         weight: Math.max(totalWeight, 1.0), // Minimum 1kg
         dimensions: {
@@ -87,14 +90,21 @@ const Checkout = () => {
         setShippingFee(shippingEstimate.estimatedFee);
         console.log('Shipping fee calculated:', shippingEstimate.estimatedFee);
       } else {
-        setShippingFee(50.00); // Fallback fee
-        setShippingError('Using standard shipping rate');
-        console.log('Using fallback shipping fee:', shippingEstimate.error);
+        // Handle authentication errors
+        if (shippingEstimate.error?.includes('Authentication required')) {
+          notify.error('Your session has expired. Please log in again.');
+          navigate('/login');
+          return;
+        }
+        
+        console.warn('Using fallback shipping rate:', shippingEstimate.error);
+        setShippingFee(250.00); // Fallback fee for Philippines
+        setShippingError('Using standard shipping rate for your location');
       }
     } catch (error) {
       console.error('Error calculating shipping fee:', error);
-      setShippingFee(50.00); // Fallback fee
-      setShippingError('Failed to calculate shipping. Using standard rate.');
+      setShippingFee(250.00); // Fallback fee for Philippines
+      setShippingError('Unable to calculate exact shipping. Using standard rate.');
     } finally {
       setShippingLoading(false);
     }
@@ -339,8 +349,12 @@ const Checkout = () => {
       console.log('[Checkout] Shipping fee:', shippingFee);
       
       // Create the order with shipping fee
-      const orderResult = await createOrder(user.id, shippingFee);
+      const orderResult = await createOrder(user.id, shippingFee, shippingDetails);
       console.log('[Checkout] Order created:', orderResult);
+      
+      if (!orderResult || !orderResult.order_id) {
+        throw new Error('Failed to create order: Invalid response from server');
+      }
       
       // Process payment with DragonPay (total includes shipping fee)
       const paymentResult = await processPayment(
@@ -351,14 +365,52 @@ const Checkout = () => {
       
       if (paymentResult.payment_url) {
         console.log('[Checkout] Redirecting to DragonPay:', paymentResult.payment_url);
-        window.location.href = paymentResult.payment_url;
+        
+        // Store the payment URL for manual redirect if needed
+        setPaymentUrl(paymentResult.payment_url);
+        sessionStorage.setItem('dragonpay_redirect_url', paymentResult.payment_url);
+        
+        // Try multiple redirect methods to ensure it works
+        try {
+          // Method 1: Direct window.location.href
+          console.log('[Checkout] Attempting redirect method 1: window.location.href');
+          window.location.href = paymentResult.payment_url;
+          
+          // Set a timeout to show manual redirect if automatic redirect fails
+          setTimeout(() => {
+            if (document.location.href !== paymentResult.payment_url) {
+              console.log('[Checkout] Automatic redirect may have failed, showing manual redirect');
+              setShowManualRedirect(true);
+            }
+          }, 3000);
+          
+        } catch (redirectError) {
+          console.error('[Checkout] Redirect error:', redirectError);
+          setShowManualRedirect(true);
+          
+          // Method 2: Try window.location.replace
+          try {
+            console.log('[Checkout] Attempting redirect method 2: window.location.replace');
+            window.location.replace(paymentResult.payment_url);
+          } catch (replaceError) {
+            console.error('[Checkout] Replace error:', replaceError);
+            
+            // Method 3: Create a form and submit it (fallback)
+            console.log('[Checkout] Attempting redirect method 3: form submission');
+            const form = document.createElement('form');
+            form.method = 'GET';
+            form.action = paymentResult.payment_url;
+            document.body.appendChild(form);
+            form.submit();
+          }
+        }
       } else {
         throw new Error('No payment URL received');
       }
+      
     } catch (err) {
       console.error('[Checkout] Error during checkout:', err);
       handleError(err);
-    } finally {
       setLoading(false);
     }
   };
@@ -385,7 +437,27 @@ const Checkout = () => {
   };
 
   const handleError = (err) => {
-    notify.error(err.message || 'An error occurred during checkout. Please try again.');
+    const errorMessage = err.message || 'An error occurred during checkout';
+    setError(errorMessage);
+    notify.error(errorMessage);
+    
+    // Log detailed error for debugging
+    console.error('[Checkout] Error details:', {
+      message: err.message,
+      stack: err.stack,
+      response: err.response?.data
+    });
+    
+    // Handle specific error cases
+    if (errorMessage.includes('DragonPay')) {
+      notify.error('Payment gateway error. Please try again or contact support if the issue persists.');
+    } else if (errorMessage.includes('shipping')) {
+      notify.error('There was an issue with the shipping details. Please verify your address and try again.');
+    } else if (errorMessage.includes('stock')) {
+      notify.error('Some items in your cart are no longer available in the requested quantity.');
+    } else {
+      notify.error('There was an issue processing your order. Please try again or contact support.');
+    }
   };
 
   if (selectedItems.length === 0) {
@@ -518,11 +590,6 @@ const Checkout = () => {
                 ) : (
                   <span>{formatPrice(shippingFee)}</span>
                 )}
-                {shippingError && (
-                  <div className="shipping-error">
-                    <small>{shippingError}</small>
-                  </div>
-                )}
               </div>
             </div>
             <div className="summary-row total">
@@ -582,6 +649,25 @@ const Checkout = () => {
             {loading ? 'Processing...' : 'Place Order'}
           </button>
         </div>
+        
+        {/* Manual Redirect Button */}
+        {showManualRedirect && paymentUrl && (
+          <div className="manual-redirect-section">
+            <div className="redirect-warning">
+              <p>Automatic redirect to DragonPay may have failed. Please click the button below to proceed to payment:</p>
+              <button 
+                className="manual-redirect-button"
+                onClick={() => window.open(paymentUrl, '_self')}
+              >
+                Proceed to DragonPay Payment
+              </button>
+              <p className="redirect-note">
+                If the button doesn't work, please copy and paste this URL into your browser:<br />
+                <code className="payment-url">{paymentUrl}</code>
+              </p>
+            </div>
+          </div>
+        )}
         
         {!hasShippingAddress && !profileLoading && (
           <div className="address-warning">

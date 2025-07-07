@@ -206,14 +206,6 @@ app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Env: ${process.env.NODE_ENV || 'development'}`);
   
-  try {
-    console.log('Running DB migrations...');
-    await runMigrations();
-    console.log('DB migrations done');
-  } catch (error) {
-    console.error('Migration error:', error);
-  }
-  
   console.log('Starting cron jobs...');
   try {
     scheduleOrderConfirmation();
