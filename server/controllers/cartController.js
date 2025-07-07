@@ -143,7 +143,7 @@ async function addToCart(req, res) {
     return res.status(400).json({ errors: errors.array() });
   }
 
-  const userId = req.user?.id;
+  const userId = req.user?.user?.id || req.user?.id || req.user?.user_id;
   if (!userId) {
     return res.status(401).json({ message: 'User authentication failed' });
   }
@@ -176,14 +176,33 @@ async function addToCart(req, res) {
       return res.status(400).json({ message: 'Cart item limit reached' });
     }
 
+    // Check stock availability
+    let stockQuery = variant_id 
+      ? 'SELECT stock FROM product_variants WHERE variant_id = ?'
+      : 'SELECT stock FROM products WHERE product_id = ?';
+    let stockParams = variant_id ? [variant_id] : [product_id];
+    
+    const [stockResult] = await connection.query(stockQuery, stockParams);
+    if (!stockResult.length || quantity > stockResult[0].stock) {
+      await connection.rollback();
+      return res.status(400).json({ message: 'Not enough stock available' });
+    }
+
     // Check if item already exists in cart
     const [existingItem] = await connection.query(
-      'SELECT cart_id, quantity FROM cart WHERE user_id = ? AND product_id = ? AND variant_id IS NOT DISTINCT FROM ?',
-      [userId, product_id, variant_id]
+      'SELECT cart_id, quantity FROM cart WHERE user_id = ? AND product_id = ? AND (variant_id = ? OR (variant_id IS NULL AND ? IS NULL))',
+      [userId, product_id, variant_id, variant_id]
     );
 
     let result;
     if (existingItem.length > 0) {
+      // Check if updated quantity would exceed stock
+      const newQuantity = existingItem[0].quantity + quantity;
+      if (newQuantity > stockResult[0].stock) {
+        await connection.rollback();
+        return res.status(400).json({ message: 'Not enough stock available for requested quantity' });
+      }
+      
       // Update existing item
       result = await connection.query(
         'UPDATE cart SET quantity = quantity + ? WHERE cart_id = ?',
@@ -226,20 +245,38 @@ async function updateCartItem(req, res) {
     }
     const { quantity } = req.body;
     console.log('Updating cart item:', { cartId, userId, quantity });
+    
+    // Get cart item with correct stock check based on variant
     const [cartItems] = await db.query(
-      'SELECT c.*, (SELECT SUM(stock) FROM product_variants WHERE product_id = c.product_id) AS available_stock FROM cart c WHERE c.cart_id = ? AND c.user_id = ?',
+      `SELECT 
+        c.*,
+        CASE 
+          WHEN c.variant_id IS NOT NULL THEN 
+            (SELECT stock FROM product_variants WHERE variant_id = c.variant_id)
+          ELSE 
+            (SELECT stock FROM products WHERE product_id = c.product_id)
+        END AS available_stock
+      FROM cart c 
+      WHERE c.cart_id = ? AND c.user_id = ?`,
       [cartId, userId]
     );
+
     if (cartItems.length === 0) {
       return res.status(404).json({ message: 'Cart item not found' });
     }
+
     if (quantity > cartItems[0].available_stock) {
       return res.status(400).json({ message: 'Not enough stock available' });
     }
+
     await db.query(
       'UPDATE cart SET quantity = ?, updated_at = NOW() WHERE cart_id = ?',
       [quantity, cartId]
     );
+
+    // Invalidate cache
+    cartCache.del(`cart_${userId}`);
+
     console.log('Cart item quantity updated successfully');
     res.json({
       message: 'Cart updated successfully',
