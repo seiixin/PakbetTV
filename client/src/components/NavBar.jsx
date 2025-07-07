@@ -7,6 +7,9 @@ import { getFullImageUrl } from '../utils/imageUtils';
 import './NavBar.css';
 
 const NavBar = () => {
+  
+  const [isToolsOpen, setIsToolsOpen] = useState(false);
+  const [isBlogsOpen, setIsBlogsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -23,6 +26,18 @@ const NavBar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const isShopPage = location.pathname === '/shop';
+
+  const toggleBlogsMenu = () => {
+  setIsBlogsOpen(prev => !prev);
+  setIsShopOpen(false);
+  setIsToolsOpen(false);
+  };
+
+  const toggleToolsMenu = () => {
+    setIsToolsOpen(prev => !prev);
+    setIsShopOpen(false);
+    setIsBlogsOpen(false);
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -454,23 +469,36 @@ const NavBar = () => {
                 <Link to="/horoscope" className="navbar-navbar-link">Horoscope</Link>
               </li>
               <li className="navbar-navbar-item navbar-dropdown-wrapper">
-                <span className="navbar-navbar-link">Blogs</span>
-                <div className="navbar-submenu">
-                  <Link to="/blog" className="navbar-submenu-link">Dream Meaning</Link>
-                  <Link to="/blog" className="navbar-submenu-link">Face Reading</Link>
-                  <Link to="/blog" className="navbar-submenu-link">Feng Shui</Link>
-                  <Link to="/blog" className="navbar-submenu-link">Palmistry</Link>
-                </div>
+                <button
+                  type="button"
+                  className="navbar-navbar-link"
+                  onClick={() => setIsBlogsOpen(prev => !prev)}
+                >
+                  Blogs
+                </button>
+                <div className={`navbar-submenu ${isBlogsOpen ? 'open' : ''}`}>
+
+                    <Link to="/blog" className="navbar-submenu-link">Dream Meaning</Link>
+                    <Link to="/blog" className="navbar-submenu-link">Face Reading</Link>
+                    <Link to="/blog" className="navbar-submenu-link">Feng Shui</Link>
+                    <Link to="/blog" className="navbar-submenu-link">Palmistry</Link>
+                  </div>
               </li>
+
+              
               <li className="navbar-navbar-item navbar-dropdown-wrapper">
-                <span className="navbar-navbar-link">Free Tools</span>
-                <div className="navbar-submenu">
-                  <Link to="/bazi-calculator" className="navbar-submenu-link">BaZi Calculator</Link>
-                  <Link to="/product-guide" className="navbar-submenu-link">Product Guide</Link>
-                </div>
-              </li>
-              <li className="navbar-navbar-item">
-                <Link to="/contact" className="navbar-navbar-link">Contact Us</Link>
+                <button
+                  type="button"
+                  className="navbar-navbar-link"
+                  onClick={() => setIsToolsOpen(prev => !prev)}
+                >
+                  Free Tools
+                </button>
+                  <div className={`navbar-submenu ${isToolsOpen ? 'open' : ''}`}>
+
+                    <Link to="/bazi-calculator" className="navbar-submenu-link">BaZi Calculator</Link>
+                    <Link to="/product-guide" className="navbar-submenu-link">Product Guide</Link>
+                  </div>
               </li>
             </ul>
 
