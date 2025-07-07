@@ -39,7 +39,7 @@ h1 {
   justify-content: center;
   text-align: center;
   color: white;
-  padding: 4rem 2rem;
+  padding: 3rem 2rem;
 }
 
 .blog-hero::before {
@@ -49,17 +49,21 @@ h1 {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(139, 29, 14, 0.75);
+  background: rgba(139, 29, 14, 0.65);
   z-index: 1;
 }
 
 .blog-hero-text {
   position: relative;
   z-index: 2;
-  font-size: 2.5rem;
+  font-size: 2.8rem;
   font-weight: 700;
   margin-bottom: 2rem;
   max-width: 800px;
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .blog-hero-button {
@@ -74,12 +78,14 @@ h1 {
   border-radius: 50px;
   cursor: pointer;
   transition: all 0.3s ease;
+  letter-spacing: 1px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
 
 .blog-hero-button:hover {
   background-color: #f8f8f8;
   transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
 }
 
 /* Card Container */
@@ -197,7 +203,8 @@ h1 {
 
 @media (max-width: 991px) {
   .blog-hero-text {
-    font-size: 2rem;
+    font-size: 2.4rem;
+    margin-bottom: 2rem;
   }
   
   .card-img-wrapper {
@@ -211,16 +218,17 @@ h1 {
   }
   
   .blog-hero {
-    height: 300px;
-    padding: 2rem 1rem;
+    height: 350px;
+    padding: 2.5rem 1.5rem;
   }
   
   .blog-hero-text {
-    font-size: 1.75rem;
+    font-size: 2rem;
+    margin-bottom: 1.5rem;
   }
   
   .blog-hero-button {
-    padding: 0.875rem 2rem;
+    padding: 0.9rem 2.2rem;
     font-size: 1rem;
   }
 }
@@ -231,11 +239,18 @@ h1 {
   }
   
   .blog-hero {
-    height: 250px;
+    height: 300px;
+    padding: 2rem 1rem;
   }
   
   .blog-hero-text {
-    font-size: 1.5rem;
+    font-size: 1.8rem;
+    margin-bottom: 1.2rem;
+  }
+  
+  .blog-hero-button {
+    padding: 0.8rem 2rem;
+    font-size: 0.95rem;
   }
   
   .card-img-wrapper {

@@ -13,9 +13,6 @@ const dbConfig = {
   connectionLimit: 10,
   queueLimit: 0,
   connectTimeout: 60000,
-  acquireTimeout: 60000,
-  timeout: 60000,
-  reconnect: true,
   ssl: process.env.DB_SSL === 'true' ? {rejectUnauthorized: false} : false
 };
 

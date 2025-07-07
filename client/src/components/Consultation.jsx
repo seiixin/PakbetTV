@@ -1,43 +1,56 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import NavBar from './NavBar';
 import Footer from './Footer';
 import './Consultation.css';
 
 export const Consultation = () => {
+  const navigate = useNavigate();
+
+  const handleBookConsultation = (service) => {
+    const message = `Hi, I would like to book a ${service.title} consultation.\n\nService Details:\nDuration: ${service.duration}\nPrice: ${service.price}\n\nPlease let me know the available schedule. Thank you!`;
+    
+    navigate('/contact', {
+      state: {
+        prefilledMessage: message,
+        subject: `Book ${service.title} Consultation`
+      }
+    });
+  };
+
   // Temporary consultation services data
   const consultationServices = [
     {
       id: 1,
-      title: "Personal Feng Shui Assessment",
-      description: "Get a personalized assessment of your living space and discover how to optimize energy flow for prosperity, health, and happiness.",
+      title: "FENG SHUI DATE SELECTION",
+      description: "Ang Date Selection ay proseso ng pagpili ng pinaka-auspicious na araw batay sa Chinese Almanac, Feng Shui, at birth dates upang matiyak ang tamang timing para sa mga mahahalagang hakbang sa buhay at mapataas ang tsansa ng tagumpay.",
       price: "₱2,500.00",
       duration: "60 minutes",
-      image: "/consultation-personal.jpg"
+      image: "/Consultation-1.jpg"
     },
     {
       id: 2,
       title: "Home Feng Shui Consultation",
-      description: "A comprehensive analysis of your home to identify energy blockages and provide actionable recommendations for improvement.",
+      description: "Napapaisip ka ba, Ka-PakBet, kung bakit parang laging may tensyon o kulang sa swerte sa bahay mo? Baka kailangan mo na ng House Feng Shui Audit mula kay Master Michael De Mesa para maibalik ang maayos na energy flow at mapasok ulit ang blessings sa buhay mo.",
       price: "₱5,000.00",
-      duration: "90 minutes",
-      image: "/consultation-home.jpg"
+      duration: "120 minutes",
+      image: "/Consultation-2.jpg"
     },
     {
       id: 3,
-      title: "Business Feng Shui Consultation",
-      description: "Enhance productivity, employee well-being, and business success through expert feng shui arrangement of your office or business space.",
+      title: "Bazi Reading Consultation",
+      description: "Ka-Pakbet, kung napapatanong ka kung saan ka patungo sa buhay, baka panahon na para ipa-BaZi mo na ‘yan at matuklasan ang mas malinaw na direksyon gamit ang iyong kapanganakan chart.",
       price: "₱8,000.00",
-      duration: "120 minutes",
-      image: "/consultation-business.jpg"
+      duration: "180 minutes",
+      image: "/Consultation-3.jpg"
     },
     {
       id: 4,
-      title: "Virtual Feng Shui Assessment",
-      description: "Remote consultation via video call where our experts will guide you through feng shui principles and offer personalized advice.",
-      price: "₱1,800.00",
-      duration: "45 minutes",
-      image: "/consultation-virtual.jpg"
+      title: "Yearly Residential Feng Shui Analysis",
+      description: "Book a Yearly Residential Feng Shui Analysis with Master Michael De Mesa to activate your home's lucky sectors, attract positivity, and boost your family's overall luck and harmony this 2023.",
+      price: "₱10,000.00",
+      duration: "240 minutes",
+      image: "/Consultation-4.jpg"
     }
   ];
 
@@ -72,7 +85,7 @@ export const Consultation = () => {
           </div>
           <div className="benefit-item">
             <i className="fas fa-heart"></i>
-            <h3>Enhance Relationships</h3>
+            <h3>Build harmony</h3>
             <p>Create harmony in your personal connections</p>
           </div>
           <div className="benefit-item">
@@ -100,7 +113,12 @@ export const Consultation = () => {
                   <span className="service-duration"><i className="far fa-clock"></i> {service.duration}</span>
                   <span className="service-price">{service.price}</span>
                 </div>
-                <button className="book-button">Book Consultation</button>
+                <button 
+                  className="book-button"
+                  onClick={() => handleBookConsultation(service)}
+                >
+                  Book Consultation
+                </button>
               </div>
             </div>
           ))}
@@ -135,7 +153,7 @@ export const Consultation = () => {
         <div className="consultation-cta">
           <h2>Ready to transform your space?</h2>
           <p>Schedule a consultation with our Feng Shui experts today</p>
-          <button className="cta-button">Contact Us Now</button>
+          <Link to="/contact" className="cta-button">Contact Us Now</Link>
         </div>
       </div>
       

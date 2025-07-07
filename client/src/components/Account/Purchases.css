@@ -126,7 +126,7 @@
   font-size: 0.95rem;
   font-weight: 500;
   color: var(--light-text-color);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
 }
@@ -148,19 +148,24 @@
 
 .purchase-filter-tab:hover {
   background-color: rgba(162, 32, 26, 0.05);
-  border-color: var(--primary-color);
-  color: var(--primary-color);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(162, 32, 26, 0.1);
+  border-color: #A2201A;
+  color: #A2201A;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(162, 32, 26, 0.1);
 }
 
 .purchase-filter-tab.active {
-  background: linear-gradient(135deg, var(--primary-color) 0%, #8b1e1e 100%);
-  color: var(--background-color);
-  border-color: var(--primary-color);
+  background: linear-gradient(135deg, #A2201A 0%, #c72c21 100%);
+  box-shadow: 0 1px 4px rgba(162, 32, 26, 0.12);
+  color: white;
+  border-color: #A2201A;
   font-weight: 600;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(162, 32, 26, 0.25);
+}
+
+.purchase-filter-tab.active:hover {
+  background: linear-gradient(135deg, #8a1c16 0%, #a12319 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(162, 32, 26, 0.2);
 }
 
 /* Orders List */
@@ -254,7 +259,6 @@
   min-width: 140px;
   height: 40px;
   white-space: nowrap;
-  background: linear-gradient(135deg, rgba(162, 32, 26, 0.1) 0%, rgba(162, 32, 26, 0.05) 100%);
   color: var(--primary-color);
   border: 2px solid rgba(162, 32, 26, 0.2);
   position: relative;
@@ -276,22 +280,18 @@
 /* Payment Status */
 .purchase-payment-status {
   font-size: 0.85rem;
-  color: var(--light-text-color);
+  color: var(--text-color);
   margin-top: 0.5rem;
   padding: 0.5rem 1rem;
-  background: rgba(248, 249, 250, 0.8);
   border-radius: 8px;
-  border-left: 3px solid var(--accent-color);
 }
 
 .purchase-tracking-info {
   font-size: 0.85rem;
-  color: var(--light-text-color);
+  color: var(--text-color);
   margin-top: 0.5rem;
   padding: 0.5rem 1rem;
-  background: rgba(254, 193, 110, 0.1);
   border-radius: 8px;
-  border-left: 3px solid var(--secondary-color);
 }
 
 .purchase-tracking-label {
@@ -306,7 +306,6 @@
   padding: 0.5rem 1rem;
   background: rgba(162, 32, 26, 0.05);
   border-radius: 8px;
-  border-left: 3px solid var(--primary-color);
   max-width: 350px;
 }
 
@@ -335,7 +334,6 @@
   padding: 1rem;
   background: rgba(248, 249, 250, 0.5);
   border-radius: 12px;
-  border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .purchase-order-count {
@@ -358,7 +356,6 @@
   padding: 1.5rem 2rem;
   display: flex;
   gap: 1rem;
-  border-top: 1px solid rgba(0, 0, 0, 0.05);
   background: rgba(248, 249, 250, 0.3);
 }
 
@@ -369,10 +366,11 @@
   font-size: 0.95rem;
   font-weight: 600;
   text-decoration: none;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.3s ease;
   text-align: center;
-  background: linear-gradient(135deg, var(--primary-color) 0%, #8b1e1e 100%);
-  color: var(--background-color);
+  background: linear-gradient(135deg, #A2201A 0%, #c72c21 100%);
+  box-shadow: 0 1px 4px rgba(162, 32, 26, 0.12);
+  color: white;
   border: none;
   position: relative;
   overflow: hidden;
@@ -394,10 +392,9 @@
 }
 
 .purchase-view-details-btn:hover {
-  background: linear-gradient(135deg, #8b1e1e 0%, #701a1a 100%);
-  color: var(--background-color);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(162, 32, 26, 0.3);
+  background: linear-gradient(135deg, #8a1c16 0%, #a12319 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(162, 32, 26, 0.2);
 }
 
 .purchase-cancel-btn {
@@ -483,16 +480,16 @@
 }
 
 .purchase-shop-now-btn {
-  background: linear-gradient(135deg, var(--primary-color) 0%, #8b1e1e 100%);
-  color: var(--background-color);
+  background: linear-gradient(135deg, #A2201A 0%, #c72c21 100%);
+  box-shadow: 0 1px 4px rgba(162, 32, 26, 0.12);
+  color: white;
   border: none;
   padding: 1rem 2.5rem;
   border-radius: 50px;
   font-weight: 600;
   font-size: 1rem;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 6px 20px rgba(162, 32, 26, 0.2);
+  transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
 }
@@ -513,9 +510,9 @@
 }
 
 .purchase-shop-now-btn:hover {
-  background: linear-gradient(135deg, #8b1e1e 0%, #701a1a 100%);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(162, 32, 26, 0.3);
+  background: linear-gradient(135deg, #8a1c16 0%, #a12319 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(162, 32, 26, 0.2);
 }
 
 /* Loading State */

@@ -69,9 +69,7 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 app.use((req, res, next) => {
-  console.log(`Incoming Request: ${req.method} ${req.path}`);
-  console.log('Headers:', req.headers);
-  console.log('Body:', req.body);
+  console.log(`Request: ${req.method} ${req.path}`);
   next();
 });
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -109,7 +107,7 @@ app.use('/api/cms', cmsRoutes);
 app.use('/api/email', emailRoutes);
 app.use('/api/locations', locationRoutes);
 app.get('/transaction-complete', (req, res) => {
-  console.log('Received Dragonpay return request:', req.query);
+  console.log(`Received Dragonpay return:`, req.query.txnid, req.query.status);
   const { txnid, refno, status, message } = req.query;
   const htmlResponse = `
   <!DOCTYPE html>
@@ -205,27 +203,24 @@ app.use((err, req, res, next) => {
 });
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, async () => {
-  console.log(`Server is running on port ${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Env: ${process.env.NODE_ENV || 'development'}`);
   
   try {
-    // Run database migrations on startup
-    console.log('Running database migrations...');
+    console.log('Running DB migrations...');
     await runMigrations();
-    console.log('Database migrations completed successfully');
+    console.log('DB migrations done');
   } catch (error) {
-    console.error('Error running database migrations:', error);
+    console.error('Migration error:', error);
   }
   
-  // Start cron jobs
   console.log('Starting cron jobs...');
   try {
     scheduleOrderConfirmation();
-    console.log('✅ Order confirmation cron job scheduled');
-    
+    console.log('Order confirmation cron scheduled');
     startPaymentStatusChecker();
-    console.log('✅ Payment status checker cron job started');
+    console.log('Payment checker cron started');
   } catch (cronError) {
-    console.error('Error starting cron jobs:', cronError);
+    console.error('Cron start error:', cronError);
   }
 }); 

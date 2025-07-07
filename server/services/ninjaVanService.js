@@ -169,7 +169,7 @@ async function createDeliveryOrder(orderData, shippingAddress, customerInfo) {
     
     return response.data;
   } catch (error) {
-    console.error('Error creating NinjaVan delivery:', error.response?.data || error.message);
+    console.error('NinjaVan delivery error:', error.message);
     throw error;
   }
 }
@@ -195,7 +195,7 @@ async function getTrackingInfo(trackingNumber) {
     
     return response.data;
   } catch (error) {
-    console.error('Error fetching tracking info:', error.response?.data || error.message);
+    console.error('NinjaVan tracking error:', error.message);
     throw error;
   }
 }
@@ -221,7 +221,7 @@ async function cancelDelivery(trackingNumber) {
     
     return response.data;
   } catch (error) {
-    console.error('Error cancelling delivery:', error.response?.data || error.message);
+    console.error('NinjaVan cancel error:', error.message);
     throw error;
   }
 }

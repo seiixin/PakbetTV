@@ -1,0 +1,902 @@
+// All logic from transactions.js route handlers should be moved here as named exports.
+// Export each handler as a named function, do not change any logic.
+// (Insert all route handler logic and helper functions from transactions.js here)
+
+const express = require('express');
+const crypto = require('crypto');
+const db = require('../config/db');
+const { v4: uuidv4 } = require('uuid');
+const deliveryRouter = require('../routes/delivery');
+const { sendOrderConfirmationEmail } = require('../services/emailService');
+const paymentStatusChecker = require('../services/paymentStatusChecker');
+const dragonpayService = require('../services/dragonpayService');
+const { runManualPaymentCheck, getPaymentStatusCheckerStatus } = require('../cron/paymentStatusChecker');
+
+// Constants
+const MERCHANT_ID = process.env.DRAGONPAY_MERCHANT_ID || 'TEST';
+const API_KEY = process.env.DRAGONPAY_API_KEY || 'test_key';
+const BASE_URL = process.env.NODE_ENV === 'production'
+  ? 'https://gw.dragonpay.ph/api/collect/v1'
+  : 'https://test.dragonpay.ph/api/collect/v1';
+const SECRET_KEY_SHA256 = process.env.DRAGONPAY_SECRET_KEY_SHA256 || 'test_sha256_key';
+
+// Helper function to map Dragonpay status to internal status
+function mapDragonpayStatus(dpStatus) {
+  switch(dpStatus) {
+    case 'S': return 'completed';
+    case 'F': return 'failed';
+    case 'P': return 'pending';
+    case 'U': return 'unknown';
+    case 'R': return 'refunded';
+    case 'K': return 'chargeback';
+    case 'V': return 'void';
+    case 'A': return 'authorized';
+    default: return 'unknown';
+  }
+}
+
+// Helper function to send order confirmation email for IPN
+async function sendOrderConfirmationEmailForIPN(order, referenceNumber, trackingNumber = null) {
+  try {
+    console.log('📧 IPN - Sending order confirmation email...');
+    
+    const [orderItems] = await db.query(
+      'SELECT oi.*, p.name FROM order_items oi ' +
+      'JOIN products p ON oi.product_id = p.product_id ' +
+      'WHERE oi.order_id = ?',
+      [order.order_id]
+    );
+
+    const [paymentDetails] = await db.query(
+      'SELECT * FROM payments WHERE order_id = ? ORDER BY payment_id DESC LIMIT 1',
+      [order.order_id]
+    );
+
+    const [shippingDetails] = await db.query(
+      'SELECT * FROM shipping WHERE order_id = ?',
+      [order.order_id]
+    );
+
+    const [userShippingDetails] = await db.query(
+      'SELECT * FROM user_shipping_details WHERE user_id = ? AND is_default = 1',
+      [order.user_id]
+    );
+
+    let shippingAddress = 'Address not available';
+    if (shippingDetails.length > 0 && shippingDetails[0].address) {
+      shippingAddress = shippingDetails[0].address;
+    } else if (userShippingDetails.length > 0) {
+      const userShipping = userShippingDetails[0];
+      shippingAddress = `${userShipping.address1}, ${userShipping.address2 || ''}, ${userShipping.city}, ${userShipping.state}, ${userShipping.postcode}, ${userShipping.country}`.trim().replace(/, ,/g, ',').replace(/,$/g, '');
+    }
+
+    const emailDetails = {
+      orderNumber: order.order_code || order.order_id,
+      customerName: `${order.first_name} ${order.last_name}`,
+      customerEmail: order.email,
+      items: orderItems.map(item => ({
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price
+      })),
+      totalAmount: order.total_price,
+      shippingFee: 0,
+      shippingAddress: shippingAddress,
+      paymentMethod: 'DragonPay',
+      paymentReference: referenceNumber,
+      trackingNumber: trackingNumber
+    };
+
+    await sendOrderConfirmationEmail(emailDetails);
+    console.log('✅ IPN - Order confirmation email sent successfully');
+  } catch (emailError) {
+    console.error('❌ IPN - Failed to send order confirmation email:', emailError.message);
+  }
+}
+
+// Main Controller Methods
+
+// Create Order
+exports.createOrder = async (req, res) => {
+  const connection = await db.getConnection();
+  console.log('Starting order creation process...');
+  console.log('Database connection acquired');
+  
+  try {
+    await connection.beginTransaction();
+    console.log('Transaction started');
+    
+    const { user_id, total_amount, subtotal, shipping_fee = 0, items, shipping_details } = req.body;
+
+    // Validate phone number
+    if (!shipping_details?.phone || !shipping_details.phone.replace(/[\s-]/g, '').match(/^(\+63|0)[0-9]{10}$/)) {
+      await connection.rollback();
+      return res.status(400).json({ 
+        message: 'Valid Philippine phone number is required (e.g., +639123456789 or 09123456789)'
+      });
+    }
+
+    const orderCode = uuidv4();
+    
+    const [orderResult] = await connection.query(
+      `INSERT INTO orders 
+       (user_id, total_price, order_status, payment_status, order_code, created_at, updated_at) 
+       VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
+      [user_id, total_amount, 'processing', 'pending', orderCode]
+    );
+    
+    const orderId = orderResult.insertId;
+
+    if (shipping_fee > 0) {
+      await connection.query(
+        'INSERT INTO shipping (order_id, user_id, status, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())',
+        [orderId, user_id, 'pending']
+      );
+    }
+
+    for (const item of items) {
+      const [orderItemResult] = await connection.query(
+        'INSERT INTO order_items (order_id, product_id, quantity, price, variant_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NOW(), NOW())',
+        [orderId, item.product_id, item.quantity, item.price, item.variant_id || null]
+      );
+      
+      if (item.variant_attributes && Object.keys(item.variant_attributes).length > 0) {
+        await connection.query(
+          'UPDATE order_items SET variant_data = ? WHERE order_item_id = ?',
+          [JSON.stringify(item.variant_attributes), orderItemResult.insertId]
+        );
+      }
+
+      // Update stock levels
+      if (item.variant_id) {
+        const [[variant]] = await connection.query(
+          'SELECT stock FROM product_variants WHERE variant_id = ?',
+          [item.variant_id]
+        );
+        
+        if (!variant) {
+          await connection.rollback();
+          return res.status(400).json({ message: `Variant details not found for one of the items.` });
+        }
+        
+        if (variant.stock < item.quantity) {
+          await connection.rollback();
+          return res.status(400).json({ 
+            message: `Not enough stock for product variant. Available: ${variant.stock}` 
+          });
+        }
+        
+        await connection.query(
+          'UPDATE product_variants SET stock = ? WHERE variant_id = ?',
+          [variant.stock - item.quantity, item.variant_id]
+        );
+      } else {
+        const [[product]] = await connection.query(
+          'SELECT stock FROM products WHERE product_id = ?',
+          [item.product_id]
+        );
+        
+        if (!product) {
+          await connection.rollback();
+          return res.status(400).json({ message: `Product details not found for one of the items.` });
+        }
+        
+        if (product.stock < item.quantity) {
+          await connection.rollback();
+          return res.status(400).json({ 
+            message: `Not enough stock for product ID ${item.product_id}. Available: ${product.stock}` 
+          });
+        }
+        
+        await connection.query(
+          'UPDATE products SET stock = ? WHERE product_id = ?',
+          [product.stock - item.quantity, item.product_id]
+        );
+      }
+    }
+    
+    await connection.commit();
+    
+    res.status(201).json({ 
+      message: 'Order created successfully', 
+      order_id: orderId,
+      order_code: orderCode,
+      status: 'pending'
+    });
+  } catch (error) {
+    await connection.rollback();
+    console.error('Error creating order:', error);
+    res.status(500).json({ 
+      message: 'Failed to create order',
+      error: error.message 
+    });
+  } finally {
+    connection.release();
+  }
+};
+
+// Process Payment
+exports.processPayment = async (req, res) => {
+  try {
+    const { order_id, payment_method, payment_details } = req.body;
+    const [orders] = await db.query(
+      'SELECT o.*, u.email FROM orders o JOIN users u ON o.user_id = u.user_id WHERE o.order_id = ?', 
+      [order_id]
+    );
+    
+    if (orders.length === 0) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+    
+    const order = orders[0];
+    const txnId = order.order_code ? 
+      `order_${order.order_code}_${Date.now()}` : 
+      `order_${order_id}_${Date.now()}`;
+    
+    const [paymentResult] = await db.query(
+      'INSERT INTO payments (order_id, user_id, amount, payment_method, status) VALUES (?, ?, ?, ?, ?)',
+      [order_id, order.user_id, order.total_price, payment_method, 'pending']
+    );
+    
+    if (payment_method === 'dragonpay') {
+      const amount = parseFloat(order.total_price).toFixed(2);
+      const description = `Order #${order_id}`;
+      const email = payment_details.email || order.email;
+      const returnUrl = `${process.env.CLIENT_URL || process.env.FRONTEND_URL || 'https://michaeldemesa.com'}/transaction-complete`;
+      
+      const digestString = `${MERCHANT_ID.toUpperCase()}:${txnId}:${amount}:PHP:${description}:${email}:${API_KEY}`;
+      const digest = crypto.createHash('sha1').update(digestString).digest('hex');
+      
+      const payload = {
+        merchantid: MERCHANT_ID.toUpperCase(),
+        txnid: txnId,
+        amount: amount,
+        ccy: 'PHP',
+        description: description,
+        email: email,
+        param1: order_id.toString(),
+        digest: digest,
+        returnurl: returnUrl
+      };
+      
+      const redirectUrl = `https://test.dragonpay.ph/Pay.aspx?${new URLSearchParams(payload).toString()}`;
+      
+      await db.query(
+        'UPDATE payments SET reference_number = ? WHERE payment_id = ?',
+        [txnId, paymentResult.insertId]
+      );
+      
+      res.json({
+        success: true,
+        payment_id: paymentResult.insertId,
+        payment_url: redirectUrl,
+        reference_number: txnId,
+        order_code: order.order_code
+      });
+    } else {
+      res.status(400).json({ message: 'Unsupported payment method' });
+    }
+  } catch (error) {
+    console.error('Payment processing error:', error);
+    res.status(500).json({ message: error.message || 'Failed to process payment' });
+  }
+};
+
+// Verify Payment
+exports.verifyPayment = async (req, res) => {
+  try {
+    const { txnId, refNo, status } = req.query;
+    console.log('Verifying transaction:', { txnId, refNo, status });
+
+    if (!txnId || !refNo || !status) {
+      return res.status(400).json({ message: 'Missing required parameters' });
+    }
+
+    const orderCodeMatch = txnId.match(/order_(.+?)_\d+$/);
+    if (!orderCodeMatch || !orderCodeMatch[1]) {
+      return res.status(400).json({ message: 'Invalid transaction ID format' });
+    }
+    
+    const orderCode = orderCodeMatch[1];
+    const connection = await db.getConnection();
+
+    try {
+      await connection.beginTransaction();
+
+      const [orders] = await connection.query(
+        'SELECT * FROM orders WHERE order_code = ?',
+        [orderCode]
+      );
+
+      if (orders.length === 0) {
+        await connection.rollback();
+        return res.status(404).json({ message: 'Order not found' });
+      }
+
+      const order = orders[0];
+      const orderId = order.order_id;
+
+      const [shipping] = await connection.query(
+        'SELECT * FROM shipping_details WHERE order_id = ?',
+        [orderId]
+      );
+
+      const [userShippingDetails] = await connection.query(
+        `SELECT usd.*, u.first_name, u.last_name, u.email, u.phone
+         FROM user_shipping_details usd
+         JOIN users u ON usd.user_id = u.user_id
+         WHERE usd.user_id = ? AND usd.is_default = 1`,
+        [order.user_id]
+      );
+
+      if (status === 'S') {
+        await connection.query(
+          'UPDATE orders SET order_status = ?, payment_status = ?, updated_at = NOW() WHERE order_id = ?',
+          ['for_packing', 'paid', orderId]
+        );
+
+        await connection.query(
+          'UPDATE payments SET status = ?, reference_number = ?, updated_at = NOW() WHERE order_id = ?',
+          ['completed', refNo, orderId]
+        );
+
+        await connection.query('DELETE FROM cart WHERE user_id = ?', [order.user_id]);
+        await connection.commit();
+
+        try {
+          const shippingResult = await deliveryRouter.createShippingOrder(orderId);
+          if (shippingResult?.tracking_number) {
+            await db.query(
+              'UPDATE orders SET tracking_number = ? WHERE order_id = ?',
+              [shippingResult.tracking_number, orderId]
+            );
+          }
+        } catch (shippingError) {
+          console.error('Failed to create shipping order:', shippingError.message);
+        }
+
+        try {
+          await sendOrderConfirmationEmailForIPN(order, refNo, order.tracking_number);
+        } catch (emailError) {
+          console.error('Failed to send confirmation email:', emailError.message);
+        }
+
+      } else if (status === 'F') {
+        await connection.query(
+          'UPDATE orders SET order_status = ?, payment_status = ?, updated_at = NOW() WHERE order_id = ?',
+          ['cancelled', 'failed', orderId]
+        );
+        await connection.query(
+          'UPDATE payments SET status = ?, reference_number = ?, updated_at = NOW() WHERE order_id = ?',
+          ['failed', refNo, orderId]
+        );
+        await connection.commit();
+      } else {
+        await connection.query(
+          'UPDATE payments SET status = ?, reference_number = ?, updated_at = NOW() WHERE order_id = ?',
+          ['pending', refNo, orderId]
+        );
+        await connection.commit();
+      }
+
+      res.json({
+        status: status === 'S' ? 'success' : status === 'F' ? 'failed' : 'pending',
+        message: status === 'S' ? 'Payment successful' : status === 'F' ? 'Payment failed' : 'Payment pending',
+        order: {
+          ...order,
+          shipping: shipping.length > 0 ? shipping[0] : null
+        }
+      });
+
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error in verify endpoint:', error);
+    res.status(500).json({ message: 'Internal server error', error: error.message });
+  }
+};
+
+// Handle Dragonpay Postback
+exports.handlePostback = async (req, res) => {
+  const connection = await db.getConnection();
+  
+  try {
+    const { txnid, refno, status, message, digest } = req.body;
+    
+    console.log('🔔 === Dragonpay IPN (Postback) Received ===');
+    console.log(`📋 Transaction ID: ${txnid}`);
+    console.log(`🆔 Reference Number: ${refno}`);
+    console.log(`📊 Status: ${status}`);
+    console.log(`💬 Message: ${message}`);
+    
+    const orderCodeMatch = txnid.match(/order_(.+?)_\d+$/);
+    if (!orderCodeMatch || !orderCodeMatch[1]) {
+      return res.status(400).send('result=Invalid transaction ID format');
+    }
+    
+    const orderCode = orderCodeMatch[1];
+    
+    if (digest) {
+      const expectedDigest = crypto.createHash('sha1')
+        .update(`${txnid}:${refno}:${status}:${message}:${process.env.DRAGONPAY_SECRET_KEY}`)
+        .digest('hex');
+      
+      if (digest !== expectedDigest) {
+        return res.status(400).send('result=Invalid digest');
+      }
+    }
+
+    try {
+      await connection.beginTransaction();
+
+      const [orders] = await connection.query(
+        'SELECT o.*, u.first_name, u.last_name, u.email FROM orders o ' +
+        'JOIN users u ON o.user_id = u.user_id ' +
+        'WHERE o.order_code = ?',
+        [orderCode]
+      );
+
+      if (orders.length === 0) {
+        await connection.rollback();
+        return res.status(400).send('result=Order not found');
+      }
+
+      const order = orders[0];
+      const orderId = order.order_id;
+
+      if (status === 'S') {
+        await connection.query(
+          'UPDATE orders SET order_status = ?, payment_status = ?, updated_at = NOW() WHERE order_id = ?',
+          ['for_packing', 'paid', orderId]
+        );
+
+        await connection.query(
+          'UPDATE payments SET status = ?, reference_number = ?, transaction_id = ?, updated_at = NOW() WHERE order_id = ?',
+          ['completed', refno, txnid, orderId]
+        );
+
+        await connection.query('DELETE FROM cart WHERE user_id = ?', [order.user_id]);
+        await connection.commit();
+
+        try {
+          const shippingResult = await deliveryRouter.createShippingOrder(orderId);
+          if (shippingResult?.tracking_number) {
+            await db.query(
+              'UPDATE orders SET tracking_number = ? WHERE order_id = ?',
+              [shippingResult.tracking_number, orderId]
+            );
+          }
+          await sendOrderConfirmationEmailForIPN(order, refno, shippingResult?.tracking_number);
+        } catch (error) {
+          console.error('Error in post-payment processing:', error);
+        }
+        
+      } else if (status === 'F') {
+        await connection.query(
+          'UPDATE orders SET order_status = ?, payment_status = ?, updated_at = NOW() WHERE order_id = ?',
+          ['cancelled', 'failed', orderId]
+        );
+
+        await connection.query(
+          'UPDATE payments SET status = ?, reference_number = ?, transaction_id = ?, updated_at = NOW() WHERE order_id = ?',
+          ['failed', refno, txnid, orderId]
+        );
+
+        await connection.commit();
+        
+      } else if (status === 'P') {
+        await connection.query(
+          'UPDATE orders SET order_status = ?, payment_status = ?, updated_at = NOW() WHERE order_id = ?',
+          ['processing', 'awaiting_for_confirmation', orderId]
+        );
+
+        await connection.query(
+          'UPDATE payments SET status = ?, reference_number = ?, transaction_id = ?, updated_at = NOW() WHERE order_id = ?',
+          ['waiting_for_confirmation', refno, txnid, orderId]
+        );
+
+        await connection.commit();
+        
+      } else {
+        await connection.query(
+          'UPDATE payments SET status = ?, reference_number = ?, transaction_id = ?, updated_at = NOW() WHERE order_id = ?',
+          [mapDragonpayStatus(status), refno, txnid, orderId]
+        );
+
+        await connection.commit();
+      }
+
+      res.status(200).send('result=OK');
+
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+
+  } catch (error) {
+    console.error('❌ IPN processing error:', error);
+    res.status(500).send('result=Error processing payment notification');
+  }
+};
+
+// Utility Endpoints
+
+// Simulate payment (for testing)
+exports.simulatePayment = async (req, res) => {
+  try {
+    const { orderId, status = 'S' } = req.body;
+    
+    if (!orderId) {
+      return res.status(400).json({ message: 'orderId is required' });
+    }
+    
+    console.log(`Simulating payment for order ${orderId} with status ${status}`);
+    
+    const [orders] = await db.query('SELECT * FROM orders WHERE order_id = ?', [orderId]);
+    
+    if (orders.length === 0) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+    
+    const txnid = `order_${orderId}_${Date.now()}`;
+    const refno = `REF-${orderId}-${Date.now()}`;
+    const transactionId = `TXN-${orderId}-${Date.now()}`;
+    
+    const [payments] = await db.query('SELECT * FROM payments WHERE order_id = ?', [orderId]);
+    
+    if (payments.length > 0) {
+      await db.query(
+        'UPDATE payments SET status = ?, reference_number = ?, transaction_id = ? WHERE order_id = ?',
+        [mapDragonpayStatus(status), refno, transactionId, orderId]
+      );
+    } else {
+      await db.query(
+        'INSERT INTO payments (order_id, user_id, amount, payment_method, status, reference_number, transaction_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [orderId, orders[0].user_id, orders[0].total_price, 'dragonpay', mapDragonpayStatus(status), refno, transactionId]
+      );
+    }
+    
+    if (status === 'S') {
+      await db.query(
+        'UPDATE orders SET order_status = ?, payment_status = ? WHERE order_id = ?',
+        ['for_packing', 'paid', orderId]
+      );
+      
+      try {
+        const [userDetails] = await db.query(
+          'SELECT u.first_name, u.last_name, u.email, u.phone FROM users u WHERE u.user_id = ?',
+          [orders[0].user_id]
+        );
+
+        const [orderItems] = await db.query(
+          'SELECT oi.*, p.name FROM order_items oi JOIN products p ON oi.product_id = p.product_id WHERE oi.order_id = ?',
+          [orderId]
+        );
+
+        const [shippingDetails] = await db.query('SELECT * FROM shipping WHERE order_id = ?', [orderId]);
+        const [userShippingDetails] = await db.query(
+          'SELECT * FROM user_shipping_details WHERE user_id = ? AND is_default = 1',
+          [orders[0].user_id]
+        );
+
+        let shippingAddress = 'Address not available';
+        if (shippingDetails.length > 0 && shippingDetails[0].address) {
+          shippingAddress = shippingDetails[0].address;
+        } else if (userShippingDetails.length > 0) {
+          const userShipping = userShippingDetails[0];
+          shippingAddress = `${userShipping.address1}, ${userShipping.address2 || ''}, ${userShipping.city}, ${userShipping.state}, ${userShipping.postcode}, ${userShipping.country}`.trim().replace(/, ,/g, ',').replace(/,$/g, '');
+        }
+
+        if (userDetails.length > 0) {
+          const user = userDetails[0];
+          const emailDetails = {
+            orderNumber: orders[0].order_code || orderId,
+            customerName: `${user.first_name} ${user.last_name}`,
+            customerEmail: user.email,
+            customerPhone: user.phone,
+            items: orderItems.map(item => ({
+              name: item.name,
+              quantity: item.quantity,
+              price: item.price
+            })),
+            totalAmount: orders[0].total_price,
+            shippingFee: 0,
+            shippingAddress: shippingAddress,
+            paymentMethod: 'DragonPay (Simulated)',
+            paymentReference: refno,
+            trackingNumber: orders[0].tracking_number || null
+          };
+
+          await sendOrderConfirmationEmail(emailDetails);
+        }
+      } catch (emailError) {
+        console.error('Failed to send confirmation email:', emailError.message);
+      }
+      
+      try {
+        const shippingResult = await deliveryRouter.createShippingOrder(orderId);
+        return res.status(200).json({
+          message: 'Payment simulation successful and shipping order created',
+          order_status: 'for_packing',
+          payment_status: 'paid',
+          transaction_id: transactionId,
+          reference_number: refno,
+          shipping: shippingResult
+        });
+      } catch (shippingError) {
+        return res.status(200).json({
+          message: 'Payment simulation successful but shipping order creation failed',
+          order_status: 'for_packing',
+          payment_status: 'paid',
+          transaction_id: transactionId,
+          reference_number: refno,
+          error: shippingError.message
+        });
+      }
+    } else if (status === 'F') {
+      await db.query(
+        'UPDATE orders SET order_status = ? WHERE order_id = ?',
+        ['cancelled', orderId]
+      );
+      
+      return res.status(200).json({
+        message: 'Payment simulation: Failed payment',
+        order_status: 'cancelled',
+        payment_status: 'failed',
+        transaction_id: transactionId,
+        reference_number: refno
+      });
+    } else if (status === 'P') {
+      await db.query(
+        'UPDATE orders SET order_status = ? WHERE order_id = ?',
+        ['pending', orderId]
+      );
+      
+      return res.status(200).json({
+        message: 'Payment simulation: Pending payment',
+        order_status: 'pending',
+        payment_status: 'pending',
+        transaction_id: transactionId,
+        reference_number: refno
+      });
+    }
+    
+    return res.status(200).json({
+      message: `Payment simulation with status: ${status}`,
+      order_status: orders[0].order_status,
+      payment_status: mapDragonpayStatus(status),
+      transaction_id: transactionId,
+      reference_number: refno
+    });
+  } catch (error) {
+    console.error('Payment simulation error:', error);
+    res.status(500).json({ 
+      message: 'Failed to simulate payment',
+      error: error.message
+    });
+  }
+};
+
+// Prepare order for confirmation
+exports.prepareForConfirmation = async (req, res) => {
+  try {
+    const { orderId } = req.body;
+    
+    if (!orderId) {
+      return res.status(400).json({ message: 'orderId is required' });
+    }
+    
+    const [orders] = await db.query('SELECT * FROM orders WHERE order_id = ?', [orderId]);
+    
+    if (orders.length === 0) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+    
+    await db.query(
+      'UPDATE orders SET order_status = ?, payment_status = ? WHERE order_id = ?',
+      ['processing', 'awaiting_for_confirmation', orderId]
+    );
+    
+    const [payments] = await db.query('SELECT * FROM payments WHERE order_id = ?', [orderId]);
+    
+    if (payments.length > 0) {
+      await db.query(
+        'UPDATE payments SET status = ? WHERE order_id = ?',
+        ['waiting_for_confirmation', orderId]
+      );
+    } else {
+      await db.query(
+        'INSERT INTO payments (order_id, user_id, amount, payment_method, status) VALUES (?, ?, ?, ?, ?)',
+        [orderId, orders[0].user_id, orders[0].total_price, 'dragonpay', 'waiting_for_confirmation']
+      );
+    }
+    
+    res.status(200).json({
+      message: 'Order prepared for admin confirmation',
+      order_id: orderId,
+      status: 'processing',
+      payment_status: 'awaiting_for_confirmation'
+    });
+  } catch (error) {
+    console.error('Error preparing order for confirmation:', error);
+    res.status(500).json({ 
+      message: 'Failed to prepare order',
+      error: error.message
+    });
+  }
+};
+
+// Test postback endpoint
+exports.testPostback = (req, res) => {
+  console.log('Test postback received:', req.body);
+  console.log('Headers:', req.headers);
+  console.log('IP:', req.ip);
+  res.status(200).send('result=OK');
+};
+
+// Test GET postback endpoint
+exports.testGetPostback = (req, res) => {
+  console.log('Test GET postback received:', req.query);
+  console.log('Headers:', req.headers);
+  console.log('IP:', req.ip);
+  
+  res.status(200).json({
+    message: 'Postback URL is accessible',
+    timestamp: new Date().toISOString(),
+    received_data: {
+      query: req.query,
+      headers: req.headers,
+      ip: req.ip
+    }
+  });
+};
+
+// Payment Status Checker Endpoints
+exports.checkPaymentStatus = async (req, res) => {
+  try {
+    console.log('Manual payment status check triggered');
+    const result = await runManualPaymentCheck();
+    
+    res.json({
+      success: true,
+      message: 'Payment status check completed',
+      result: result
+    });
+  } catch (error) {
+    console.error('Error in manual payment status check:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to check payment status',
+      error: error.message
+    });
+  }
+};
+
+exports.triggerPaymentCheck = async (req, res) => {
+  try {
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Timeout')), 5000)
+    );
+    
+    const checkPromise = runManualPaymentCheck();
+    
+    try {
+      const result = await Promise.race([checkPromise, timeoutPromise]);
+      
+      res.json({
+        success: true,
+        message: 'Payment status check triggered successfully',
+        checked: result.checked || 0,
+        updated: result.updated || 0
+      });
+    } catch (timeoutError) {
+      res.json({
+        success: true,
+        message: 'Payment status check started in background',
+        note: 'Check is running, please wait for updates'
+      });
+    }
+  } catch (error) {
+    console.error('Error triggering payment status check:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to trigger payment status check',
+      error: error.message
+    });
+  }
+};
+
+exports.getPaymentCheckerStatus = (req, res) => {
+  try {
+    const status = getPaymentStatusCheckerStatus();
+    res.json({
+      success: true,
+      status: status
+    });
+  } catch (error) {
+    console.error('Error getting payment checker status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get payment checker status',
+      error: error.message
+    });
+  }
+};
+
+exports.inquireTransaction = async (req, res) => {
+  try {
+    const { txnId } = req.params;
+    
+    if (!txnId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Transaction ID is required'
+      });
+    }
+
+    console.log(`Manual inquiry for transaction: ${txnId}`);
+    const result = await dragonpayService.inquireTransaction(txnId);
+    
+    res.json({
+      success: true,
+      message: 'Transaction inquiry completed',
+      inquiry: result
+    });
+  } catch (error) {
+    console.error('Error in transaction inquiry:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to inquiry transaction',
+      error: error.message
+    });
+  }
+};
+
+exports.getPendingPayments = async (req, res) => {
+  try {
+    const [pendingPayments] = await db.query(`
+      SELECT 
+        o.order_id,
+        o.order_code,
+        o.order_status,
+        o.payment_status,
+        o.total_price,
+        p.payment_id,
+        p.reference_number,
+        p.status as payment_status_detail,
+        p.created_at as payment_created,
+        u.first_name,
+        u.last_name,
+        u.email,
+        TIMESTAMPDIFF(HOUR, p.created_at, NOW()) as hours_since_payment
+      FROM orders o
+      JOIN payments p ON o.order_id = p.order_id
+      JOIN users u ON o.user_id = u.user_id
+      WHERE o.payment_status = 'awaiting_for_confirmation'
+        AND p.reference_number IS NOT NULL
+        AND p.reference_number != ''
+        AND p.status = 'waiting_for_confirmation'
+        AND p.created_at > DATE_SUB(NOW(), INTERVAL 14 DAY)
+      ORDER BY p.created_at DESC
+    `);
+
+    res.json({
+      success: true,
+      count: pendingPayments.length,
+      payments: pendingPayments
+    });
+  } catch (error) {
+    console.error('Error getting pending payments:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get pending payments',
+      error: error.message
+    });
+  }
+};

@@ -37,9 +37,22 @@ export const useCartData = () => {
           return dbCartItems;
         } catch (error) {
           console.error('[useCart] Error fetching cart from database:', error);
-          // Fallback to localStorage
-          const savedCart = getCart('guest');
-          return Array.isArray(savedCart) ? savedCart : [];
+          
+          // Check if it's a token/auth issue
+          if (error.response?.status === 401) {
+            console.log('[useCart] Authentication error, clearing user data');
+            // Let the auth interceptor handle the redirect
+            return [];
+          }
+          
+          // For server errors, try to use local storage as fallback
+          console.log('[useCart] Server error, falling back to local storage');
+          const savedCart = getCart(user.id) || getCart('guest');
+          if (Array.isArray(savedCart) && savedCart.length > 0) {
+            console.log('[useCart] Using fallback cart from storage:', savedCart.length, 'items');
+            return savedCart;
+          }
+          return [];
         }
       } else {
         // Load from localStorage for guest users

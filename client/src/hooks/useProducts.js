@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import axios from 'axios'
+import api from '../services/api'
 
 // In development, use relative paths to leverage Vite's proxy
 const isDevelopment = process.env.NODE_ENV === 'development';
@@ -17,7 +17,7 @@ export const useProducts = () => {
   const getNewArrivals = useQuery({
     queryKey: ['products', 'new-arrivals'],
     queryFn: async () => {
-      const { data } = await axios.get(`${API_URL}/products?limit=20`)
+      const { data } = await api.get('/products?limit=20')
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       
@@ -42,7 +42,7 @@ export const useProducts = () => {
   const getAllProducts = useQuery({
     queryKey: ['products'],
     queryFn: async () => {
-      const { data } = await axios.get(`${API_URL}/products`)
+      const { data } = await api.get('/products')
       // Ensure we return proper structure with products array
       if (!data || typeof data !== 'object') {
         return { products: [] }
@@ -82,7 +82,7 @@ export const useProducts = () => {
   const getProduct = (id) => useQuery({
     queryKey: ['products', id],
     queryFn: async () => {
-      const { data } = await axios.get(`${API_URL}/products/${id}`)
+      const { data } = await api.get(`/products/${id}`)
       return data
     },
     enabled: !!id,
@@ -104,7 +104,7 @@ export const useProducts = () => {
   const getBestSellers = useQuery({
     queryKey: ['products', 'best-sellers'],
     queryFn: async () => {
-      const { data } = await axios.get(`${API_URL}/products`)
+      const { data } = await api.get('/products')
       const allProducts = Array.isArray(data?.products) ? data.products : [];
       const bestSellers = allProducts
         .filter(product => product.is_featured)
@@ -121,7 +121,7 @@ export const useProducts = () => {
   // Create product mutation
   const createProduct = useMutation({
     mutationFn: async (newProduct) => {
-      const { data } = await axios.post(`${API_URL}/products`, newProduct)
+      const { data } = await api.post('/products', newProduct)
       return data
     },
     onSuccess: (newProduct) => {
@@ -148,7 +148,7 @@ export const useProducts = () => {
   // Update product mutation
   const updateProduct = useMutation({
     mutationFn: async ({ id, ...updateData }) => {
-      const { data } = await axios.put(`${API_URL}/products/${id}`, updateData)
+      const { data } = await api.put(`/products/${id}`, updateData)
       return data
     },
     onSuccess: (updatedProduct, variables) => {
@@ -168,7 +168,7 @@ export const useProducts = () => {
   // Delete product mutation
   const deleteProduct = useMutation({
     mutationFn: async (id) => {
-      await axios.delete(`${API_URL}/products/${id}`)
+      await api.delete(`/products/${id}`)
     },
     onSuccess: (_, deletedId) => {
       // Optimistically update the cache

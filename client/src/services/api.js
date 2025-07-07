@@ -63,12 +63,13 @@ api.interceptors.response.use(
         isRefreshingToken = true;
         console.log('Token expired, attempting refresh...');
         
-        // Create a new promise that will be resolved with the new token
-        const tokenRefreshPromise = new Promise((resolve, reject) => {
-          pendingRequests.push(resolve);
-        });
+        const currentToken = getAuthToken();
+        if (!currentToken) {
+          throw new Error('No token to refresh');
+        }
 
-        const refreshResponse = await authService.refreshToken();
+        // Create a new request without the interceptor's Authorization header
+        const refreshResponse = await axios.post('/api/auth/refresh', { token: currentToken });
         
         if (refreshResponse?.data?.token) {
           const newToken = refreshResponse.data.token;
@@ -77,10 +78,6 @@ api.interceptors.response.use(
           // Update the original request with new token
           originalRequest.headers.Authorization = `Bearer ${newToken}`;
           
-          // Resolve all pending requests with new token
-          pendingRequests.forEach(cb => cb(newToken));
-          pendingRequests = [];
-          
           // Retry the original request
           return api(originalRequest);
         } else {
@@ -88,8 +85,6 @@ api.interceptors.response.use(
         }
       } catch (refreshError) {
         console.error('Token refresh failed:', refreshError);
-        pendingRequests.forEach(cb => cb(null));
-        pendingRequests = [];
         
         // Clear auth data
         removeAuthToken();

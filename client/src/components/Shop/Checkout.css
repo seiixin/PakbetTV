@@ -200,6 +200,11 @@
   font-size: 15px;
 }
 
+.summary-row span:last-child {
+  text-align: right;
+  min-width: 100px;
+}
+
 .summary-row.total {
   border-top: 2px solid #d4af37;
   margin-top: 10px;
@@ -207,6 +212,11 @@
   font-weight: 600;
   color: #800000;
   font-size: 18px;
+}
+
+.summary-row.total span:last-child {
+  text-align: right;
+  min-width: 100px;
 }
 
 /* Shipping fee section styling */
@@ -264,22 +274,26 @@
 
 .back-to-cart-button {
   background-color: white;
-  color: #800000;
-  border: 2px solid #800000;
+  color: #A2201A;
+  border: 2px solid #A2201A;
 }
 
 .back-to-cart-button:hover:not(:disabled) {
-  background-color: #f9f9f9;
+  background-color: white;
+  border-color: #8a1c16;
+  color: #8a1c16;
 }
 
 .place-order-button {
-  background-color: #800000;
+  background: linear-gradient(135deg, #A2201A 0%, #c72c21 100%);
   color: white;
   border: none;
 }
 
 .place-order-button:hover:not(:disabled) {
-  background-color: #660000;
+  background: linear-gradient(135deg, #8a1c16 0%, #a12319 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(162, 32, 26, 0.2);
 }
 
 .place-order-button:disabled,
@@ -347,8 +361,8 @@
 .update-address-button {
   margin-top: 10px;
   padding: 8px 16px;
-  background-color: #7D2027;
-  border: 1px solid #7D2027;
+  background: linear-gradient(135deg, #A2201A 0%, #c72c21 100%);
+  color: white;
   border-radius: 4px;
   cursor: pointer;
   font-size: 14px;
@@ -356,7 +370,9 @@
 }
 
 .update-address-button:hover {
-  background-color: #e0e0e0;
+  background: linear-gradient(135deg, #8a1c16 0%, #a12319 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(162, 32, 26, 0.2);
 }
 
 .update-address-button.primary {
@@ -400,7 +416,7 @@
   appearance: none;
   width: 20px;
   height: 20px;
-  border: 2px solid #800000;
+  border: 2px solid #A2201A;
   border-radius: 3px;
   margin: 0;
   flex-shrink: 0;
@@ -411,8 +427,8 @@
 }
 
 .terms-checkbox:checked {
-  background-color: #800000;
-  border-color: #800000;
+  background: linear-gradient(135deg, #A2201A 0%, #c72c21 100%);
+  border-color: #A2201A;
 }
 
 .terms-checkbox:checked::after {
@@ -427,7 +443,7 @@
 }
 
 .terms-checkbox:hover {
-  border-color: #660000;
+  border-color: #8a1c16;
 }
 
 .terms-text {
@@ -439,7 +455,7 @@
 .terms-link {
   background: none;
   border: none;
-  color: #800000;
+  color: #A2201A;
   text-decoration: underline;
   cursor: pointer;
   font-size: inherit;
@@ -450,7 +466,7 @@
 }
 
 .terms-link:hover {
-  color: #660000;
+  color: #8a1c16;
   text-decoration: none;
 }
 
@@ -458,11 +474,12 @@
 .place-order-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
-  background-color: #cccccc;
-  border-color: #cccccc;
+  background: linear-gradient(135deg, #cccccc 0%, #bbbbbb 100%);
+  border: none;
+  transform: none;
+  box-shadow: none;
 }
 
-/* Checkout Container - Remove conflicting margin, body padding handles navbar overlap */
 .checkout-shop-container {
   padding: 2rem;
   background-color: white;

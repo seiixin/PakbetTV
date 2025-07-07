@@ -63,7 +63,7 @@
 
 /* Consultation Container */
 .consultation-container {
-  max-width: 1200px;
+  max-width: 1000px;
   margin: 4rem auto;
   padding: 0 1.5rem;
 }
@@ -91,47 +91,48 @@
 .consultation-benefits {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 2rem;
-  margin-bottom: 4rem;
+  gap: 1.5rem;
+  margin: 2rem 0 3rem;
 }
 
 .benefit-item {
   background-color: white;
-  padding: 2rem;
+  padding: 1.8rem 1.5rem;
   border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
   text-align: center;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transition: transform 0.3s ease;
 }
 
 .benefit-item:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+  transform: translateY(-3px);
 }
 
 .benefit-item i {
-  font-size: 2.5rem;
+  font-size: 2rem;
   color: #8b1d0e;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
 }
 
 .benefit-item h3 {
-  font-size: 1.3rem;
-  margin-bottom: 0.5rem;
+  font-size: 1.1rem;
+  margin-bottom: 0.8rem;
   color: #333;
+  font-weight: 600;
 }
 
 .benefit-item p {
   color: #666;
-  font-size: 1rem;
+  font-size: 0.9rem;
+  line-height: 1.4;
 }
 
 /* Service Cards */
 .consultation-services {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 2.5rem;
-  margin-bottom: 4rem;
+  gap: 2rem;
+  margin-bottom: 3rem;
 }
 
 .service-card {
@@ -142,6 +143,8 @@
   display: flex;
   flex-direction: column;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
+  max-width: 450px;
+  margin: 0 auto;
 }
 
 .service-card:hover {
@@ -150,14 +153,20 @@
 }
 
 .service-image {
-  height: 250px;
+  width: 100%;
+  padding-bottom: 90%; /* Reduces height while maintaining aspect ratio */
+  position: relative;
   overflow: hidden;
 }
 
 .service-image img {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
   transition: transform 0.5s ease;
 }
 
@@ -166,35 +175,42 @@
 }
 
 .service-details {
-  padding: 2rem;
+  padding: 1.2rem;
   flex: 1;
   display: flex;
   flex-direction: column;
+  gap: 0.5rem;
 }
 
 .service-details h3 {
-  font-size: 1.5rem;
-  margin-bottom: 1rem;
+  font-size: 1.2rem;
+  margin-bottom: 0.5rem;
   color: #333;
 }
 
 .service-description {
   color: #666;
-  margin-bottom: 1.5rem;
+  margin-bottom: 0.8rem;
   flex: 1;
-  line-height: 1.6;
+  line-height: 1.4;
+  font-size: 0.9rem;
+  max-height: 4.2em; /* Limits to 3 lines of text */
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
 }
 
 .service-meta {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
 }
 
 .service-duration {
   color: #666;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   display: flex;
   align-items: center;
 }
@@ -204,7 +220,7 @@
 }
 
 .service-price {
-  font-size: 1.3rem;
+  font-size: 1.2rem;
   font-weight: 600;
   color: #8b1d0e;
 }
@@ -213,11 +229,12 @@
   background-color: #8b1d0e;
   color: white;
   border: none;
-  padding: 1rem;
+  padding: 0.8rem;
   border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
   transition: background-color 0.3s ease;
+  font-size: 0.95rem;
 }
 
 .book-button:hover {
@@ -227,57 +244,60 @@
 /* Consultation Process */
 .consultation-process {
   text-align: center;
-  margin-bottom: 4rem;
+  margin: 4rem 0;
 }
 
 .consultation-process h2 {
   font-size: 2rem;
-  margin-bottom: 2.5rem;
+  margin-bottom: 3rem;
   color: #333;
+  font-weight: 600;
 }
 
 .process-steps {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 2rem;
+  gap: 1.5rem;
 }
 
 .process-step {
   position: relative;
-  padding: 2rem;
+  padding: 2rem 1.5rem;
   background-color: white;
   border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
   transition: transform 0.3s ease;
 }
 
 .process-step:hover {
-  transform: translateY(-5px);
+  transform: translateY(-3px);
 }
 
 .step-number {
-  width: 50px;
-  height: 50px;
-  background-color: #8b1d0e;
+  width: 45px;
+  height: 45px;
+  background: linear-gradient(135deg, #A2201A 0%, #c72c21 100%);
   color: white;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.5rem;
+  font-size: 1.3rem;
   font-weight: 600;
-  margin: 0 auto 1.5rem;
+  margin: 0 auto 1.2rem;
 }
 
 .process-step h3 {
-  font-size: 1.3rem;
-  margin-bottom: 1rem;
+  font-size: 1.1rem;
+  margin-bottom: 0.8rem;
   color: #333;
+  font-weight: 600;
 }
 
 .process-step p {
   color: #666;
-  font-size: 1rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 
 /* CTA Section */
@@ -312,6 +332,8 @@
   border-radius: 50px;
   cursor: pointer;
   transition: all 0.3s ease;
+  text-decoration: none;
+  display: inline-block;
 }
 
 .cta-button:hover {
@@ -321,16 +343,31 @@
 }
 
 /* Responsive Design */
+@media (max-width: 1200px) {
+  .consultation-services {
+    gap: 1.5rem;
+  }
+  
+  .service-card {
+    max-width: 400px;
+  }
+}
+
 @media (max-width: 1024px) {
   .consultation-benefits,
   .process-steps {
     grid-template-columns: repeat(2, 1fr);
+    gap: 1.2rem;
   }
 }
 
 @media (max-width: 768px) {
   .consultation-services {
     grid-template-columns: 1fr;
+  }
+  
+  .service-card {
+    max-width: 450px;
   }
   
   .blog-hero-text {
@@ -340,12 +377,26 @@
   .consultation-header h1 {
     font-size: 2rem;
   }
+  
+  .service-image {
+    padding-bottom: 75%; /* Maintain shorter aspect ratio on mobile */
+  }
+  
+  .service-details {
+    padding: 1rem;
+  }
 }
 
 @media (max-width: 576px) {
   .consultation-benefits,
   .process-steps {
     grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .benefit-item,
+  .process-step {
+    padding: 1.5rem;
   }
   
   .blog-hero {
@@ -366,7 +417,16 @@
     font-size: 1.8rem;
   }
   
+  .service-card {
+    max-width: 100%;
+  }
+  
   .service-image {
-    height: 200px;
+    padding-bottom: 100%; /* Maintain square ratio on mobile */
+  }
+  
+  .consultation-process h2 {
+    font-size: 1.6rem;
+    margin-bottom: 2rem;
   }
 } 

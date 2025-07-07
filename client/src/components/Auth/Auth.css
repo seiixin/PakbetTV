@@ -441,30 +441,46 @@
   margin: auto;
 }
 
-/* Custom scrollbar for modal content */
-.modal-content::-webkit-scrollbar {
-  width: 4px;
+/* Common scrollbar styling for all modals and scrollable content */
+.modal-content,
+.privacy-policy-content,
+.legal-modal-body,
+.auth-form {
+  scrollbar-width: thin; /* For Firefox */
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent; /* For Firefox */
 }
 
-.modal-content::-webkit-scrollbar-track {
-  background: rgba(162, 32, 26, 0.03);
-  border-radius: 6px;
+/* Webkit scrollbar styling (Chrome, Safari, Edge) */
+.modal-content::-webkit-scrollbar,
+.privacy-policy-content::-webkit-scrollbar,
+.legal-modal-body::-webkit-scrollbar,
+.auth-form::-webkit-scrollbar {
+  width: 8px;
 }
 
-.modal-content::-webkit-scrollbar-thumb {
-  background: linear-gradient(135deg, #A2201A 0%, #8a1c16 100%);
-  border-radius: 6px;
-  transition: background 0.3s ease;
+.modal-content::-webkit-scrollbar-track,
+.privacy-policy-content::-webkit-scrollbar-track,
+.legal-modal-body::-webkit-scrollbar-track,
+.auth-form::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 4px;
 }
 
-.modal-content::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(135deg, #8a1c16 0%, #721610 100%);
+.modal-content::-webkit-scrollbar-thumb,
+.privacy-policy-content::-webkit-scrollbar-thumb,
+.legal-modal-body::-webkit-scrollbar-thumb,
+.auth-form::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
-/* Firefox scrollbar styling */
-.modal-content {
-  scrollbar-width: thin;
-  scrollbar-color: #A2201A rgba(162, 32, 26, 0.03);
+.modal-content::-webkit-scrollbar-thumb:hover,
+.privacy-policy-content::-webkit-scrollbar-thumb:hover,
+.legal-modal-body::-webkit-scrollbar-thumb:hover,
+.auth-form::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 0, 0, 0.3);
 }
 
 /* Prevent body scroll when modal is open */

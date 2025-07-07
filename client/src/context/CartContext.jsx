@@ -16,12 +16,17 @@ export const CartProvider = ({ children }) => {
 
   // Load cart data based on user authentication status
   useEffect(() => {
+    let isSubscribed = true;
     const loadCart = async () => {
       if (user?.id) {
         // User is logged in - fetch cart from database
         await fetchCartFromDatabase();
-        // Merge guest cart if exists
-        await mergeGuestCartWithUserCart();
+        // Only merge guest cart once per session
+        const hasMerged = sessionStorage.getItem(`cart_merged_${user.id}`);
+        if (!hasMerged) {
+          await mergeGuestCartWithUserCart();
+          sessionStorage.setItem(`cart_merged_${user.id}`, 'true');
+        }
       } else {
         // User is not logged in - load from localStorage
         loadCartFromStorage();
@@ -29,11 +34,31 @@ export const CartProvider = ({ children }) => {
     };
 
     loadCart();
+    return () => {
+      isSubscribed = false;
+    };
   }, [user]);
+
+  // Add rate limiting for cart operations
+  const rateLimitedOperation = (operation) => {
+    const now = Date.now();
+    const lastOperation = parseInt(sessionStorage.getItem('last_cart_operation') || '0');
+    const minDelay = 500; // 500ms minimum delay between operations
+
+    if (now - lastOperation < minDelay) {
+      console.log('[CartContext] Operation throttled');
+      return false;
+    }
+
+    sessionStorage.setItem('last_cart_operation', now.toString());
+    return true;
+  };
 
   // Fetch cart from database for authenticated users
   const fetchCartFromDatabase = async () => {
     if (!user?.id) return;
+    
+    if (!rateLimitedOperation('fetch')) return;
     
     setLoading(true);
     try {
@@ -55,8 +80,19 @@ export const CartProvider = ({ children }) => {
         selected: true // Default to selected
       }));
       
-      console.log('[CartContext] Loaded cart from database:', dbCartItems);
-      setCartItems(dbCartItems);
+      // Validate cart items
+      const validatedItems = dbCartItems.filter(item => {
+        return (
+          item.product_id && 
+          typeof item.quantity === 'number' && 
+          item.quantity > 0 &&
+          typeof item.price === 'number' && 
+          item.price >= 0
+        );
+      });
+      
+      console.log('[CartContext] Loaded cart from database:', validatedItems);
+      setCartItems(validatedItems);
     } catch (error) {
       console.error('[CartContext] Error fetching cart from database:', error);
       // Fallback to localStorage on error
@@ -98,8 +134,16 @@ export const CartProvider = ({ children }) => {
     }
   };
 
-  // Add item to cart with database sync
+  // Add item to cart with rate limiting and validation
   const addToCart = async (product, quantity = 1) => {
+    if (!rateLimitedOperation('add')) return;
+    
+    // Validate input
+    if (!product?.id || typeof quantity !== 'number' || quantity <= 0) {
+      console.error('[CartContext] Invalid product or quantity');
+      return;
+    }
+
     console.log('[CartContext] Adding to cart:', { product, quantity });
     
     // Ensure image URL is properly formatted
@@ -367,44 +411,43 @@ export const CartProvider = ({ children }) => {
     setCartItems([]);
   };
 
-  // Merge guest cart with user cart when logging in
+  // Merge guest cart with user cart securely
   const mergeGuestCartWithUserCart = async () => {
-    if (!user?.id) {
-      console.log('Cannot merge carts: user not logged in');
-      return; 
-    }
+    if (!user?.id) return;
     
     try {
       const guestCart = getCart('guest');
-      console.log(`Merging guest cart (${guestCart?.length || 0} items) with user cart`);
+      console.log('Merging guest cart', guestCart?.length || 0, 'items) with user cart');
       
-      if (guestCart && guestCart.length > 0) {
-        setLoading(true);
-        
-        // Add each guest cart item to the database
-        for (const item of guestCart) {
-          try {
-            await api.post('/cart', {
-              product_id: item.id || item.product_id,
-              variant_id: item.variant_id || null,
-              quantity: item.quantity
-            });
-          } catch (error) {
-            console.error('Error adding guest cart item to database:', error);
-          }
+      if (!Array.isArray(guestCart) || guestCart.length === 0) {
+        return;
+      }
+
+      // Validate guest cart items before merging
+      const validGuestItems = guestCart.filter(item => {
+        return (
+          item.id &&
+          typeof item.quantity === 'number' &&
+          item.quantity > 0 &&
+          typeof item.price === 'number' &&
+          item.price >= 0
+        );
+      });
+
+      // Add items to user cart with rate limiting
+      for (const item of validGuestItems) {
+        if (!rateLimitedOperation('merge')) {
+          await new Promise(resolve => setTimeout(resolve, 500));
         }
         
-        // Clear guest cart
-        removeCart('guest');
-        console.log('Guest cart merged and removed');
-        
-        // Refresh cart from database
-        await fetchCartFromDatabase();
-        setLoading(false);
+        await addToCart(item, item.quantity);
       }
+
+      // Clear guest cart after successful merge
+      removeCart('guest');
+      console.log('[CartContext] Guest cart merged and cleared');
     } catch (error) {
-      console.error('Error merging guest cart with user cart:', error);
-      setLoading(false);
+      console.error('[CartContext] Error merging guest cart:', error);
     }
   };
 

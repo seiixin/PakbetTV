@@ -1,18 +1,10 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import './Footer.css';
-import LegalModal from './common/LegalModal';
+import { useLegalModal } from '../context/LegalModalContext';
 
 const Footer = ({ forceShow = true }) => {
-  const [legalModal, setLegalModal] = useState({ isOpen: false, type: 'terms' });
-
-  const openLegalModal = (type) => {
-    setLegalModal({ isOpen: true, type });
-  };
-
-  const closeLegalModal = () => {
-    setLegalModal({ isOpen: false, type: 'terms' });
-  };
+  const { openModal } = useLegalModal();
 
   return (
     <footer className={`modern-footer ${!forceShow ? 'scroll-visible' : ''}`}>
@@ -47,17 +39,17 @@ const Footer = ({ forceShow = true }) => {
 
         <div className="footer-section">
           <h3>FOLLOW US</h3>
-          <div className="social-icons">
-            <a href="https://www.facebook.com/pakbettv" className="social-icon">
+          <div className="social-links">
+            <a href="https://www.facebook.com/pakbettv" target="_blank" rel="noopener noreferrer">
               <i className="fab fa-facebook-f"></i>
             </a>
-            <a href="https://www.instagram.com/pakbettv/" className="social-icon">
+            <a href="https://www.instagram.com/pakbettv/" target="_blank" rel="noopener noreferrer">
               <i className="fab fa-instagram"></i>
             </a>
-            <a href="https://www.tiktok.com/@pakbettv.com?is_from_webapp=1&sender_device=pc" className="social-icon">
+            <a href="https://www.tiktok.com/@pakbettv.com?is_from_webapp=1&sender_device=pc" target="_blank" rel="noopener noreferrer">
               <i className="fab fa-tiktok"></i>
             </a>
-            <a href="https://www.youtube.com/c/PakBetTV" className="social-icon">
+            <a href="https://www.youtube.com/c/PakBetTV" target="_blank" rel="noopener noreferrer">
               <i className="fab fa-youtube"></i>
             </a>
           </div>
@@ -77,26 +69,25 @@ const Footer = ({ forceShow = true }) => {
           <div className="footer-links">
             <button 
               className="footer-link-button" 
-              onClick={() => openLegalModal('terms')}
+              onClick={() => openModal('terms')}
             >
               Terms of Use
             </button>
-            <Link to="#">Privacy Policy</Link>
             <button 
               className="footer-link-button" 
-              onClick={() => openLegalModal('refund')}
+              onClick={() => openModal('privacy')}
+            >
+              Privacy Policy
+            </button>
+            <button 
+              className="footer-link-button" 
+              onClick={() => openModal('refund')}
             >
               Refund Policy
             </button>
           </div>
         </div>
       </div>
-      
-      <LegalModal 
-        isOpen={legalModal.isOpen} 
-        onClose={closeLegalModal} 
-        type={legalModal.type} 
-      />
     </footer>
   );
 };

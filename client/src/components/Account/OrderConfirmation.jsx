@@ -41,6 +41,17 @@ function OrderConfirmation() {
     }, 2000);
   };
 
+  const handleMarkReceived = async () => {
+    try {
+      const response = await api.put(`/orders/${orderId}/mark-received`);
+      setOrder(prev => ({ ...prev, order_status: 'completed' }));
+      notify.success('Thank you! Order marked as received.');
+    } catch (err) {
+      console.error('Mark received error:', err);
+      notify.error(err.response?.data?.message || 'Failed to update order');
+    }
+  };
+
   useEffect(() => {
     const fetchOrderDetails = async () => {
       try {
@@ -127,6 +138,15 @@ function OrderConfirmation() {
               title="Cancel this order"
             >
               Cancel Order
+            </button>
+          )}
+          {['delivered','received'].includes(order.order_status) && (
+            <button 
+              className="cancel-order-btn"
+              onClick={handleMarkReceived}
+              title="Confirm you have received this order"
+            >
+              Order Received
             </button>
           )}
           </div>

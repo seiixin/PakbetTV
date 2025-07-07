@@ -17,7 +17,7 @@ class PaymentStatusChecker {
    */
   async checkPendingPayments() {
     if (this.isRunning) {
-      console.log('Payment status check already running, skipping...');
+      console.log('Payment status check already running.');
       return { status: 'skipped', message: 'Already running' };
     }
 
@@ -25,7 +25,7 @@ class PaymentStatusChecker {
     const startTime = Date.now();
     
     try {
-      console.log('=== Starting Dragonpay Transaction Status Query Check ===');
+      console.log('Starting Dragonpay status check.');
       
       // Get all orders with payment awaiting confirmation that have reference numbers
       const [pendingOrders] = await db.query(`
@@ -56,7 +56,7 @@ class PaymentStatusChecker {
         ORDER BY p.created_at DESC
       `);
 
-      console.log(`Found ${pendingOrders.length} orders with pending payments for Dragonpay verification`);
+      console.log(`Found ${pendingOrders.length} pending Dragonpay payments.`);
 
       if (pendingOrders.length === 0) {
         return {
@@ -80,12 +80,12 @@ class PaymentStatusChecker {
         try {
           // Skip if we already processed this transaction in this run
           if (this.processedTransactions.has(order.reference_number)) {
-            console.log(`Skipping already processed transaction: ${order.reference_number}`);
+            console.log(`Skipping transaction: ${order.reference_number}`);
             skippedCount++;
             continue;
           }
 
-          console.log(`🔍 Querying Dragonpay for order ${order.order_id} (${order.order_code}) - Reference: ${order.reference_number}`);
+          console.log(`Querying Dragonpay for order ${order.order_id}.`);
           
           // Query Dragonpay Transaction Status API
           const inquiryResult = await dragonpayService.inquireTransaction(order.reference_number);
@@ -111,7 +111,7 @@ class PaymentStatusChecker {
           const shouldUpdate = this.shouldUpdateOrderStatus(order, inquiryResult);
           
           if (shouldUpdate) {
-            console.log(`📝 Updating order ${order.order_id} based on Dragonpay status: ${inquiryResult.status}`);
+            console.log(`Updating order ${order.order_id} to status: ${inquiryResult.status}`);
             await this.updateOrderPaymentStatus(order, inquiryResult);
             result.updated = true;
             result.newStatus = dragonpayService.mapStatusToOrderPaymentStatus(inquiryResult.status);
@@ -119,9 +119,9 @@ class PaymentStatusChecker {
             result.action = inquiryResult.status.toUpperCase() === 'S' ? 'complete_transaction' : 'update_status';
             updatedCount++;
             
-            console.log(`✅ Updated order ${order.order_id}: ${inquiryResult.status} - ${inquiryResult.message}`);
+            console.log(`Updated order ${order.order_id}: ${inquiryResult.status}`);
           } else {
-            console.log(`ℹ️  No update needed for order ${order.order_id}: Status ${inquiryResult.status} - ${inquiryResult.message}`);
+            console.log(`No update needed for order ${order.order_id}.`);
           }
 
           results.push(result);
@@ -130,7 +130,7 @@ class PaymentStatusChecker {
           await this.delay(1000);
 
         } catch (error) {
-          console.error(`❌ Error checking Dragonpay status for order ${order.order_id}:`, error.message);
+          console.error(`Error checking Dragonpay status for order ${order.order_id}:`, error.message);
           errorCount++;
           
           // Add to retry queue if not already there
@@ -139,7 +139,7 @@ class PaymentStatusChecker {
           
           if (currentRetries < this.maxRetries) {
             this.retryQueue.set(retryKey, currentRetries + 1);
-            console.log(`🔄 Added order ${order.order_id} to retry queue (attempt ${currentRetries + 1}/${this.maxRetries})`);
+            console.log(`Added order ${order.order_id} to retry queue (${currentRetries + 1}/${this.maxRetries})`);
           }
           
           results.push({
@@ -155,7 +155,7 @@ class PaymentStatusChecker {
 
       // Process retry queue
       if (this.retryQueue.size > 0) {
-        console.log(`🔄 Processing ${this.retryQueue.size} items in retry queue...`);
+        console.log(`Processing ${this.retryQueue.size} retry items.`);
         await this.processRetryQueue();
       }
 
@@ -170,14 +170,14 @@ class PaymentStatusChecker {
         results: results
       };
 
-      console.log(`=== Dragonpay Transaction Status Check Completed ===`);
-      console.log(`📊 Summary: Checked: ${checkedCount}, Updated: ${updatedCount}, Errors: ${errorCount}, Skipped: ${skippedCount}`);
-      console.log(`⏱️  Duration: ${summary.duration}ms`);
+      console.log('Dragonpay status check completed.');
+      console.log(`Summary: Checked: ${checkedCount}, Updated: ${updatedCount}, Errors: ${errorCount}, Skipped: ${skippedCount}`);
+      console.log(`Duration: ${summary.duration}ms`);
 
       return summary;
 
     } catch (error) {
-      console.error('❌ Error in Dragonpay payment status checker:', error);
+      console.error('Error in Dragonpay payment status checker:', error);
       return {
         status: 'error',
         message: error.message,
@@ -202,7 +202,7 @@ class PaymentStatusChecker {
       const [orderId, referenceNumber] = retryKey.split('-');
       
       try {
-        console.log(`🔄 Retrying Dragonpay check for order ${orderId} (attempt ${retryCount}/${this.maxRetries})`);
+        console.log(`Retrying Dragonpay check for order ${orderId} (attempt ${retryCount}/${this.maxRetries})`);
         
         // Get order details again
         const [orders] = await db.query(`
@@ -219,7 +219,7 @@ class PaymentStatusChecker {
           
           if (this.shouldUpdateOrderStatus(order, inquiryResult)) {
             await this.updateOrderPaymentStatus(order, inquiryResult);
-            console.log(`✅ Retry successful for order ${orderId}: ${inquiryResult.status}`);
+            console.log(`Retry successful for order ${orderId}: ${inquiryResult.status}`);
           }
           
           // Remove from retry queue on success
@@ -229,10 +229,10 @@ class PaymentStatusChecker {
         await this.delay(2000); // Longer delay for retries
         
       } catch (error) {
-        console.error(`❌ Retry failed for order ${orderId}:`, error.message);
+        console.error(`Retry failed for order ${orderId}:`, error.message);
         
         if (retryCount >= this.maxRetries) {
-          console.log(`🚫 Max retries reached for order ${orderId}, removing from queue`);
+          console.log(`Max retries reached for order ${orderId}, removing from queue`);
           this.retryQueue.delete(retryKey);
         }
       }
@@ -264,7 +264,7 @@ class PaymentStatusChecker {
     
     // After 7 days, consider unknown/pending as expired
     if (daysSincePayment > 7 && ['U', 'P'].includes(dragonpayStatus)) {
-      console.log(`⏰ Payment for order ${order.order_id} has been pending for ${daysSincePayment.toFixed(1)} days, marking as expired`);
+      console.log(`Payment for order ${order.order_id} has been pending for ${daysSincePayment.toFixed(1)} days, marking as expired`);
       return true;
     }
 
@@ -288,9 +288,9 @@ class PaymentStatusChecker {
       const paymentStatus = dragonpayService.mapStatusToOrderPaymentStatus(dragonpayStatus);
       const internalPaymentStatus = dragonpayService.mapStatusToInternal(dragonpayStatus);
 
-      console.log(`🔄 Updating order ${order.order_id} based on Dragonpay status ${dragonpayStatus}:`);
-      console.log(`   Order Status: ${order.order_status} → ${orderStatus}`);
-      console.log(`   Payment Status: ${order.payment_status} → ${paymentStatus}`);
+      console.log(`Updating order ${order.order_id} based on Dragonpay status: ${dragonpayStatus}`);
+      console.log(`Order status: ${order.order_status} -> ${orderStatus}`);
+      console.log(`Payment status: ${order.payment_status} -> ${paymentStatus}`);
 
       // Update orders table
       await connection.query(
@@ -306,18 +306,18 @@ class PaymentStatusChecker {
 
       // If payment is successful (S), execute complete transaction flow
       if (dragonpayStatus === 'S') {
-        console.log(`🎉 Payment successful for order ${order.order_id} - Executing complete transaction flow`);
+        console.log(`Payment successful for order ${order.order_id}`);
         
         try {
           // 1. Empty the user's cart
           await connection.query('DELETE FROM cart WHERE user_id = ?', [order.user_id]);
-          console.log(`🛒 Cart cleared for user ${order.user_id}`);
+          console.log(`Cart cleared for user ${order.user_id}`);
 
           // Commit the payment status changes first
           await connection.commit();
 
           // 2. Create shipping order and generate waybill (external API - separate from transaction)
-          console.log(`🚚 Creating shipping order for order ${order.order_id}...`);
+          console.log(`Creating shipping order for order ${order.order_id}`);
           const shippingResult = await deliveryRouter.createShippingOrder(order.order_id);
           
           if (shippingResult && shippingResult.tracking_number) {
@@ -326,44 +326,44 @@ class PaymentStatusChecker {
               'UPDATE orders SET tracking_number = ? WHERE order_id = ?',
               [shippingResult.tracking_number, order.order_id]
             );
-            console.log(`📦 Tracking number assigned: ${shippingResult.tracking_number}`);
-            console.log(`📄 Waybill can be generated using tracking number: ${shippingResult.tracking_number}`);
+            console.log(`Tracking number assigned: ${shippingResult.tracking_number}`);
+            console.log(`Waybill ready: ${shippingResult.tracking_number}`);
           }
 
           // 3. Send order confirmation email with all details
-          console.log(`📧 Sending order confirmation email for order ${order.order_id}...`);
+          console.log(`Sending order confirmation email for order ${order.order_id}`);
           await this.sendConfirmationEmail(order, shippingResult?.tracking_number);
 
           // 4. Log completion
-          console.log(`✅ Complete transaction flow executed successfully for order ${order.order_id}`);
-          console.log(`   - Payment confirmed and recorded`);
-          console.log(`   - Cart cleared`);
-          console.log(`   - Shipping order created${shippingResult?.tracking_number ? ` (${shippingResult.tracking_number})` : ''}`);
-          console.log(`   - Confirmation email sent`);
-          console.log(`   - Waybill ready for generation`);
+          console.log(`Transaction flow complete for order ${order.order_id}`);
+          console.log(`Payment confirmed and recorded`);
+          console.log(`Cart cleared`);
+          console.log(`Shipping order created${shippingResult?.tracking_number ? ` (${shippingResult.tracking_number})` : ''}`);
+          console.log(`Confirmation email sent`);
+          console.log(`Waybill ready for generation`);
 
         } catch (transactionFlowError) {
-          console.error(`❌ Error in complete transaction flow for order ${order.order_id}:`, transactionFlowError.message);
+          console.error('Transaction flow error:', transactionFlowError.message);
           // Payment update was successful, but note the shipping/email failure
-          console.log(`⚠️  Payment confirmed but some post-processing failed. Manual intervention may be needed.`);
+          console.log('Payment confirmed, some post-processing failed');
         }
       } 
       // For failed payments (F), mark as cancelled
       else if (dragonpayStatus === 'F') {
-        console.log(`❌ Payment failed for order ${order.order_id} - Order cancelled`);
+        console.log(`Payment failed for order ${order.order_id}`);
         await connection.commit();
       }
       // For other statuses (pending, unknown, etc.), just update status
       else {
-        console.log(`⏳ Payment status updated for order ${order.order_id}: ${dragonpayStatus} - ${inquiryResult.message}`);
+        console.log(`Payment status updated for order ${order.order_id}: ${dragonpayStatus}`);
         await connection.commit();
       }
 
-      console.log(`📝 Order ${order.order_id} successfully updated: ${orderStatus}/${paymentStatus}`);
+      console.log(`Order ${order.order_id} updated: ${orderStatus}/${paymentStatus}`);
 
     } catch (error) {
       await connection.rollback();
-      console.error(`❌ Database error updating order ${order.order_id}:`, error.message);
+      console.error(`DB error updating order ${order.order_id}:`, error.message);
       throw error;
     } finally {
       connection.release();
@@ -411,7 +411,7 @@ class PaymentStatusChecker {
       console.log(`Confirmation email sent for order ${order.order_id}`);
 
     } catch (emailError) {
-      console.error(`Failed to send confirmation email for order ${order.order_id}:`, emailError.message);
+      console.error(`Confirmation email error for order ${order.order_id}:`, emailError.message);
     }
   }
 

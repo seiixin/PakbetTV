@@ -3,6 +3,20 @@
   box-sizing: border-box;
 }
 
+/* Prevent autofill from changing input and select colors */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus,
+select:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px white inset !important;
+  -webkit-text-fill-color: #333 !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
 .account-page-body {
   margin: 0;
   font-family: 'ZCOOL XiaoWei', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -168,23 +182,30 @@
 
 .account-edit-button, 
 .account-save-button {
-  background: linear-gradient(135deg, var(--primary-color) 0%, #8b1e1e 100%);
-  color: #fff;
+  background: linear-gradient(135deg, #A2201A 0%, #c72c21 100%);
+  box-shadow: 0 1px 4px rgba(162, 32, 26, 0.12);
+  color: white;
   padding: 0.6rem 1.2rem;
   border: none;
   border-radius: 6px;
   cursor: pointer;
   font-size: 0.8rem;
   font-weight: 500;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 3px 9px rgba(162, 32, 26, 0.2);
+  transition: all 0.3s ease;
 }
 
 .account-edit-button:hover, 
 .account-save-button:hover {
-  background: linear-gradient(135deg, #8b1e1e 0%, #701a1a 100%);
+  background: linear-gradient(135deg, #8a1c16 0%, #a12319 100%);
   transform: translateY(-1px);
-  box-shadow: 0 4px 15px rgba(162, 32, 26, 0.3);
+  box-shadow: 0 2px 6px rgba(162, 32, 26, 0.2);
+}
+
+.account-edit-button:disabled,
+.account-save-button:disabled {
+  background: linear-gradient(135deg, #d67b75 0%, #e08983 100%);
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 
 .account-cancel-button {
@@ -561,9 +582,20 @@
     #f5f5f5 75%, 
     transparent 75%, 
     transparent
-  );
-  background-size: 32px 32px;
+  ) !important;
+  background-size: 32px 32px !important;
   animation: loading-stripes 1s linear infinite;
+  text-align: left !important;
+}
+
+.form-group select option {
+  text-align: left; /* Ensure options are always left-aligned */
+}
+
+/* Ensure select elements maintain left alignment */
+.account-page .account-container select {
+  text-align: left !important;
+  text-align-last: left !important;
 }
 
 @keyframes loading-stripes {
@@ -596,6 +628,8 @@
   font-size: 0.9rem;
   color: #333;
   transition: all 0.2s ease;
+  -webkit-appearance: none;
+  -moz-appearance: none;
   appearance: none;
   background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
   background-repeat: no-repeat;
@@ -604,20 +638,9 @@
   padding-right: 2.2rem;
 }
 
-.form-group select:disabled {
-  background-color: #f5f5f5;
-  cursor: not-allowed;
-  opacity: 0.7;
-}
-
-.form-group select:not(:disabled):hover {
-  border-color: #800000;
-}
-
-.form-group select:not(:disabled):focus {
-  outline: none;
-  border-color: #800000;
-  box-shadow: 0 0 0 2px rgba(128, 0, 0, 0.1);
+/* Remove default arrow in IE */
+.form-group select::-ms-expand {
+  display: none;
 }
 
 /* Current value display in labels */

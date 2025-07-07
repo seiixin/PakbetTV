@@ -28,16 +28,25 @@
 }
 
 .chat-button i {
-  transition: transform 0.2s ease;
+  transition: all 0.3s ease;
 }
 
 .chat-button:hover i {
   transform: scale(1.1);
 }
 
+/* Add rotation for the chevron icon */
+.chat-button i.fa-chevron-down {
+  transform: rotate(0deg);
+}
+
+.chat-button:hover i.fa-chevron-down {
+  transform: rotate(-180deg);
+}
+
 .chat-tooltip {
   position: absolute;
-  right: 70px;
+  right: 80px;
   background: rgba(0, 0, 0, 0.8);
   color: white;
   padding: 8px 12px;
@@ -51,20 +60,10 @@
   pointer-events: none;
 }
 
-.chat-tooltip::after {
-  content: '';
-  position: absolute;
-  right: -6px;
-  top: 50%;
-  transform: translateY(-50%);
-  border: 6px solid transparent;
-  border-left-color: rgba(0, 0, 0, 0.8);
-}
-
 .chat-button:hover .chat-tooltip {
   opacity: 1;
   visibility: visible;
-  right: 75px;
+  right: 85px;
 }
 
 /* Mobile responsiveness */
@@ -80,11 +79,11 @@
   .chat-tooltip {
     font-size: 12px;
     padding: 6px 10px;
-    right: 60px;
+    right: 70px;
   }
   
   .chat-button:hover .chat-tooltip {
-    right: 65px;
+    right: 75px;
   }
 }
 

@@ -6,68 +6,52 @@ const auth = (req, res, next) => {
   const authHeader = req.header('Authorization');
   
   // Log the incoming request for debugging
-  console.log('Auth Middleware - Request:', {
-    method: req.method,
-    path: req.path,
-    headers: {
-      authorization: authHeader ? 'Bearer [token]' : 'Not provided',
-      'content-type': req.header('Content-Type')
-    }
-  });
+  console.log(`Auth: ${req.method} ${req.path}`);
+
+  // Skip auth for certain endpoints if needed
+  // const publicEndpoints = ['/api/products', '/api/categories'];
+  // if (publicEndpoints.some(endpoint => req.path.startsWith(endpoint))) {
+  //   return next();
+  // }
 
   if (!authHeader) {
-    console.log('Auth Error: No Authorization header found');
+    console.log('Auth Error: No Authorization header');
     return res.status(401).json({ message: 'No authorization header, authentication required' });
   }
 
   if (!authHeader.startsWith('Bearer ')) {
-    console.log('Auth Error: Invalid Authorization header format');
+    console.log('Auth Error: Invalid Authorization header');
     return res.status(401).json({ message: 'Invalid authorization format, Bearer token required' });
   }
 
   try {
     const token = authHeader.split(' ')[1];
+    
+    if (!process.env.JWT_SECRET) {
+      console.error('JWT_SECRET is not set in environment variables');
+      return res.status(500).json({ message: 'Server configuration error' });
+    }
+    
     console.log('Processing token:', token.substring(0, 10) + '...');
     
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log('Decoded token payload:', JSON.stringify(decoded));
+    console.log('Decoded token for user:', decoded.id || decoded.user_id);
     
-    // Handle different token payload structures
-    let userId, userType;
-    
-    if (decoded.user && decoded.user.id) {
-      // Standard structure
-      userId = decoded.user.id;
-      userType = decoded.user.userType;
-    } else if (decoded.id) {
-      // Simplified structure
-      userId = decoded.id;
-      userType = decoded.userType;
-    } else if (decoded.user_id) {
-      // Alternative structure
-      userId = decoded.user_id;
-      userType = decoded.user_type;
-    } else {
-      console.log('Auth Error: Could not extract user ID from token');
-      return res.status(401).json({ message: 'Invalid token structure - no user ID found' });
+    // Check for either id or user_id in token
+    const userId = decoded.id || decoded.user_id;
+    if (!userId) {
+      console.log('Auth Error: No user ID in token');
+      return res.status(401).json({ message: 'Invalid token - missing user ID' });
     }
     
     // Set user object with consistent structure
     req.user = {
       id: userId,
-      userType: userType || 'customer' // Default to customer if not provided
+      email: decoded.email,
+      userType: decoded.userType || 'customer'
     };
     
-    // Also set the legacy structure for backward compatibility
-    req.user.user = {
-      id: userId,
-      userType: userType || 'customer'
-    };
-    
-    console.log('Token verified successfully:', {
-      userId: req.user.id,
-      userType: req.user.userType
-    });
+    console.log(`Token OK: ${req.user.id}, ${req.user.userType}`);
     
     next();
   } catch (err) {
@@ -81,30 +65,33 @@ const auth = (req, res, next) => {
     }
     
     if (err.name === 'JsonWebTokenError') {
-      return res.status(401).json({ message: 'Invalid token' });
+      return res.status(401).json({ 
+        message: 'Invalid token',
+        details: process.env.NODE_ENV === 'development' ? err.message : undefined
+      });
     }
     
-    res.status(401).json({ message: 'Token verification failed' });
+    res.status(401).json({ 
+      message: 'Token verification failed',
+      details: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
   }
 };
 
 const admin = (req, res, next) => {
-  console.log('Admin Middleware - Checking permissions for user:', {
-    userId: req.user?.id,
-    userType: req.user?.userType
-  });
+  console.log(`Admin check for user: ${req.user?.id}, ${req.user?.userType}`);
 
   if (!req.user) {
-    console.log('Admin Error: No user object found');
+    console.log('Admin Error: No user object');
     return res.status(401).json({ message: 'Authentication required' });
   }
 
   // Case-insensitive check for admin rights
-  if (req.user.userType.toLowerCase() === 'admin') {
+  if (req.user.userType?.toLowerCase() === 'admin') {
     console.log('Admin access granted');
     next();
   } else {
-    console.log('Admin Error: Insufficient permissions');
+    console.log('Admin Error: Not admin');
     res.status(403).json({ message: 'Access denied. Admin privileges required.' });
   }
 };

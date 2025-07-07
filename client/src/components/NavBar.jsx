@@ -7,6 +7,9 @@ import { getFullImageUrl } from '../utils/imageUtils';
 import './NavBar.css';
 
 const NavBar = () => {
+  
+  const [isToolsOpen, setIsToolsOpen] = useState(false);
+  const [isBlogsOpen, setIsBlogsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -23,6 +26,27 @@ const NavBar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const isShopPage = location.pathname === '/shop';
+
+  const toggleBlogsMenu = () => {
+    setIsBlogsOpen(prev => {
+      if (!prev) {
+        // opening Blogs, close Tools
+        setIsToolsOpen(false);
+      }
+      return !prev;
+    });
+  };
+
+  const toggleToolsMenu = () => {
+    setIsToolsOpen(prev => {
+      if (!prev) {
+        // opening Tools, close Blogs
+        setIsBlogsOpen(false);
+      }
+      return !prev;
+    });
+  };
+
 
   useEffect(() => {
     const handleScroll = () => {
@@ -444,17 +468,8 @@ const NavBar = () => {
               <li className="navbar-navbar-item">
                 <Link to="/" className="navbar-navbar-link">Home</Link>
               </li>
-              <li className="navbar-navbar-item navbar-dropdown-wrapper">
-                <span className="navbar-navbar-link">Shop</span>
-                <div className="navbar-submenu">
-                  <Link to="/shop" className="navbar-submenu-link">All Products</Link>
-                  <Link to="/category/amulets" className="navbar-submenu-link">Amulets</Link>
-                  <Link to="/category/auspicious-home-decor" className="navbar-submenu-link">Home Decor</Link>
-                  <Link to="/category/feng-shui-bracelets" className="navbar-submenu-link">Bracelets</Link>
-                  <Link to="/category/feng-shui-fashion" className="navbar-submenu-link">Fashion</Link>
-                  <Link to="/category/incense-space-clearing" className="navbar-submenu-link">Incense & Clearing</Link>
-                  <Link to="/category/prosperity-bowls" className="navbar-submenu-link">Prosperity Bowls</Link>
-                </div>
+              <li className="navbar-navbar-item">
+                <Link to="/shop" className="navbar-navbar-link">Shop</Link>
               </li>
               <li className="navbar-navbar-item">
                 <Link to="/consultation" className="navbar-navbar-link">Consultation</Link>
@@ -463,23 +478,24 @@ const NavBar = () => {
                 <Link to="/horoscope" className="navbar-navbar-link">Horoscope</Link>
               </li>
               <li className="navbar-navbar-item navbar-dropdown-wrapper">
-                <span className="navbar-navbar-link">Blogs</span>
-                <div className="navbar-submenu">
-                  <Link to="/blog" className="navbar-submenu-link">Dream Meaning</Link>
-                  <Link to="/blog" className="navbar-submenu-link">Face Reading</Link>
-                  <Link to="/blog" className="navbar-submenu-link">Feng Shui</Link>
-                  <Link to="/blog" className="navbar-submenu-link">Palmistry</Link>
-                </div>
+                <button type="button" className="navbar-navbar-link" onClick={toggleBlogsMenu}>Blogs</button>
+                <div className={`navbar-submenu ${isBlogsOpen ? 'open' : ''}`}>
+
+                    <Link to="/blog" className="navbar-submenu-link">Dream Meaning</Link>
+                    <Link to="/blog" className="navbar-submenu-link">Face Reading</Link>
+                    <Link to="/blog" className="navbar-submenu-link">Feng Shui</Link>
+                    <Link to="/blog" className="navbar-submenu-link">Palmistry</Link>
+                  </div>
               </li>
+
+              
               <li className="navbar-navbar-item navbar-dropdown-wrapper">
-                <span className="navbar-navbar-link">Free Tools</span>
-                <div className="navbar-submenu">
-                  <Link to="/bazi-calculator" className="navbar-submenu-link">BaZi Calculator</Link>
-                  <Link to="/product-guide" className="navbar-submenu-link">Product Guide</Link>
-                </div>
-              </li>
-              <li className="navbar-navbar-item">
-                <Link to="/contact" className="navbar-navbar-link">Contact Us</Link>
+                <button type="button" className="navbar-navbar-link" onClick={toggleToolsMenu}>Free Tools</button>
+                  <div className={`navbar-submenu ${isToolsOpen ? 'open' : ''}`}>
+
+                    <Link to="/bazi-calculator" className="navbar-submenu-link">BaZi Calculator</Link>
+                    <Link to="/product-guide" className="navbar-submenu-link">Product Guide</Link>
+                  </div>
               </li>
             </ul>
 

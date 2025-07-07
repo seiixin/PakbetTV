@@ -20,79 +20,72 @@ async function main() {
   const action = process.argv[2];
   const txnId = process.argv[3];
 
-  console.log('🧪 Payment Status Checker Test Script');
-  console.log('=====================================\n');
+  console.log('Payment Status Checker Test');
 
   try {
     switch (action) {
       case 'check-pending':
-        console.log('📋 Checking all pending payments...\n');
+        console.log('Checking all pending payments...');
         const result = await paymentStatusChecker.checkPendingPayments();
-        console.log('Result:', JSON.stringify(result, null, 2));
+        console.log('Result:', result.status || 'done');
         break;
 
       case 'inquiry':
         if (!txnId) {
-          console.error('❌ Transaction ID required for inquiry');
+          console.error('Transaction ID required for inquiry');
           console.log('Usage: node test-payment-checker.js inquiry <transaction_id>');
           process.exit(1);
         }
-        console.log(`🔍 Checking transaction: ${txnId}\n`);
+        console.log(`Checking transaction: ${txnId}`);
         const inquiryResult = await dragonpayService.inquireTransaction(txnId);
-        console.log('Inquiry Result:', JSON.stringify(inquiryResult, null, 2));
+        console.log('Inquiry Result:', inquiryResult.status || 'done');
         break;
 
       case 'status':
-        console.log('📊 Getting service status...\n');
+        console.log('Getting service status...');
         const status = paymentStatusChecker.getStatus();
-        console.log('Service Status:', JSON.stringify(status, null, 2));
+        console.log('Service Status:', status.status || 'done');
         break;
 
       case 'test-connection':
-        console.log('🌐 Testing Dragonpay API connection...\n');
+        console.log('Testing Dragonpay API connection...');
         
         // Test with a dummy transaction ID
         const testTxnId = 'test_' + Date.now();
         console.log(`Testing with dummy transaction ID: ${testTxnId}`);
         
         const testResult = await dragonpayService.inquireTransaction(testTxnId);
-        console.log('Test Result:', JSON.stringify(testResult, null, 2));
+        console.log('Test Result:', testResult.status || 'done');
         
         if (testResult.status !== 'ERROR') {
-          console.log('✅ Connection successful - Dragonpay API is reachable');
+          console.log('Connection successful');
         } else {
-          console.log('❌ Connection failed - Check your network and credentials');
+          console.log('Connection failed');
         }
         break;
 
       default:
-        console.log('Available actions:');
-        console.log('  check-pending    - Check all pending payments');
-        console.log('  inquiry <txnId>  - Check specific transaction');
-        console.log('  status          - Get service status');
-        console.log('  test-connection - Test Dragonpay API connection');
-        console.log('\nExample:');
-        console.log('  node test-payment-checker.js check-pending');
-        console.log('  node test-payment-checker.js inquiry order_123_1234567890');
+        console.log('Available actions: check-pending, inquiry <txnId>, status, test-connection');
+        console.log('Example: node test-payment-checker.js check-pending');
     }
   } catch (error) {
-    console.error('❌ Test failed:', error.message);
+    console.error('Test failed:', error.message);
     process.exit(1);
   }
 
-  console.log('\n✅ Test completed');
+  console.log('Test completed');
   process.exit(0);
 }
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  console.error('Unhandled Rejection:', reason);
   process.exit(1);
 });
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error);
+  console.error('Uncaught Exception:', error.message);
   process.exit(1);
 });
 

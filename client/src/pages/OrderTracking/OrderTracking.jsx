@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import api from '../services/api';
-import '../components/Account/Account.css';
+import { useAuth } from '../../context/AuthContext';
+import api from '../../services/api';
+import '../../components/Account/Account.css';
 
 function OrderTracking() {
   const { orderId } = useParams();

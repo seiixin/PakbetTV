@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import './ResetPassword.css';
-import { BASE_URL } from '../config';
+import { BASE_URL } from '../../config';
 
 const ResetPassword = () => {
   const [password, setPassword] = useState('');
