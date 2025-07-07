@@ -28,16 +28,25 @@ const NavBar = () => {
   const isShopPage = location.pathname === '/shop';
 
   const toggleBlogsMenu = () => {
-  setIsBlogsOpen(prev => !prev);
-  setIsShopOpen(false);
-  setIsToolsOpen(false);
+    setIsBlogsOpen(prev => {
+      if (!prev) {
+        // opening Blogs, close Tools
+        setIsToolsOpen(false);
+      }
+      return !prev;
+    });
   };
 
   const toggleToolsMenu = () => {
-    setIsToolsOpen(prev => !prev);
-    setIsShopOpen(false);
-    setIsBlogsOpen(false);
+    setIsToolsOpen(prev => {
+      if (!prev) {
+        // opening Tools, close Blogs
+        setIsBlogsOpen(false);
+      }
+      return !prev;
+    });
   };
+
 
   useEffect(() => {
     const handleScroll = () => {
@@ -469,13 +478,7 @@ const NavBar = () => {
                 <Link to="/horoscope" className="navbar-navbar-link">Horoscope</Link>
               </li>
               <li className="navbar-navbar-item navbar-dropdown-wrapper">
-                <button
-                  type="button"
-                  className="navbar-navbar-link"
-                  onClick={() => setIsBlogsOpen(prev => !prev)}
-                >
-                  Blogs
-                </button>
+                <button type="button" className="navbar-navbar-link" onClick={toggleBlogsMenu}>Blogs</button>
                 <div className={`navbar-submenu ${isBlogsOpen ? 'open' : ''}`}>
 
                     <Link to="/blog" className="navbar-submenu-link">Dream Meaning</Link>
@@ -487,13 +490,7 @@ const NavBar = () => {
 
               
               <li className="navbar-navbar-item navbar-dropdown-wrapper">
-                <button
-                  type="button"
-                  className="navbar-navbar-link"
-                  onClick={() => setIsToolsOpen(prev => !prev)}
-                >
-                  Free Tools
-                </button>
+                <button type="button" className="navbar-navbar-link" onClick={toggleToolsMenu}>Free Tools</button>
                   <div className={`navbar-submenu ${isToolsOpen ? 'open' : ''}`}>
 
                     <Link to="/bazi-calculator" className="navbar-submenu-link">BaZi Calculator</Link>
