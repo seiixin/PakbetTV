@@ -9,7 +9,13 @@ const Sidebar = ({
   const [activeDropdown, setActiveDropdown] = useState(null);
 
   const handleToggleDropdown = (key) => {
-    setActiveDropdown(prev => prev === key ? null : key);
+    // Toggle dropdown only if it's not already active
+    setActiveDropdown(prev => (prev === key ? null : key));
+  };
+
+  const handleDropdownItemClick = (e) => {
+    e.stopPropagation(); // prevent parent toggle
+    closeMobileMenu();
   };
 
   return (
@@ -23,137 +29,82 @@ const Sidebar = ({
 
       <div className="nav-menu">
         <Link to="/shop" className="nav-item" onClick={closeMobileMenu}>
-          <div className="nav-icon">
-            <i className="fas fa-store" style={{ color: '#A2201A' }}></i>
-          </div>
+          <div className="nav-icon"><i className="fas fa-store" style={{ color: '#A2201A' }}></i></div>
           <span className="nav-text">ALL PRODUCTS</span>
         </Link>
 
         <div className="nav-item" onClick={() => scrollToSection('new-arrivals-section')}>
-          <div className="nav-icon">
-            <i className="fas fa-star" style={{ color: '#A2201A' }}></i>
-          </div>
+          <div className="nav-icon"><i className="fas fa-star" style={{ color: '#A2201A' }}></i></div>
           <span className="nav-text">WHAT'S NEW?</span>
         </div>
 
         <div className="nav-item" onClick={() => scrollToSection('best-sellers-section')}>
-          <div className="nav-icon">
-            <i className="fas fa-trophy" style={{ color: '#A2201A' }}></i>
-          </div>
+          <div className="nav-icon"><i className="fas fa-trophy" style={{ color: '#A2201A' }}></i></div>
           <span className="nav-text">BEST SELLERS</span>
         </div>
 
         <div className="nav-item" onClick={() => scrollToSection('flash-deals-section')}>
-          <div className="nav-icon">
-            <i className="fas fa-bolt" style={{ color: '#A2201A' }}></i>
-          </div>
+          <div className="nav-icon"><i className="fas fa-bolt" style={{ color: '#A2201A' }}></i></div>
           <span className="nav-text">FLASH DEALS</span>
         </div>
 
-        {/* AMULETS */}
-        <div className="nav-item expandable">
-          <div className="nav-item-header" onClick={() => handleToggleDropdown('amulets')}>
-            <div className="nav-icon">
-              <i className="fas fa-gem" style={{ color: '#A2201A' }}></i>
+        {/* Example expandable section */}
+        {[
+          {
+            key: 'amulets',
+            label: 'AMULETS',
+            icon: 'fas fa-gem',
+            items: [
+              { to: '/category/keychains', icon: 'fas fa-key', text: 'Keychains' },
+              { to: '/category/medallions', icon: 'fas fa-medal', text: 'Medallions' },
+              { to: '/category/plaque', icon: 'fas fa-square', text: 'Plaque' },
+              { to: '/category/talisman-card', icon: 'fas fa-id-card', text: 'Talisman Card' }
+            ]
+          },
+          {
+            key: 'feng-shui-fashion',
+            label: 'FENG SHUI FASHION',
+            icon: 'fas fa-tshirt',
+            items: [
+              { to: '/category/earrings', icon: 'fas fa-circle', text: 'Earrings' },
+              { to: '/category/necklaces', icon: 'fas fa-gem', text: 'Necklaces' },
+              { to: '/category/pendants', icon: 'fas fa-star', text: 'Pendants' },
+              { to: '/category/rings', icon: 'fas fa-circle', text: 'Rings' },
+              { to: '/category/scarves-shawls', icon: 'fas fa-tshirt', text: 'Scarves & Shawls' },
+              { to: '/category/wallets', icon: 'fas fa-wallet', text: 'Wallets' }
+            ]
+          },
+          {
+            key: 'incense-space-clearing',
+            label: 'INCENSE & SPACE CLEARING',
+            icon: 'fas fa-fire',
+            items: [
+              { to: '/category/incense-holder-burner', icon: 'fas fa-fire', text: 'Incense Holder & Burner' },
+              { to: '/category/incense-sticks', icon: 'fas fa-fire-alt', text: 'Incense Sticks' },
+              { to: '/category/singing-bowl', icon: 'fas fa-circle-notch', text: 'Singing Bowl' },
+              { to: '/category/smudge-kit', icon: 'fas fa-seedling', text: 'Smudge Kit' },
+              { to: '/category/wishing-paper', icon: 'fas fa-file-alt', text: 'Wishing Paper' }
+            ]
+          }
+        ].map(section => (
+          <div className="nav-item expandable" key={section.key}>
+            <div className="nav-item-header" onClick={() => handleToggleDropdown(section.key)}>
+              <div className="nav-icon"><i className={section.icon} style={{ color: '#A2201A' }}></i></div>
+              <span className="nav-text">{section.label}</span>
+              <i className={`fas fa-chevron-right nav-arrow ${activeDropdown === section.key ? 'expanded' : ''}`}></i>
             </div>
-            <span className="nav-text">AMULETS</span>
-            <i className={`fas fa-chevron-right nav-arrow ${activeDropdown === 'amulets' ? 'expanded' : ''}`}></i>
+            {activeDropdown === section.key && (
+              <div className="nav-dropdown expanded">
+                {section.items.map(item => (
+                  <Link to={item.to} className="nav-dropdown-item" key={item.to} onClick={handleDropdownItemClick}>
+                    <div className="nav-dropdown-icon"><i className={item.icon}></i></div>
+                    <span className="nav-dropdown-text">{item.text}</span>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
-          {activeDropdown === 'amulets' && (
-            <div className="nav-dropdown expanded">
-              <Link to="/category/keychains" className="nav-dropdown-item" onClick={closeMobileMenu}>
-                <div className="nav-dropdown-icon"><i className="fas fa-key"></i></div>
-                <span className="nav-dropdown-text">Keychains</span>
-              </Link>
-              <Link to="/category/medallions" className="nav-dropdown-item" onClick={closeMobileMenu}>
-                <div className="nav-dropdown-icon"><i className="fas fa-medal"></i></div>
-                <span className="nav-dropdown-text">Medallions</span>
-              </Link>
-              <Link to="/category/plaque" className="nav-dropdown-item" onClick={closeMobileMenu}>
-                <div className="nav-dropdown-icon"><i className="fas fa-square"></i></div>
-                <span className="nav-dropdown-text">Plaque</span>
-              </Link>
-              <Link to="/category/talisman-card" className="nav-dropdown-item" onClick={closeMobileMenu}>
-                <div className="nav-dropdown-icon"><i className="fas fa-id-card"></i></div>
-                <span className="nav-dropdown-text">Talisman Card</span>
-              </Link>
-            </div>
-          )}
-        </div>
-
-        {/* FENG SHUI FASHION */}
-        <div className="nav-item expandable">
-          <div className="nav-item-header" onClick={() => handleToggleDropdown('feng-shui-fashion')}>
-            <div className="nav-icon">
-              <i className="fas fa-tshirt" style={{ color: '#A2201A' }}></i>
-            </div>
-            <span className="nav-text">FENG SHUI FASHION</span>
-            <i className={`fas fa-chevron-right nav-arrow ${activeDropdown === 'feng-shui-fashion' ? 'expanded' : ''}`}></i>
-          </div>
-          {activeDropdown === 'feng-shui-fashion' && (
-            <div className="nav-dropdown expanded">
-              <Link to="/category/earrings" className="nav-dropdown-item" onClick={closeMobileMenu}>
-                <div className="nav-dropdown-icon"><i className="fas fa-circle"></i></div>
-                <span className="nav-dropdown-text">Earrings</span>
-              </Link>
-              <Link to="/category/necklaces" className="nav-dropdown-item" onClick={closeMobileMenu}>
-                <div className="nav-dropdown-icon"><i className="fas fa-gem"></i></div>
-                <span className="nav-dropdown-text">Necklaces</span>
-              </Link>
-              <Link to="/category/pendants" className="nav-dropdown-item" onClick={closeMobileMenu}>
-                <div className="nav-dropdown-icon"><i className="fas fa-star"></i></div>
-                <span className="nav-dropdown-text">Pendants</span>
-              </Link>
-              <Link to="/category/rings" className="nav-dropdown-item" onClick={closeMobileMenu}>
-                <div className="nav-dropdown-icon"><i className="fas fa-circle"></i></div>
-                <span className="nav-dropdown-text">Rings</span>
-              </Link>
-              <Link to="/category/scarves-shawls" className="nav-dropdown-item" onClick={closeMobileMenu}>
-                <div className="nav-dropdown-icon"><i className="fas fa-tshirt"></i></div>
-                <span className="nav-dropdown-text">Scarves & Shawls</span>
-              </Link>
-              <Link to="/category/wallets" className="nav-dropdown-item" onClick={closeMobileMenu}>
-                <div className="nav-dropdown-icon"><i className="fas fa-wallet"></i></div>
-                <span className="nav-dropdown-text">Wallets</span>
-              </Link>
-            </div>
-          )}
-        </div>
-
-        {/* INCENSE & SPACE CLEARING */}
-        <div className="nav-item expandable">
-          <div className="nav-item-header" onClick={() => handleToggleDropdown('incense-space-clearing')}>
-            <div className="nav-icon">
-              <i className="fas fa-fire" style={{ color: '#A2201A' }}></i>
-            </div>
-            <span className="nav-text">INCENSE & SPACE CLEARING</span>
-            <i className={`fas fa-chevron-right nav-arrow ${activeDropdown === 'incense-space-clearing' ? 'expanded' : ''}`}></i>
-          </div>
-          {activeDropdown === 'incense-space-clearing' && (
-            <div className="nav-dropdown expanded">
-              <Link to="/category/incense-holder-burner" className="nav-dropdown-item" onClick={closeMobileMenu}>
-                <div className="nav-dropdown-icon"><i className="fas fa-fire"></i></div>
-                <span className="nav-dropdown-text">Incense Holder & Burner</span>
-              </Link>
-              <Link to="/category/incense-sticks" className="nav-dropdown-item" onClick={closeMobileMenu}>
-                <div className="nav-dropdown-icon"><i className="fas fa-fire-alt"></i></div>
-                <span className="nav-dropdown-text">Incense Sticks</span>
-              </Link>
-              <Link to="/category/singing-bowl" className="nav-dropdown-item" onClick={closeMobileMenu}>
-                <div className="nav-dropdown-icon"><i className="fas fa-circle-notch"></i></div>
-                <span className="nav-dropdown-text">Singing Bowl</span>
-              </Link>
-              <Link to="/category/smudge-kit" className="nav-dropdown-item" onClick={closeMobileMenu}>
-                <div className="nav-dropdown-icon"><i className="fas fa-seedling"></i></div>
-                <span className="nav-dropdown-text">Smudge Kit</span>
-              </Link>
-              <Link to="/category/wishing-paper" className="nav-dropdown-item" onClick={closeMobileMenu}>
-                <div className="nav-dropdown-icon"><i className="fas fa-file-alt"></i></div>
-                <span className="nav-dropdown-text">Wishing Paper</span>
-              </Link>
-            </div>
-          )}
-        </div>
+        ))}
 
         {/* Other categories */}
         <Link to="/category/auspicious-home-decor" className="nav-item" onClick={closeMobileMenu}>

@@ -489,10 +489,19 @@ const ProductDetailPage = () => {
                     </div>
                   </>
                 ) : (
-                  <div className="regular-price">
-                    <span className="price-currency">₱</span>
-                    {formatPrice(selectedVariant ? selectedVariant.price : product.price)}
-                  </div>
+                <div 
+                  className="regular-price" 
+                  style={{ fontSize: '40px', fontWeight: '700' }}
+                >
+                  <span 
+                    className="price-currency" 
+                    style={{ fontSize: '30px', marginRight: '0.2rem', position: 'relative', top: '-0.1rem' }}
+                  >
+                    ₱
+                  </span>
+                  {formatPrice(selectedVariant ? selectedVariant.price : product.price)}
+                </div>
+
                 )}
               </div>
 
