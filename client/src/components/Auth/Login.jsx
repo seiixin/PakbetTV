@@ -66,7 +66,6 @@ function Login() {
 
     const result = await login(formData);
     if (result.success) {
-      toast.success('Login successful! Welcome back!');
       if (mergeGuestCartWithUserCart) {
         try {
           setTimeout(() => {

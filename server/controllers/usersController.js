@@ -63,9 +63,14 @@ exports.getAllUsers = async (req, res) => {
 exports.getShippingAddresses = async (req, res) => {
   try {
     const [addresses] = await db.query(
-      'SELECT * FROM user_shipping_details WHERE user_id = ?',
+      `SELECT * FROM user_shipping_details 
+       WHERE user_id = ?
+       ORDER BY is_default DESC, updated_at DESC, id DESC`,
       [req.user.id]
     );
+
+    console.log('Fetched shipping addresses for user', req.user.id, ':', addresses);
+
     res.json(addresses);
   } catch (err) {
     console.error(err);
@@ -176,24 +181,89 @@ exports.addOrUpdateShippingAddress = async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('Validation errors on addOrUpdateShippingAddress:', errors.array());
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { region, province, city_municipality, barangay, postcode, street_address, label } = req.body;
+    // Destructure the supported address fields from the request body. Any missing optional
+    // fields will simply default to `null` so the INSERT works even if they are omitted.
+    const {
+      address1,
+      address2,
+      area,
+      city,
+      state,
+      postcode,
+      country = 'PH',
+      address_type = 'home',
+      is_default = false,
+      // Philippine-specific / extended location details
+      region,
+      province,
+      city_municipality,
+      barangay,
+      street_name,
+      building,
+      house_number
+    } = req.body;
 
+    // If this new address should be the default one, clear existing defaults first
+    if (is_default) {
+      await db.query('UPDATE user_shipping_details SET is_default = 0 WHERE user_id = ?', [req.user.id]);
+    }
+
+    // Insert the address. We explicitly list every column that exists in the table so we
+    // avoid referencing non-existent columns (e.g. the previous `street_address`).
     const [insertAddress] = await db.query(
-      `INSERT INTO user_shipping_details 
-       (user_id, region, province, city_municipality, barangay, postcode, street_address, label)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [req.user.id, region, province, city_municipality, barangay, postcode, street_address, label]
+      `INSERT INTO user_shipping_details (
+        user_id,
+        address1,
+        address2,
+        area,
+        city,
+        state,
+        postcode,
+        country,
+        address_type,
+        is_default,
+        region,
+        province,
+        city_municipality,
+        barangay,
+        street_name,
+        building,
+        house_number
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        req.user.id,
+        address1,
+        address2 || null,
+        area || null,
+        city || null,
+        state || null,
+        postcode,
+        country,
+        address_type,
+        is_default,
+        region || null,
+        province || null,
+        city_municipality || null,
+        barangay || null,
+        street_name || null,
+        building || null,
+        house_number || null
+      ]
     );
+
+    // Debug: confirm insertId
+    console.log('Inserted new shipping address with id', insertAddress.insertId, 'for user', req.user.id);
 
     res.status(201).json({
       message: 'Shipping address added successfully',
       addressId: insertAddress.insertId
     });
   } catch (err) {
-    console.error(err);
+    console.error('Error in addOrUpdateShippingAddress:', err);
     res.status(500).json({ message: 'Server error' });
   }
 };

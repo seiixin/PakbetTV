@@ -196,7 +196,7 @@ export const authService = {
   addShippingAddress: async (addressData) => {
     try {
       const response = await api.post('/users/shipping-address', addressData);
-      notify.success('Shipping address added successfully!');
+      notify.success('Shipping address saved successfully!');
       return response;
     } catch (error) {
       handleApiError(error);
@@ -207,7 +207,7 @@ export const authService = {
   updateShippingAddress: async (addressId, addressData) => {
     try {
       const response = await api.put(`/users/shipping-address/${addressId}`, addressData);
-      notify.success('Shipping address updated successfully!');
+      notify.success('Shipping address saved successfully!');
       return response;
     } catch (error) {
       handleApiError(error);
