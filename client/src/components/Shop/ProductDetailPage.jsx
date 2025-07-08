@@ -490,12 +490,10 @@ const ProductDetailPage = () => {
                   </>
                 ) : (
                 <div 
-                  className="regular-price" 
-                  style={{ fontSize: '40px', fontWeight: '700' }}
-                >
+                  className="regular-price">
                   <span 
                     className="price-currency" 
-                    style={{ fontSize: '30px', marginRight: '0.2rem', position: 'relative', top: '-0.1rem' }}
+                    style={{ fontSize: '30px'}}
                   >
                     ₱
                   </span>
