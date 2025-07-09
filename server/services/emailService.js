@@ -471,7 +471,7 @@ const sendContactFormEmail = async (contactDetails) => {
   try {
     const info = await transporter.sendMail({
       from: `"MICHAEL DE MESA - BAZI & FENG SHUI CONSULTANCY" <${process.env.SMTP_USER}>`,
-      to: process.env.SMTP_USER,
+      to: 'consultation@michaeldemesa.com',
       replyTo: email,
       subject: `New Contact Form Message from ${name}`,
       html: generateEmailTemplate(content),
