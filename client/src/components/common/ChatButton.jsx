@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import './ChatButton.css';
-import ChatWidget from './ChatWidget';
+import FacebookChatWidget from './FacebookChatWidget';
 
 const ChatButton = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -13,9 +13,9 @@ const ChatButton = () => {
     <>
       <div className="chat-button" onClick={handleChatClick}>
         <i className={isChatOpen ? 'fas fa-chevron-down' : 'fab fa-facebook-messenger'}></i>
-        <span className="chat-tooltip">{isChatOpen ? 'Close chat' : 'Chat with us'}</span>
+        <span className="chat-tooltip">{isChatOpen ? 'Close chat' : 'Chat with Facebook'}</span>
       </div>
-      <ChatWidget isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+      <FacebookChatWidget isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
     </>
   );
 };

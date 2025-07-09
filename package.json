@@ -9,6 +9,7 @@
     "react-window": "^1.8.11"
   },
   "scripts": {
-    "start": "nodemon server/server.js"
+    "start": "nodemon server/server.js",
+    "setup:facebook": "node setup-facebook.js"
   }
 }
