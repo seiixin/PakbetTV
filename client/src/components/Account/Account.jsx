@@ -608,17 +608,6 @@ function Account() {
                   />
                 </div>
 
-                <div className="form-group">
-                  <label htmlFor="phone">Phone Number</label>
-                  <input 
-                    type="tel" 
-                    id="phone" 
-                    name="phone" 
-                    value={userData.phone} 
-                    onChange={(e) => setUserData(prev => ({ ...prev, phone: e.target.value }))}
-                    placeholder="Enter phone number"
-                  />
-                </div>
 
                 <div className="account-form-actions">
                   <button type="button" className="account-cancel-button" onClick={cancelPersonalEdit}>
@@ -646,10 +635,6 @@ function Account() {
                   <p className="account-info-value">{userData.email || 'Not set'}</p>
                 </div>
                 
-                <div>
-                  <p className="account-info-label">Phone Number</p>
-                  <p className="account-info-value">{userData.phone || 'Not set'}</p>
-                </div>
               </div>
             )}
           </section>

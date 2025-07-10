@@ -10,145 +10,114 @@ import { sanitizeHtml } from '../utils/sanitize';
 
 // Static FAQs content - moved outside component to avoid recreation
 const staticFaqs = [
-    // Delivery FAQs
-    {
-      faqID: 'delivery-1',
-      question: 'Can I have my items delivered in another country?',
-      answer: `<p>We do not ship outside of the Philippines. We only offer delivery services within the areas covered by our authorized courier (GoGoXpress) in the Philippines.</p>
-               <p>Kindly check <a href="#" target="_blank">GoGoXpress</a> for the complete delivery coverage.</p>`,
-      category: 'Delivery'
-    },
-    {
-      faqID: 'delivery-2',
-      question: 'How do I change or amend my delivery address?',
-      answer: `<p>We cannot change the shipping address details once the order has been placed.</p>
-               <p>Please get in touch with our friendly Customer Support Team through the channels below.</p>`,
-      category: 'Delivery'
-    },
-    {
-      faqID: 'delivery-3',
-      question: 'How long does delivery usually take?',
-      answer: `<p>Below are the estimated time frames from date of purchase:</p>
-               <ul>
-                 <li><strong>Metro Manila:</strong> 3-5 working days</li>
-                 <li><strong>Luzon:</strong> 5-8 working days</li>
-                 <li><strong>Visayas:</strong> 8-10 working days</li>
-                 <li><strong>Mindanao:</strong> 10-12 working days</li>
-               </ul>
-               <p>For home delivery, our courier only delivers Monday to Saturday, 8 am to 5 pm.</p>
-               <p>We can only provide estimates and more detailed information may be viewed on your order status once the items have been shipped. We will allocate additional days for cases of unforeseen events such as natural calamities.</p>`,
-      category: 'Delivery'
-    },
-    {
-      faqID: 'delivery-4',
-      question: 'How to check your delivery status for Home delivery?',
-      answer: `<ol>
-                 <li>Please locate your tracking number from the delivery confirmation e-mail.</li>
-                 <li>Kindly allow 24-48 hours after you have received the delivery confirmation e-mail to reflect the status of your order.</li>
-                 <li>You may visit <a href="#" target="_blank">GogoXpress</a> and enter the tracking number indicated on your confirmation e-mail.</li>
-               </ol>`,
-      category: 'Delivery'
-    },
+  // Delivery FAQs
+  {
+    faqID: 'delivery-1',
+    question: 'Can I have my items delivered in another country?',
+    answer: `<p>No, we currently deliver within the Philippines only. International shipping is not available at this time.</p>`,
+    category: 'Delivery'
+  },
+  {
+    faqID: 'delivery-2',
+    question: 'How do I change or amend my delivery address?',
+    answer: `<p>Please contact us immediately via phone or email if you need to update your delivery address. Changes can only be processed before your order has been shipped.</p>`,
+    category: 'Delivery'
+  },
+  {
+    faqID: 'delivery-3',
+    question: 'How long does delivery usually take?',
+    answer: `<p>Delivery time depends on your location:</p>
+             <ul>
+               <li><strong>Metro Manila:</strong> 2–5 business days</li>
+               <li><strong>Provincial areas:</strong> 5–10 business days</li>
+             </ul>
+             <p>We ship via NinjaVan Philippines.</p>`,
+    category: 'Delivery'
+  },
+  {
+    faqID: 'delivery-4',
+    question: 'How do I check my delivery status?',
+    answer: `<p>Once your order has been dispatched, you will receive a NinjaVan tracking number via SMS or email. Use this to track your delivery on the NinjaVan website.</p>`,
+    category: 'Delivery'
+  },
 
-    // Return Exchange FAQs
-    {
-      faqID: 'returns-1',
-      question: 'Can I return or exchange a faulty item?',
-      answer: `<p>We're very sorry to hear an item you have purchased from us may be faulty! You can visit our Feng Shui by PakBet TV store so that our friendly staff can physically assess your item for any manufacturing faults. Please ensure to bring your receipt or another form of proof of transaction so that the team can verify your purchase.</p>
-               <p>If you have purchased your item online, please get in touch with our Customer Support Team via any channels available below. Kindly provide us a picture of the faulty item and a copy of all the documents.</p>`,
-      category: 'Returns'
-    },
-    {
-      faqID: 'returns-2',
-      question: 'What is your Returns Policy?',
-      answer: `<ol>
-                 <li>Original receipt of purchase is needed for product exchange/refund within 30 days after purchase date or shipment date provided the product is bought within Feng Shui by PakBet TV store. For items bought through the official Feng Shui by PakBet TV online store, the return form is needed in addition to the official receipt.</li>
-                 <li>Item exchange can be processed in our Feng Shui by PakBet TV store. For exchange of items bought in the official Feng Shui by PakBet TV online store, please bring the product/s along with the original official receipt, original packing list and return form Feng Shui by PakBet TV store. There is no online processing for exchange of products.</li>
-                 <li>Product purchased with a discount may be exchanged/refunded based on the discounted amount.</li>
-                 <li>Product may be exchanged/refunded if there is a manufacturing fault.</li>
-                 <li>Products may be exchanged/refunded provided that the products are in new and original condition.</li>
-                 <li>PakBet TV Feng Shui Consultancy Inc. reserves the right to solely define and limit, refuse, and/or reject returns from customers and/or delete or freeze customer accounts at any time due to:
-                   <ul>
-                     <li>An irregular or excessive returns history;</li>
-                     <li>Purchases made for resale purposes;</li>
-                     <li>Creation of multiple account ID's by one user;</li>
-                     <li>Potential fraudulent or criminal activity.</li>
-                   </ul>
-                   Membership application may not be approved if the applicants previous membership was cancelled.
-                 </li>
-               </ol>`,
-      category: 'Returns'
-    },
+  // Returns & Exchange FAQs
+  {
+    faqID: 'returns-2',
+    question: 'What is your return policy?',
+    answer: `<p>We accept returns and exchanges within 7 days of delivery, provided items are unused, in their original packaging, and in resellable condition. Return shipping costs are covered by the customer, unless the item was defective or sent in error.</p>`,
+    category: 'Returns'
+  },
+  {
+    faqID: 'returns-1',
+    question: 'Can I return or exchange a faulty item?',
+    answer: `<p>Yes, if you received a faulty or incorrect item, please contact us within 7 days of receiving your order. We will arrange a replacement or refund at no additional cost. Be sure to provide your order number and a clear photo of the issue.</p>`,
+    category: 'Returns'
+  },
 
-    // Order Cancellation FAQs
-    {
-      faqID: 'cancellation-1',
-      question: 'Can I reorder the same item/s upon order cancellation?',
-      answer: `<p>Yes, you may reorder the same item/s even after you have cancelled your order. However, we cannot guarantee that the same item/s will still be available by the time you reorder.</p>`,
-      category: 'Orders'
-    },
-    {
-      faqID: 'cancellation-2',
-      question: 'Can I cancel part of my order?',
-      answer: `<p>Partial cancellation of order is not allowed. We will work on having that feature available in the future. You can contact our Customer Support Team through the channels below for further guidance.</p>`,
-      category: 'Orders'
-    },
+  // Order & Cancellation FAQs
+  {
+    faqID: 'cancellation-3',
+    question: 'How can I place an order?',
+    answer: `<p>Orders can be placed directly through our website. Simply select your items, add them to your cart, and proceed to checkout.</p>`,
+    category: 'Orders'
+  },
+  {
+    faqID: 'cancellation-4',
+    question: 'How will I know if my order was successful?',
+    answer: `<p>You will receive an order confirmation email with your order details.</p>`,
+    category: 'Orders'
+  },
+  {
+    faqID: 'cancellation-2',
+    question: 'Can I cancel my order?',
+    answer: `<p>Order cancellations can only be made before your order has been shipped. Please contact us as soon as possible.</p>`,
+    category: 'Orders'
+  },
 
-    // Payment FAQs
-    {
-      faqID: 'payment-1',
-      question: 'Can I pay using several cards/split payment between cash and card?',
-      answer: `<p>Option for installment, split payment, or using multiple credit cards is not available. We are continuously improving our service and we are looking to expand our modes of payment in the future.</p>
-               <p>We accept major credit cards and debit cards in settling your Feng Shui by PakBet TV online purchases.</p>`,
-      category: 'Payment'
-    },
-    {
-      faqID: 'payment-2',
-      question: 'What are the modes of payment available for online purchase?',
-      answer: `<p>To order online, we have three (3) payment methods available:</p>
-               <ol>
-                 <li><strong>Online payment via credit/debit card</strong>
-                   <ul>
-                     <li>For credit cards, we accept Visa, Mastercard, JCB and AMEX.</li>
-                     <li>For debit cards, Visa and Mastercard only</li>
-                   </ul>
-                 </li>
-                 <li><strong>Offline payment via PayMongo payment channels.</strong></li>
-                 <li><strong>Cash on Delivery (COD)</strong>
-                   <ul>
-                     <li>COD orders will depend on GoGoXpress serviceable areas. <a href="#" target="_blank">Click here</a> to check their coverage areas.</li>
-                   </ul>
-                 </li>
-               </ol>`,
-      category: 'Payment'
-    },
-    {
-      faqID: 'payment-3',
-      question: 'What kind of information do I need to provide during online check out?',
-      answer: `<p>For online payments, you will need to specify the full credit card number you will use to make the payment, cardholders name or the name that appears on the card, CVV/CVC and the expiration date of the card.</p>
-               <p>Your credit card company may send you an OTP (One-Time-Passcode) through your mobile device, and you may be asked to input the numbers to successfully complete the transaction.</p>`,
-      category: 'Payment'
-    },
+  // Payment FAQs
+  {
+    faqID: 'payment-1',
+    question: 'Can I pay using several cards or split payment between cash and bank transfer?',
+    answer: `<p>At this time, we do not accept split payments. Please select one payment method to complete your purchase.</p>`,
+    category: 'Payment'
+  },
+  {
+    faqID: 'payment-2',
+    question: 'What are the modes of payment available for online purchase?',
+    answer: `<p>We currently accept Dragonpay. Payment instructions will be provided at checkout and sent to your email.</p>`,
+    category: 'Payment'
+  },
+  {
+    faqID: 'payment-3',
+    question: 'What kind of information do I need to provide during online checkout?',
+    answer: `<p>During checkout, you will be asked to provide:</p>
+             <ul>
+               <li>Your full name</li>
+               <li>Complete delivery address</li>
+               <li>Contact number</li>
+               <li>Email address</li>
+             </ul>
+             <p>After placing your order, you will receive details for your Dragonpay payment. Please ensure all information is correct to avoid any delays.</p>`,
+    category: 'Payment'
+  },
 
-    // Product Available FAQs
-    {
-      faqID: 'products-1',
-      question: 'How can I check if the product is available online?',
-      answer: `<p>You may check the availability of our products on our website. If you are searching for a specific product, just type the product code or product name on the search bar.</p>
-               <p>If the search result comes back empty, it means that the item is either out of stock online or already discontinued.</p>`,
-      category: 'Products'
-    },
+  // Product Availability FAQs
+  {
+    faqID: 'products-1',
+    question: 'How can I check if the product is available online?',
+    answer: `<p>All available products are listed on our website. If you can see the product and add it to your cart, it is in stock. In case an item becomes unavailable after your order is placed, we will notify you right away to arrange a replacement or refund.</p>`,
+    category: 'Products'
+  },
 
-    // Gift Wrapping FAQs
-    {
-      faqID: 'services-1',
-      question: 'Can I request for gift wrapping service, gift receipts, and/or paper bags for online purchases?',
-      answer: `<p><strong>Gift wrapping services</strong> are not available in both our online store and physical stores at the moment.</p>
-               <p><strong>Gift Receipt:</strong> Gift receipts are not available for online orders at the moment. This service is available for purchases made in our physical stores. You may request for a gift receipt upon transaction.</p>
-               <p><strong>Shopping Bags:</strong> We cannot provide shopping bags for online orders at the moment. All orders come in delivery plastic pouches or boxes. Our shopping bags are only available for store purchases. You may request for extra shopping bags during your transaction at the store (1 bag = 1 item).</p>`,
-      category: 'Services'
-    }
-  ];
+  // Contact Support FAQs
+  {
+    faqID: 'services-1',
+    question: 'Contact Support',
+    answer: `<p>For inquiries or assistance, please fill out our contact form.</p>`,
+    category: 'Services'
+  }
+];
 
 const FAQs = () => {
   const location = useLocation();

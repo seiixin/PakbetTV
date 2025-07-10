@@ -490,13 +490,31 @@ const Checkout = () => {
           <div className="shipping-details">
             <div className="info-group">
               <label>Recipient</label>
-              <div className="info-value">{shippingDetails.name || (user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : '')}</div>
+              <input
+                type="text"
+                placeholder="Enter recipient name"
+                className="info-value"
+                value={shippingDetails.name}
+                onChange={(e) =>
+                  setShippingDetails((prev) => ({ ...prev, name: e.target.value }))
+                }
+              />
             </div>
-            
+
             <div className="info-group">
               <label>Contact Number</label>
-              <div className="info-value">{shippingDetails.phone || (profileLoading ? 'Loading...' : 'Not provided')}</div>
+              <input
+                type="text"
+                placeholder="Enter mobile number"
+                className="info-value"
+                value={shippingDetails.phone}
+                onChange={(e) =>
+                  setShippingDetails((prev) => ({ ...prev, phone: e.target.value }))
+                }
+              />
             </div>
+
+
             
             <div className="info-group">
               <label>Delivery Address</label>

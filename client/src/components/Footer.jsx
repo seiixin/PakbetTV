@@ -55,7 +55,7 @@ const Footer = ({ forceShow = true }) => {
           </div>
           <div className="contact-info">
             <h4>NEED HELP?</h4>
-            <p><i className="far fa-envelope"></i> admin@pakbettv.com</p>
+            <p><i className="far fa-envelope"></i> hello@michaeldemesa.com</p>
             <p><i className="fas fa-phone-alt"></i> 0981-194-9999</p>
           </div>
         </div>
