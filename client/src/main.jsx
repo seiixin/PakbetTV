@@ -5,14 +5,14 @@ import { queryClient, prefetchProducts } from './lib/queryClient'
 import './index.css'
 import App from './App.jsx'
 
-// Hide console logs on production domain only
-if (window.location.hostname === 'michaeldemesa.com') {
+// Remove console logs in production builds only
+// This is a runtime fallback in case build-time removal doesn't work
+if (import.meta.env.PROD) {
   console.log = () => {}
   console.warn = () => {}
   console.info = () => {}
   console.debug = () => {}
-  // Keep console.error for critical debugging if needed
-  // console.error = () => {}
+  // Keep console.error for critical debugging in production
 }
 
 // Trigger prefetch as soon as possible

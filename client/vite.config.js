@@ -55,12 +55,23 @@ export default defineConfig(({ mode }) => {
     }
   };
 
-  // Strip console/debugger in production builds
+  // Enhanced production build configuration to remove console logs
   if (isProduction) {
     baseConfig.build = {
       minify: 'esbuild',
       esbuild: {
-        drop: ['console', 'debugger']
+        // Remove console logs, debugger statements, but keep console.error
+        drop: ['console', 'debugger'],
+        // Alternative approach using pure annotations (more granular control)
+        pure: ['console.log', 'console.warn', 'console.info', 'console.debug']
+      },
+      // Additional minification options
+      terserOptions: {
+        compress: {
+          // Remove console statements except console.error
+          drop_console: true,
+          pure_funcs: ['console.log', 'console.warn', 'console.info', 'console.debug']
+        }
       }
     };
   }
