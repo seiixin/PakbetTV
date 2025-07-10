@@ -1,15 +1,11 @@
 export const initFacebookSDK = () => {
   return new Promise((resolve, reject) => {
-    // Load the SDK asynchronously with customer chat support
+    // Load the SDK asynchronously
     (function(d, s, id) {
       var js, fjs = d.getElementsByTagName(s)[0];
       if (d.getElementById(id)) return;
       js = d.createElement(s); js.id = id;
-      // Use the customer chat SDK that includes both regular SDK and customer chat
-      js.src = "https://connect.facebook.net/en_US/sdk/xfbml.customerchat.js";
-      js.crossOrigin = "anonymous";
-      js.async = true;
-      js.defer = true;
+      js.src = "https://connect.facebook.net/en_US/sdk.js";
       fjs.parentNode.insertBefore(js, fjs);
     }(document, 'script', 'facebook-jssdk'));
 
@@ -18,8 +14,7 @@ export const initFacebookSDK = () => {
         appId: import.meta.env.VITE_FACEBOOK_APP_ID,
         cookie: true,
         xfbml: true,
-        version: 'v18.0',
-        autoLogAppEvents: true
+        version: 'v18.0'
       });
 
       // Check login status if we're on HTTPS or localhost
