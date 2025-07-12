@@ -17,16 +17,8 @@ export const useProducts = () => {
   const getNewArrivals = useQuery({
     queryKey: ['products', 'new-arrivals'],
     queryFn: async () => {
-      const { data } = await api.get('/products?limit=20')
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      
-      const allProducts = Array.isArray(data?.products) ? data.products : [];
-      const newArrivals = allProducts
-        .filter(product => new Date(product.created_at) > thirtyDaysAgo)
-        .slice(0, MAX_PRODUCTS);
-      
-      return newArrivals;
+      const { data } = await api.get('/products/new-arrivals')
+      return Array.isArray(data) ? data : [];
     },
     // Keep the data fresh for 10 minutes
     staleTime: 1000 * 60 * 10,
@@ -104,18 +96,28 @@ export const useProducts = () => {
   const getBestSellers = useQuery({
     queryKey: ['products', 'best-sellers'],
     queryFn: async () => {
-      const { data } = await api.get('/products')
-      const allProducts = Array.isArray(data?.products) ? data.products : [];
-      const bestSellers = allProducts
-        .filter(product => product.is_featured)
-        .slice(0, MAX_PRODUCTS);
-      
-      return bestSellers;
+      const { data } = await api.get('/products/best-sellers')
+      return Array.isArray(data) ? data : [];
     },
     staleTime: 1000 * 60 * 10, // 10 minutes
     cacheTime: 1000 * 60 * 60, // 1 hour
     refetchOnMount: false,
     refetchOnWindowFocus: false
+  })
+
+  // Fetch flash deals with optimizations
+  const getFlashDeals = useQuery({
+    queryKey: ['products', 'flash-deals'],
+    queryFn: async () => {
+      const { data } = await api.get('/products/flash-deals')
+      return Array.isArray(data) ? data : [];
+    },
+    staleTime: 1000 * 60 * 2, // 2 minutes - flash deals change frequently
+    cacheTime: 1000 * 60 * 5, // 5 minutes
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    retry: 1, // Only retry once for faster failure
+    retryDelay: 1000 // Quick retry
   })
 
   // Create product mutation
@@ -199,6 +201,7 @@ export const useProducts = () => {
     updateProduct,
     deleteProduct,
     getNewArrivals,
-    getBestSellers
+    getBestSellers,
+    getFlashDeals
   }
 } 

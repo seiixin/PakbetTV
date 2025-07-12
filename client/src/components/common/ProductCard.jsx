@@ -17,6 +17,9 @@ const ProductCard = ({ product }) => {
         product_id: product.product_id,
         price: product.price,
         variants: product.variants,
+        stock: product.stock,
+        base_stock: product.base_stock,
+        has_variants: product.has_variants,
         images: product.images
       });
     }
@@ -116,24 +119,43 @@ const ProductCard = ({ product }) => {
     e.preventDefault(); // Prevent navigation to product page
     
     try {
+      // Check stock before attempting to add
+      const stockQuantity = product.stock;
+      console.log('Stock check for', product.name, ':', {
+        stock: stockQuantity,
+        base_stock: product.base_stock,
+        has_variants: product.has_variants
+      });
+
+      if (stockQuantity <= 0) {
+        toast.error('This item is out of stock');
+        return;
+      }
+
       const itemToAdd = {
         product_id: product.product_id,
         id: product.product_id,
         name: product.name,
         price: product.discounted_price > 0 ? product.discounted_price : product.price,
         image_url: getPrimaryImage(),
-        stock_quantity: product.stock_quantity || 0,
+        stock: stockQuantity,
         category_id: product.category_id,
         category_name: product.category_name,
         product_code: product.product_code
       };
 
-      addToCart(itemToAdd, 1);
-      toast.success(`${product.name} added to cart successfully!`);
-      
-      // Show visual feedback
-      setIsAdded(true);
-      setTimeout(() => setIsAdded(false), 1500);
+      addToCart(itemToAdd, 1)
+        .then(() => {
+          toast.success(`${product.name} added to cart successfully!`);
+          // Show visual feedback
+          setIsAdded(true);
+          setTimeout(() => setIsAdded(false), 1500);
+        })
+        .catch((error) => {
+          const errorMessage = error?.response?.data?.message || 'Failed to add item to cart';
+          toast.error(errorMessage);
+          console.error('Error adding to cart:', error);
+        });
 
     } catch (error) {
       console.error('Error adding to cart:', error);

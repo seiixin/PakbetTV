@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import NavBar from "./NavBar";
 import Footer from "./Footer";
@@ -10,89 +10,108 @@ import axios from "axios";
 import { authService } from "../services/api";
 import "./Contact.css";
 
-const CONTACT_FORM_STORAGE_KEY = 'contactFormData';
-
 const ContactForm = () => {
   const form = useRef();
+  const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
   const location = useLocation();
-  const [formData, setFormData] = useState(() => {
-    // Initialize from localStorage if available
-    const savedData = localStorage.getItem(CONTACT_FORM_STORAGE_KEY);
-    return savedData ? JSON.parse(savedData) : {
-      name: '',
-      email: '',
-      phone: '',
-      message: '',
-      subject: ''
-    };
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    message: location.state?.prefilledMessage || '',
+    subject: location.state?.subject || ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
 
   const fetchUserProfile = async () => {
     try {
-      console.log('Fetching user profile and shipping data...');
       const [profileResponse, shippingResponse] = await Promise.all([
         authService.getProfile(),
         authService.getShippingAddresses()
       ]);
-      
-      console.log('Profile Response:', profileResponse.data);
-      console.log('Shipping Response:', shippingResponse.data);
       
       const profileData = profileResponse.data;
       const addresses = shippingResponse.data;
       const defaultAddress = addresses && addresses.length > 0 ? 
         (addresses.find(addr => addr.is_default) || addresses[0]) : null;
 
-      console.log('Default Address:', defaultAddress);
-      console.log('Profile Phone:', profileData.phone);
-      console.log('Address Phone:', defaultAddress?.phone);
-
-      const userInfo = {
+      setFormData(prev => ({
+        ...prev,
         name: profileData.firstName && profileData.lastName ? 
           `${profileData.firstName} ${profileData.lastName}` : 
           profileData.firstName || '',
         email: profileData.email || '',
         phone: defaultAddress?.phone || profileData.phone || '',
-        message: location.state?.prefilledMessage || formData.message || '',
-        subject: location.state?.subject || formData.subject || ''
-      };
-      
-      console.log('Setting form data with:', userInfo);
-      setFormData(userInfo);
-      localStorage.setItem(CONTACT_FORM_STORAGE_KEY, JSON.stringify(userInfo));
+      }));
     } catch (error) {
       console.error('Error fetching user profile:', error);
-      console.error('Error details:', {
-        message: error.message,
-        response: error.response?.data
-      });
     }
   };
 
-  // Pre-fill form with user data and consultation booking info if available
+  // Fetch user profile on mount and when auth state changes
   useEffect(() => {
-    console.log('useEffect triggered with:', {
-      isAuthenticated,
-      hasUser: !!user,
-      userData: user
-    });
-    
     if (isAuthenticated && user) {
       fetchUserProfile();
     }
-  }, [user, isAuthenticated, location.state]);
+  }, [user, isAuthenticated]);
+
+  // Handle location state changes separately
+  useEffect(() => {
+    if (location.state?.prefilledMessage || location.state?.subject) {
+      setFormData(prev => ({
+        ...prev,
+        message: location.state.prefilledMessage || prev.message,
+        subject: location.state.subject || prev.subject
+      }));
+    }
+  }, [location.state]);
+
+  // Add navigation prompt
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (hasChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [hasChanges]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    console.log('Input changed:', { field: name, value });
-    const updatedFormData = {
-      ...formData,
+    setFormData(prev => ({
+      ...prev,
       [name]: value
-    };
-    setFormData(updatedFormData);
-    localStorage.setItem(CONTACT_FORM_STORAGE_KEY, JSON.stringify(updatedFormData));
+    }));
+    setHasChanges(true);
+  };
+
+  const handleNavigationAttempt = (to) => {
+    if (hasChanges) {
+      Swal.fire({
+        title: 'Unsaved Changes',
+        text: 'You have unsaved changes. Are you sure you want to leave?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#8B0000',
+        cancelButtonColor: '#6B7280',
+        confirmButtonText: 'Leave',
+        cancelButtonText: 'Stay'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          navigate(to);
+        }
+      });
+      return false;
+    }
+    return true;
   };
 
   const sendMessage = async (e) => {
@@ -109,6 +128,7 @@ const ContactForm = () => {
       const response = await axios.post(`${API_BASE_URL}/api/email/contact`, formData);
       
       if (response.data.success) {
+        setHasChanges(false);
         Swal.fire({
           icon: "success",
           title: "Message Sent!",
@@ -116,16 +136,12 @@ const ContactForm = () => {
           confirmButtonColor: "#8B0000",
         });
         
-        // Clear form and localStorage after successful submission
-        const emptyForm = {
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
+        // Clear form but keep user info
+        setFormData(prev => ({
+          ...prev,
           message: '',
           subject: ''
-        };
-        setFormData(emptyForm);
-        localStorage.setItem(CONTACT_FORM_STORAGE_KEY, JSON.stringify(emptyForm));
+        }));
       }
     } catch (error) {
       console.error('Contact form error:', error);
@@ -144,7 +160,7 @@ const ContactForm = () => {
 
   return (
     <>
-      <NavBar />
+      <NavBar onNavigate={handleNavigationAttempt} />
       <div className="contact-hero-section">
         <div className="contact-hero-content">
           <h1>Contact Us</h1>
@@ -279,7 +295,7 @@ const ContactForm = () => {
           </div>
         </div>
       </div>
-      <Footer forceShow={false} />
+      <Footer forceShow={false} onNavigate={handleNavigationAttempt} />
     </>
   );
 };

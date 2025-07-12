@@ -24,6 +24,9 @@ router.post('/', productsController.handleCombinedUpload, [
 ], productsController.createProduct);
 
 router.get('/', productsController.getProducts);
+router.get('/new-arrivals', productsController.getNewArrivals);
+router.get('/flash-deals', productsController.getFlashDeals);
+router.get('/best-sellers', productsController.getBestSellers);
 router.get('/search', productsController.searchProducts);
 router.get('/:id', productsController.getProductById);
 router.put('/:id', productsController.handleCombinedUpload, productsController.updateProduct);

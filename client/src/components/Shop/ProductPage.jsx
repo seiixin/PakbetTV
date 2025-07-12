@@ -12,14 +12,14 @@ import { useProducts } from '../../hooks/useProducts';
 import { useCategories } from '../../hooks/useCategories';
 
 const ProductPage = () => {
-  const { getAllProducts, getNewArrivals, getBestSellers } = useProducts();
+  const { getAllProducts, getNewArrivals, getBestSellers, getFlashDeals } = useProducts();
   const { getAllCategories } = useCategories();
   const { data: productsData, isLoading: productsLoading, error: productsError } = getAllProducts;
   const { data: categoriesData, isLoading: categoriesLoading, error: categoriesError } = getAllCategories;
   const { data: newArrivals = [], isLoading: newArrivalsLoading, error: newArrivalsError } = getNewArrivals;
   const { data: bestSellers = [], isLoading: bestSellersLoading, error: bestSellersError } = getBestSellers;
-  const [flashDeals, setFlashDeals] = useState([]);
-  const [searchParams] = useSearchParams(); 
+  const { data: flashDeals = [], isLoading: flashDealsLoading, error: flashDealsError } = getFlashDeals;
+  const [searchParams] = useSearchParams();
   const [selectedCategory, setSelectedCategory] = useState(
     searchParams.get('category') || 'all'
   );
@@ -228,13 +228,13 @@ const ProductPage = () => {
         const hasValidDiscount = product.discounted_price > 0 && product.discount_percentage > 0;
         return hasValidDiscount;
       });
-      setFlashDeals(validFlashDeals);
+      // setFlashDeals(validFlashDeals); // This line is removed as per the edit hint
       
       // Filter products based on category and search
       filterProducts(productsData.products);
     } else {
       // Set empty arrays as fallback
-      setFlashDeals([]);
+      // setFlashDeals([]); // This line is removed as per the edit hint
       setFilteredProducts([]);
     }
   }, [productsData, selectedCategory, searchParams]);
@@ -527,12 +527,12 @@ const ProductPage = () => {
           </div>
 
           <h1 id="flash-deals-section">FLASH DEALS</h1>
-          {productsError && <div className="error-message">{productsError}</div>}
-          {productsLoading ? (
-            <div>Loading products...</div>
+          {flashDealsError && <div className="error-message">{flashDealsError.message}</div>}
+          {flashDealsLoading ? (
+            <div>Loading flash deals...</div>
           ) : (
             <>
-              {console.log('Rendering flash deals section:', { flashDeals, productsLoading, productsError })}
+              {console.log('Rendering flash deals section:', { flashDeals, flashDealsLoading, flashDealsError })}
               {(!Array.isArray(flashDeals) || flashDeals.length === 0) ? (
                 <div className="no-products">
                   <p>No flash deals available at the moment.</p>

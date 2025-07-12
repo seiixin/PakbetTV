@@ -136,12 +136,14 @@ export const CartProvider = ({ children }) => {
 
   // Add item to cart with rate limiting and validation
   const addToCart = async (product, quantity = 1) => {
-    if (!rateLimitedOperation('add')) return;
+    if (!rateLimitedOperation('add')) {
+      return Promise.reject(new Error('Operation throttled'));
+    }
     
     // Validate input
     if (!product?.id || typeof quantity !== 'number' || quantity <= 0) {
       console.error('[CartContext] Invalid product or quantity');
-      return;
+      return Promise.reject(new Error('Invalid product or quantity'));
     }
 
     console.log('[CartContext] Adding to cart:', { product, quantity });
@@ -166,16 +168,27 @@ export const CartProvider = ({ children }) => {
         
         // Refresh cart from database
         await fetchCartFromDatabase();
+        return Promise.resolve(response.data);
       } catch (error) {
         console.error('[CartContext] Error adding item to database cart:', error);
-        // Fallback to local cart update
+        // Don't fallback to local cart update on stock error
+        if (error.response?.status === 400 && error.response?.data?.message === 'Not enough stock available') {
+          return Promise.reject(error);
+        }
+        // Fallback to local cart update for other errors
         updateLocalCart(productWithProperImageUrl, quantity);
+        return Promise.resolve();
       } finally {
         setLoading(false);
       }
     } else {
       // Guest user - update local cart
+      // Check stock before updating local cart
+      if (product.stock < quantity) {
+        return Promise.reject(new Error('Not enough stock available'));
+      }
       updateLocalCart(productWithProperImageUrl, quantity);
+      return Promise.resolve();
     }
   };
 

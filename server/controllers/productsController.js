@@ -143,6 +143,229 @@ async function createProduct(req, res) {
   // (Insert the full logic from the POST / route handler here)
 }
 
+// Handler for GET /api/products/flash-deals (get flash deals)
+async function getFlashDeals(req, res) {
+  try {
+    const limit = 12; // Limit to 12 flash deals
+
+    // Optimized SQL for flash deals with better performance
+    let sql = `
+      SELECT
+        p.product_id,
+        p.name,
+        p.product_code,
+        p.description,
+        p.category_id,
+        p.created_at,
+        p.updated_at,
+        p.is_featured,
+        p.price                        AS base_price,
+        p.discounted_price,
+        p.discount_percentage,
+        p.average_rating,
+        p.review_count,
+        c.name                          AS category_name,
+        p.stock as base_stock,
+        p.stock AS stock,
+        FALSE as has_variants
+      FROM products p
+      LEFT JOIN categories c     ON p.category_id = c.category_id
+      WHERE p.stock > 0
+      AND p.discounted_price > 0
+      AND p.discount_percentage > 0
+      ORDER BY p.discount_percentage DESC, p.created_at DESC
+      LIMIT ?`;
+
+    const params = [limit];
+
+    const [productsResult] = await db.query(sql, params);
+    let products = productsResult;
+
+    // Add debug logging for flash deals
+    console.log('Flash deals found:', products.length);
+
+    // ----- Post-process products (images, numeric fields) -----
+    const productIds = products.map(p => p.product_id);
+    const includeImages = req.query.includeImages !== 'false' && req.query.includeImages !== '0';
+    let imageMap = {};
+    if (includeImages && productIds.length) {
+      const [imgRows] = await db.query(
+        `SELECT pi.product_id, pi.image_url
+         FROM product_images pi
+         WHERE pi.product_id IN (?)
+         ORDER BY pi.product_id, pi.sort_order`, [productIds]);
+      for (const row of imgRows) {
+        if (!imageMap[row.product_id]) {
+          imageMap[row.product_id] = row.image_url;
+        }
+      }
+      const missingIds = productIds.filter(id => !imageMap[id]);
+      if (missingIds.length) {
+        const [variantRows] = await db.query(
+          `SELECT pv.product_id, pv.image_url
+           FROM product_variants pv
+           WHERE pv.product_id IN (?) AND pv.image_url IS NOT NULL`, [missingIds]);
+        for (const row of variantRows) {
+          if (!imageMap[row.product_id]) {
+            imageMap[row.product_id] = row.image_url;
+          }
+        }
+      }
+    }
+
+    for (const product of products) {
+      product.price = Number(product.base_price) || 0;
+      product.discounted_price = Number(product.discounted_price) || 0;
+      product.discount_percentage = Number(product.discount_percentage) || 0;
+      product.average_rating = product.average_rating !== null ? Number(product.average_rating) : 0;
+      product.review_count = Number(product.review_count) || 0;
+      product.stock = Number(product.stock) || 0;
+      delete product.base_price;
+
+      if (includeImages) {
+        const rawImg = imageMap[product.product_id];
+        if (rawImg) {
+          let url;
+          if (Buffer.isBuffer(rawImg)) {
+            url = `data:image/jpeg;base64,${rawImg.toString('base64')}`;
+          } else {
+            // Ensure single leading /uploads/ prefix
+            if (rawImg.startsWith('/')) {
+              url = rawImg;
+            } else if (rawImg.startsWith('uploads/')) {
+              url = `/${rawImg}`;
+            } else {
+              url = `/uploads/${rawImg}`;
+            }
+          }
+          product.images = [{ id: null, url, alt: product.name, order: 0 }];
+        } else {
+          product.images = [];
+        }
+      } else {
+        product.images = [];
+      }
+      product.variants = [];
+    }
+
+    return res.json(products);
+  } catch (err) {
+    console.error('Error in flash deals route:', err);
+    return res.status(500).json({ message: 'Server error while fetching flash deals' });
+  }
+}
+
+// Handler for GET /api/products/new-arrivals (get new arrivals)
+async function getNewArrivals(req, res) {
+  try {
+    const limit = 12; // Limit to 12 new arrivals
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    // Optimized SQL for new arrivals with better performance
+    let sql = `
+      SELECT
+        p.product_id,
+        p.name,
+        p.product_code,
+        p.description,
+        p.category_id,
+        p.created_at,
+        p.updated_at,
+        p.is_featured,
+        p.price                        AS base_price,
+        p.average_rating,
+        p.review_count,
+        c.name                          AS category_name,
+        p.stock as base_stock,
+        p.stock AS stock,
+        FALSE as has_variants
+      FROM products p
+      LEFT JOIN categories c     ON p.category_id = c.category_id
+      WHERE p.stock > 0
+      AND p.created_at >= ?
+      ORDER BY p.created_at DESC
+      LIMIT ?`;
+
+    const params = [thirtyDaysAgo, limit];
+
+    const [productsResult] = await db.query(sql, params);
+    let products = productsResult;
+
+    // Add debug logging for new arrivals
+    console.log('New arrivals found:', products.length);
+
+    // ----- Post-process products (images, numeric fields) -----
+    const productIds = products.map(p => p.product_id);
+    const includeImages = req.query.includeImages !== 'false' && req.query.includeImages !== '0';
+    let imageMap = {};
+    if (includeImages && productIds.length) {
+      const [imgRows] = await db.query(
+        `SELECT pi.product_id, pi.image_url
+         FROM product_images pi
+         WHERE pi.product_id IN (?)
+         ORDER BY pi.product_id, pi.sort_order`, [productIds]);
+      for (const row of imgRows) {
+        if (!imageMap[row.product_id]) {
+          imageMap[row.product_id] = row.image_url;
+        }
+      }
+      const missingIds = productIds.filter(id => !imageMap[id]);
+      if (missingIds.length) {
+        const [variantRows] = await db.query(
+          `SELECT pv.product_id, pv.image_url
+           FROM product_variants pv
+           WHERE pv.product_id IN (?) AND pv.image_url IS NOT NULL`, [missingIds]);
+        for (const row of variantRows) {
+          if (!imageMap[row.product_id]) {
+            imageMap[row.product_id] = row.image_url;
+          }
+        }
+      }
+    }
+
+    for (const product of products) {
+      product.price = Number(product.base_price) || 0;
+      product.discounted_price = 0;
+      product.discount_percentage = 0;
+      product.average_rating = product.average_rating !== null ? Number(product.average_rating) : 0;
+      product.review_count = Number(product.review_count) || 0;
+      product.stock = Number(product.stock) || 0;
+      delete product.base_price;
+
+      if (includeImages) {
+        const rawImg = imageMap[product.product_id];
+        if (rawImg) {
+          let url;
+          if (Buffer.isBuffer(rawImg)) {
+            url = `data:image/jpeg;base64,${rawImg.toString('base64')}`;
+          } else {
+            // Ensure single leading /uploads/ prefix
+            if (rawImg.startsWith('/')) {
+              url = rawImg;
+            } else if (rawImg.startsWith('uploads/')) {
+              url = `/${rawImg}`;
+            } else {
+              url = `/uploads/${rawImg}`;
+            }
+          }
+          product.images = [{ id: null, url, alt: product.name, order: 0 }];
+        } else {
+          product.images = [];
+        }
+      } else {
+        product.images = [];
+      }
+      product.variants = [];
+    }
+
+    return res.json(products);
+  } catch (err) {
+    console.error('Error in new arrivals route:', err);
+    return res.status(500).json({ message: 'Server error while fetching new arrivals' });
+  }
+}
+
 // Handler for GET /api/products (get products list)
 async function getProducts(req, res) {
   try {
@@ -176,11 +399,21 @@ async function getProducts(req, res) {
         p.average_rating,
         p.review_count,
         c.name                          AS category_name,
-        COALESCE(SUM(pv.stock), 0)      AS stock
+        p.stock as base_stock,
+        COALESCE(
+          (SELECT SUM(stock) FROM product_variants WHERE product_id = p.product_id),
+          p.stock,
+          0
+        ) AS stock,
+        EXISTS (SELECT 1 FROM product_variants WHERE product_id = p.product_id) as has_variants
       FROM products p
       LEFT JOIN categories c     ON p.category_id = c.category_id
-      LEFT JOIN product_variants pv ON p.product_id = pv.product_id
-      WHERE 1 = 1`;
+      WHERE 1 = 1
+      AND COALESCE(
+        (SELECT SUM(stock) FROM product_variants WHERE product_id = p.product_id),
+        p.stock,
+        0
+      ) > 0`;
 
     const params = [];
 
@@ -204,6 +437,14 @@ async function getProducts(req, res) {
 
     const [productsResult] = await db.query(sql, params);
     let products = productsResult;
+
+    // Add debug logging for stock values
+    console.log('Products with stock values:', products.map(p => ({
+      product_id: p.product_id,
+      name: p.name,
+      stock: p.stock,
+      has_variants: products.some(prod => prod.product_id === p.product_id)
+    })));
 
     // ----- Determine if there is a next page -----
     const hasNextPage = products.length > limit;
@@ -532,6 +773,125 @@ async function deleteProductImage(req, res) {
   // (Insert the full logic from the DELETE /images/:imageId route handler here)
 }
 
+// Handler for GET /api/products/best-sellers (get best sellers based on sales)
+async function getBestSellers(req, res) {
+  try {
+    const limit = 12; // Limit to 12 best sellers
+
+    // SQL to calculate best sellers based on actual sales data
+    let sql = `
+      SELECT
+        p.product_id,
+        p.name,
+        p.product_code,
+        p.description,
+        p.category_id,
+        p.created_at,
+        p.updated_at,
+        p.is_featured,
+        p.price                        AS base_price,
+        p.discounted_price,
+        p.discount_percentage,
+        p.average_rating,
+        p.review_count,
+        c.name                          AS category_name,
+        p.stock as base_stock,
+        p.stock AS stock,
+        FALSE as has_variants,
+        COALESCE(SUM(oi.quantity), 0) as total_sold
+      FROM products p
+      LEFT JOIN categories c     ON p.category_id = c.category_id
+      LEFT JOIN order_items oi  ON p.product_id = oi.product_id
+      LEFT JOIN orders o        ON oi.order_id = o.order_id 
+                                 AND o.order_status IN ('completed', 'delivered')
+      WHERE p.stock > 0
+      GROUP BY p.product_id, p.name, p.product_code, p.description, p.category_id,
+               p.created_at, p.updated_at, p.is_featured, p.price, p.discounted_price,
+               p.discount_percentage, p.average_rating, p.review_count, c.name, p.stock
+      HAVING total_sold > 0
+      ORDER BY total_sold DESC, p.created_at DESC
+      LIMIT ?`;
+
+    const params = [limit];
+
+    const [productsResult] = await db.query(sql, params);
+    let products = productsResult;
+
+    // Add debug logging for best sellers
+    console.log('Best sellers found:', products.length);
+
+    // ----- Post-process products (images, numeric fields) -----
+    const productIds = products.map(p => p.product_id);
+    const includeImages = req.query.includeImages !== 'false' && req.query.includeImages !== '0';
+    let imageMap = {};
+    if (includeImages && productIds.length) {
+      const [imgRows] = await db.query(
+        `SELECT pi.product_id, pi.image_url
+         FROM product_images pi
+         WHERE pi.product_id IN (?)
+         ORDER BY pi.product_id, pi.sort_order`, [productIds]);
+      for (const row of imgRows) {
+        if (!imageMap[row.product_id]) {
+          imageMap[row.product_id] = row.image_url;
+        }
+      }
+      const missingIds = productIds.filter(id => !imageMap[id]);
+      if (missingIds.length) {
+        const [variantRows] = await db.query(
+          `SELECT pv.product_id, pv.image_url
+           FROM product_variants pv
+           WHERE pv.product_id IN (?) AND pv.image_url IS NOT NULL`, [missingIds]);
+        for (const row of variantRows) {
+          if (!imageMap[row.product_id]) {
+            imageMap[row.product_id] = row.image_url;
+          }
+        }
+      }
+    }
+
+    for (const product of products) {
+      product.price = Number(product.base_price) || 0;
+      product.discounted_price = Number(product.discounted_price) || 0;
+      product.discount_percentage = Number(product.discount_percentage) || 0;
+      product.average_rating = product.average_rating !== null ? Number(product.average_rating) : 0;
+      product.review_count = Number(product.review_count) || 0;
+      product.stock = Number(product.stock) || 0;
+      product.total_sold = Number(product.total_sold) || 0;
+      delete product.base_price;
+
+      if (includeImages) {
+        const rawImg = imageMap[product.product_id];
+        if (rawImg) {
+          let url;
+          if (Buffer.isBuffer(rawImg)) {
+            url = `data:image/jpeg;base64,${rawImg.toString('base64')}`;
+          } else {
+            // Ensure single leading /uploads/ prefix
+            if (rawImg.startsWith('/')) {
+              url = rawImg;
+            } else if (rawImg.startsWith('uploads/')) {
+              url = `/${rawImg}`;
+            } else {
+              url = `/uploads/${rawImg}`;
+            }
+          }
+          product.images = [{ id: null, url, alt: product.name, order: 0 }];
+        } else {
+          product.images = [];
+        }
+      } else {
+        product.images = [];
+      }
+      product.variants = [];
+    }
+
+    return res.json(products);
+  } catch (err) {
+    console.error('Error in best sellers route:', err);
+    return res.status(500).json({ message: 'Server error while fetching best sellers' });
+  }
+}
+
 // Serve product image by product ID
 const serveProductImage = async (req, res) => {
   try {
@@ -602,4 +962,7 @@ module.exports = {
   deleteProduct,
   deleteProductImage,
   serveProductImage,
+  getNewArrivals,
+  getFlashDeals,
+  getBestSellers,
 };
