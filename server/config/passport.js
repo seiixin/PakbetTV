@@ -100,14 +100,17 @@ const findOrCreateUser = async (profile, provider, done) => {
 
 // Google Strategy Configuration - Only if environment variables are available
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
-  const callbackURL = '/api/auth/google/callback';
+  const callbackURL = process.env.NODE_ENV === 'production'
+    ? 'https://michaeldemesa.com/api/auth/google/callback'
+    : '/api/auth/google/callback';
+  
   console.log('Configuring Google OAuth with callback URL:', callbackURL);
   console.log('GOOGLE_CLIENT_ID:', process.env.GOOGLE_CLIENT_ID ? 'Set' : 'Not set');
   
   passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: callbackURL, // Use relative URL for all environments
+    callbackURL: callbackURL,
     profileFields: ['id', 'displayName', 'name', 'emails', 'photos']
   }, (accessToken, refreshToken, profile, done) => {
     console.log('Google OAuth callback triggered for user:', profile.id);
