@@ -468,26 +468,40 @@ async function createShippingOrder(orderId) {
   try {
     await connection.beginTransaction();
     
-    // Get order details including payment status
-    const [orders] = await connection.query(
-      'SELECT o.*, u.first_name, u.last_name, u.email, u.phone, u.user_id FROM orders o ' +
-      'JOIN users u ON o.user_id = u.user_id ' +
-      'WHERE o.order_id = ?',
-      [orderId]
-    );
+    // Get order details including payment status with retry mechanism
+    let orders = [];
+    let retryCount = 0;
+    const maxRetries = 3;
+    
+    while (retryCount < maxRetries && orders.length === 0) {
+      [orders] = await connection.query(
+        'SELECT o.*, u.first_name, u.last_name, u.email, u.phone, u.user_id FROM orders o ' +
+        'JOIN users u ON o.user_id = u.user_id ' +
+        'WHERE o.order_id = ?',
+        [orderId]
+      );
+      
+      if (orders.length === 0) {
+        retryCount++;
+        console.log(`Order ${orderId} not found, retry ${retryCount}/${maxRetries}`);
+        if (retryCount < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+        }
+      }
+    }
     
     if (orders.length === 0) {
       await connection.rollback();
-      throw new Error('Order not found');
+      throw new Error(`Order not found after ${maxRetries} retries`);
     }
     
     const order = orders[0];
     console.log(`Order details: payment_status=${order.payment_status}, order_status=${order.order_status}`);
     
     // IMPORTANT: Check payment status before creating shipping order
-    if (order.payment_status !== 'paid') {
+    if (order.payment_status !== 'paid' && order.payment_status !== 'cod_pending') {
       await connection.rollback();
-      throw new Error(`Cannot create shipping order for order ${orderId}. Payment status is '${order.payment_status}', but 'paid' is required. Please confirm payment first.`);
+      throw new Error(`Cannot create shipping order for order ${orderId}. Payment status is '${order.payment_status}', but 'paid' or 'cod_pending' is required. Please confirm payment first.`);
     }
     
     // Additional validation for order status

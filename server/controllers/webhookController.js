@@ -20,30 +20,56 @@ async function ninjavanWebhook(req, res) {
         
         if (trackingNumber) {
           const [orders] = await db.query(
-            `SELECT o.order_id, o.total_price, p.payment_method 
+            `SELECT o.order_id, o.total_price, p.payment_id, p.payment_method, p.status as payment_status 
              FROM orders o 
              LEFT JOIN payments p ON o.order_id = p.order_id
-             WHERE o.tracking_number = ? LIMIT 1`,
+             WHERE o.tracking_number = ? AND o.payment_status = 'cod_pending' LIMIT 1`,
             [trackingNumber]
           );
 
           if (orders.length && orders[0].payment_method === 'cod') {
-            // Update payment status to paid for COD orders
-            await db.query(
-              'UPDATE orders SET payment_status = ? WHERE order_id = ?',
-              ['paid', orders[0].order_id]
-            );
-            
-            await db.query(
-              'UPDATE payments SET status = ?, reference_number = ? WHERE order_id = ?',
-              ['completed', `COD-${trackingNumber}`, orders[0].order_id]
-            );
-            
-            console.log(`COD payment collected for order ${orders[0].order_id}: ${collectedAmount}`);
+            // Start a transaction
+            const connection = await db.getConnection();
+            try {
+              await connection.beginTransaction();
+
+              // Update order payment status
+              await connection.query(
+                'UPDATE orders SET payment_status = ?, updated_at = NOW() WHERE order_id = ?',
+                ['paid', orders[0].order_id]
+              );
+              
+              // Update payment record
+              await connection.query(
+                'UPDATE payments SET status = ?, reference_number = ?, updated_at = NOW() WHERE payment_id = ?',
+                ['completed', `COD-${trackingNumber}-${Date.now()}`, orders[0].payment_id]
+              );
+
+              await connection.commit();
+              console.log(`COD payment collected and processed for order ${orders[0].order_id}: ${collectedAmount}`);
+            } catch (error) {
+              await connection.rollback();
+              throw error;
+            } finally {
+              connection.release();
+            }
           }
         }
       } catch (codError) {
-        console.error('Error processing COD payment collection:', codError.message);
+        console.error('Error processing COD payment collection:', codError);
+        // Log the error but don't fail the webhook
+        try {
+          await db.query(
+            'INSERT INTO webhook_logs (provider, event_type, payload) VALUES (?, ?, ?)',
+            ['NinjaVan', 'cod_payment_error', JSON.stringify({
+              error: codError.message,
+              trackingNumber: req.body.tracking_number,
+              data: req.body
+            })]
+          );
+        } catch (logError) {
+          console.error('Error logging COD payment error:', logError);
+        }
       }
     }
 

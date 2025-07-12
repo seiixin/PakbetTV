@@ -36,6 +36,7 @@ const Checkout = () => {
   
   const [paymentUrl, setPaymentUrl] = useState(null);
   const [showManualRedirect, setShowManualRedirect] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('dragonpay');
   
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -308,37 +309,29 @@ const Checkout = () => {
 
   const handlePlaceOrder = async (e) => {
     e.preventDefault();
-    
-    // Check if shipping address is available
-    if (!hasShippingAddress) {
-      notify.error('Please update your shipping address before placing an order');
-      navigate('/account');
+
+    // Validate shipping details
+    if (!shippingDetails.name) {
+      notify.error('Recipient name is required for checkout');
       return;
     }
-    
-    // Validate all required fields are filled
-    const requiredFields = ['name', 'phone', 'email', 'address', 'city', 'state', 'postal_code'];
-    const missingFields = requiredFields.filter(field => !shippingDetails[field]?.trim());
-    
-    if (missingFields.length > 0) {
-      const fieldNames = missingFields.map(f => {
-        switch(f) {
-          case 'phone': return 'mobile number';
-          case 'postal_code': return 'postal code';
-          default: return f.replace('_', ' ');
-        }
-      });
-      setError(`Please provide your ${fieldNames.join(', ')}. Mobile number is required for order processing and delivery coordination.`);
-      notify.error('Please complete all required shipping information including your mobile number');
-      return;
-    }
-    
-    // Extra validation for phone number specifically
-    if (!shippingDetails.phone || !shippingDetails.phone.trim()) {
-      setError('Mobile number is required. We need your contact number for order updates and delivery coordination.');
+
+    if (!shippingDetails.phone) {
       notify.error('Mobile number is required for checkout');
       return;
     }
+
+    if (!shippingDetails.address) {
+      notify.error('Delivery address is required for checkout');
+      return;
+    }
+
+    // Ensure we have a complete address with all components
+    const completeAddress = getFormattedAddress();
+    const updatedShippingDetails = {
+      ...shippingDetails,
+      address: completeAddress
+    };
 
     setLoading(true);
     setError(null);
@@ -347,71 +340,116 @@ const Checkout = () => {
       console.log('[Checkout] Starting order process for user:', user.id);
       console.log('[Checkout] Selected items:', selectedItems.length);
       console.log('[Checkout] Shipping fee:', shippingFee);
+      console.log('[Checkout] Shipping details:', updatedShippingDetails);
       
-      // Create the order with shipping fee
-      const orderResult = await createOrder(user.id, shippingFee, shippingDetails);
+      // Create the order with shipping fee and payment method
+      const orderResult = await createOrder(user.id, shippingFee, updatedShippingDetails, selectedPaymentMethod);
       console.log('[Checkout] Order created:', orderResult);
       
-      if (!orderResult || !orderResult.order_id) {
+      if (!orderResult || !orderResult.order || !orderResult.order.order_id) {
         throw new Error('Failed to create order: Invalid response from server');
       }
       
-      // Process payment with DragonPay (total includes shipping fee)
-      const paymentResult = await processPayment(
-        orderResult.order_id, 
-        user.email || 'customer@example.com'
-      );
-      console.log('[Checkout] Payment processing result:', paymentResult);
-      
-      if (paymentResult.payment_url) {
-        console.log('[Checkout] Redirecting to DragonPay:', paymentResult.payment_url);
+      // Process payment based on selected method
+      if (selectedPaymentMethod === 'cod') {
+        // For COD orders, no payment processing is needed
+        console.log('[Checkout] COD order created successfully');
         
-        // Store the payment URL for manual redirect if needed
-        setPaymentUrl(paymentResult.payment_url);
-        sessionStorage.setItem('dragonpay_redirect_url', paymentResult.payment_url);
-        
-        // Try multiple redirect methods to ensure it works
-        try {
-          // Method 1: Direct window.location.href
-          console.log('[Checkout] Attempting redirect method 1: window.location.href');
-          window.location.href = paymentResult.payment_url;
-          
-          // Set a timeout to show manual redirect if automatic redirect fails
-          setTimeout(() => {
-            if (document.location.href !== paymentResult.payment_url) {
-              console.log('[Checkout] Automatic redirect may have failed, showing manual redirect');
-              setShowManualRedirect(true);
-            }
-          }, 3000);
-          
-        } catch (redirectError) {
-          console.error('[Checkout] Redirect error:', redirectError);
-          setShowManualRedirect(true);
-          
-          // Method 2: Try window.location.replace
-          try {
-            console.log('[Checkout] Attempting redirect method 2: window.location.replace');
-            window.location.replace(paymentResult.payment_url);
-          } catch (replaceError) {
-            console.error('[Checkout] Replace error:', replaceError);
-            
-            // Method 3: Create a form and submit it (fallback)
-            console.log('[Checkout] Attempting redirect method 3: form submission');
-            const form = document.createElement('form');
-            form.method = 'GET';
-            form.action = paymentResult.payment_url;
-            document.body.appendChild(form);
-            form.submit();
-          }
-        }
+        // Show success message and redirect to order confirmation
+        notify.success('Order placed successfully! You will pay upon delivery.');
+        navigate('/account', { 
+          state: { 
+            showOrderConfirmation: true, 
+            orderId: orderResult.order.order_id 
+          } 
+        });
       } else {
-        throw new Error('No payment URL received');
+        // Process payment with DragonPay (total includes shipping fee)
+        const paymentResult = await processPayment(
+          orderResult.order.order_id, 
+          user.email || 'customer@example.com',
+          selectedPaymentMethod
+        );
+        console.log('[Checkout] Payment processing result:', paymentResult);
+        
+        if (paymentResult.payment_url) {
+          console.log('[Checkout] Redirecting to DragonPay:', paymentResult.payment_url);
+          
+          // Store the payment URL for manual redirect if needed
+          setPaymentUrl(paymentResult.payment_url);
+          sessionStorage.setItem('dragonpay_redirect_url', paymentResult.payment_url);
+          
+          // Try multiple redirect methods to ensure it works
+          try {
+            // Method 1: Direct window.location.href
+            console.log('[Checkout] Attempting redirect method 1: window.location.href');
+            window.location.href = paymentResult.payment_url;
+            
+            // Set a timeout to show manual redirect if automatic redirect fails
+            setTimeout(() => {
+              if (document.location.href !== paymentResult.payment_url) {
+                console.log('[Checkout] Automatic redirect may have failed, showing manual redirect');
+                setShowManualRedirect(true);
+              }
+            }, 3000);
+            
+          } catch (redirectError) {
+            console.error('[Checkout] Redirect error:', redirectError);
+            setShowManualRedirect(true);
+            
+            // Method 2: Try window.location.replace
+            try {
+              console.log('[Checkout] Attempting redirect method 2: window.location.replace');
+              window.location.replace(paymentResult.payment_url);
+            } catch (replaceError) {
+              console.error('[Checkout] Replace error:', replaceError);
+              
+              // Method 3: Create a form and submit it (fallback)
+              console.log('[Checkout] Attempting redirect method 3: form submission');
+              const form = document.createElement('form');
+              form.method = 'GET';
+              form.action = paymentResult.payment_url;
+              document.body.appendChild(form);
+              form.submit();
+            }
+          }
+        } else {
+          throw new Error('No payment URL received from payment gateway');
+        }
       }
       
     } catch (err) {
       console.error('[Checkout] Error during checkout:', err);
-      handleError(err);
+      
+      // Handle specific error cases
+      let errorMessage = err.message || 'An error occurred during checkout';
+      
+      if (errorMessage.includes('stock')) {
+        notify.error('Some items in your cart are no longer available. Please review your cart.');
+      } else if (errorMessage.includes('phone')) {
+        notify.error('Please provide a valid phone number in the format: +63 912 345 6789 or 09123456789');
+      } else if (errorMessage.includes('shipping')) {
+        notify.error('Please complete all shipping details including address and contact information');
+      } else if (errorMessage.includes('payment gateway') || errorMessage.includes('DragonPay')) {
+        notify.error('There was an issue with the payment gateway. Please try again or choose a different payment method.');
+      } else if (errorMessage.includes('internet') || errorMessage.includes('connect')) {
+        notify.error('Unable to connect to the server. Please check your internet connection and try again.');
+      } else if (errorMessage.includes('log in')) {
+        notify.error('Please log in to complete your purchase');
+        navigate('/auth/login', { state: { returnTo: '/checkout' } });
+      } else {
+        notify.error(errorMessage);
+      }
+      
+      setError(errorMessage);
       setLoading(false);
+      
+      // Log detailed error for debugging
+      console.error('[Checkout] Error details:', {
+        message: err.message,
+        stack: err.stack,
+        response: err.response?.data
+      });
     }
   };
 
@@ -470,7 +508,15 @@ const Checkout = () => {
       return profileLoading ? 'Loading...' : 'No address provided';
     }
     
-    const parts = [shippingDetails.address];
+    // Return the address as is if it's already a complete string
+    if (typeof shippingDetails.address === 'string' && shippingDetails.address.trim().length > 0) {
+      return shippingDetails.address;
+    }
+    
+    // Otherwise build the address from components
+    const parts = [];
+    
+    if (shippingDetails.address) parts.push(shippingDetails.address);
     if (shippingDetails.city) parts.push(shippingDetails.city);
     if (shippingDetails.state) parts.push(shippingDetails.state);
     if (shippingDetails.postal_code) parts.push(shippingDetails.postal_code);
@@ -578,18 +624,41 @@ const Checkout = () => {
         {/* Payment Method Section */}
         <div className="checkout-section">
           <h3>Payment Method</h3>
-          <div className="payment-method">
-            <input 
-              type="radio" 
-              id="dragonpay" 
-              name="payment-method" 
-              checked={true}
-              readOnly 
-            />
-            <label htmlFor="dragonpay">
-              <span className="payment-label">DragonPay</span>
-              <span className="payment-description">Pay securely via DragonPay's payment channels</span>
-            </label>
+          <div className="payment-methods">
+            <div className="payment-method">
+              <input 
+                type="radio" 
+                id="dragonpay" 
+                name="payment-method" 
+                value="dragonpay"
+                checked={selectedPaymentMethod === 'dragonpay'}
+                onChange={(e) => setSelectedPaymentMethod(e.target.value)}
+              />
+              <label htmlFor="dragonpay">
+                <span className="payment-label">DragonPay</span>
+                <span className="payment-description">Pay securely via DragonPay's payment channels</span>
+              </label>
+            </div>
+            
+            <div className="payment-method">
+              <input 
+                type="radio" 
+                id="cod" 
+                name="payment-method" 
+                value="cod"
+                checked={selectedPaymentMethod === 'cod'}
+                onChange={(e) => setSelectedPaymentMethod(e.target.value)}
+              />
+              <label htmlFor="cod">
+                <span className="payment-label">Cash on Delivery (COD)</span>
+                <span className="payment-description">Pay with cash when your order is delivered</span>
+              </label>
+            </div>
+            {selectedPaymentMethod === 'cod' && (
+              <div className="cod-notice">
+                <p><strong>Note:</strong> For COD orders, you will pay the full amount in cash when your order is delivered. Please have the exact amount ready.</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -664,7 +733,7 @@ const Checkout = () => {
             onClick={handlePlaceOrder}
             disabled={loading || !hasShippingAddress || !termsAccepted}
           >
-            {loading ? 'Processing...' : 'Place Order'}
+            {loading ? 'Processing...' : selectedPaymentMethod === 'cod' ? 'Place COD Order' : 'Place Order'}
           </button>
         </div>
         

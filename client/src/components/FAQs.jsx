@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, Link } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap/dist/js/bootstrap.bundle.min.js';
 import './FAQs.css';
@@ -304,7 +304,7 @@ const FAQs = () => {
             <div className="faq-contact mt-5 mb-5">
               <h3>Still have questions?</h3>
               <p>If you couldn't find the answer to your question, please feel free to contact us.</p>
-              <a href="mailto:admin@pakbettv.com" className="contact-btn">Contact Support</a>
+              <Link to="/contact" className="contact-btn">Contact Us</Link>
             </div>
           </>
         )}

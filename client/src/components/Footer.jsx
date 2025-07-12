@@ -17,7 +17,7 @@ const Footer = ({ forceShow = true }) => {
               <li><Link to="/faqs?category=Returns">Returns & Exchanges</Link></li>
               <li><Link to="/faqs?category=Payment">Payment Methods</Link></li>
               <li><Link to="/faqs?category=Products">Product Availability</Link></li>
-              <li><Link to="/contact">Contact Support</Link></li>
+              <li><Link to="/contact">Contact Us</Link></li>
             </ul>
           </div>
         </div>

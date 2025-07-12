@@ -40,6 +40,7 @@ import ForgotPassword from './pages/ForgotPassword/ForgotPassword'
 import ResetPassword from './pages/ResetPassword/ResetPassword'
 import PrivacyPolicy from './components/Legal/PrivacyPolicy'
 import ChatButton from './components/common/ChatButton'
+import PromoModal from './components/common/PromoModal';
 
 function LegalModalContainer() {
   const { modalState, closeModal } = useLegalModal();
@@ -170,6 +171,13 @@ function App() {
       <AuthProvider>
         <CartProvider>
           <LegalModalProvider>
+            <PromoModal
+              title="Welcome! 🎉"
+              message="Enjoy 10% OFF your first order. Use code: WELCOME10 at checkout!"
+              ctaText="Shop Now"
+              ctaLink="/shop"
+              image="/Carousel-2.jpg"
+            />
             <AppContent />
             <ChatButton />
             <LegalModalContainer />

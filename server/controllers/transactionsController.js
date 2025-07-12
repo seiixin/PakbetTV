@@ -11,6 +11,13 @@ const { sendOrderConfirmationEmail } = require('../services/emailService');
 const paymentStatusChecker = require('../services/paymentStatusChecker');
 const dragonpayService = require('../services/dragonpayService');
 const { runManualPaymentCheck, getPaymentStatusCheckerStatus } = require('../cron/paymentStatusChecker');
+const { body, validationResult } = require('express-validator');
+const axios = require('axios');
+const config = require('../config/keys');
+const ninjaVanAuth = require('../services/ninjaVanAuth');
+const { createShippingOrder } = require('./deliveryController');
+const API_BASE_URL = config.NINJAVAN_API_URL || 'https://api.ninjavan.co';
+const COUNTRY_CODE = config.NINJAVAN_COUNTRY_CODE || 'SG';
 
 // Constants
 const MERCHANT_ID = process.env.DRAGONPAY_MERCHANT_ID || 'TEST';
@@ -43,40 +50,20 @@ function mapDragonpayStatus(dpStatus) {
   }
 }
 
-// Helper function to send order confirmation email for IPN
+// Helper Functions
 async function sendOrderConfirmationEmailForIPN(order, referenceNumber, trackingNumber = null) {
   try {
-    console.log('IPN - Sending order confirmation email...');
-    
+    // Get order items
     const [orderItems] = await db.query(
-      'SELECT oi.*, p.name FROM order_items oi ' +
-      'JOIN products p ON oi.product_id = p.product_id ' +
-      'WHERE oi.order_id = ?',
+      'SELECT oi.*, p.name FROM order_items oi JOIN products p ON oi.product_id = p.product_id WHERE oi.order_id = ?',
       [order.order_id]
     );
 
-    const [paymentDetails] = await db.query(
-      'SELECT * FROM payments WHERE order_id = ? ORDER BY payment_id DESC LIMIT 1',
-      [order.order_id]
-    );
-
+    // Get shipping details
     const [shippingDetails] = await db.query(
       'SELECT * FROM shipping WHERE order_id = ?',
       [order.order_id]
     );
-
-    const [userShippingDetails] = await db.query(
-      'SELECT * FROM user_shipping_details WHERE user_id = ? AND is_default = 1',
-      [order.user_id]
-    );
-
-    let shippingAddress = 'Address not available';
-    if (shippingDetails.length > 0 && shippingDetails[0].address) {
-      shippingAddress = shippingDetails[0].address;
-    } else if (userShippingDetails.length > 0) {
-      const userShipping = userShippingDetails[0];
-      shippingAddress = `${userShipping.address1}, ${userShipping.address2 || ''}, ${userShipping.city}, ${userShipping.state}, ${userShipping.postcode}, ${userShipping.country}`.trim().replace(/, ,/g, ',').replace(/,$/g, '');
-    }
 
     const emailDetails = {
       orderNumber: order.order_code || order.order_id,
@@ -88,8 +75,8 @@ async function sendOrderConfirmationEmailForIPN(order, referenceNumber, tracking
         price: item.price
       })),
       totalAmount: order.total_price,
-      shippingFee: 0,
-      shippingAddress: shippingAddress,
+      shippingFee: 0, // Add if you have this info
+      shippingAddress: shippingDetails[0]?.address || 'Address not available',
       paymentMethod: 'DragonPay',
       paymentReference: referenceNumber,
       trackingNumber: trackingNumber
@@ -116,6 +103,22 @@ exports.createOrder = async (req, res) => {
     
     const { user_id, total_amount, subtotal, shipping_fee = 0, items, shipping_details, payment_method } = req.body;
 
+    // Validate required fields
+    if (!user_id || !items || !Array.isArray(items) || items.length === 0) {
+      await connection.rollback();
+      return res.status(400).json({ 
+        message: 'Missing required fields: user_id and items array are required'
+      });
+    }
+
+    // Validate shipping details
+    if (!shipping_details || !shipping_details.address || !shipping_details.phone) {
+      await connection.rollback();
+      return res.status(400).json({ 
+        message: 'Shipping details are required (address and phone)'
+      });
+    }
+
     // Validate phone number - accept more formats
     const cleanPhone = shipping_details?.phone?.replace(/[\s\-\(\)\.]/g, '');
     if (!cleanPhone || !cleanPhone.match(/^(\+?63|0)?[0-9]{10}$/)) {
@@ -133,8 +136,9 @@ exports.createOrder = async (req, res) => {
     
     // Set different initial status for COD orders
     const initialOrderStatus = payment_method === 'cod' ? 'for_packing' : 'processing';
-    const initialPaymentStatus = payment_method === 'cod' ? 'pending' : 'pending';
+    const initialPaymentStatus = payment_method === 'cod' ? 'cod_pending' : 'pending';
     
+    // Create the order first
     const [orderResult] = await connection.query(
       `INSERT INTO orders 
        (user_id, total_price, order_status, payment_status, order_code, created_at, updated_at) 
@@ -143,110 +147,184 @@ exports.createOrder = async (req, res) => {
     );
     
     const orderId = orderResult.insertId;
+    console.log('Order created with ID:', orderId);
 
-    if (shipping_fee > 0) {
+    // For COD orders, create a payment record
+    if (payment_method === 'cod') {
       await connection.query(
-        'INSERT INTO shipping (order_id, user_id, status, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())',
-        [orderId, user_id, 'pending']
+        `INSERT INTO payments (
+          order_id, payment_method, status, amount,
+          reference_number, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
+        [orderId, 'cod', 'cod_pending', total_amount, `COD-${orderCode}`]
       );
+      console.log('COD payment record created');
     }
 
+    // Always save shipping details
+    await connection.query(
+      `INSERT INTO shipping (
+        order_id, user_id, status, address, 
+        phone, email, name, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      [
+        orderId, 
+        user_id, 
+        'pending',
+        shipping_details.address,
+        shipping_details.phone,
+        shipping_details.email,
+        shipping_details.name
+      ]
+    );
+    console.log('Shipping details saved');
+    
+    // Also save structured shipping details for NinjaVan integration
+    try {
+      await connection.query(
+        `INSERT INTO shipping_details (
+          order_id, address1, address2, city, state, postcode, country
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          orderId,
+          shipping_details.address,
+          null, // address2
+          shipping_details.city || '',
+          shipping_details.state || '',
+          shipping_details.postal_code || '',
+          'SG' // Default to Singapore
+        ]
+      );
+      console.log('Structured shipping details saved');
+    } catch (shippingDetailsError) {
+      console.error('Failed to save structured shipping details:', shippingDetailsError);
+      // Don't fail the order if shipping_details insert fails
+    }
+
+    // Process order items and update stock
     for (const item of items) {
-      const [orderItemResult] = await connection.query(
-        'INSERT INTO order_items (order_id, product_id, quantity, price, variant_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NOW(), NOW())',
-        [orderId, item.product_id, item.quantity, item.price, item.variant_id || null]
-      );
-      
-      if (item.variant_attributes && Object.keys(item.variant_attributes).length > 0) {
-        await connection.query(
-          'UPDATE order_items SET variant_data = ? WHERE order_item_id = ?',
-          [JSON.stringify(item.variant_attributes), orderItemResult.insertId]
+      try {
+        const [orderItemResult] = await connection.query(
+          'INSERT INTO order_items (order_id, product_id, quantity, price, variant_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NOW(), NOW())',
+          [orderId, item.product_id, item.quantity, item.price, item.variant_id || null]
         );
-      }
+        
+        if (item.variant_attributes && Object.keys(item.variant_attributes).length > 0) {
+          await connection.query(
+            'UPDATE order_items SET variant_data = ? WHERE order_item_id = ?',
+            [JSON.stringify(item.variant_attributes), orderItemResult.insertId]
+          );
+        }
 
-      // Update stock levels
-      if (item.variant_id) {
-        const [[variant]] = await connection.query(
-          'SELECT stock FROM product_variants WHERE variant_id = ?',
-          [item.variant_id]
-        );
-        
-        if (!variant) {
-          await connection.rollback();
-          return res.status(400).json({ message: `Variant details not found for one of the items.` });
+        // Update stock levels
+        if (item.variant_id) {
+          const [[variant]] = await connection.query(
+            'SELECT stock FROM product_variants WHERE variant_id = ?',
+            [item.variant_id]
+          );
+          
+          if (!variant) {
+            throw new Error(`Variant details not found for variant ID ${item.variant_id}`);
+          }
+          
+          if (variant.stock < item.quantity) {
+            throw new Error(`Not enough stock for variant ID ${item.variant_id}. Available: ${variant.stock}`);
+          }
+          
+          await connection.query(
+            'UPDATE product_variants SET stock = ? WHERE variant_id = ?',
+            [variant.stock - item.quantity, item.variant_id]
+          );
+        } else {
+          const [[product]] = await connection.query(
+            'SELECT stock FROM products WHERE product_id = ?',
+            [item.product_id]
+          );
+          
+          if (!product) {
+            throw new Error(`Product details not found for product ID ${item.product_id}`);
+          }
+          
+          if (product.stock < item.quantity) {
+            throw new Error(`Not enough stock for product ID ${item.product_id}. Available: ${product.stock}`);
+          }
+          
+          await connection.query(
+            'UPDATE products SET stock = ? WHERE product_id = ?',
+            [product.stock - item.quantity, item.product_id]
+          );
         }
-        
-        if (variant.stock < item.quantity) {
-          await connection.rollback();
-          return res.status(400).json({ 
-            message: `Not enough stock for product variant. Available: ${variant.stock}` 
-          });
-        }
-        
-        await connection.query(
-          'UPDATE product_variants SET stock = ? WHERE variant_id = ?',
-          [variant.stock - item.quantity, item.variant_id]
-        );
-      } else {
-        const [[product]] = await connection.query(
-          'SELECT stock FROM products WHERE product_id = ?',
-          [item.product_id]
-        );
-        
-        if (!product) {
-          await connection.rollback();
-          return res.status(400).json({ message: `Product details not found for one of the items.` });
-        }
-        
-        if (product.stock < item.quantity) {
-          await connection.rollback();
-          return res.status(400).json({ 
-            message: `Not enough stock for product ID ${item.product_id}. Available: ${product.stock}` 
-          });
-        }
-        
-        await connection.query(
-          'UPDATE products SET stock = ? WHERE product_id = ?',
-          [product.stock - item.quantity, item.product_id]
-        );
+      } catch (itemError) {
+        await connection.rollback();
+        return res.status(400).json({ 
+          message: `Error processing order item: ${itemError.message}`
+        });
       }
     }
+    console.log('Order items processed and stock updated');
     
     // For COD orders, create shipping immediately
     if (payment_method === 'cod') {
+      // First commit the transaction to ensure order is in database
+      await connection.commit();
+      console.log('Transaction committed for COD order');
+      
       try {
-        const shippingResult = await deliveryRouter.createShippingOrder(orderId);
+        // Now create the shipping order
+        const shippingResult = await createShippingOrder(orderId);
         if (shippingResult?.tracking_number) {
-          await connection.query(
-            'UPDATE orders SET tracking_number = ? WHERE order_id = ?',
-            [shippingResult.tracking_number, orderId]
-          );
+          // Get a new connection for updating tracking number
+          const updateConn = await db.getConnection();
+          try {
+            await updateConn.query(
+              'UPDATE orders SET tracking_number = ? WHERE order_id = ?',
+              [shippingResult.tracking_number, orderId]
+            );
+            console.log('COD shipping order created with tracking number:', shippingResult.tracking_number);
+          } finally {
+            updateConn.release();
+          }
         }
       } catch (shippingError) {
         console.error('Failed to create shipping order for COD:', shippingError.message);
         // Don't fail the order creation, just log the error
       }
+      
+      // Return success response for COD order
+      return res.status(201).json({
+        success: true,
+        message: 'COD order created successfully',
+        order: {
+          order_id: orderId,
+          order_code: orderCode,
+          payment_status: initialPaymentStatus,
+          order_status: initialOrderStatus
+        }
+      });
     }
 
+    // For non-COD orders, commit and return response
     await connection.commit();
+    console.log('Transaction committed successfully');
     
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
-      message: payment_method === 'cod' ? 'COD order created successfully' : 'Order created successfully',
+      message: 'Order created successfully',
       order: {
         order_id: orderId,
         order_code: orderCode,
-        total_amount,
-        payment_method,
-        tracking_number: payment_method === 'cod' ? 'Will be provided after shipping creation' : null
+        payment_status: initialPaymentStatus,
+        order_status: initialOrderStatus
       }
     });
+
   } catch (error) {
+    console.error('Error in createOrder:', error);
     await connection.rollback();
-    console.error('Error creating order:', error);
-    res.status(500).json({ 
-      message: 'Failed to create order',
-      error: error.message 
+    return res.status(500).json({
+      success: false,
+      message: 'Error creating order',
+      error: error.message
     });
   } finally {
     connection.release();

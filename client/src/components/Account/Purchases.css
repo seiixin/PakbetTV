@@ -395,6 +395,7 @@
   background: linear-gradient(135deg, #8a1c16 0%, #a12319 100%);
   transform: translateY(-1px);
   box-shadow: 0 2px 6px rgba(162, 32, 26, 0.2);
+  color: white !important;
 }
 
 .purchase-cancel-btn {

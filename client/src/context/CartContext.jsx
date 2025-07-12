@@ -465,11 +465,16 @@ export const CartProvider = ({ children }) => {
   };
 
   // Create order function - using the transactions API instead of orders
-  const createOrder = async (userId, shippingFee = 0, shippingDetails = {}) => {
+  const createOrder = async (userId, shippingFee = 0, shippingDetails = {}, paymentMethod = 'dragonpay') => {
     try {
       const selectedItems = cartItems.filter(item => item.selected);
       if (selectedItems.length === 0) {
         throw new Error('No items selected for order');
+      }
+
+      // Validate shipping details
+      if (!shippingDetails.address || !shippingDetails.phone) {
+        throw new Error('Shipping address and phone number are required');
       }
 
       // Transform cart items for the backend
@@ -490,12 +495,13 @@ export const CartProvider = ({ children }) => {
         subtotal: subtotal,
         shipping_fee: shippingFee,
         total_amount: totalAmount,
-        shipping_details: shippingDetails
+        shipping_details: shippingDetails,
+        payment_method: paymentMethod
       };
 
       const token = getAuthToken(); // Get token from cookies
       if (!token) {
-        throw new Error('No authentication token found');
+        throw new Error('Please log in to place an order');
       }
 
       console.log('[CartContext] Creating order with data:', orderData);
@@ -512,12 +518,34 @@ export const CartProvider = ({ children }) => {
       return response.data;
     } catch (error) {
       console.error('[CartContext] Error creating order:', error);
-      throw error;
+      
+      // Handle specific error cases
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        const errorMessage = error.response.data?.message || error.message;
+        
+        if (errorMessage.includes('stock')) {
+          throw new Error('Some items in your cart are no longer available in the requested quantity. Please update your cart.');
+        } else if (errorMessage.includes('phone')) {
+          throw new Error('Please provide a valid phone number (e.g., +63 912 345 6789 or 09123456789)');
+        } else if (errorMessage.includes('shipping details')) {
+          throw new Error('Please provide complete shipping details including address and contact information');
+        } else {
+          throw new Error(errorMessage);
+        }
+      } else if (error.request) {
+        // The request was made but no response was received
+        throw new Error('Unable to connect to the server. Please check your internet connection and try again.');
+      } else {
+        // Something happened in setting up the request
+        throw new Error('An error occurred while creating your order. Please try again.');
+      }
     }
   };
 
-  // Process payment with DragonPay
-  const processPayment = async (orderId, userEmail) => {
+  // Process payment with selected payment method
+  const processPayment = async (orderId, userEmail, paymentMethod = 'dragonpay') => {
     try {
       const token = getAuthToken();
       if (!token) {
@@ -526,7 +554,7 @@ export const CartProvider = ({ children }) => {
 
       const paymentData = {
         order_id: orderId,
-        payment_method: 'dragonpay',
+        payment_method: paymentMethod,
         payment_details: {
           email: userEmail
         }

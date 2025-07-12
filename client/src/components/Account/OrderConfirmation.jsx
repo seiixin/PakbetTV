@@ -215,14 +215,37 @@ function OrderConfirmation() {
             <div className="payment-section">
               <h3>Payment Details</h3>
               <div className="details-content">
-                <div className="detail-row">
-                  <span className="label">Method</span>
-                  <span className="value">{order.payment?.payment_method || 'Not provided'}</span>
-              </div>
-                <div className="detail-row">
-                  <span className="label">Transaction ID</span>
-                  <span className="value">{order.payment?.transaction_id || 'Pending'}</span>
-            </div>
+                {/* Show Method if payment_status contains 'cod' or payment_method is 'cod' */}
+                {(order.payment?.payment_method === 'cod' || (order.payment_status && order.payment_status.toLowerCase().includes('cod'))) && (
+                  <div className="detail-row">
+                    <span className="label">Method</span>
+                    <span className="value">Cash on Delivery (COD)</span>
+                  </div>
+                )}
+                {order.payment?.payment_method === 'dragonpay' && (
+                  <>
+                    <div className="detail-row">
+                      <span className="label">Method</span>
+                      <span className="value">Dragonpay</span>
+                    </div>
+                    <div className="detail-row">
+                      <span className="label">Reference</span>
+                      <span className="value">{order.payment?.reference_number || order.payment?.transaction_id || 'Pending'}</span>
+                    </div>
+                  </>
+                )}
+                {order.payment_status && (
+                  <div className="detail-row">
+                    <span className="label">Status</span>
+                    <span className="value">
+                      {order.payment?.payment_method === 'cod' || (order.payment_status && order.payment_status.toLowerCase().includes('cod'))
+                        ? (order.payment_status === 'cod_pending'
+                          ? 'Pending (Pay upon delivery)'
+                          : order.payment_status)
+                        : order.payment?.payment_status || order.payment_status || 'Not provided'}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
