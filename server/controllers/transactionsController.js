@@ -269,6 +269,14 @@ exports.createOrder = async (req, res) => {
       await connection.commit();
       console.log('Transaction committed for COD order');
       
+      // Clear the user's cart after successful COD order creation
+      try {
+        await db.query('DELETE FROM cart WHERE user_id = ?', [user_id]);
+        console.log('Cart cleared for user after COD order');
+      } catch (cartError) {
+        console.error('Failed to clear cart after COD order:', cartError.message);
+      }
+      
       try {
         // Now create the shipping order
         const shippingResult = await createShippingOrder(orderId);
