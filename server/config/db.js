@@ -39,7 +39,7 @@ const testConnection = async () => {
     console.log(`Database: ${dbConfig.database}`);
     console.log(`User: ${dbConfig.user}`);
     const connection = await pool.getConnection();
-    console.log('✅ Database connected successfully');
+    console.log('Database connected successfully');
     connection.release();
   } catch (error) {
     console.error('❌ Database connection failed:');

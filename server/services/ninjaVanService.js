@@ -9,7 +9,7 @@ const CLIENT_SECRET = config.NINJAVAN_CLIENT_SECRET;
 
 /**
  * Create a delivery order with NinjaVan
- * @param {Object} orderData - Order information including items
+ * @param {Object} orderData - Order information including items and payment method
  * @param {Object|String} shippingAddress - Address details 
  * @param {Object} customerInfo - Customer information
  * @returns {Object} Delivery response from NinjaVan
@@ -154,6 +154,14 @@ async function createDeliveryOrder(orderData, shippingAddress, customerInfo) {
         }]
       }
     };
+
+    // Add COD parameters if payment method is 'cod'
+    if (orderData.payment_method === 'cod') {
+      deliveryRequest.parcel_job.cash_on_delivery = parseFloat(orderData.total_amount);
+      deliveryRequest.parcel_job.cash_on_delivery_currency = COUNTRY_CODE === 'SG' ? 'SGD' : 'PHP';
+      
+      console.log(`COD enabled for order ${orderData.order_id}: ${deliveryRequest.parcel_job.cash_on_delivery} ${deliveryRequest.parcel_job.cash_on_delivery_currency}`);
+    }
     
     // Get NinjaVan token
     const token = await ninjaVanAuth.getValidToken();

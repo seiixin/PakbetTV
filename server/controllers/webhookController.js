@@ -11,6 +11,42 @@ async function ninjavanWebhook(req, res) {
     await enhancedDeliveryService.processWebhook(req.body);
 
     const eventType = String(req.body.event_type).toLowerCase();
+    
+    // Handle COD payment collection
+    if (eventType.includes('cod_payment_collected') || eventType.includes('cash_collected')) {
+      try {
+        const trackingNumber = req.body.tracking_number || req.body.data?.tracking_number;
+        const collectedAmount = req.body.cash_collected || req.body.data?.cash_collected;
+        
+        if (trackingNumber) {
+          const [orders] = await db.query(
+            `SELECT o.order_id, o.total_price, p.payment_method 
+             FROM orders o 
+             LEFT JOIN payments p ON o.order_id = p.order_id
+             WHERE o.tracking_number = ? LIMIT 1`,
+            [trackingNumber]
+          );
+
+          if (orders.length && orders[0].payment_method === 'cod') {
+            // Update payment status to paid for COD orders
+            await db.query(
+              'UPDATE orders SET payment_status = ? WHERE order_id = ?',
+              ['paid', orders[0].order_id]
+            );
+            
+            await db.query(
+              'UPDATE payments SET status = ?, reference_number = ? WHERE order_id = ?',
+              ['completed', `COD-${trackingNumber}`, orders[0].order_id]
+            );
+            
+            console.log(`COD payment collected for order ${orders[0].order_id}: ${collectedAmount}`);
+          }
+        }
+      } catch (codError) {
+        console.error('Error processing COD payment collection:', codError.message);
+      }
+    }
+
     if (eventType.includes('pickup')) {
       try {
         const trackingNumber = req.body.tracking_number || req.body.data?.tracking_number || req.body.data?.tracking_number || null;

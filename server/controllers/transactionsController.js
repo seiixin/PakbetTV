@@ -46,7 +46,7 @@ function mapDragonpayStatus(dpStatus) {
 // Helper function to send order confirmation email for IPN
 async function sendOrderConfirmationEmailForIPN(order, referenceNumber, trackingNumber = null) {
   try {
-    console.log('📧 IPN - Sending order confirmation email...');
+    console.log('IPN - Sending order confirmation email...');
     
     const [orderItems] = await db.query(
       'SELECT oi.*, p.name FROM order_items oi ' +
@@ -96,7 +96,7 @@ async function sendOrderConfirmationEmailForIPN(order, referenceNumber, tracking
     };
 
     await sendOrderConfirmationEmail(emailDetails);
-    console.log('✅ IPN - Order confirmation email sent successfully');
+    console.log('IPN - Order confirmation email sent successfully');
   } catch (emailError) {
     console.error('❌ IPN - Failed to send order confirmation email:', emailError.message);
   }
@@ -114,7 +114,7 @@ exports.createOrder = async (req, res) => {
     await connection.beginTransaction();
     console.log('Transaction started');
     
-    const { user_id, total_amount, subtotal, shipping_fee = 0, items, shipping_details } = req.body;
+    const { user_id, total_amount, subtotal, shipping_fee = 0, items, shipping_details, payment_method } = req.body;
 
     // Validate phone number - accept more formats
     const cleanPhone = shipping_details?.phone?.replace(/[\s\-\(\)\.]/g, '');
@@ -131,11 +131,15 @@ exports.createOrder = async (req, res) => {
 
     const orderCode = uuidv4();
     
+    // Set different initial status for COD orders
+    const initialOrderStatus = payment_method === 'cod' ? 'for_packing' : 'processing';
+    const initialPaymentStatus = payment_method === 'cod' ? 'pending' : 'pending';
+    
     const [orderResult] = await connection.query(
       `INSERT INTO orders 
        (user_id, total_price, order_status, payment_status, order_code, created_at, updated_at) 
        VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
-      [user_id, total_amount, 'processing', 'pending', orderCode]
+      [user_id, total_amount, initialOrderStatus, initialPaymentStatus, orderCode]
     );
     
     const orderId = orderResult.insertId;
@@ -208,13 +212,34 @@ exports.createOrder = async (req, res) => {
       }
     }
     
+    // For COD orders, create shipping immediately
+    if (payment_method === 'cod') {
+      try {
+        const shippingResult = await deliveryRouter.createShippingOrder(orderId);
+        if (shippingResult?.tracking_number) {
+          await connection.query(
+            'UPDATE orders SET tracking_number = ? WHERE order_id = ?',
+            [shippingResult.tracking_number, orderId]
+          );
+        }
+      } catch (shippingError) {
+        console.error('Failed to create shipping order for COD:', shippingError.message);
+        // Don't fail the order creation, just log the error
+      }
+    }
+
     await connection.commit();
     
-    res.status(201).json({ 
-      message: 'Order created successfully', 
-      order_id: orderId,
-      order_code: orderCode,
-      status: 'pending'
+    res.status(201).json({
+      success: true,
+      message: payment_method === 'cod' ? 'COD order created successfully' : 'Order created successfully',
+      order: {
+        order_id: orderId,
+        order_code: orderCode,
+        total_amount,
+        payment_method,
+        tracking_number: payment_method === 'cod' ? 'Will be provided after shipping creation' : null
+      }
     });
   } catch (error) {
     await connection.rollback();
@@ -515,11 +540,11 @@ exports.handlePostback = async (req, res) => {
   try {
     const { txnid, refno, status, message, digest } = req.body;
     
-    console.log('🔔 === Dragonpay IPN (Postback) Received ===');
-    console.log(`📋 Transaction ID: ${txnid}`);
-    console.log(`🆔 Reference Number: ${refno}`);
-    console.log(`📊 Status: ${status}`);
-    console.log(`💬 Message: ${message}`);
+    console.log('=== Dragonpay IPN (Postback) Received ===');
+    console.log(`Transaction ID: ${txnid}`);
+    console.log(`Reference Number: ${refno}`);
+    console.log(`Status: ${status}`);
+    console.log(`Message: ${message}`);
     
     const orderCodeMatch = txnid.match(/order_(.+?)_\d+$/);
     if (!orderCodeMatch || !orderCodeMatch[1]) {
@@ -538,7 +563,7 @@ exports.handlePostback = async (req, res) => {
         console.error('❌ IPN digest validation failed - possible security issue');
         return res.status(400).send('result=Invalid digest');
       }
-      console.log('✅ IPN digest validated successfully');
+      console.log('IPN digest validated successfully');
     }
 
     try {

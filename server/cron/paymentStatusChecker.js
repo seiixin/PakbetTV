@@ -22,7 +22,7 @@ class PaymentStatusCron {
    */
   start() {
     if (this.isScheduled) {
-      console.log('💼 Dragonpay Transaction Status checker cron job is already scheduled');
+      console.log('Dragonpay Transaction Status checker cron job is already scheduled');
       return;
     }
 
@@ -38,10 +38,10 @@ class PaymentStatusCron {
     this.cronJob.start();
     this.isScheduled = true;
     
-    console.log('✅ Dragonpay Transaction Status checker cron job started');
-    console.log('📅 Schedule: Every 15 minutes for optimal payment processing');
-    console.log('🌏 Timezone: Asia/Manila');
-    console.log('🔍 Will check Dragonpay Transaction Status Query API for pending payments');
+    console.log('Dragonpay Transaction Status checker cron job started');
+    console.log('Schedule: Every 15 minutes for optimal payment processing');
+    console.log('Timezone: Asia/Manila');
+    console.log('Will check Dragonpay Transaction Status Query API for pending payments');
   }
 
   /**
@@ -52,8 +52,8 @@ class PaymentStatusCron {
     this.stats.lastRun = new Date();
     
     try {
-      console.log('🔍 Starting scheduled Dragonpay Transaction Status Query check...');
-      console.log(`📊 Run #${this.stats.totalRuns} at ${this.stats.lastRun.toISOString()}`);
+      console.log('Starting scheduled Dragonpay Transaction Status Query check...');
+      console.log(`Run #${this.stats.totalRuns} at ${this.stats.lastRun.toISOString()}`);
       
       const result = await paymentStatusChecker.checkPendingPayments();
       
@@ -65,24 +65,24 @@ class PaymentStatusCron {
         this.stats.successfulRuns++;
         this.stats.lastSuccess = new Date();
         
-        console.log(`✅ Dragonpay check completed successfully:`);
-        console.log(`   📋 Orders checked: ${result.checked}`);
-        console.log(`   🔄 Orders updated: ${result.updated}`);
-        console.log(`   ❌ Errors: ${result.errors || 0}`);
-        console.log(`   ⏭️  Skipped: ${result.skipped || 0}`);
-        console.log(`   🔄 Retries: ${result.retries || 0}`);
-        console.log(`   ⏱️  Duration: ${result.duration}ms`);
+        console.log(`Dragonpay check completed successfully:`);
+        console.log(`   Orders checked: ${result.checked}`);
+        console.log(`   Orders updated: ${result.updated}`);
+        console.log(`   Errors: ${result.errors || 0}`);
+        console.log(`   Skipped: ${result.skipped || 0}`);
+        console.log(`   Retries: ${result.retries || 0}`);
+        console.log(`   Duration: ${result.duration}ms`);
         
         // Log transaction completions
         if (result.updated > 0) {
-          console.log(`🎉 ${result.updated} order(s) had status changes - transaction flows may have been executed`);
+          console.log(`${result.updated} order(s) had status changes - transaction flows may have been executed`);
         }
         
       } else if (result.status === 'skipped') {
-        console.log('⏭️  Dragonpay check skipped (already running)');
+        console.log('Dragonpay check skipped (already running)');
       } else {
         this.stats.failedRuns++;
-        console.log(`❌ Dragonpay check failed: ${result.message}`);
+        console.log(`Dragonpay check failed: ${result.message}`);
       }
       
       // Log overall statistics periodically
@@ -92,7 +92,7 @@ class PaymentStatusCron {
       
     } catch (error) {
       this.stats.failedRuns++;
-      console.error('❌ Error in Dragonpay Transaction Status cron job:', error.message);
+      console.error('Error in Dragonpay Transaction Status cron job:', error.message);
     }
   }
 
@@ -100,18 +100,18 @@ class PaymentStatusCron {
    * Log comprehensive statistics
    */
   logStatistics() {
-    console.log('\n📊 === Dragonpay Transaction Status Checker Statistics ===');
-    console.log(`🏃 Total runs: ${this.stats.totalRuns}`);
-    console.log(`✅ Successful runs: ${this.stats.successfulRuns}`);
-    console.log(`❌ Failed runs: ${this.stats.failedRuns}`);
-    console.log(`📋 Total orders checked: ${this.stats.totalOrdersChecked}`);
-    console.log(`🔄 Total orders updated: ${this.stats.totalOrdersUpdated}`);
-    console.log(`📅 Last run: ${this.stats.lastRun ? this.stats.lastRun.toISOString() : 'Never'}`);
-    console.log(`✅ Last success: ${this.stats.lastSuccess ? this.stats.lastSuccess.toISOString() : 'Never'}`);
+    console.log('\n=== Dragonpay Transaction Status Checker Statistics ===');
+    console.log(`Total runs: ${this.stats.totalRuns}`);
+    console.log(`Successful runs: ${this.stats.successfulRuns}`);
+    console.log(`Failed runs: ${this.stats.failedRuns}`);
+    console.log(`Total orders checked: ${this.stats.totalOrdersChecked}`);
+    console.log(`Total orders updated: ${this.stats.totalOrdersUpdated}`);
+    console.log(`Last run: ${this.stats.lastRun ? this.stats.lastRun.toISOString() : 'Never'}`);
+    console.log(`Last success: ${this.stats.lastSuccess ? this.stats.lastSuccess.toISOString() : 'Never'}`);
     
     if (this.stats.totalRuns > 0) {
       const successRate = ((this.stats.successfulRuns / this.stats.totalRuns) * 100).toFixed(1);
-      console.log(`📈 Success rate: ${successRate}%`);
+      console.log(`Success rate: ${successRate}%`);
     }
     console.log('================================================\n');
   }
@@ -123,7 +123,7 @@ class PaymentStatusCron {
     if (this.cronJob) {
       this.cronJob.stop();
       this.isScheduled = false;
-      console.log('❌ Dragonpay Transaction Status checker cron job stopped');
+      console.log('Dragonpay Transaction Status checker cron job stopped');
       this.logStatistics();
     }
   }
@@ -146,13 +146,13 @@ class PaymentStatusCron {
    * Run payment check manually (for testing and debugging)
    */
   async runManual() {
-    console.log('🔧 Running manual Dragonpay Transaction Status check...');
+    console.log('Running manual Dragonpay Transaction Status check...');
     try {
       const result = await paymentStatusChecker.checkPendingPayments();
-      console.log('📋 Manual Dragonpay check result:', result);
+      console.log('Manual Dragonpay check result:', result);
       return result;
     } catch (error) {
-      console.error('❌ Error in manual Dragonpay check:', error);
+      console.error('Error in manual Dragonpay check:', error);
       throw error;
     }
   }
@@ -170,7 +170,7 @@ class PaymentStatusCron {
       totalOrdersChecked: 0,
       totalOrdersUpdated: 0
     };
-    console.log('📊 Statistics reset');
+    console.log('Statistics reset');
   }
 }
 

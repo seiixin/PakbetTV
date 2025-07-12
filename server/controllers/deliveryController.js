@@ -482,7 +482,7 @@ async function createShippingOrder(orderId) {
     }
     
     const order = orders[0];
-    console.log(`📋 Order details: payment_status=${order.payment_status}, order_status=${order.order_status}`);
+    console.log(`Order details: payment_status=${order.payment_status}, order_status=${order.order_status}`);
     
     // IMPORTANT: Check payment status before creating shipping order
     if (order.payment_status !== 'paid') {
@@ -497,7 +497,7 @@ async function createShippingOrder(orderId) {
       throw new Error(`Cannot create shipping order for order ${orderId}. Order status is '${order.order_status}', but one of [${validOrderStatuses.join(', ')}] is required.`);
     }
     
-    console.log(`✅ Payment confirmed for order ${orderId} (${order.payment_status}), proceeding with shipping order creation`);
+    console.log(`Payment confirmed for order ${orderId} (${order.payment_status}), proceeding with shipping order creation`);
     
     // Validate required customer information - STRICT: No fallbacks allowed
     if (!order.phone || !order.phone.trim()) {
@@ -515,7 +515,7 @@ async function createShippingOrder(orderId) {
       throw new Error(`Customer name is required for shipping. Order ${orderId} cannot proceed without a valid name.`);
     }
     
-    console.log(`✅ Customer information validated for order ${orderId}: phone=${order.phone}, email=${order.email}, name=${order.first_name} ${order.last_name}`);
+    console.log(`Customer information validated for order ${orderId}: phone=${order.phone}, email=${order.email}, name=${order.first_name} ${order.last_name}`);
     
     // Get user's shipping details
     const [shippingDetails] = await connection.query(
@@ -529,7 +529,7 @@ async function createShippingOrder(orderId) {
     }
 
     const userShipping = shippingDetails[0];
-    console.log(`📍 Shipping address found: ${userShipping.address1}, ${userShipping.city}, ${userShipping.state} ${userShipping.postcode}`);
+    console.log(`Shipping address found: ${userShipping.address1}, ${userShipping.city}, ${userShipping.state} ${userShipping.postcode}`);
     
     // Create shipping address string for shipping table
     const shippingAddressString = `${userShipping.address1}, ${userShipping.address2 || ''}, ${userShipping.city}, ${userShipping.state}, ${userShipping.postcode}, ${userShipping.country}`.trim().replace(/, ,/g, ',').replace(/,$/g, '');
@@ -546,13 +546,13 @@ async function createShippingOrder(orderId) {
         'INSERT INTO shipping (order_id, user_id, address, status, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())',
         [orderId, order.user_id, shippingAddressString, 'pending']
       );
-      console.log(`📦 Created shipping record for order ${orderId}`);
+      console.log(`Created shipping record for order ${orderId}`);
     } else {
       await connection.query(
         'UPDATE shipping SET status = ?, updated_at = NOW() WHERE order_id = ?',
         ['pending', orderId]
       );
-      console.log(`📦 Updated shipping record for order ${orderId}`);
+      console.log(`Updated shipping record for order ${orderId}`);
     }
 
     // Check if shipping_details record exists
@@ -575,7 +575,7 @@ async function createShippingOrder(orderId) {
           userShipping.barangay || ''
         ]
       );
-      console.log(`📋 Created shipping_details record for order ${orderId}`);
+      console.log(`Created shipping_details record for order ${orderId}`);
     }
 
     // Get order items
@@ -586,7 +586,7 @@ async function createShippingOrder(orderId) {
       [orderId]
     );
 
-    console.log(`📦 Found ${orderItems.length} items for order ${orderId}`);
+    console.log(`Found ${orderItems.length} items for order ${orderId}`);
 
     // Format items for NinjaVan
     const items = orderItems.map(item => ({
@@ -597,12 +597,12 @@ async function createShippingOrder(orderId) {
 
     // Calculate total weight
     const totalWeight = items.reduce((total, item) => total + (item.quantity * 0.5), 0) || 1.5;
-    console.log(`⚖️ Calculated total weight: ${totalWeight}kg`);
+    console.log(`Calculated total weight: ${totalWeight}kg`);
 
     // Create unique tracking number
     const timestamp = Date.now().toString().slice(-4);
     const uniqueTrackingNumber = `${orderId}${timestamp}`.slice(-9);
-    console.log(`🔢 Generated tracking number: ${uniqueTrackingNumber}`);
+    console.log(`Generated tracking number: ${uniqueTrackingNumber}`);
 
     // Format postal code function
     function formatPostalCode(postcode) {
@@ -684,9 +684,16 @@ async function createShippingOrder(orderId) {
       }
     };
 
-    console.log(`📤 Preparing to call NinjaVan API for order ${orderId}`);
-    console.log(`🌐 API URL: ${API_BASE_URL}/${COUNTRY_CODE}/4.2/orders`);
-    console.log(`📋 Payload preview:`, {
+    if (order.payment_method === 'cod') {
+      orderPayload.parcel_job.cash_on_delivery = parseFloat(order.total_price);
+      orderPayload.parcel_job.cash_on_delivery_currency = "PHP"; // Adjust based on your country
+      
+      console.log(`COD enabled for order ${orderId}: ${orderPayload.parcel_job.cash_on_delivery} PHP`);
+    }
+
+    console.log(`Preparing to call NinjaVan API for order ${orderId}`);
+    console.log(`API URL: ${API_BASE_URL}/${COUNTRY_CODE}/4.2/orders`);
+    console.log(`Payload preview:`, {
       requested_tracking_number: orderPayload.requested_tracking_number,
       from: orderPayload.from.name,
       to: orderPayload.to.name,
@@ -695,12 +702,12 @@ async function createShippingOrder(orderId) {
 
     try {
       // Get NinjaVan token
-      console.log(`🔑 Getting NinjaVan token...`);
+      console.log(`Getting NinjaVan token...`);
       const token = await ninjaVanAuth.getValidToken();
-      console.log(`✅ NinjaVan token obtained successfully`);
+      console.log(`NinjaVan token obtained successfully`);
 
       // Create the order with NinjaVan
-      console.log(`🚀 Calling NinjaVan API...`);
+      console.log(`Calling NinjaVan API...`);
       const response = await axios.post(
         `${API_BASE_URL}/${COUNTRY_CODE}/4.2/orders`,
         orderPayload,
@@ -712,8 +719,8 @@ async function createShippingOrder(orderId) {
         }
       );
 
-      console.log(`✅ NinjaVan API call successful!`);
-      console.log(`📦 NinjaVan response:`, {
+      console.log(`NinjaVan API call successful!`);
+      console.log(`NinjaVan response:`, {
         tracking_number: response.data?.tracking_number,
         status: response.data?.status,
         order_id: response.data?.order_id
@@ -751,7 +758,7 @@ async function createShippingOrder(orderId) {
               );
             }
             
-            console.log(`💾 Successfully stored tracking number ${response.data.tracking_number} in database`);
+            console.log(`Successfully stored tracking number ${response.data.tracking_number} in database`);
             break; // Success, exit retry loop
           } catch (updateError) {
             retryCount++;
@@ -767,7 +774,7 @@ async function createShippingOrder(orderId) {
       }
 
       await connection.commit();
-      console.log(`✅ Transaction committed successfully for order ${orderId}`);
+      console.log(`Transaction committed successfully for order ${orderId}`);
       return response.data;
 
     } catch (shippingError) {
@@ -789,7 +796,7 @@ async function createShippingOrder(orderId) {
     throw error;
   } finally {
     connection.release();
-    console.log(`🔚 createShippingOrder completed for order ${orderId}`);
+          console.log(`createShippingOrder completed for order ${orderId}`);
   }
 }
 

@@ -2,21 +2,21 @@ const ninjaVanAuth = require('./services/ninjaVanAuth');
 const config = require('./config/keys');
 
 async function testNinjaVanAuth() {
-  console.log('🧪 Testing NinjaVan Authentication...');
-  console.log('📋 Configuration:');
+  console.log('Testing NinjaVan Authentication...');
+  console.log('Configuration:');
   console.log('  API URL:', config.NINJAVAN_API_URL);
   console.log('  Country Code:', config.NINJAVAN_COUNTRY_CODE);
   console.log('  Client ID:', config.NINJAVAN_CLIENT_ID);
   console.log('  Client Secret:', config.NINJAVAN_CLIENT_SECRET ? '***SET***' : '***NOT SET***');
   
   try {
-    console.log('\n🔑 Attempting to get NinjaVan token...');
+    console.log('\nAttempting to get NinjaVan token...');
     const token = await ninjaVanAuth.getValidToken();
-    console.log('✅ Token obtained successfully!');
+    console.log('Token obtained successfully!');
     console.log('  Token preview:', token.substring(0, 20) + '...');
     
     // Test the correct API endpoint with a sample order payload
-    console.log('\n🌐 Testing API connection with sample order...');
+    console.log('\nTesting API connection with sample order...');
     const axios = require('axios');
     
     // Sample order payload based on NinjaVan API documentation
@@ -88,7 +88,7 @@ async function testNinjaVanAuth() {
       }
     };
     
-    console.log('📤 Sending test order to NinjaVan...');
+    console.log('Sending test order to NinjaVan...');
     const response = await axios.post(
       `${config.NINJAVAN_API_URL}/${config.NINJAVAN_COUNTRY_CODE}/4.2/orders`,
       sampleOrder,
@@ -100,7 +100,7 @@ async function testNinjaVanAuth() {
       }
     );
     
-    console.log('✅ API connection successful!');
+    console.log('API connection successful!');
     console.log('  Status:', response.status);
     console.log('  Response:', {
       tracking_number: response.data?.tracking_number,
@@ -109,7 +109,7 @@ async function testNinjaVanAuth() {
     });
     
   } catch (error) {
-    console.error('❌ NinjaVan API test failed:');
+    console.error('NinjaVan API test failed:');
     console.error('  Error:', error.message);
     if (error.response) {
       console.error('  Status:', error.response.status);
@@ -120,9 +120,9 @@ async function testNinjaVanAuth() {
 
 // Run the test
 testNinjaVanAuth().then(() => {
-  console.log('\n🏁 Test completed');
+  console.log('\nTest completed');
   process.exit(0);
 }).catch(error => {
-  console.error('\n💥 Test failed:', error);
+  console.error('\nTest failed:', error);
   process.exit(1);
 }); 

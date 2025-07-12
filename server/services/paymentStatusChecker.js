@@ -320,7 +320,7 @@ class PaymentStatusChecker {
           console.log(`🚚 Creating shipping order for order ${order.order_id}`);
           try {
             const shippingResult = await deliveryRouter.createShippingOrder(order.order_id);
-            console.log(`✅ Shipping order created successfully for order ${order.order_id}:`, {
+            console.log(`Shipping order created successfully for order ${order.order_id}:`, {
               tracking_number: shippingResult?.tracking_number,
               status: shippingResult?.status
             });
@@ -331,8 +331,8 @@ class PaymentStatusChecker {
                 'UPDATE orders SET tracking_number = ? WHERE order_id = ?',
                 [shippingResult.tracking_number, order.order_id]
               );
-              console.log(`📦 Tracking number assigned: ${shippingResult.tracking_number}`);
-              console.log(`📄 Waybill ready: ${shippingResult.tracking_number}`);
+              console.log(`Tracking number assigned: ${shippingResult.tracking_number}`);
+              console.log(`Waybill ready: ${shippingResult.tracking_number}`);
             } else {
               console.warn(`⚠️ Shipping order created but no tracking number returned for order ${order.order_id}`);
             }
