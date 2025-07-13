@@ -1,4 +1,4 @@
-const { sendOrderConfirmationEmail, sendContactFormEmail } = require('../services/emailService');
+const { sendOrderConfirmationEmail, sendContactFormEmail, sendAppointmentRequestEmail } = require('../services/emailService');
 
 // Handler for POST /api/email/test
 async function sendTestEmail(req, res) {
@@ -135,8 +135,53 @@ async function sendContactForm(req, res) {
   }
 }
 
+// Handler for POST /api/email/appointment
+async function sendAppointmentRequest(req, res) {
+  const { name, email, phone, message, subject } = req.body;
+  if (!name || !email || !phone || !message) {
+    return res.status(400).json({
+      success: false,
+      message: 'Name, email, phone, and message are required fields'
+    });
+  }
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Please provide a valid email address'
+    });
+  }
+  try {
+    const result = await sendAppointmentRequestEmail({
+      name,
+      email,
+      phone,
+      message,
+      subject: subject || 'Appointment Request'
+    });
+    if (result.success) {
+      return res.status(200).json({
+        success: true,
+        message: 'Your appointment request has been sent successfully! We will get back to you soon with available schedules.'
+      });
+    } else {
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to send appointment request. Please try again later.'
+      });
+    }
+  } catch (error) {
+    console.error('Error processing appointment request:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'An error occurred while sending your appointment request. Please try again later.'
+    });
+  }
+}
+
 module.exports = {
   sendTestEmail,
   sendOrderConfirmation,
-  sendContactForm
+  sendContactForm,
+  sendAppointmentRequest
 };

@@ -5570,3 +5570,31 @@
     max-height: none !important; 
   }
 }
+
+.carousel-control, .home-carousel-nav, .home-carousel-nav-button {
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 50% !important;
+  background: rgba(255,255,255,0.5) !important;
+  border: 2px solid #fff !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  cursor: pointer !important;
+  transition: background 0.2s, border 0.2s, box-shadow 0.2s !important;
+  outline: none !important;
+}
+
+.carousel-control:focus, .carousel-control:active,
+.home-carousel-nav:focus, .home-carousel-nav:active,
+.home-carousel-nav-button:focus, .home-carousel-nav-button:active {
+  outline: none !important;
+  box-shadow: none !important;
+  border: 2px solid #fff !important;
+}
+
+.carousel-control:hover, .home-carousel-nav:hover, .home-carousel-nav-button:hover {
+  background: rgba(255,255,255,0.7) !important;
+}

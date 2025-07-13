@@ -12,4 +12,7 @@ router.post('/order-confirmation', auth, emailController.sendOrderConfirmation);
 // Contact form submission endpoint
 router.post('/contact', emailController.sendContactForm);
 
+// Appointment request endpoint
+router.post('/appointment', emailController.sendAppointmentRequest);
+
 module.exports = router; 

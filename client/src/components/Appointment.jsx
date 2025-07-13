@@ -18,7 +18,6 @@ const AppointmentForm = () => {
     name: '',
     email: '',
     phone: '',
-    address: '',
     message: location.state?.prefilledMessage || '',
     subject: location.state?.subject || 'Appointment Request'
   });
@@ -43,23 +42,7 @@ const AppointmentForm = () => {
           `${profileData.firstName} ${profileData.lastName}` : 
           profileData.firstName || '',
         email: profileData.email || '',
-        phone: defaultAddress?.phone || profileData.phone || '',
-        address: defaultAddress
-          ? [
-              defaultAddress.address1,
-              defaultAddress.address2,
-              defaultAddress.city_municipality || defaultAddress.city,
-              defaultAddress.province,
-              defaultAddress.postcode,
-              defaultAddress.country === 'PH' ? 'Philippines' : 
-              defaultAddress.country === 'SG' ? 'Singapore' : 
-              defaultAddress.country === 'US' ? 'United States' : 
-              defaultAddress.country === 'CA' ? 'Canada' :
-              defaultAddress.country === 'GB' ? 'United Kingdom' :
-              defaultAddress.country === 'AU' ? 'Australia' :
-              defaultAddress.country
-            ].filter(Boolean).join(', ')
-          : ''
+        phone: defaultAddress?.phone || profileData.phone || ''
       }));
     } catch (error) {
       console.error('Error fetching user profile:', error);
@@ -141,7 +124,7 @@ const AppointmentForm = () => {
     setIsSubmitting(true);
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/email/contact`, formData);
+      const response = await axios.post(`${API_BASE_URL}/api/email/appointment`, formData);
       
       if (response.data.success) {
         setHasChanges(false);
@@ -239,25 +222,6 @@ const AppointmentForm = () => {
                     required
                     className="form-input"
                   />
-                </div>
-              </div>
-
-              {/* Address */}
-              <div className="form-group">
-                <label htmlFor="address" className="form-label">
-                  Address *
-                </label>
-                <div className="input-wrapper">
-                  <textarea
-                    id="address"
-                    name="address"
-                    rows="3"
-                    value={formData.address}
-                    onChange={handleInputChange}
-                    required
-                    className="form-textarea"
-                    placeholder="Enter your complete address..."
-                  ></textarea>
                 </div>
               </div>
 

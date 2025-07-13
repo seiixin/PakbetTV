@@ -486,6 +486,49 @@ const sendContactFormEmail = async (contactDetails) => {
   }
 };
 
+const sendAppointmentRequestEmail = async (appointmentDetails) => {
+  const { name, email, phone, message, subject } = appointmentDetails;
+
+  const content = `
+    <h2>New Appointment Request</h2>
+    <p>Dear Admin,</p>
+    <p>You have received a new appointment request from your website consultation form.</p>
+    
+    <h3>Client Information:</h3>
+    <p><strong>Name:</strong> ${name}</p>
+    <p><strong>Email:</strong> ${email}</p>
+    <p><strong>Phone:</strong> ${phone}</p>
+    <p><strong>Subject:</strong> ${subject || 'Appointment Request'}</p>
+    
+    <div class="tracking-info" style="background-color: #f9f9f9; padding: 15px; margin: 20px 0;">
+      <h3>Appointment Details:</h3>
+      <p>${message.replace(/\n/g, '<br>')}</p>
+    </div>
+    
+    <div class="important-note" style="background-color: #fff3e0; padding: 15px; margin: 20px 0; border-radius: 4px;">
+      <p style="margin: 0;"><strong>Action Required:</strong></p>
+      <p style="margin: 10px 0 0 0;">Please review this appointment request and respond to the client with available consultation schedules.</p>
+    </div>
+  `;
+
+  try {
+    const info = await transporter.sendMail({
+      from: `"MICHAEL DE MESA - BAZI & FENG SHUI CONSULTANCY" <${process.env.SMTP_USER}>`,
+      to: 'juatonfelix90@gmail.com',
+      replyTo: email,
+      subject: `New Appointment Request from ${name}`,
+      html: generateEmailTemplate(content),
+      attachments: [getEmailHeaderAttachment()]
+    });
+
+    console.log('Appointment request email sent:', info.messageId);
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    console.error('Appointment request email error:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
 const sendPasswordResetEmail = async (email, resetToken, origin) => {
   const resetUrl = `${origin}/reset-password/${resetToken}`;
   
@@ -628,6 +671,7 @@ module.exports = {
   sendOrderConfirmationEmail,
   sendTestEmail,
   sendContactFormEmail,
+  sendAppointmentRequestEmail,
   sendPasswordResetEmail,
   sendOrderDispatchedEmail,
   sendReviewRequestEmail,

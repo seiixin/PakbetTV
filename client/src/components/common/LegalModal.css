@@ -45,7 +45,7 @@
 }
 
 .legal-modal-close {
-  background: none;
+  background: transparent;
   border: none;
   font-size: 24px;
   cursor: pointer;
@@ -57,9 +57,8 @@
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  transition: all 0.2s ease;
+  transition: background 0.2s;
 }
-
 .legal-modal-close:hover {
   background-color: #f3f4f6;
   color: #333;

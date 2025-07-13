@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import './PromoModal.css'; // Use the new dedicated CSS file
 
 const PROMO_MODAL_KEY = 'promoModalLastShown';
-const PROMO_MODAL_DELAY = 60 * 60 * 1000; // 1 hour in milliseconds
-// const PROMO_MODAL_DELAY = 1000; // 1 second in milliseconds
+// const PROMO_MODAL_DELAY = 60 * 60 * 1000; // 1 hour in milliseconds
+const PROMO_MODAL_DELAY = 1000; // 1 second in milliseconds
 
 const DEFAULT_IMAGE = '/Carousel-1.jpg'; // Use an existing image from public as a default
 
