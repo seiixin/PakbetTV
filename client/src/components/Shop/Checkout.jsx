@@ -599,10 +599,10 @@ const Checkout = () => {
   return (
     <div className="checkout-page">
       <NavBar />
-      <div className="checkout-container">
-        <h2>Checkout</h2>
-        
-        {/* Shipping Details Section */}
+      <section className="blog-hero" role="banner" tabIndex={0}>
+        <div className="blog-hero-text">Checkout Page</div>
+      </section>  
+      <div className="checkout-container">  
         <div className="checkout-section">
           <h3>Shipping Details</h3>
           <div className="shipping-details">
