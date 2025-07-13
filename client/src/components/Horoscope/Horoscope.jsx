@@ -30,20 +30,19 @@ const Horoscope = () => {
       const res = await fetch(`/api/cms/zodiacs/${signId}`);
       const data = await res.json();
 
-      // save readings
       setReadings({
         daily: data.daily || '',
         weekly: data.weekly || '',
         monthly: data.monthly || ''
       });
 
-      if (data.is_updated) {
+      if (data.is_updated && !data.is_read) {
         setShowAnimation(true);
         setTimeout(() => {
           setShowAnimation(false);
           setSelectedSign(signId);
           setShowResults(true);
-        }, 4000); // adjust to video length
+        }, 4000);
       } else {
         setSelectedSign(signId);
         setShowResults(true);
@@ -87,15 +86,22 @@ const Horoscope = () => {
           <div className="horoscope-results">
             <div className="zodiac-profile">
               <img
-                src={zodiacSigns.find(z => z.id === selectedSign).image}
+                src={zodiacSigns.find(z => z.id === selectedSign)?.image || ''}
                 alt={selectedSign}
                 className="zodiac-result-icon"
               />
-              <h3>{zodiacSigns.find(z => z.id === selectedSign).name}</h3>
+              <h3>{zodiacSigns.find(z => z.id === selectedSign)?.name || ''}</h3>
               <p className="years-text">
-                Birth Years: {zodiacSigns.find(z => z.id === selectedSign).years.join(', ')}
+                Birth Years: {zodiacSigns.find(z => z.id === selectedSign)?.years.join(', ') || ''}
               </p>
-              <button onClick={() => { setShowResults(false); setSelectedSign(''); }} className="back-btn">
+              <button
+                onClick={() => {
+                  setShowResults(false);
+                  setSelectedSign('');
+                  setReadings({ daily: '', weekly: '', monthly: '' });
+                }}
+                className="back-btn"
+              >
                 Choose Different Sign
               </button>
               <Link to={`/prosper-guide/${selectedSign}`} className="prosper-link">
