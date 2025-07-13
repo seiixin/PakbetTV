@@ -198,6 +198,145 @@
   line-height: 1.4;
 }
 
+/* Voucher Section Styling */
+.voucher-section {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.voucher-input-group {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.voucher-input {
+  flex: 1;
+  font-size: 15px;
+  color: #333;
+  padding: 12px 15px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  text-transform: uppercase;
+}
+
+.voucher-input:focus {
+  outline: none;
+  border-color: #800000;
+  background-color: white;
+}
+
+.apply-voucher-btn {
+  background-color: #800000;
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.apply-voucher-btn:hover:not(:disabled) {
+  background-color: #600000;
+}
+
+.apply-voucher-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.applied-voucher {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #e8f5e8;
+  border: 1px solid #4caf50;
+  border-radius: 8px;
+  padding: 15px;
+}
+
+.voucher-info {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.voucher-code {
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
+  color: #2e7d32;
+  font-size: 16px;
+}
+
+.voucher-name {
+  color: #333;
+  font-size: 14px;
+}
+
+.voucher-discount {
+  color: #2e7d32;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.remove-voucher-btn {
+  background-color: #f44336;
+  color: white;
+  border: none;
+  padding: 8px 15px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.remove-voucher-btn:hover {
+  background-color: #d32f2f;
+}
+
+.voucher-error {
+  color: #f44336;
+  font-size: 14px;
+  padding: 10px;
+  background-color: #ffebee;
+  border-radius: 6px;
+  border: 1px solid #ffcdd2;
+}
+
+.summary-row.voucher-discount {
+  color: #2e7d32;
+  font-weight: 600;
+}
+
+.summary-row.voucher-discount span:last-child {
+  color: #2e7d32;
+}
+
+/* Applied Voucher Image Styles */
+.applied-voucher .voucher-info {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.applied-voucher-image {
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 2px solid #4caf50;
+}
+
+.voucher-details {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
 .payment-method label {
   display: flex;
   flex-direction: column;
@@ -581,4 +720,34 @@
   font-size: 11px;
   word-break: break-all;
   color: #495057;
+} 
+
+/* Custom lighter scrollbar for checkout page */
+.checkout-container, .checkout-items, .checkout-section, .order-summary {
+  scrollbar-width: thin;
+  scrollbar-color: var(--light-gray) var(--white);
+}
+
+.checkout-container::-webkit-scrollbar,
+.checkout-items::-webkit-scrollbar,
+.checkout-section::-webkit-scrollbar,
+.order-summary::-webkit-scrollbar {
+  width: 10px;
+  background: var(--white);
+}
+
+.checkout-container::-webkit-scrollbar-thumb,
+.checkout-items::-webkit-scrollbar-thumb,
+.checkout-section::-webkit-scrollbar-thumb,
+.order-summary::-webkit-scrollbar-thumb {
+  background: var(--light-gray);
+  border-radius: 8px;
+  border: 2px solid var(--white);
+}
+
+.checkout-container::-webkit-scrollbar-thumb:hover,
+.checkout-items::-webkit-scrollbar-thumb:hover,
+.checkout-section::-webkit-scrollbar-thumb:hover,
+.order-summary::-webkit-scrollbar-thumb:hover {
+  background: #cccccc;
 } 

@@ -10,6 +10,7 @@ import { notify } from '../../utils/notifications';
 import { authService } from '../../services/api';
 import ninjaVanService from '../../services/ninjaVanService';
 import LegalModal from '../common/LegalModal';
+import { getAuthToken } from '../../utils/cookies';
 
 const Checkout = () => {
   const [loading, setLoading] = useState(false);
@@ -37,6 +38,13 @@ const Checkout = () => {
   const [paymentUrl, setPaymentUrl] = useState(null);
   const [showManualRedirect, setShowManualRedirect] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('dragonpay');
+  
+  // Voucher state
+  const [voucherCode, setVoucherCode] = useState('');
+  const [voucherDiscount, setVoucherDiscount] = useState(0);
+  const [voucherLoading, setVoucherLoading] = useState(false);
+  const [voucherError, setVoucherError] = useState('');
+  const [appliedVoucher, setAppliedVoucher] = useState(null);
   
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -342,8 +350,14 @@ const Checkout = () => {
       console.log('[Checkout] Shipping fee:', shippingFee);
       console.log('[Checkout] Shipping details:', updatedShippingDetails);
       
-      // Create the order with shipping fee and payment method
-      const orderResult = await createOrder(user.id, shippingFee, updatedShippingDetails, selectedPaymentMethod);
+      // Create the order with shipping fee, payment method, and voucher code
+      const orderResult = await createOrder(
+        user.id, 
+        shippingFee, 
+        updatedShippingDetails, 
+        selectedPaymentMethod,
+        voucherCode.trim() || null
+      );
       console.log('[Checkout] Order created:', orderResult);
       
       if (!orderResult || !orderResult.order || !orderResult.order.order_id) {
@@ -496,6 +510,64 @@ const Checkout = () => {
     } else {
       notify.error('There was an issue processing your order. Please try again or contact support.');
     }
+  };
+
+  // Voucher validation function
+  const validateVoucher = async () => {
+    if (!voucherCode.trim()) {
+      setVoucherError('Please enter a voucher code');
+      return;
+    }
+
+    setVoucherLoading(true);
+    setVoucherError('');
+
+    try {
+      const token = getAuthToken();
+      const response = await fetch(`${API_BASE_URL}/api/vouchers/validate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          code: voucherCode.trim(),
+          order_amount: getTotalPrice()
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setAppliedVoucher(data.voucher);
+        setVoucherDiscount(data.voucher.discount_amount);
+        notify.success('Voucher applied successfully!');
+      } else {
+        setVoucherError(data.message || 'Invalid voucher code');
+        setAppliedVoucher(null);
+        setVoucherDiscount(0);
+      }
+    } catch (error) {
+      console.error('Error validating voucher:', error);
+      setVoucherError('Failed to validate voucher. Please try again.');
+      setAppliedVoucher(null);
+      setVoucherDiscount(0);
+    } finally {
+      setVoucherLoading(false);
+    }
+  };
+
+  const removeVoucher = () => {
+    setVoucherCode('');
+    setVoucherDiscount(0);
+    setAppliedVoucher(null);
+    setVoucherError('');
+  };
+
+  const getTotalWithVoucher = () => {
+    const subtotal = getTotalPrice();
+    const total = subtotal + shippingFee - voucherDiscount;
+    return Math.max(0, total);
   };
 
   if (selectedItems.length === 0) {
@@ -662,6 +734,62 @@ const Checkout = () => {
           </div>
         </div>
 
+        {/* Voucher Section */}
+        <div className="checkout-section">
+          <h3>Voucher Code</h3>
+          <div className="voucher-section">
+            {!appliedVoucher ? (
+              <div className="voucher-input-group">
+                <input
+                  type="text"
+                  placeholder="Enter voucher code"
+                  value={voucherCode}
+                  onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
+                  className="voucher-input"
+                  disabled={voucherLoading}
+                />
+                <button
+                  type="button"
+                  onClick={validateVoucher}
+                  className="apply-voucher-btn"
+                  disabled={voucherLoading || !voucherCode.trim()}
+                >
+                  {voucherLoading ? 'Validating...' : 'Apply'}
+                </button>
+              </div>
+            ) : (
+              <div className="applied-voucher">
+                <div className="voucher-info">
+                  {appliedVoucher.image_url && (
+                    <img 
+                      src={getFullImageUrl(appliedVoucher.image_url)} 
+                      alt={appliedVoucher.name}
+                      className="applied-voucher-image"
+                    />
+                  )}
+                  <div className="voucher-details">
+                    <span className="voucher-code">{appliedVoucher.code}</span>
+                    <span className="voucher-name">{appliedVoucher.name}</span>
+                    <span className="voucher-discount">
+                      -{formatPrice(appliedVoucher.discount_amount)}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={removeVoucher}
+                  className="remove-voucher-btn"
+                >
+                  Remove
+                </button>
+              </div>
+            )}
+            {voucherError && (
+              <div className="voucher-error">{voucherError}</div>
+            )}
+          </div>
+        </div>
+
         {/* Order Total Section */}
         <div className="checkout-section">
           <div className="order-summary">
@@ -679,9 +807,15 @@ const Checkout = () => {
                 )}
               </div>
             </div>
+            {voucherDiscount > 0 && (
+              <div className="summary-row voucher-discount">
+                <span>Voucher Discount</span>
+                <span>-{formatPrice(voucherDiscount)}</span>
+              </div>
+            )}
             <div className="summary-row total">
               <span>Total</span>
-              <span>{formatPrice(getTotalPrice() + shippingFee)}</span>
+              <span>{formatPrice(getTotalWithVoucher())}</span>
             </div>
           </div>
         </div>
@@ -762,7 +896,7 @@ const Checkout = () => {
           </div>
         )}
       </div>
-      <Footer />
+      <Footer forceShow={false} />
       
       <LegalModal 
         isOpen={legalModal.isOpen} 
