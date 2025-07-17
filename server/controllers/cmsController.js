@@ -181,26 +181,37 @@ async function getFaqs(req, res) {
 }
 
 // Handler for GET /api/cms/zodiacs/:zodiacID
+// Handler for GET /api/cms/zodiacs/:zodiacID
 async function getZodiacById(req, res) {
   try {
-    const zodiacID = req.params.zodiacID;
+    const zodiacID = req.params.zodiacID.toLowerCase();
+
     const [results] = await db.query(
-      `SELECT * FROM prosper_guides 
-       WHERE zodiacID IN ('Rat', 'Ox', 'Tiger', 'Rabbit', 'Dragon', 'Snake', 'Horse', 'Goat', 'Monkey', 'Rooster', 'Dog', 'Pig') 
-       AND zodiacID = ?`,
+      `SELECT 
+         p.zodiacID, p.overview, p.career, p.health, p.love, p.wealth, p.status,
+         h.daily, h.weekly, h.monthly, h.is_updated, h.is_read
+       FROM prosper_guides p
+       LEFT JOIN horoscope_readings h ON LOWER(p.zodiacID) = LOWER(h.sign)
+       WHERE LOWER(p.zodiacID) = ?
+         AND LOWER(p.zodiacID) IN ('rat', 'ox', 'tiger', 'rabbit', 'dragon', 'snake', 'horse', 'goat', 'monkey', 'rooster', 'dog', 'pig')
+      `,
       [zodiacID]
     );
+
     if (results.length === 0) {
       return res.status(404).json({ error: 'Zodiac not found' });
     }
+
+    await db.query(`UPDATE horoscope_readings SET is_read = TRUE WHERE LOWER(sign) = ?`, [zodiacID]);
+
     res.json(results[0]);
   } catch (err) {
     console.error('Error fetching zodiac:', err);
-    res.status(404).json({ error: 'Zodiac not found' });
+    res.status(500).json({ error: 'Database error: ' + err.message });
   }
 }
 
-// Handler for GET /api/cms/zodiacs
+// Handler for GET /api/cms/zodiacs (search)
 async function searchZodiacs(req, res) {
   try {
     const searchQuery = req.query.search;
@@ -213,13 +224,13 @@ async function searchZodiacs(req, res) {
       `SELECT zodiacID, overview, career, health, love, wealth, status
        FROM prosper_guides 
        WHERE zodiacID IN ('Rat', 'Ox', 'Tiger', 'Rabbit', 'Dragon', 'Snake', 'Horse', 'Goat', 'Monkey', 'Rooster', 'Dog', 'Pig')
-       AND status = 'published'
-       AND (LOWER(zodiacID) LIKE ? 
-         OR LOWER(overview) LIKE ? 
-         OR LOWER(career) LIKE ? 
-         OR LOWER(health) LIKE ? 
-         OR LOWER(love) LIKE ? 
-         OR LOWER(wealth) LIKE ?)
+         AND status = 'published'
+         AND (LOWER(zodiacID) LIKE ? 
+           OR LOWER(overview) LIKE ? 
+           OR LOWER(career) LIKE ? 
+           OR LOWER(health) LIKE ? 
+           OR LOWER(love) LIKE ? 
+           OR LOWER(wealth) LIKE ?)
        ORDER BY 
          CASE 
            WHEN LOWER(zodiacID) LIKE ? THEN 1

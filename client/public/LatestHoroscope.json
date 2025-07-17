@@ -1,0 +1,14 @@
+{
+  "rat": { "isUpdated": true },
+  "ox": { "isUpdated": true },
+  "tiger": { "isUpdated": false },
+  "rabbit": { "isUpdated": false },
+  "dragon": { "isUpdated": false },
+  "snake": { "isUpdated": false },
+  "horse": { "isUpdated": false },
+  "goat": { "isUpdated": false },
+  "monkey": { "isUpdated": false },
+  "rooster": { "isUpdated": false },
+  "dog": { "isUpdated": false },
+  "pig": { "isUpdated": false }
+}
