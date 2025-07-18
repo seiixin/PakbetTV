@@ -186,6 +186,13 @@ const generateEmailTemplate = (content) => `
       <meta http-equiv="X-UA-Compatible" content="IE=edge" />
       <meta name="x-apple-disable-message-reformatting" />
       <title>Email</title>
+      <style>
+        .price-column {
+          text-align: right;
+          min-width: 120px;
+          display: inline-block;
+        }
+      </style>
     </head>
     <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin:0; padding:0;">
       <div style="max-width:600px; margin:0 auto; padding:20px;">
@@ -242,6 +249,7 @@ const sendOrderConfirmationEmail = async (orderDetails) => {
   } = orderDetails;
 
   const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const calculatedTotal = subtotal + shippingFee - discount;
 
   // Prepare attachments array with header image
   const attachments = [getEmailHeaderAttachment()];
@@ -276,10 +284,10 @@ const sendOrderConfirmationEmail = async (orderDetails) => {
           </div>
         </td>
         <td style="padding: 8px; text-align: right; border: 1px solid #ddd; width: 100px;">${item.quantity}</td>
-        <td style="padding: 8px; text-align: right; border: 1px solid #ddd; width: 120px;">${formatPrice(item.price)}</td>
+        <td style="padding: 8px; text-align: right; border: 1px solid #ddd; width: 120px;">₱${item.price.toFixed(2)}</td>
       </tr>
     `;
-  });
+  }).join('');
 
   const content = `
     <h2>Order Confirmation</h2>
@@ -301,32 +309,35 @@ const sendOrderConfirmationEmail = async (orderDetails) => {
         </tr>
       </thead>
       <tbody>
-        ${itemsHtml.join('')}
+        ${itemsHtml}
       </tbody>
     </table>
 
-    <div style="max-width:300px; margin-left:auto; margin-bottom:20px;">
-      <div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid #eee;">
-        <span>Subtotal:</span>
-        <span style="text-align:right; min-width:120px;">${formatPrice(subtotal)}</span>
-      </div>
+    <table style="width:100%; max-width:300px; margin-left:auto;">
+      <tr>
+        <td style="padding:4px 0; text-align:left;">Subtotal:</td>
+        <td style="padding:4px 0; text-align:right; width:120px;">₱${subtotal.toFixed(2)}</td>
+      </tr>
       ${discount > 0 ? `
-        <div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid #eee;">
-          <span>Discount:</span>
-          <span style="text-align:right; min-width:120px;">-${formatPrice(discount)}</span>
-        </div>
+      <tr>
+        <td style="padding:4px 0; text-align:left;">Discount:</td>
+        <td style="padding:4px 0; text-align:right;">-₱${discount.toFixed(2)}</td>
+      </tr>
       ` : ''}
-      <div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid #eee;">
-        <span>Shipping:</span>
-        <span style="text-align:right; min-width:120px;">${formatPrice(shippingFee)}</span>
-      </div>
-      <div style="display:flex; justify-content:space-between; padding:8px 0; font-weight:bold; font-size:16px; border-top:2px solid #333;">
-        <span>Total:</span>
-        <span style="text-align:right; min-width:120px;">${formatPrice(totalAmount)}</span>
-      </div>
-    </div>
+      <tr>
+        <td style="padding:4px 0; text-align:left;">Shipping:</td>
+        <td style="padding:4px 0; text-align:right;">₱${shippingFee.toFixed(2)}</td>
+      </tr>
+      <tr>
+        <td colspan="2" style="padding:0; border-bottom:1px solid #000;"></td>
+      </tr>
+      <tr>
+        <td style="padding:4px 0; text-align:left; font-weight:bold;">Total:</td>
+        <td style="padding:4px 0; text-align:right; font-weight:bold;">₱${calculatedTotal.toFixed(2)}</td>
+      </tr>
+    </table>
 
-    <div class="shipping-info">
+    <div class="shipping-info" style="margin-top:30px;">
       <h3>Shipping Details:</h3>
       <p><strong>Delivery Address:</strong><br/>${shippingAddress}</p>
       ${trackingNumber ? `
