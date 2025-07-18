@@ -11,18 +11,48 @@ const { runMigrations } = require('./config/db-migrations');
 const app = express();
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
+const crypto = require('crypto');
 
-//Express Rate Limit to avoid abuse
+// Generate secure session secret if not provided
+const generateSecureSecret = () => crypto.randomBytes(64).toString('hex');
+
+//Express Rate Limit to avoid abuse - More restrictive
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000, // Increased from 100 to 1000 requests per 15 minutes
+  max: 300, // Reduced from 1000 to 300 requests per 15 minutes
   message: 'Too many requests, please try again later.',
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  // Add additional security headers
+  skip: (req) => {
+    // Skip rate limiting for health checks and static assets
+    return req.path === '/health' || req.path.startsWith('/uploads/');
+  }
 });
 
 app.use(limiter);
-app.use(helmet());
+
+// Enhanced security headers with helmet
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdn.jsdelivr.net"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "https:"],
+      scriptSrc: ["'self'"],
+      connectSrc: ["'self'", "https://api.ninjavan.co", "https://api-sandbox.ninjavan.co"],
+      objectSrc: ["'none'"],
+      upgradeInsecureRequests: process.env.NODE_ENV === 'production' ? [] : null,
+    },
+  },
+  crossOriginEmbedderPolicy: false, // Needed for certain integrations
+  hsts: {
+    maxAge: 31536000, // 1 year
+    includeSubDomains: true,
+    preload: true
+  }
+}));
 
 // Configure CORS origins based on environment
 const getAllowedOrigins = () => {
@@ -42,37 +72,63 @@ app.use(cors({
   origin: getAllowedOrigins(),
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['X-Total-Count']
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
+// Body parsing with size limits
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Error handling middleware (moved up before routes)
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  console.error('Server error:', {
+    timestamp: new Date().toISOString(),
+    method: req.method,
+    url: req.url,
+    error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
+  });
   res.status(500).json({
     message: 'Something went wrong!',
-    error: process.env.NODE_ENV === 'production' ? {} : err
+    error: process.env.NODE_ENV === 'production' ? {} : { message: err.message }
   });
-})
+});
 
-// Session and Passport setup
+// Session and Passport setup with enhanced security
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'fengshui-session-secret',
+  secret: process.env.SESSION_SECRET || generateSecureSecret(),
   resave: false,
   saveUninitialized: false,
+  name: 'pakbet.sid', // Custom session name
   cookie: {
     secure: process.env.NODE_ENV === 'production',
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    httpOnly: true, // Prevent XSS
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax'
   }
 }));
 app.use(passport.initialize());
 app.use(passport.session());
 
+// Request logging (only in development)
 app.use((req, res, next) => {
-  console.log(`Request: ${req.method} ${req.path}`);
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`Request: ${req.method} ${req.path}`);
+  }
   next();
 });
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Static file serving with security headers
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+  maxAge: '1d',
+  etag: true,
+  lastModified: true,
+  setHeaders: (res, path) => {
+    res.set('X-Content-Type-Options', 'nosniff');
+    res.set('Cache-Control', 'public, max-age=86400');
+  }
+}));
+
 const userRoutes = require('./routes/users');
 const productRoutes = require('./routes/products');
 const categoryRoutes = require('./routes/categories');
@@ -92,6 +148,11 @@ const locationRoutes = require('./routes/locations');
 const { scheduleOrderConfirmation } = require('./cron/orderConfirmation');
 const { startPaymentStatusChecker } = require('./cron/paymentStatusChecker');
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
 app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/categories', categoryRoutes);
@@ -106,6 +167,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/cms', cmsRoutes);
 app.use('/api/email', emailRoutes);
 app.use('/api/locations', locationRoutes);
+
 app.get('/transaction-complete', (req, res) => {
   console.log(`Received Dragonpay return:`, req.query.txnid, req.query.status);
   const { txnid, refno, status, message } = req.query;
@@ -191,16 +253,30 @@ app.get('/transaction-complete', (req, res) => {
   res.set('Content-Type', 'text/html');
   res.send(htmlResponse);
 });
+
 app.get('/', (req, res) => {
   res.json({ message: 'Welcome to FengShui E-Commerce API' });
 });
+
+// 404 handler for unknown routes
+app.use('*', (req, res) => {
+  res.status(404).json({ message: 'Resource not found' });
+});
+
+// Global error handler (moved to end)
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  console.error('Unhandled error:', {
+    timestamp: new Date().toISOString(),
+    method: req.method,
+    url: req.url,
+    error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
+  });
   res.status(500).json({
     message: 'Something went wrong!',
-    error: process.env.NODE_ENV === 'production' ? {} : err
+    error: process.env.NODE_ENV === 'production' ? {} : { message: err.message }
   });
 });
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);

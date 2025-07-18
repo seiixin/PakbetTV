@@ -5,8 +5,10 @@ dotenv.config();
 const auth = (req, res, next) => {
   const authHeader = req.header('Authorization');
   
-  // Log the incoming request for debugging
-  console.log(`Auth: ${req.method} ${req.path}`);
+  // Reduced logging for security - only log basic info
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`Auth: ${req.method} ${req.path}`);
+  }
 
   // Skip auth for certain endpoints if needed
   // const publicEndpoints = ['/api/products', '/api/categories'];
@@ -15,12 +17,16 @@ const auth = (req, res, next) => {
   // }
 
   if (!authHeader) {
-    console.log('Auth Error: No Authorization header');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Auth Error: No Authorization header');
+    }
     return res.status(401).json({ message: 'No authorization header, authentication required' });
   }
 
   if (!authHeader.startsWith('Bearer ')) {
-    console.log('Auth Error: Invalid Authorization header');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Auth Error: Invalid Authorization header');
+    }
     return res.status(401).json({ message: 'Invalid authorization format, Bearer token required' });
   }
 
@@ -32,15 +38,24 @@ const auth = (req, res, next) => {
       return res.status(500).json({ message: 'Server configuration error' });
     }
     
-    console.log('Processing token:', token.substring(0, 10) + '...');
+    // Don't log token details for security
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Processing authentication token');
+    }
     
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log('Decoded token for user:', decoded.id || decoded.user_id);
+    
+    // Don't log user IDs for security
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Token verification successful');
+    }
     
     // Check for either id or user_id in token
     const userId = decoded.id || decoded.user_id;
     if (!userId) {
-      console.log('Auth Error: No user ID in token');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Auth Error: No user ID in token');
+      }
       return res.status(401).json({ message: 'Invalid token - missing user ID' });
     }
     
@@ -51,13 +66,17 @@ const auth = (req, res, next) => {
       userType: decoded.userType || 'customer'
     };
     
-    console.log(`Token OK: ${req.user.id}, ${req.user.userType}`);
+    // Don't log sensitive user information
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`Authentication successful for user type: ${req.user.userType}`);
+    }
     
     next();
   } catch (err) {
+    // Log security-relevant errors but not sensitive details
     console.error('Token verification error:', {
       name: err.name,
-      message: err.message
+      timestamp: new Date().toISOString()
     });
     
     if (err.name === 'TokenExpiredError') {
@@ -66,32 +85,38 @@ const auth = (req, res, next) => {
     
     if (err.name === 'JsonWebTokenError') {
       return res.status(401).json({ 
-        message: 'Invalid token',
-        details: process.env.NODE_ENV === 'development' ? err.message : undefined
+        message: 'Invalid token'
       });
     }
     
     res.status(401).json({ 
-      message: 'Token verification failed',
-      details: process.env.NODE_ENV === 'development' ? err.message : undefined
+      message: 'Token verification failed'
     });
   }
 };
 
 const admin = (req, res, next) => {
-  console.log(`Admin check for user: ${req.user?.id}, ${req.user?.userType}`);
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`Admin check for user type: ${req.user?.userType}`);
+  }
 
   if (!req.user) {
-    console.log('Admin Error: No user object');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Admin Error: No user object');
+    }
     return res.status(401).json({ message: 'Authentication required' });
   }
 
   // Case-insensitive check for admin rights
   if (req.user.userType?.toLowerCase() === 'admin') {
-    console.log('Admin access granted');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Admin access granted');
+    }
     next();
   } else {
-    console.log('Admin Error: Not admin');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Admin Error: Not admin');
+    }
     res.status(403).json({ message: 'Access denied. Admin privileges required.' });
   }
 };
