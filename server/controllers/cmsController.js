@@ -3,13 +3,32 @@ const db = require('../config/db');
 // Handler for GET /api/cms/blogs
 async function getBlogs(req, res) {
   try {
-    const [results] = await db.query('SELECT blogID, title, category, tags, content, publish_date, status, created_at, updated_at, cover_image FROM blogs', []);
+    const [results] = await db.query(
+      `SELECT DISTINCT 
+        b.blogID, 
+        b.title, 
+        b.category, 
+        b.tags, 
+        b.content, 
+        b.publish_date, 
+        b.status, 
+        b.created_at, 
+        b.updated_at, 
+        b.cover_image 
+      FROM blogs b
+      WHERE b.status = 'published'
+      GROUP BY b.blogID
+      ORDER BY b.publish_date DESC`, 
+      []
+    );
+    
     const blogs = results.map(blog => {
       if (blog.cover_image) {
         blog.cover_image = `data:image/jpeg;base64,${blog.cover_image.toString('base64')}`;
       }
       return blog;
     });
+    
     res.json(blogs);
   } catch (err) {
     console.error('Error fetching blogs:', err);

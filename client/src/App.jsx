@@ -27,7 +27,7 @@ import Horoscope from './components/Horoscope/Horoscope'
 import OrderTracking from './pages/OrderTracking/OrderTracking'
 import SocialAuthSuccess from './components/Auth/SocialAuthSuccess'
 import BaziCalculator from './components/BaziCalculator/BaziCalculator'
-import { AuthProvider } from './context/AuthContext'
+import { AuthProvider, useAuth } from './context/AuthContext'
 import { CartProvider } from './context/CartContext'
 import { LegalModalProvider, useLegalModal } from './context/LegalModalContext'
 import LegalModal from './components/common/LegalModal'
@@ -56,6 +56,7 @@ function LegalModalContainer() {
 
 function AppContent() {
   const location = useLocation();
+  const { isAuthenticated } = useAuth();
   const [isFBInitialized, setFBInitialized] = useState(false);
   
   useEffect(() => {
@@ -117,6 +118,15 @@ function AppContent() {
   
   return (
     <>
+      <PromoModal
+        title="Welcome!"
+        message="Enjoy 10% OFF your first order Ka-Pakbet! Use promo code: WELCOME10 at checkout!"
+        ctaText="Shop Now"
+        ctaLink="/shop"
+        image="/Carousel-2.jpg"
+        isLoggedIn={isAuthenticated}
+        currentPath={location.pathname}
+      />
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
@@ -173,13 +183,6 @@ function App() {
       <AuthProvider>
         <CartProvider>
           <LegalModalProvider>
-            <PromoModal
-              title="Welcome! 🎉"
-              message="Enjoy 10% OFF your first order. Use code: WELCOME10 at checkout!"
-              ctaText="Shop Now"
-              ctaLink="/shop"
-              image="/Carousel-2.jpg"
-            />
             <AppContent />
             <ChatButton />
             <LegalModalContainer />

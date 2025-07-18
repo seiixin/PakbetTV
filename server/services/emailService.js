@@ -654,18 +654,48 @@ const sendTestEmail = async (recipientEmail) => {
 
 // Cleanup function to close connections gracefully
 const cleanup = async () => {
+  console.log('Starting email service cleanup...');
   try {
-    transporter.close();
-    imageCache.clear();
-    console.log('Email service cleanup completed');
+    // Wait for any pending email operations to complete (up to 5 seconds)
+    await new Promise((resolve) => {
+      const checkPool = () => {
+        if (transporter.isIdle()) {
+          resolve();
+        } else {
+          console.log('Waiting for email operations to complete...');
+          setTimeout(checkPool, 500);
+        }
+      };
+      checkPool();
+    }).then(() => {
+      transporter.close();
+      imageCache.clear();
+      console.log('Email service cleanup completed');
+    });
   } catch (error) {
     console.error('Error during cleanup:', error);
+    // Ensure we still close connections even if there's an error
+    try {
+      transporter.close();
+      imageCache.clear();
+    } catch (e) {
+      console.error('Error during forced cleanup:', e);
+    }
   }
 };
 
 // Handle process termination
-process.on('SIGTERM', cleanup);
-process.on('SIGINT', cleanup);
+process.on('SIGTERM', async () => {
+  console.log('SIGTERM received, starting cleanup...');
+  await cleanup();
+  process.exit(0);
+});
+
+process.on('SIGINT', async () => {
+  console.log('SIGINT received, starting cleanup...');
+  await cleanup();
+  process.exit(0);
+});
 
 module.exports = {
   sendOrderConfirmationEmail,
