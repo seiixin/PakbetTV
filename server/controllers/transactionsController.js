@@ -20,18 +20,16 @@ const API_BASE_URL = config.NINJAVAN_API_URL || 'https://api.ninjavan.co';
 const COUNTRY_CODE = config.NINJAVAN_COUNTRY_CODE || 'SG';
 
 // Constants
-const MERCHANT_ID = process.env.DRAGONPAY_MERCHANT_ID || 'TEST';
-const DRAGONPAY_SECRET_KEY = process.env.DRAGONPAY_SECRET_KEY || 'test_key';
-const BASE_URL = process.env.NODE_ENV === 'production'
-  ? 'https://gw.dragonpay.ph/api/collect/v1'
-  : 'https://test.dragonpay.ph/api/collect/v1';
+const MERCHANT_ID = config.DRAGONPAY_MERCHANT_ID || 'TEST';
+const DRAGONPAY_SECRET_KEY = config.DRAGONPAY_SECRET_KEY || 'test_key';
+const BASE_URL = config.DRAGONPAY_API_URL;
 
 console.log('DragonPay Configuration:', {
+  environment: config.DRAGONPAY_ENV,
   merchantId: MERCHANT_ID,
   baseUrl: BASE_URL,
   secretKeyLength: DRAGONPAY_SECRET_KEY ? DRAGONPAY_SECRET_KEY.length : 0,
   secretKeyStartsWith: DRAGONPAY_SECRET_KEY ? DRAGONPAY_SECRET_KEY.substring(0, 4) + '...' : 'undefined',
-  nodeEnv: process.env.NODE_ENV,
   clientUrl: process.env.CLIENT_URL || process.env.FRONTEND_URL || 'https://michaeldemesa.com'
 });
 

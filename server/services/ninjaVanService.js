@@ -2,10 +2,42 @@ const axios = require('axios');
 const config = require('../config/keys');
 const ninjaVanAuth = require('./ninjaVanAuth');
 
-const API_BASE_URL = config.NINJAVAN_API_URL || 'https://api.ninjavan.co';
-const COUNTRY_CODE = config.NINJAVAN_COUNTRY_CODE || 'SG';
-const CLIENT_ID = config.NINJAVAN_CLIENT_ID;
-const CLIENT_SECRET = config.NINJAVAN_CLIENT_SECRET;
+const API_BASE_URL = config.NINJAVAN_API_URL;
+const COUNTRY_CODE = config.NINJAVAN_COUNTRY_CODE;
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000; // 1 second
+
+// Cache for waybills
+const waybillCache = new Map();
+
+/**
+ * Sleep function for retry delays
+ */
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+/**
+ * Retry function with exponential backoff
+ */
+async function retryWithBackoff(fn, retries = MAX_RETRIES) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await fn();
+    } catch (error) {
+      // Don't retry on 4xx errors
+      if (error.response?.status < 500) {
+        throw error;
+      }
+      
+      // On last retry, throw error
+      if (i === retries - 1) {
+        throw error;
+      }
+
+      // Wait with exponential backoff
+      await sleep(RETRY_DELAY * Math.pow(2, i));
+    }
+  }
+}
 
 /**
  * Create a delivery order with NinjaVan
@@ -163,24 +195,33 @@ async function createDeliveryOrder(orderData, shippingAddress, customerInfo) {
       console.log(`COD enabled for order ${orderData.order_id}: ${deliveryRequest.parcel_job.cash_on_delivery} ${deliveryRequest.parcel_job.cash_on_delivery_currency}`);
     }
     
-    // Get NinjaVan token
+    // Get NinjaVan token and create delivery with retries
     const token = await ninjaVanAuth.getValidToken();
     
-    // Call NinjaVan API to create delivery
-    const response = await axios.post(
-      `${API_BASE_URL}/${COUNTRY_CODE}/4.2/orders`, 
-      deliveryRequest,
-      { 
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        } 
-      }
-    );
-    
-    return response.data;
+    const createOrder = async () => {
+      const response = await axios.post(
+        `${API_BASE_URL}/${COUNTRY_CODE}/4.2/orders`, 
+        deliveryRequest,
+        { 
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          } 
+        }
+      );
+      return response.data;
+    };
+
+    return await retryWithBackoff(createOrder);
   } catch (error) {
-    console.error('Error creating NinjaVan delivery:', error.response?.data || error.message);
+    // Log 4xx errors for debugging
+    if (error.response?.status >= 400 && error.response?.status < 500) {
+      console.error('NinjaVan API client error:', {
+        status: error.response.status,
+        data: error.response.data,
+        orderData: orderData.order_id
+      });
+    }
     throw error;
   }
 }
@@ -194,19 +235,60 @@ async function getTrackingInfo(trackingNumber) {
   try {
     const token = await ninjaVanAuth.getValidToken();
     
-    const response = await axios.get(
-      `${API_BASE_URL}/${COUNTRY_CODE}/2.2/orders/${trackingNumber}/tracking`,
-      { 
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        } 
-      }
-    );
-    
-    return response.data;
+    const getTracking = async () => {
+      const response = await axios.get(
+        `${API_BASE_URL}/${COUNTRY_CODE}/2.2/orders/${trackingNumber}/tracking`,
+        { 
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          } 
+        }
+      );
+      return response.data;
+    };
+
+    return await retryWithBackoff(getTracking);
   } catch (error) {
     console.error('Error fetching tracking info:', error.response?.data || error.message);
+    throw error;
+  }
+}
+
+/**
+ * Generate waybill for a delivery
+ */
+async function generateWaybill(trackingNumber) {
+  try {
+    // Check cache first
+    if (waybillCache.has(trackingNumber)) {
+      return waybillCache.get(trackingNumber);
+    }
+
+    const token = await ninjaVanAuth.getValidToken();
+    
+    const generateWaybillRequest = async () => {
+      const response = await axios.post(
+        `${API_BASE_URL}/${COUNTRY_CODE}/4.1/orders/${trackingNumber}/waybill`,
+        {},
+        { 
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          } 
+        }
+      );
+      return response.data;
+    };
+
+    const waybill = await retryWithBackoff(generateWaybillRequest);
+    
+    // Cache the waybill
+    waybillCache.set(trackingNumber, waybill);
+    
+    return waybill;
+  } catch (error) {
+    console.error('Error generating waybill:', error.response?.data || error.message);
     throw error;
   }
 }
@@ -220,17 +302,20 @@ async function cancelDelivery(trackingNumber) {
   try {
     const token = await ninjaVanAuth.getValidToken();
     
-    const response = await axios.delete(
-      `${API_BASE_URL}/${COUNTRY_CODE}/2.2/orders/${trackingNumber}`,
-      { 
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        } 
-      }
-    );
-    
-    return response.data;
+    const cancelOrder = async () => {
+      const response = await axios.delete(
+        `${API_BASE_URL}/${COUNTRY_CODE}/2.2/orders/${trackingNumber}`,
+        { 
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          } 
+        }
+      );
+      return response.data;
+    };
+
+    return await retryWithBackoff(cancelOrder);
   } catch (error) {
     console.error('Error cancelling delivery:', error.response?.data || error.message);
     throw error;
@@ -240,5 +325,6 @@ async function cancelDelivery(trackingNumber) {
 module.exports = {
   createDeliveryOrder,
   getTrackingInfo,
+  generateWaybill,
   cancelDelivery
 }; 
