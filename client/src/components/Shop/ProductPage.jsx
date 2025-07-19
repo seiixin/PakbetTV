@@ -574,7 +574,14 @@ const ProductPage = () => {
               {Array.isArray(newArrivals) ? newArrivals.slice(0, MAX_DISPLAY_PRODUCTS).map(product => (
                 <ProductCard 
                   key={product.product_id} 
-                  product={product} 
+                  product={{
+                    ...product,
+                    price: product.price,
+                    originalPrice: product.price,
+                    discountedPrice: product.discounted_price,
+                    discount_percentage: product.discount_percentage,
+                    isDiscountValid: product.discount_percentage > 0
+                  }} 
                 />
               )) : null}
             </div>
@@ -594,7 +601,14 @@ const ProductPage = () => {
               {Array.isArray(bestSellers) ? bestSellers.slice(0, MAX_DISPLAY_PRODUCTS).map(product => (
                 <ProductCard 
                   key={product.product_id} 
-                  product={product} 
+                  product={{
+                    ...product,
+                    price: product.price,
+                    originalPrice: product.price,
+                    discountedPrice: product.discounted_price,
+                    discount_percentage: product.discount_percentage,
+                    isDiscountValid: product.discount_percentage > 0
+                  }} 
                 />
               )) : null}
             </div>
@@ -656,10 +670,10 @@ const ProductPage = () => {
                     product={{
                       ...product,
                       price: product.price,
-                      originalPrice: product.originalPrice,
+                      originalPrice: product.price,
                       discountedPrice: product.discounted_price,
                       discount_percentage: product.discount_percentage,
-                      isDiscountValid: product.isDiscountValid
+                      isDiscountValid: product.discount_percentage > 0
                     }} 
                   />
                 )) : null}

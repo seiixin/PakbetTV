@@ -129,8 +129,8 @@ const Cart = () => {
   };
 
   const calculateDiscountedPrice = (item) => {
-    if (item.discount_percentage) { 
-      return parseFloat(item.price) * (1 - (item.discount_percentage / 100));
+    if (item.discount_percentage && item.discounted_price > 0) { 
+      return parseFloat(item.discounted_price);
     }
     return parseFloat(item.price);
   };

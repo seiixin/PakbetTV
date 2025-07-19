@@ -225,11 +225,15 @@ const ProductDetailPage = () => {
       toast.error('Product is out of stock');
       return;
     }
+
+    const priceInfo = getDisplayPrice(selectedVariant, product);
     const itemToAdd = {
       product_id: product.product_id,
       id: product.product_id,
       name: product.name,
-      price: selectedVariant ? selectedVariant.price : product.price,
+      price: priceInfo.hasDiscount ? parseFloat(priceInfo.discounted) : parseFloat(priceInfo.original),
+      original_price: parseFloat(priceInfo.original),
+      discount_percentage: product.discount_percentage,
       image_url: selectedVariant && selectedVariant.image_url 
         ? getFullImageUrl(selectedVariant.image_url)
         : getFullImageUrl(product.image_url || (product.images && product.images[0] ? product.images[0].url : null)),
@@ -287,8 +291,32 @@ const ProductDetailPage = () => {
   };
 
   const calculateDiscountedPrice = (price, discount) => {
-    if (!discount) return price;
-    return (price - (price * discount / 100)).toFixed(2);
+    if (!price || !discount || discount <= 0) return price;
+    const discounted = price - (price * discount / 100);
+    return discounted.toFixed(2);
+  };
+
+  const getDisplayPrice = (variant, product) => {
+    const basePrice = variant ? variant.price : product.price;
+    const discount = product.discount_percentage;
+    
+    if (discount && discount > 0 && product.discounted_price > 0) {
+      // Convert decimal to percentage if needed (e.g., 0.25 -> 25)
+      const discountPercentage = discount <= 1 ? discount * 100 : discount;
+      return {
+        original: formatPrice(basePrice),
+        discounted: formatPrice(product.discounted_price),
+        hasDiscount: true,
+        discountPercentage: discountPercentage
+      };
+    }
+    
+    return {
+      original: formatPrice(basePrice),
+      discounted: null,
+      hasDiscount: false,
+      discountPercentage: 0
+    };
   };
 
   const renderStars = (rating) => {
@@ -471,36 +499,34 @@ const ProductDetailPage = () => {
               
               {/* Price Section First */}
               <div className="product-detail-price-section">
-                {product.discount_percentage > 0 ? (
-                  <>
-                    <div className="discounted-price">
-                      <span className="price-currency">₱</span>
-                      {calculateDiscountedPrice(
-                        selectedVariant ? selectedVariant.price : product.price,
-                        product.discount_percentage
-                      )}
+                {(() => {
+                  const priceInfo = getDisplayPrice(selectedVariant, product);
+                  
+                  if (priceInfo.hasDiscount) {
+                    return (
+                      <>
+                        <div className="discounted-price">
+                          <span className="price-currency">₱</span>
+                          {priceInfo.discounted}
+                        </div>
+                        <div className="original-price">
+                          <span className="price-currency">₱</span>
+                          {priceInfo.original}
+                        </div>
+                        <div className="discount-badge">
+                          {priceInfo.discountPercentage}% OFF
+                        </div>
+                      </>
+                    );
+                  }
+                  
+                  return (
+                    <div className="regular-price">
+                      <span className="price-currency" style={{ fontSize: '30px'}}>₱</span>
+                      {priceInfo.original}
                     </div>
-                    <div className="original-price">
-                      <span className="price-currency">₱</span>
-                      {formatPrice(selectedVariant ? selectedVariant.price : product.price)}
-                    </div>
-                    <div className="discount-badge">
-                      {product.discount_percentage}% OFF
-                    </div>
-                  </>
-                ) : (
-                <div 
-                  className="regular-price">
-                  <span 
-                    className="price-currency" 
-                    style={{ fontSize: '30px'}}
-                  >
-                    ₱
-                  </span>
-                  {formatPrice(selectedVariant ? selectedVariant.price : product.price)}
-                </div>
-
-                )}
+                  );
+                })()}
               </div>
 
               {/* Ratings Section Below Price */}

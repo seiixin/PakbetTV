@@ -354,6 +354,8 @@ async function getNewArrivals(req, res) {
         p.updated_at,
         p.is_featured,
         p.price                        AS base_price,
+        p.discounted_price,
+        p.discount_percentage,
         p.average_rating,
         p.review_count,
         c.name                          AS category_name,
@@ -378,8 +380,8 @@ async function getNewArrivals(req, res) {
     // Process numeric fields
     for (const product of products) {
       product.price = Number(product.base_price) || 0;
-      product.discounted_price = 0;
-      product.discount_percentage = 0;
+      product.discounted_price = Number(product.discounted_price) || 0;
+      product.discount_percentage = Number(product.discount_percentage) || 0;
       product.average_rating = product.average_rating !== null ? Number(product.average_rating) : 0;
       product.review_count = Number(product.review_count) || 0;
       product.stock = Number(product.stock) || 0;
@@ -428,6 +430,8 @@ async function getProducts(req, res) {
         p.updated_at,
         p.is_featured,
         p.price                        AS base_price,
+        p.discounted_price,
+        p.discount_percentage,
         p.average_rating,
         p.review_count,
         c.name                          AS category_name,
@@ -487,8 +491,8 @@ async function getProducts(req, res) {
     // Process numeric fields
     for (const product of products) {
       product.price = Number(product.base_price) || 0;
-      product.discounted_price = 0;
-      product.discount_percentage = 0;
+      product.discounted_price = Number(product.discounted_price) || 0;
+      product.discount_percentage = Number(product.discount_percentage) || 0;
       product.average_rating = product.average_rating !== null ? Number(product.average_rating) : 0;
       product.review_count = Number(product.review_count) || 0;
       product.stock = Number(product.stock) || 0;
@@ -648,7 +652,7 @@ async function getProductById(req, res) {
     const [productResult] = await db.query(`
       SELECT 
         p.product_id, p.name, p.product_code, p.description, p.category_id, 
-        p.price, p.stock AS stock_quantity, p.created_at, p.updated_at,
+        p.price, p.discounted_price, p.discount_percentage, p.stock AS stock_quantity, p.created_at, p.updated_at,
         COALESCE(SUM(oi.quantity), 0) as items_sold,
         p.average_rating, p.review_count, c.name AS category_name
       FROM products p
@@ -657,7 +661,7 @@ async function getProductById(req, res) {
       LEFT JOIN orders o ON oi.order_id = o.order_id AND o.order_status IN ('completed', 'delivered')
       WHERE p.product_id = ?
       GROUP BY p.product_id, p.name, p.product_code, p.description, p.category_id, 
-               p.price, p.stock, p.created_at, p.updated_at, p.average_rating, 
+               p.price, p.discounted_price, p.discount_percentage, p.stock, p.created_at, p.updated_at, p.average_rating, 
                p.review_count, c.name
     `, [productId]);
     if (productResult.length === 0) {
@@ -665,7 +669,10 @@ async function getProductById(req, res) {
     }
     const product = {
       ...productResult[0],
-      average_rating: productResult[0].average_rating !== null ? Number(productResult[0].average_rating) : null,
+      price: Number(productResult[0].price) || 0,
+      discounted_price: Number(productResult[0].discounted_price) || 0,
+      discount_percentage: Number(productResult[0].discount_percentage) || 0,
+      average_rating: productResult[0].average_rating !== null ? Number(productResult[0].average_rating) : 0,
       review_count: Number(productResult[0].review_count) || 0
     };
     

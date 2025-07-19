@@ -1474,17 +1474,17 @@
   margin: 8px 0;
 }
 .discounted-price {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 700;
   color: #e53935;
 }
 .original-price {
-  font-size: 18px;
+  font-size: 16px;
   color: #757575;
   text-decoration: line-through;
 }
 .regular-price {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 700;
   color: #333;
 }
