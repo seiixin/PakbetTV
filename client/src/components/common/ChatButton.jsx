@@ -12,7 +12,7 @@ const ChatButton = () => {
   return (
     <>
       <div className="chat-button" onClick={handleChatClick}>
-        <i className={isChatOpen ? 'fas fa-chevron-down' : 'fab fa-facebook-messenger'}></i>
+        <i className={isChatOpen ? 'fas fa-times' : 'fas fa-comment-dots'}></i>
         <span className="chat-tooltip">{isChatOpen ? 'Close chat' : 'Chat with us'}</span>
       </div>
       <ChatWidget isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />

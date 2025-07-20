@@ -10,7 +10,7 @@ const Sidebar = ({ isMobileMenuOpen, closeMobileMenu, scrollToSection }) => {
   };
 
   return (
-    <div className={`left-navigation ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
+    <div className={`sidebar ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
       <div className="mobile-nav-header">
         <h3>Menu</h3>
         <button className="mobile-close-btn" onClick={closeMobileMenu}>
@@ -23,17 +23,14 @@ const Sidebar = ({ isMobileMenuOpen, closeMobileMenu, scrollToSection }) => {
           <div className="nav-icon"><i className="fas fa-store"></i></div>
           <span className="nav-text">ALL PRODUCTS</span>
         </Link>
-
         <div className="nav-item" onClick={() => scrollToSection('new-arrivals-section')}>
           <div className="nav-icon"><i className="fas fa-star"></i></div>
           <span className="nav-text">WHAT'S NEW?</span>
         </div>
-
         <div className="nav-item" onClick={() => scrollToSection('best-sellers-section')}>
           <div className="nav-icon"><i className="fas fa-trophy"></i></div>
           <span className="nav-text">BEST SELLERS</span>
         </div>
-
         <div className="nav-item" onClick={() => scrollToSection('flash-deals-section')}>
           <div className="nav-icon"><i className="fas fa-bolt"></i></div>
           <span className="nav-text">FLASH DEALS</span>
@@ -75,7 +72,7 @@ const Sidebar = ({ isMobileMenuOpen, closeMobileMenu, scrollToSection }) => {
           )}
         </div>
 
-        {/* INCENSE & SPACE CLEARING */}
+        {/* INCENSE */}
         <div className="custom-dropdown">
           <div className="custom-dropdown-header" onClick={() => toggleDropdown('incense')}>
             <div className="nav-icon"><i className="fas fa-fire"></i></div>

@@ -1,17 +1,20 @@
 const crypto = require('crypto');
 const axios = require('axios');
+const config = require('../config/keys');
 
 class DragonpayService {
   constructor() {
-    this.merchantId = process.env.DRAGONPAY_MERCHANT_ID || 'PAKBETTV';
-    this.secretKey = process.env.DRAGONPAY_SECRET_KEY || 'test_key';
-    this.baseUrl = process.env.NODE_ENV === 'production' 
-      ? 'https://gw.dragonpay.ph' 
-      : 'https://test.dragonpay.ph';
+    this.merchantId = config.DRAGONPAY_MERCHANT_ID || 'PAKBETTV';
+    this.secretKey = config.DRAGONPAY_SECRET_KEY || 'test_key';
+    this.baseUrl = config.DRAGONPAY_BASE_URL;
+    this.apiUrl = config.DRAGONPAY_API_URL;
+    this.environment = config.DRAGONPAY_ENV;
     
     console.log('DragonPay Service initialized with:', {
+      environment: this.environment,
       merchantId: this.merchantId,
-      baseUrl: this.baseUrl
+      baseUrl: this.baseUrl,
+      apiUrl: this.apiUrl
     });
   }
 

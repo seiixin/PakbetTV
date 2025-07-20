@@ -1474,17 +1474,17 @@
   margin: 8px 0;
 }
 .discounted-price {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 700;
   color: #e53935;
 }
 .original-price {
-  font-size: 18px;
+  font-size: 16px;
   color: #757575;
   text-decoration: line-through;
 }
 .regular-price {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 700;
   color: #333;
 }
@@ -3886,7 +3886,6 @@
 }
 
 .products-category-card:hover {
-  transform: translateY(-2px);
   border-color: #A2201A;
   background-color: white;
   box-shadow: 0 2px 8px rgba(162, 32, 26, 0.1);
@@ -5569,4 +5568,32 @@
     top: auto !important;        
     max-height: none !important; 
   }
+}
+
+.carousel-control, .home-carousel-nav, .home-carousel-nav-button {
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 50% !important;
+  background: rgba(255,255,255,0.5) !important;
+  border: 2px solid #fff !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  cursor: pointer !important;
+  transition: background 0.2s, border 0.2s, box-shadow 0.2s !important;
+  outline: none !important;
+}
+
+.carousel-control:focus, .carousel-control:active,
+.home-carousel-nav:focus, .home-carousel-nav:active,
+.home-carousel-nav-button:focus, .home-carousel-nav-button:active {
+  outline: none !important;
+  box-shadow: none !important;
+  border: 2px solid #fff !important;
+}
+
+.carousel-control:hover, .home-carousel-nav:hover, .home-carousel-nav-button:hover {
+  background: rgba(255,255,255,0.7) !important;
 }

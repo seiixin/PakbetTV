@@ -45,7 +45,7 @@
   position: absolute;
   top: 10px;
   right: 10px;
-  background: rgba(0, 0, 0, 0.5);
+  background: transparent;
   color: #fff;
   border: none;
   border-radius: 50%;
@@ -56,11 +56,11 @@
   justify-content: center;
   cursor: pointer;
   z-index: 2;
-  transition: background-color 0.2s ease;
+  padding: 0;
+  transition: background 0.2s;
 }
-
 .promo-modal-close:hover {
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0,0,0,0.15);
 }
 
 .promo-modal-content {

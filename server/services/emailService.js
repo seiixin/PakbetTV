@@ -186,6 +186,13 @@ const generateEmailTemplate = (content) => `
       <meta http-equiv="X-UA-Compatible" content="IE=edge" />
       <meta name="x-apple-disable-message-reformatting" />
       <title>Email</title>
+      <style>
+        .price-column {
+          text-align: right;
+          min-width: 120px;
+          display: inline-block;
+        }
+      </style>
     </head>
     <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin:0; padding:0;">
       <div style="max-width:600px; margin:0 auto; padding:20px;">
@@ -242,6 +249,7 @@ const sendOrderConfirmationEmail = async (orderDetails) => {
   } = orderDetails;
 
   const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const calculatedTotal = subtotal + shippingFee - discount;
 
   // Prepare attachments array with header image
   const attachments = [getEmailHeaderAttachment()];
@@ -276,10 +284,10 @@ const sendOrderConfirmationEmail = async (orderDetails) => {
           </div>
         </td>
         <td style="padding: 8px; text-align: right; border: 1px solid #ddd; width: 100px;">${item.quantity}</td>
-        <td style="padding: 8px; text-align: right; border: 1px solid #ddd; width: 120px;">${formatPrice(item.price)}</td>
+        <td style="padding: 8px; text-align: right; border: 1px solid #ddd; width: 120px;">₱${item.price.toFixed(2)}</td>
       </tr>
     `;
-  });
+  }).join('');
 
   const content = `
     <h2>Order Confirmation</h2>
@@ -301,32 +309,35 @@ const sendOrderConfirmationEmail = async (orderDetails) => {
         </tr>
       </thead>
       <tbody>
-        ${itemsHtml.join('')}
+        ${itemsHtml}
       </tbody>
     </table>
 
-    <div style="max-width:300px; margin-left:auto; margin-bottom:20px;">
-      <div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid #eee;">
-        <span>Subtotal:</span>
-        <span style="text-align:right; min-width:120px;">${formatPrice(subtotal)}</span>
-      </div>
+    <table style="width:100%; max-width:300px; margin-left:auto;">
+      <tr>
+        <td style="padding:4px 0; text-align:left;">Subtotal:</td>
+        <td style="padding:4px 0; text-align:right; width:120px;">₱${subtotal.toFixed(2)}</td>
+      </tr>
       ${discount > 0 ? `
-        <div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid #eee;">
-          <span>Discount:</span>
-          <span style="text-align:right; min-width:120px;">-${formatPrice(discount)}</span>
-        </div>
+      <tr>
+        <td style="padding:4px 0; text-align:left;">Discount:</td>
+        <td style="padding:4px 0; text-align:right;">-₱${discount.toFixed(2)}</td>
+      </tr>
       ` : ''}
-      <div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid #eee;">
-        <span>Shipping:</span>
-        <span style="text-align:right; min-width:120px;">${formatPrice(shippingFee)}</span>
-      </div>
-      <div style="display:flex; justify-content:space-between; padding:8px 0; font-weight:bold; font-size:16px; border-top:2px solid #333;">
-        <span>Total:</span>
-        <span style="text-align:right; min-width:120px;">${formatPrice(totalAmount)}</span>
-      </div>
-    </div>
+      <tr>
+        <td style="padding:4px 0; text-align:left;">Shipping:</td>
+        <td style="padding:4px 0; text-align:right;">₱${shippingFee.toFixed(2)}</td>
+      </tr>
+      <tr>
+        <td colspan="2" style="padding:0; border-bottom:1px solid #000;"></td>
+      </tr>
+      <tr>
+        <td style="padding:4px 0; text-align:left; font-weight:bold;">Total:</td>
+        <td style="padding:4px 0; text-align:right; font-weight:bold;">₱${calculatedTotal.toFixed(2)}</td>
+      </tr>
+    </table>
 
-    <div class="shipping-info">
+    <div class="shipping-info" style="margin-top:30px;">
       <h3>Shipping Details:</h3>
       <p><strong>Delivery Address:</strong><br/>${shippingAddress}</p>
       ${trackingNumber ? `
@@ -486,6 +497,49 @@ const sendContactFormEmail = async (contactDetails) => {
   }
 };
 
+const sendAppointmentRequestEmail = async (appointmentDetails) => {
+  const { name, email, phone, message, subject } = appointmentDetails;
+
+  const content = `
+    <h2>New Appointment Request</h2>
+    <p>Dear Admin,</p>
+    <p>You have received a new appointment request from your website consultation form.</p>
+    
+    <h3>Client Information:</h3>
+    <p><strong>Name:</strong> ${name}</p>
+    <p><strong>Email:</strong> ${email}</p>
+    <p><strong>Phone:</strong> ${phone}</p>
+    <p><strong>Subject:</strong> ${subject || 'Appointment Request'}</p>
+    
+    <div class="tracking-info" style="background-color: #f9f9f9; padding: 15px; margin: 20px 0;">
+      <h3>Appointment Details:</h3>
+      <p>${message.replace(/\n/g, '<br>')}</p>
+    </div>
+    
+    <div class="important-note" style="background-color: #fff3e0; padding: 15px; margin: 20px 0; border-radius: 4px;">
+      <p style="margin: 0;"><strong>Action Required:</strong></p>
+      <p style="margin: 10px 0 0 0;">Please review this appointment request and respond to the client with available consultation schedules.</p>
+    </div>
+  `;
+
+  try {
+    const info = await transporter.sendMail({
+      from: `"MICHAEL DE MESA - BAZI & FENG SHUI CONSULTANCY" <${process.env.SMTP_USER}>`,
+      to: 'juatonfelix90@gmail.com',
+      replyTo: email,
+      subject: `New Appointment Request from ${name}`,
+      html: generateEmailTemplate(content),
+      attachments: [getEmailHeaderAttachment()]
+    });
+
+    console.log('Appointment request email sent:', info.messageId);
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    console.error('Appointment request email error:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
 const sendPasswordResetEmail = async (email, resetToken, origin) => {
   const resetUrl = `${origin}/reset-password/${resetToken}`;
   
@@ -611,23 +665,54 @@ const sendTestEmail = async (recipientEmail) => {
 
 // Cleanup function to close connections gracefully
 const cleanup = async () => {
+  console.log('Starting email service cleanup...');
   try {
-    transporter.close();
-    imageCache.clear();
-    console.log('Email service cleanup completed');
+    // Wait for any pending email operations to complete (up to 5 seconds)
+    await new Promise((resolve) => {
+      const checkPool = () => {
+        if (transporter.isIdle()) {
+          resolve();
+        } else {
+          console.log('Waiting for email operations to complete...');
+          setTimeout(checkPool, 500);
+        }
+      };
+      checkPool();
+    }).then(() => {
+      transporter.close();
+      imageCache.clear();
+      console.log('Email service cleanup completed');
+    });
   } catch (error) {
     console.error('Error during cleanup:', error);
+    // Ensure we still close connections even if there's an error
+    try {
+      transporter.close();
+      imageCache.clear();
+    } catch (e) {
+      console.error('Error during forced cleanup:', e);
+    }
   }
 };
 
 // Handle process termination
-process.on('SIGTERM', cleanup);
-process.on('SIGINT', cleanup);
+process.on('SIGTERM', async () => {
+  console.log('SIGTERM received, starting cleanup...');
+  await cleanup();
+  process.exit(0);
+});
+
+process.on('SIGINT', async () => {
+  console.log('SIGINT received, starting cleanup...');
+  await cleanup();
+  process.exit(0);
+});
 
 module.exports = {
   sendOrderConfirmationEmail,
   sendTestEmail,
   sendContactFormEmail,
+  sendAppointmentRequestEmail,
   sendPasswordResetEmail,
   sendOrderDispatchedEmail,
   sendReviewRequestEmail,

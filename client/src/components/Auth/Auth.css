@@ -90,34 +90,23 @@
   letter-spacing: 0px;
 }
 
-.form-group input {
-  width: 100%;
-  padding: 0.5rem 0.7rem;
-  border: 1px solid #d0d0d0;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  transition: all 0.2s ease;
-  background-color: #fff;
-  color: #333;
-  font-weight: 400;
+.form-group input,
+.form-group textarea {
+  line-height: 1.5;
+  padding-top: 12px;
+  padding-bottom: 12px;
+  font-size: 0.9rem;
   box-sizing: border-box;
-  height: 36px;
 }
 
-.form-group input:-webkit-autofill,
-.form-group input:-webkit-autofill:hover,
-.form-group input:-webkit-autofill:focus,
-.form-group input:-webkit-autofill:active {
-  -webkit-box-shadow: 0 0 0 30px #fff inset !important;
-  -webkit-text-fill-color: #333 !important;
-  background-color: #fff !important;
-  border: 1px solid #d0d0d0 !important;
-}
-
-.form-group input::placeholder {
+.form-group input::placeholder,
+.form-group textarea::placeholder {
   color: #999;
   font-weight: 400;
-  font-size: 0.7rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  opacity: 1;
+  vertical-align: middle;
 }
 
 .form-group input:focus {
@@ -601,6 +590,10 @@ body.modal-open * {
   z-index: 30;
   font-weight: 400;
   line-height: 1;
+  padding: 0;
+}
+.modal-close:hover {
+  background: rgba(162, 32, 26, 0.08);
 }
 
 @media (max-width: 768px) {

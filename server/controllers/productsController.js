@@ -11,6 +11,134 @@ const { auth, admin } = require('../middleware/auth');
 // Initialize cache with 5 minute TTL
 const productCache = new NodeCache({ stdTTL: 300 });
 
+// Helper function to generate image URLs
+const getImageUrl = (rawImg, productId) => {
+  if (!rawImg) return null;
+  
+  if (Buffer.isBuffer(rawImg)) {
+    // Use dedicated image endpoint instead of base64
+    return `/api/products/image/${productId}`;
+  }
+  
+  // Ensure single leading /uploads/ prefix
+  if (rawImg.startsWith('/')) {
+    return rawImg;
+  } else if (rawImg.startsWith('uploads/')) {
+    return `/${rawImg}`;
+  } else {
+    return `/uploads/${rawImg}`;
+  }
+};
+
+// Helper function to process product images
+const processProductImages = async (products, includeImages = true) => {
+  if (!includeImages || !products.length) {
+    products.forEach(product => {
+      product.images = [];
+    });
+    return;
+  }
+
+  const productIds = products.map(p => p.product_id);
+  let imageMap = {};
+  
+  // Get product images with additional fields
+  const [imgRows] = await db.query(
+    `SELECT DISTINCT pi.product_id, pi.image_id, pi.image_url, 
+            COALESCE(pi.sort_order, 0) as sort_order, 
+            COALESCE(pi.alt_text, '') as alt_text
+     FROM product_images pi
+     WHERE pi.product_id IN (?)
+     ORDER BY pi.product_id, pi.sort_order`, [productIds]);
+  
+  // Group images by product_id, ensuring no duplicates
+  const seenImages = new Set(); // Track unique image URLs per product
+  for (const row of imgRows) {
+    const imageKey = `${row.product_id}-${row.image_url}`; // Unique key per product-image combination
+    
+    // Skip if we've seen this image for this product
+    if (seenImages.has(imageKey)) continue;
+    seenImages.add(imageKey);
+
+    if (!imageMap[row.product_id]) {
+      imageMap[row.product_id] = [];
+    }
+
+    // Only add if we have a valid image_id and image_url
+    if (row.image_url) {
+      imageMap[row.product_id].push({
+        id: row.image_id || 0, // Ensure we never send null
+        url: row.image_url,
+        order: row.sort_order || 0,
+        alt: row.alt_text || ''
+      });
+    }
+  }
+
+  // Get variant images for products without main images
+  const missingIds = productIds.filter(id => !imageMap[id] || imageMap[id].length === 0);
+  if (missingIds.length) {
+    const [variantRows] = await db.query(
+      `SELECT DISTINCT pv.product_id, pv.variant_id as image_id, pv.image_url
+       FROM product_variants pv
+       WHERE pv.product_id IN (?) 
+       AND pv.image_url IS NOT NULL
+       ORDER BY pv.product_id`, [missingIds]);
+    
+    // Track seen variant images to prevent duplicates
+    const seenVariantImages = new Set();
+    
+    for (const row of variantRows) {
+      const imageKey = `${row.product_id}-${row.image_url}`;
+      
+      // Skip if we've seen this variant image
+      if (seenVariantImages.has(imageKey)) continue;
+      seenVariantImages.add(imageKey);
+
+      if (!imageMap[row.product_id]) {
+        imageMap[row.product_id] = [];
+      }
+
+      if (row.image_url) {
+        imageMap[row.product_id].push({
+          id: row.image_id || 0,
+          url: row.image_url,
+          order: 0, // Default order for variant images
+          alt: '' // No alt text for variant images
+        });
+      }
+    }
+  }
+
+  // Process images for each product
+  products.forEach(product => {
+    const images = imageMap[product.product_id] || [];
+    
+    // Sort images by order and ensure no duplicates
+    const uniqueImages = new Map();
+    images.forEach(img => {
+      const key = `${img.url}`; // Use URL as unique key
+      if (!uniqueImages.has(key)) {
+        uniqueImages.set(key, {
+          id: img.id || 0,
+          url: getImageUrl(img.url, product.product_id),
+          alt: img.alt || product.name,
+          order: img.order || 0
+        });
+      }
+    });
+
+    // Convert to array and sort by order
+    product.images = Array.from(uniqueImages.values())
+      .sort((a, b) => a.order - b.order);
+    
+    // If no images found, ensure empty array
+    if (!product.images.length) {
+      product.images = [];
+    }
+  });
+};
+
 const ensureDir = async (dir) => {
   try {
     if (!fs.existsSync(dir)) {
@@ -184,35 +312,7 @@ async function getFlashDeals(req, res) {
     // Add debug logging for flash deals
     console.log('Flash deals found:', products.length);
 
-    // ----- Post-process products (images, numeric fields) -----
-    const productIds = products.map(p => p.product_id);
-    const includeImages = req.query.includeImages !== 'false' && req.query.includeImages !== '0';
-    let imageMap = {};
-    if (includeImages && productIds.length) {
-      const [imgRows] = await db.query(
-        `SELECT pi.product_id, pi.image_url
-         FROM product_images pi
-         WHERE pi.product_id IN (?)
-         ORDER BY pi.product_id, pi.sort_order`, [productIds]);
-      for (const row of imgRows) {
-        if (!imageMap[row.product_id]) {
-          imageMap[row.product_id] = row.image_url;
-        }
-      }
-      const missingIds = productIds.filter(id => !imageMap[id]);
-      if (missingIds.length) {
-        const [variantRows] = await db.query(
-          `SELECT pv.product_id, pv.image_url
-           FROM product_variants pv
-           WHERE pv.product_id IN (?) AND pv.image_url IS NOT NULL`, [missingIds]);
-        for (const row of variantRows) {
-          if (!imageMap[row.product_id]) {
-            imageMap[row.product_id] = row.image_url;
-          }
-        }
-      }
-    }
-
+    // Process numeric fields
     for (const product of products) {
       product.price = Number(product.base_price) || 0;
       product.discounted_price = Number(product.discounted_price) || 0;
@@ -221,32 +321,12 @@ async function getFlashDeals(req, res) {
       product.review_count = Number(product.review_count) || 0;
       product.stock = Number(product.stock) || 0;
       delete product.base_price;
-
-      if (includeImages) {
-        const rawImg = imageMap[product.product_id];
-        if (rawImg) {
-          let url;
-          if (Buffer.isBuffer(rawImg)) {
-            url = `data:image/jpeg;base64,${rawImg.toString('base64')}`;
-          } else {
-            // Ensure single leading /uploads/ prefix
-            if (rawImg.startsWith('/')) {
-              url = rawImg;
-            } else if (rawImg.startsWith('uploads/')) {
-              url = `/${rawImg}`;
-            } else {
-              url = `/uploads/${rawImg}`;
-            }
-          }
-          product.images = [{ id: null, url, alt: product.name, order: 0 }];
-        } else {
-          product.images = [];
-        }
-      } else {
-        product.images = [];
-      }
       product.variants = [];
     }
+
+    // Process images
+    const includeImages = req.query.includeImages !== 'false' && req.query.includeImages !== '0';
+    await processProductImages(products, includeImages);
 
     return res.json(products);
   } catch (err) {
@@ -274,6 +354,8 @@ async function getNewArrivals(req, res) {
         p.updated_at,
         p.is_featured,
         p.price                        AS base_price,
+        p.discounted_price,
+        p.discount_percentage,
         p.average_rating,
         p.review_count,
         c.name                          AS category_name,
@@ -295,69 +377,21 @@ async function getNewArrivals(req, res) {
     // Add debug logging for new arrivals
     console.log('New arrivals found:', products.length);
 
-    // ----- Post-process products (images, numeric fields) -----
-    const productIds = products.map(p => p.product_id);
-    const includeImages = req.query.includeImages !== 'false' && req.query.includeImages !== '0';
-    let imageMap = {};
-    if (includeImages && productIds.length) {
-      const [imgRows] = await db.query(
-        `SELECT pi.product_id, pi.image_url
-         FROM product_images pi
-         WHERE pi.product_id IN (?)
-         ORDER BY pi.product_id, pi.sort_order`, [productIds]);
-      for (const row of imgRows) {
-        if (!imageMap[row.product_id]) {
-          imageMap[row.product_id] = row.image_url;
-        }
-      }
-      const missingIds = productIds.filter(id => !imageMap[id]);
-      if (missingIds.length) {
-        const [variantRows] = await db.query(
-          `SELECT pv.product_id, pv.image_url
-           FROM product_variants pv
-           WHERE pv.product_id IN (?) AND pv.image_url IS NOT NULL`, [missingIds]);
-        for (const row of variantRows) {
-          if (!imageMap[row.product_id]) {
-            imageMap[row.product_id] = row.image_url;
-          }
-        }
-      }
-    }
-
+    // Process numeric fields
     for (const product of products) {
       product.price = Number(product.base_price) || 0;
-      product.discounted_price = 0;
-      product.discount_percentage = 0;
+      product.discounted_price = Number(product.discounted_price) || 0;
+      product.discount_percentage = Number(product.discount_percentage) || 0;
       product.average_rating = product.average_rating !== null ? Number(product.average_rating) : 0;
       product.review_count = Number(product.review_count) || 0;
       product.stock = Number(product.stock) || 0;
       delete product.base_price;
-
-      if (includeImages) {
-        const rawImg = imageMap[product.product_id];
-        if (rawImg) {
-          let url;
-          if (Buffer.isBuffer(rawImg)) {
-            url = `data:image/jpeg;base64,${rawImg.toString('base64')}`;
-          } else {
-            // Ensure single leading /uploads/ prefix
-            if (rawImg.startsWith('/')) {
-              url = rawImg;
-            } else if (rawImg.startsWith('uploads/')) {
-              url = `/${rawImg}`;
-            } else {
-              url = `/uploads/${rawImg}`;
-            }
-          }
-          product.images = [{ id: null, url, alt: product.name, order: 0 }];
-        } else {
-          product.images = [];
-        }
-      } else {
-        product.images = [];
-      }
       product.variants = [];
     }
+
+    // Process images
+    const includeImages = req.query.includeImages !== 'false' && req.query.includeImages !== '0';
+    await processProductImages(products, includeImages);
 
     return res.json(products);
   } catch (err) {
@@ -396,6 +430,8 @@ async function getProducts(req, res) {
         p.updated_at,
         p.is_featured,
         p.price                        AS base_price,
+        p.discounted_price,
+        p.discount_percentage,
         p.average_rating,
         p.review_count,
         c.name                          AS category_name,
@@ -452,69 +488,21 @@ async function getProducts(req, res) {
       products = products.slice(0, limit);
     }
 
-    // ----- Post-process products (images, numeric fields) -----
-    const productIds = products.map(p => p.product_id);
-    const includeImages = req.query.includeImages !== 'false' && req.query.includeImages !== '0';
-    let imageMap = {};
-    if (includeImages && productIds.length) {
-      const [imgRows] = await db.query(
-        `SELECT pi.product_id, pi.image_url
-         FROM product_images pi
-         WHERE pi.product_id IN (?)
-         ORDER BY pi.product_id, pi.sort_order`, [productIds]);
-      for (const row of imgRows) {
-        if (!imageMap[row.product_id]) {
-          imageMap[row.product_id] = row.image_url;
-        }
-      }
-      const missingIds = productIds.filter(id => !imageMap[id]);
-      if (missingIds.length) {
-        const [variantRows] = await db.query(
-          `SELECT pv.product_id, pv.image_url
-           FROM product_variants pv
-           WHERE pv.product_id IN (?) AND pv.image_url IS NOT NULL`, [missingIds]);
-        for (const row of variantRows) {
-          if (!imageMap[row.product_id]) {
-            imageMap[row.product_id] = row.image_url;
-          }
-        }
-      }
-    }
-
+    // Process numeric fields
     for (const product of products) {
       product.price = Number(product.base_price) || 0;
-      product.discounted_price = 0;
-      product.discount_percentage = 0;
+      product.discounted_price = Number(product.discounted_price) || 0;
+      product.discount_percentage = Number(product.discount_percentage) || 0;
       product.average_rating = product.average_rating !== null ? Number(product.average_rating) : 0;
       product.review_count = Number(product.review_count) || 0;
       product.stock = Number(product.stock) || 0;
       delete product.base_price;
-
-      if (includeImages) {
-        const rawImg = imageMap[product.product_id];
-        if (rawImg) {
-          let url;
-          if (Buffer.isBuffer(rawImg)) {
-            url = `data:image/jpeg;base64,${rawImg.toString('base64')}`;
-          } else {
-            // Ensure single leading /uploads/ prefix
-            if (rawImg.startsWith('/')) {
-              url = rawImg;
-            } else if (rawImg.startsWith('uploads/')) {
-              url = `/${rawImg}`;
-            } else {
-              url = `/uploads/${rawImg}`;
-            }
-          }
-          product.images = [{ id: null, url, alt: product.name, order: 0 }];
-        } else {
-          product.images = [];
-        }
-      } else {
-        product.images = [];
-      }
       product.variants = [];
     }
+
+    // Process images
+    const includeImages = req.query.includeImages !== 'false' && req.query.includeImages !== '0';
+    await processProductImages(products, includeImages);
 
     // Prepare next cursor (if any)
     let nextCursor = null;
@@ -664,7 +652,7 @@ async function getProductById(req, res) {
     const [productResult] = await db.query(`
       SELECT 
         p.product_id, p.name, p.product_code, p.description, p.category_id, 
-        p.price, p.stock AS stock_quantity, p.created_at, p.updated_at,
+        p.price, p.discounted_price, p.discount_percentage, p.stock AS stock_quantity, p.created_at, p.updated_at,
         COALESCE(SUM(oi.quantity), 0) as items_sold,
         p.average_rating, p.review_count, c.name AS category_name
       FROM products p
@@ -673,7 +661,7 @@ async function getProductById(req, res) {
       LEFT JOIN orders o ON oi.order_id = o.order_id AND o.order_status IN ('completed', 'delivered')
       WHERE p.product_id = ?
       GROUP BY p.product_id, p.name, p.product_code, p.description, p.category_id, 
-               p.price, p.stock, p.created_at, p.updated_at, p.average_rating, 
+               p.price, p.discounted_price, p.discount_percentage, p.stock, p.created_at, p.updated_at, p.average_rating, 
                p.review_count, c.name
     `, [productId]);
     if (productResult.length === 0) {
@@ -681,7 +669,10 @@ async function getProductById(req, res) {
     }
     const product = {
       ...productResult[0],
-      average_rating: productResult[0].average_rating !== null ? Number(productResult[0].average_rating) : null,
+      price: Number(productResult[0].price) || 0,
+      discounted_price: Number(productResult[0].discounted_price) || 0,
+      discount_percentage: Number(productResult[0].discount_percentage) || 0,
+      average_rating: productResult[0].average_rating !== null ? Number(productResult[0].average_rating) : 0,
       review_count: Number(productResult[0].review_count) || 0
     };
     
@@ -820,35 +811,7 @@ async function getBestSellers(req, res) {
     // Add debug logging for best sellers
     console.log('Best sellers found:', products.length);
 
-    // ----- Post-process products (images, numeric fields) -----
-    const productIds = products.map(p => p.product_id);
-    const includeImages = req.query.includeImages !== 'false' && req.query.includeImages !== '0';
-    let imageMap = {};
-    if (includeImages && productIds.length) {
-      const [imgRows] = await db.query(
-        `SELECT pi.product_id, pi.image_url
-         FROM product_images pi
-         WHERE pi.product_id IN (?)
-         ORDER BY pi.product_id, pi.sort_order`, [productIds]);
-      for (const row of imgRows) {
-        if (!imageMap[row.product_id]) {
-          imageMap[row.product_id] = row.image_url;
-        }
-      }
-      const missingIds = productIds.filter(id => !imageMap[id]);
-      if (missingIds.length) {
-        const [variantRows] = await db.query(
-          `SELECT pv.product_id, pv.image_url
-           FROM product_variants pv
-           WHERE pv.product_id IN (?) AND pv.image_url IS NOT NULL`, [missingIds]);
-        for (const row of variantRows) {
-          if (!imageMap[row.product_id]) {
-            imageMap[row.product_id] = row.image_url;
-          }
-        }
-      }
-    }
-
+    // Process numeric fields
     for (const product of products) {
       product.price = Number(product.base_price) || 0;
       product.discounted_price = Number(product.discounted_price) || 0;
@@ -858,32 +821,12 @@ async function getBestSellers(req, res) {
       product.stock = Number(product.stock) || 0;
       product.total_sold = Number(product.total_sold) || 0;
       delete product.base_price;
-
-      if (includeImages) {
-        const rawImg = imageMap[product.product_id];
-        if (rawImg) {
-          let url;
-          if (Buffer.isBuffer(rawImg)) {
-            url = `data:image/jpeg;base64,${rawImg.toString('base64')}`;
-          } else {
-            // Ensure single leading /uploads/ prefix
-            if (rawImg.startsWith('/')) {
-              url = rawImg;
-            } else if (rawImg.startsWith('uploads/')) {
-              url = `/${rawImg}`;
-            } else {
-              url = `/uploads/${rawImg}`;
-            }
-          }
-          product.images = [{ id: null, url, alt: product.name, order: 0 }];
-        } else {
-          product.images = [];
-        }
-      } else {
-        product.images = [];
-      }
       product.variants = [];
     }
+
+    // Process images
+    const includeImages = req.query.includeImages !== 'false' && req.query.includeImages !== '0';
+    await processProductImages(products, includeImages);
 
     return res.json(products);
   } catch (err) {

@@ -9,6 +9,11 @@ const nodemailer = require('nodemailer');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 
+// Account lockout tracking (in production, consider using Redis)
+const loginAttempts = new Map();
+const LOCKOUT_TIME = 15 * 60 * 1000; // 15 minutes
+const MAX_LOGIN_ATTEMPTS = 5; // Maximum attempts before lockout
+
 // Email configuration
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
@@ -22,11 +27,51 @@ const transporter = nodemailer.createTransport({
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  limit: 100, // Increased from 10 to 100 login attempts per 15 minutes
-  message: 'Too many login attempts. Please try again later.',
+  limit: 20, // Reduced from 100 to 20 login attempts per 15 minutes
+  message: 'Too many authentication attempts. Please try again later.',
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
+
+// Helper function to check account lockout
+const checkAccountLockout = (identifier) => {
+  const attempts = loginAttempts.get(identifier);
+  if (!attempts) return { locked: false, remainingTime: 0 };
+  
+  const now = Date.now();
+  if (attempts.count >= MAX_LOGIN_ATTEMPTS) {
+    const timeRemaining = LOCKOUT_TIME - (now - attempts.firstAttempt);
+    if (timeRemaining > 0) {
+      return { locked: true, remainingTime: Math.ceil(timeRemaining / 1000 / 60) };
+    } else {
+      // Reset attempts after lockout period
+      loginAttempts.delete(identifier);
+      return { locked: false, remainingTime: 0 };
+    }
+  }
+  return { locked: false, remainingTime: 0 };
+};
+
+// Helper function to record failed login attempt
+const recordFailedAttempt = (identifier) => {
+  const now = Date.now();
+  const attempts = loginAttempts.get(identifier) || { count: 0, firstAttempt: now };
+  
+  // Reset if more than lockout time has passed
+  if (now - attempts.firstAttempt > LOCKOUT_TIME) {
+    attempts.count = 1;
+    attempts.firstAttempt = now;
+  } else {
+    attempts.count++;
+  }
+  
+  loginAttempts.set(identifier, attempts);
+};
+
+// Helper function to clear login attempts on successful login
+const clearLoginAttempts = (identifier) => {
+  loginAttempts.delete(identifier);
+};
 
 // Helper function to generate JWT token
 const generateToken = (user) => {
@@ -77,7 +122,7 @@ exports.signup = async (req, res) => {
     }
 
     // Hash password
-    const salt = await bcrypt.genSalt(10);
+    const salt = await bcrypt.genSalt(12); // Increased from 10 to 12 for better security
     const hashedPassword = await bcrypt.hash(password, salt);
 
     // Create user
@@ -102,7 +147,7 @@ exports.signup = async (req, res) => {
   }
 };
 
-// Login handler
+// Login handler with account lockout protection
 exports.login = async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -111,6 +156,14 @@ exports.login = async (req, res) => {
     }
 
     const { emailOrUsername, password } = req.body;
+    
+    // Check account lockout
+    const lockoutStatus = checkAccountLockout(emailOrUsername);
+    if (lockoutStatus.locked) {
+      return res.status(429).json({
+        errors: [{ msg: `Account temporarily locked. Try again in ${lockoutStatus.remainingTime} minutes.` }]
+      });
+    }
 
     // Find user with user_type (select only needed columns)
     const [rows] = await db.query(
@@ -120,6 +173,7 @@ exports.login = async (req, res) => {
 
     const user = rows[0];
     if (!user) {
+      recordFailedAttempt(emailOrUsername);
       return res.status(400).json({
         errors: [{ msg: 'Invalid credentials' }]
       });
@@ -128,10 +182,14 @@ exports.login = async (req, res) => {
     // Verify password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
+      recordFailedAttempt(emailOrUsername);
       return res.status(400).json({
         errors: [{ msg: 'Invalid credentials' }]
       });
     }
+
+    // Clear failed attempts on successful login
+    clearLoginAttempts(emailOrUsername);
 
     const token = generateToken(user);
 
@@ -230,7 +288,7 @@ exports.forgotPassword = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    const resetToken = crypto.randomBytes(20).toString('hex');
+    const resetToken = crypto.randomBytes(32).toString('hex'); // Increased from 20 to 32 bytes
     const resetTokenExpiry = Date.now() + 3600000; // 1 hour
 
     await db.query(
@@ -289,7 +347,7 @@ exports.resetPassword = async (req, res) => {
       return res.status(400).json({ message: 'Invalid or expired reset token' });
     }
 
-    const salt = await bcrypt.genSalt(10);
+    const salt = await bcrypt.genSalt(12); // Increased from 10 to 12
     const hashedPassword = await bcrypt.hash(password, salt);
 
     await db.query(
@@ -321,7 +379,7 @@ exports.updatePassword = async (req, res) => {
       return res.status(400).json({ message: 'Current password is incorrect' });
     }
 
-    const salt = await bcrypt.genSalt(10);
+    const salt = await bcrypt.genSalt(12); // Increased from 10 to 12
     const hashedPassword = await bcrypt.hash(newPassword, salt);
 
     await db.query(

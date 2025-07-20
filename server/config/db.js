@@ -13,7 +13,13 @@ const dbConfig = {
   connectionLimit: 10,
   queueLimit: 0,
   connectTimeout: 60000,
-  ssl: process.env.DB_SSL === 'true' ? {rejectUnauthorized: false} : false
+  // Only enable SSL in production with proper configuration
+  ssl: process.env.NODE_ENV === 'production' && process.env.DB_SSL === 'true' ? {
+    rejectUnauthorized: true, // Changed from false to true for security
+    ca: process.env.DB_SSL_CA,
+    cert: process.env.DB_SSL_CERT,
+    key: process.env.DB_SSL_KEY
+  } : false
 };
 
 const pool = mysql.createPool(dbConfig);
@@ -38,6 +44,7 @@ const testConnection = async () => {
     console.log(`Host: ${dbConfig.host}`);
     console.log(`Database: ${dbConfig.database}`);
     console.log(`User: ${dbConfig.user}`);
+    console.log(`SSL Enabled: ${!!dbConfig.ssl}`);
     const connection = await pool.getConnection();
     console.log('Database connected successfully');
     connection.release();
@@ -46,7 +53,8 @@ const testConnection = async () => {
     console.error(`Error Code: ${error.code}`);
     console.error(`Error Number: ${error.errno}`);
     console.error(`SQL State: ${error.sqlState}`);
-    console.error(`Error Message: ${error.message}`);
+    // Don't log the full error message as it might contain sensitive information
+    console.error(`Error Message: Database connection error`);
     if (error.code === 'ER_ACCESS_DENIED_ERROR') {
       console.error('\nAccess denied error detected. Possible solutions:');
       console.error('1. Check username and password in .env file');

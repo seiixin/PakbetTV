@@ -395,4 +395,17 @@
   .blog-hero-text {
     font-size: 1.5rem;
   }
-} 
+} .fullscreen-animation {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: black;
+  z-index: 9999;
+}
+
+.fullscreen-animation video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}

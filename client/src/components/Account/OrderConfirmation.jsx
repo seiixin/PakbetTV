@@ -58,9 +58,31 @@ function OrderConfirmation() {
         setLoading(true);
         const response = await api.get(`/orders/${orderId}`);
         
-        // Simplified item processing
+        // Fetch product images for each item
         if (response.data && response.data.items) {
-          // No special processing needed
+          const itemsWithImages = await Promise.all(
+            response.data.items.map(async (item) => {
+              try {
+                if (item.product_id) {
+                  const imageResponse = await api.get(`/products/${item.product_id}/image`);
+                  return {
+                    ...item,
+                    image_url: imageResponse.data.url
+                  };
+                }
+                return item;
+              } catch (err) {
+                console.warn(`Failed to fetch image for product ${item.product_id}:`, err);
+                return item;
+              }
+            })
+          );
+          
+          setOrder({
+            ...response.data,
+            items: itemsWithImages
+          });
+        } else {
           setOrder(response.data);
         }
         
@@ -255,6 +277,15 @@ function OrderConfirmation() {
             <div className="items-list">
               {order.items && order.items.map((item, index) => (
                 <div key={index} className="item-row">
+                  <div className="item-image">
+                    {item.image_url ? (
+                      <img src={item.image_url} alt={item.product_name} />
+                    ) : (
+                      <div className="no-image-placeholder">
+                        <i className="fas fa-image"></i>
+                      </div>
+                    )}
+                  </div>
                   <div className="item-info">
                     <h4>{item.product_name}</h4>
                     <p className="product-code">Product Code: {item.product_code}</p>
@@ -269,19 +300,25 @@ function OrderConfirmation() {
               </div>
               
             <div className="order-summary">
-                  <div className="summary-row">
-                    <span>Subtotal</span>
-                    <span>₱{parseFloat(order.total_price).toFixed(2)}</span>
-                  </div>
-                  <div className="summary-row">
-                    <span>Shipping</span>
-                    <span>₱0.00</span>
-                  </div>
-                  <div className="summary-row total">
-                    <span>Total</span>
-                    <span>₱{parseFloat(order.total_price).toFixed(2)}</span>
-                  </div>
+              <div className="summary-row">
+                <span>Subtotal:</span>
+                <span>₱{parseFloat(order.subtotal || order.total_price).toFixed(2)}</span>
+              </div>
+              {order.discount > 0 && (
+                <div className="summary-row">
+                  <span>Discount:</span>
+                  <span>-₱{parseFloat(order.discount).toFixed(2)}</span>
                 </div>
+              )}
+              <div className="summary-row">
+                <span>Shipping:</span>
+                <span>₱{parseFloat(order.shipping_fee || 0).toFixed(2)}</span>
+              </div>
+              <div className="summary-row total">
+                <span>Total:</span>
+                <span>₱{parseFloat(order.total_price).toFixed(2)}</span>
+              </div>
+            </div>
               </div>
             </div>
           </div>

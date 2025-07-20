@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { usePSGC } from '../../hooks/usePSGC';
 import './AddressForm.css';
 
 const AddressForm = ({ onChange, initialAddress = {} }) => {
@@ -8,6 +9,7 @@ const AddressForm = ({ onChange, initialAddress = {} }) => {
     area: '',
     city: '',
     state: '',
+    region: '',
     postcode: '',
     country: 'PH',
     address_type: 'home',
@@ -112,6 +114,20 @@ const AddressForm = ({ onChange, initialAddress = {} }) => {
     'Putrajaya'
   ];
 
+  /* ------------------------------------------------------------------
+   * PSGC – Philippine geographic data (regions / provinces / cities / barangays)
+   * ------------------------------------------------------------------ */
+  const { 
+    regions, 
+    fetchProvinces, 
+    fetchCities, 
+    fetchBarangays 
+  } = usePSGC(address.country);
+
+  const [provinceOptions, setProvinceOptions] = useState([]);
+  const [cityOptions, setCityOptions] = useState([]);
+  const [barangayOptions, setBarangayOptions] = useState([]);
+
   useEffect(() => {
     if (typeof initialAddress === 'string') {
       // Try to parse from string format
@@ -137,6 +153,7 @@ const AddressForm = ({ onChange, initialAddress = {} }) => {
         area: '',
         city: '',
         state: '',
+        region: '',
         postcode: '',
         country: 'PH',
         address_type: 'home',
@@ -167,6 +184,118 @@ const AddressForm = ({ onChange, initialAddress = {} }) => {
     });
   };
 
+  /* -----------------------------
+   * Cascading PSGC selectors
+   * ----------------------------- */
+  const handleRegionSelect = async (e) => {
+    const regionCode = e.target.value;
+    const regionObj = regions.find(r => String(r.code) === String(regionCode));
+    const regionName = regionObj ? (regionObj.regionName || regionObj.name) : '';
+
+    // Reset downstream selections
+    setAddress(prev => ({
+      ...prev,
+      region: regionName,
+      state: '',
+      city: '',
+      area: ''
+    }));
+
+    onChange({
+      ...address,
+      region: regionName,
+      state: '',
+      city: '',
+      area: ''
+    });
+
+    // Clear and fetch provinces for the selected region
+    setProvinceOptions([]);
+    setCityOptions([]);
+    setBarangayOptions([]);
+
+    if (regionCode) {
+      try {
+        const data = await fetchProvinces(regionCode);
+        setProvinceOptions(data);
+      } catch (err) {
+        console.error('Failed to load provinces:', err);
+      }
+    }
+  };
+
+  const handleProvinceSelect = async (e) => {
+    const provinceCode = e.target.value;
+    const provObj = provinceOptions.find(p => String(p.code) === String(provinceCode));
+    const provName = provObj ? provObj.name : '';
+
+    setAddress(prev => ({
+      ...prev,
+      state: provName,
+      city: '',
+      area: ''
+    }));
+    onChange({
+      ...address,
+      state: provName,
+      city: '',
+      area: ''
+    });
+
+    setCityOptions([]);
+    setBarangayOptions([]);
+    if (provinceCode) {
+      try {
+        const data = await fetchCities(provinceCode);
+        setCityOptions(data);
+      } catch (err) {
+        console.error('Failed to load cities:', err);
+      }
+    }
+  };
+
+  const handleCitySelect = async (e) => {
+    const cityCode = e.target.value;
+    const cityObj = cityOptions.find(c => String(c.code) === String(cityCode));
+    const cityName = cityObj ? cityObj.name : '';
+
+    setAddress(prev => ({
+      ...prev,
+      city: cityName,
+      area: ''
+    }));
+    onChange({
+      ...address,
+      city: cityName,
+      area: ''
+    });
+
+    setBarangayOptions([]);
+    if (cityCode) {
+      try {
+        const data = await fetchBarangays(cityCode);
+        setBarangayOptions(data);
+      } catch (err) {
+        console.error('Failed to load barangays:', err);
+      }
+    }
+  };
+
+  const handleBarangaySelect = (e) => {
+    const barangayCode = e.target.value;
+    const brgyObj = barangayOptions.find(b => String(b.code) === String(barangayCode));
+    const brgyName = brgyObj ? brgyObj.name : '';
+
+    setAddress(prev => ({
+      ...prev,
+      area: brgyName
+    }));
+    onChange({
+      ...address,
+      area: brgyName
+    });
+  };
+
   const validateForm = () => {
     const newErrors = {};
     
@@ -174,12 +303,26 @@ const AddressForm = ({ onChange, initialAddress = {} }) => {
       newErrors.address1 = 'Address line 1 is required';
     }
     
-    if (!address.city.trim()) {
-      newErrors.city = 'City is required';
-    }
-    
-    if (!address.state) {
-      newErrors.state = 'Province is required';
+    if (address.country === 'PH') {
+      if (!address.region) {
+        newErrors.region = 'Region is required';
+      }
+      if (!address.state) {
+        newErrors.state = 'Province is required';
+      }
+      if (!address.city.trim()) {
+        newErrors.city = 'City is required';
+      }
+      if (!address.area.trim()) {
+        newErrors.area = 'Barangay is required';
+      }
+    } else {
+      if (!address.city.trim()) {
+        newErrors.city = 'City is required';
+      }
+      if (!address.state) {
+        newErrors.state = 'State/Province is required';
+      }
     }
     
     if (!address.postcode.trim()) {
@@ -205,7 +348,7 @@ const AddressForm = ({ onChange, initialAddress = {} }) => {
     if (address.country === 'MY') {
       return malaysianStates;
     }
-    return philippineProvinces;
+    return provinceOptions.map(p => p.name);
   };
 
   // Get label for state/province based on country
@@ -215,6 +358,27 @@ const AddressForm = ({ onChange, initialAddress = {} }) => {
 
   return (
     <div className="address-form">
+      {/* Region selector (PH only) */}
+      {address.country === 'PH' && (
+        <div className="form-group">
+          <label htmlFor="region">Region *</label>
+          <select
+            id="region"
+            name="region"
+            value={regions.find(r => (r.regionName || r.name) === address.region)?.code || ''}
+            onChange={handleRegionSelect}
+            className={errors.region ? 'error' : ''}
+          >
+            <option value="">Select Region</option>
+            {regions.map(r => (
+              <option key={r.code} value={r.code}>
+                {r.regionName || r.name}
+              </option>
+            ))}
+          </select>
+          {errors.region && <span className="error-text">{errors.region}</span>}
+        </div>
+      )}
       <div className="form-group">
         <label htmlFor="address1">Address Line 1 *</label>
         <input
@@ -241,30 +405,62 @@ const AddressForm = ({ onChange, initialAddress = {} }) => {
         />
       </div>
       
+      {/* Barangay selector (PH) or free text (others) */}
       <div className="form-group">
-        <label htmlFor="area">Area/Barangay</label>
-        <input
-          type="text"
-          id="area"
-          name="area"
-          value={address.area}
-          onChange={handleChange}
-          placeholder="Neighborhood, barangay or area name"
-        />
+        <label htmlFor="area">{address.country === 'PH' ? 'Barangay *' : 'Area/Barangay'}</label>
+        {address.country === 'PH' ? (
+          <select
+            id="barangay"
+            name="barangay"
+            value={barangayOptions.find(b => b.name === address.area)?.code || ''}
+            onChange={handleBarangaySelect}
+            className={errors.area ? 'error' : ''}
+          >
+            <option value="">Select Barangay</option>
+            {barangayOptions.map(b => (
+              <option key={b.code} value={b.code}>{b.name}</option>
+            ))}
+          </select>
+        ) : (
+          <input
+            type="text"
+            id="area"
+            name="area"
+            value={address.area}
+            onChange={handleChange}
+            placeholder="Neighborhood, barangay or area name"
+          />
+        )}
+        {errors.area && <span className="error-text">{errors.area}</span>}
       </div>
       
       <div className="form-row">
         <div className="form-group half">
           <label htmlFor="city">City/Municipality *</label>
-          <input
-            type="text"
-            id="city"
-            name="city"
-            value={address.city}
-            onChange={handleChange}
-            placeholder="City or municipality"
-            className={errors.city ? 'error' : ''}
-          />
+          {address.country === 'PH' ? (
+            <select
+              id="city"
+              name="citySelect"
+              value={cityOptions.find(c => c.name === address.city)?.code || ''}
+              onChange={handleCitySelect}
+              className={errors.city ? 'error' : ''}
+            >
+              <option value="">Select City/Municipality</option>
+              {cityOptions.map(c => (
+                <option key={c.code} value={c.code}>{c.name}</option>
+              ))}
+            </select>
+          ) : (
+            <input
+              type="text"
+              id="city"
+              name="city"
+              value={address.city}
+              onChange={handleChange}
+              placeholder="City or municipality"
+              className={errors.city ? 'error' : ''}
+            />
+          )}
           {errors.city && <span className="error-text">{errors.city}</span>}
         </div>
         
@@ -300,18 +496,33 @@ const AddressForm = ({ onChange, initialAddress = {} }) => {
       
       <div className="form-group">
         <label htmlFor="state">{getStateLabel()} *</label>
-        <select
-          id="state"
-          name="state"
-          value={address.state}
-          onChange={handleChange}
-          className={errors.state ? 'error' : ''}
-        >
-          <option value="">Select {getStateLabel()}</option>
-          {getStateOptions().map(state => (
-            <option key={state} value={state}>{state}</option>
-          ))}
-        </select>
+        {address.country === 'PH' ? (
+          <select
+            id="state"
+            name="stateSelect"
+            value={provinceOptions.find(p => p.name === address.state)?.code || ''}
+            onChange={handleProvinceSelect}
+            className={errors.state ? 'error' : ''}
+          >
+            <option value="">Select Province</option>
+            {provinceOptions.map(p => (
+              <option key={p.code} value={p.code}>{p.name}</option>
+            ))}
+          </select>
+        ) : (
+          <select
+            id="state"
+            name="state"
+            value={address.state}
+            onChange={handleChange}
+            className={errors.state ? 'error' : ''}
+          >
+            <option value="">Select {getStateLabel()}</option>
+            {getStateOptions().map(state => (
+              <option key={state} value={state}>{state}</option>
+            ))}
+          </select>
+        )}
         {errors.state && <span className="error-text">{errors.state}</span>}
       </div>
       
