@@ -34,24 +34,53 @@ const ProductCard = ({ product }) => {
     return `₱${numPrice.toFixed(2)}`;
   };
 
-  // Get the display price (either discounted or original)
+  // Get the display price using the new priceRange data
   const getDisplayPrice = () => {
+    // Use the new priceRange data if available
+    if (product.priceRange) {
+      const { minPrice, maxPrice, hasVariants } = product.priceRange;
+      
+      if (hasVariants && minPrice !== maxPrice) {
+        // Show price range for products with variants
+        return `₱${minPrice.toFixed(2)} - ₱${maxPrice.toFixed(2)}`;
+      } else {
+        // Show single price (either minPrice or maxPrice, they're the same)
+        return formatPrice(minPrice);
+      }
+    }
+    
+    // Fallback to old logic if priceRange is not available
     if (product.discounted_price && product.discounted_price > 0) {
       return formatPrice(product.discounted_price);
     }
     return formatPrice(product.price || 0);
   };
 
-  // Get the original price for display when there's a discount
+  // Get the original price for display when there's a discount (only for single price products)
   const getOriginalPrice = () => {
-    if (product.discounted_price && product.discounted_price > 0) {
+    // Only show original price if there's a discount AND no price range (single price product)
+    if (product.discounted_price && product.discounted_price > 0 && 
+        product.priceRange && !product.priceRange.hasVariants) {
       return formatPrice(product.price || 0);
     }
     return null;
   };
 
   const getPriceDisplay = () => {
-    // First check if we have variants with valid prices
+    // Use the new priceRange data if available
+    if (product.priceRange) {
+      const { minPrice, maxPrice, hasVariants } = product.priceRange;
+      
+      if (hasVariants && minPrice !== maxPrice) {
+        // Show price range for products with variants
+        return `₱${minPrice.toFixed(2)} - ₱${maxPrice.toFixed(2)}`;
+      } else {
+        // Show single price
+        return formatPrice(minPrice);
+      }
+    }
+    
+    // Fallback to old logic if priceRange is not available
     if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
       const prices = product.variants
         .map(v => parseFloat(v.price))
@@ -192,16 +221,40 @@ const ProductCard = ({ product }) => {
         <h3 className="product-card-name">{product.name}</h3>
         
         <div className="product-card-price">
-          {product.discounted_price > 0 ? (
+          {(() => {
+            // Check if we have a price range (variants with different prices)
+            const hasPriceRange = product.priceRange && product.priceRange.hasVariants && 
+                                 product.priceRange.minPrice !== product.priceRange.maxPrice;
+            
+            // Check if we have a discount
+            const hasDiscount = product.discounted_price > 0;
+            
+            if (hasPriceRange) {
+              // Show price range (no crossed out price, but discount tag is still shown)
+              return (
+                <div className="price-with-range">
+                  <span className="price-range">
+                    {getDisplayPrice()}
+                  </span>
+                </div>
+              );
+            } else if (hasDiscount) {
+              // Show discounted price with crossed out original price (single price product)
+              return (
             <div className="price-with-discount">
               <span className="discounted-price">
                 {getDisplayPrice()}
               </span>
               <span className="original-price">{getOriginalPrice()}</span>
             </div>
-          ) : (
+              );
+            } else {
+              // Show regular price
+              return (
             <span className="regular-price">{getDisplayPrice()}</span>
-          )}
+              );
+            }
+          })()}
           <button 
             className={`add-to-cart-icon ${isAdded ? 'added' : ''}`}
             onClick={handleAddToCart}

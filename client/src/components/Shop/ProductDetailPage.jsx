@@ -297,6 +297,50 @@ const ProductDetailPage = () => {
   };
 
   const getDisplayPrice = (variant, product) => {
+    // Use the new priceRange data if available
+    if (product.priceRange) {
+      const { minPrice, maxPrice, hasVariants } = product.priceRange;
+      const discount = product.discount_percentage;
+      
+      // Check if we have a price range (variants with different prices)
+      const hasPriceRange = hasVariants && minPrice !== maxPrice;
+      
+      if (hasPriceRange) {
+        // Show price range (no crossed out price, but discount percentage is still shown)
+        const discountPercentage = discount && discount > 0 ? (discount <= 1 ? discount * 100 : discount) : 0;
+        return {
+          original: `₱${minPrice.toFixed(2)} - ₱${maxPrice.toFixed(2)}`,
+          discounted: null,
+          hasDiscount: discountPercentage > 0,
+          discountPercentage: discountPercentage,
+          hasPriceRange: true
+        };
+      } else {
+        // Single price (either no variants or all variants have same price)
+        const basePrice = minPrice; // minPrice and maxPrice are the same
+        const discountPercentage = discount && discount > 0 ? (discount <= 1 ? discount * 100 : discount) : 0;
+        
+        if (discountPercentage > 0 && product.discounted_price > 0) {
+          return {
+            original: formatPrice(basePrice),
+            discounted: formatPrice(product.discounted_price),
+            hasDiscount: true,
+            discountPercentage: discountPercentage,
+            hasPriceRange: false
+          };
+        }
+        
+        return {
+          original: formatPrice(basePrice),
+          discounted: null,
+          hasDiscount: false,
+          discountPercentage: 0,
+          hasPriceRange: false
+        };
+      }
+    }
+    
+    // Fallback to old logic if priceRange is not available
     const basePrice = variant ? variant.price : product.price;
     const discount = product.discount_percentage;
     
@@ -307,7 +351,8 @@ const ProductDetailPage = () => {
         original: formatPrice(basePrice),
         discounted: formatPrice(product.discounted_price),
         hasDiscount: true,
-        discountPercentage: discountPercentage
+        discountPercentage: discountPercentage,
+        hasPriceRange: false
       };
     }
     
@@ -315,7 +360,8 @@ const ProductDetailPage = () => {
       original: formatPrice(basePrice),
       discounted: null,
       hasDiscount: false,
-      discountPercentage: 0
+      discountPercentage: 0,
+      hasPriceRange: false
     };
   };
 
@@ -502,7 +548,22 @@ const ProductDetailPage = () => {
                 {(() => {
                   const priceInfo = getDisplayPrice(selectedVariant, product);
                   
-                  if (priceInfo.hasDiscount) {
+                  if (priceInfo.hasPriceRange) {
+                    // Show price range (no crossed out price, but discount badge is still shown)
+                    return (
+                      <>
+                        <div className="price-range">
+                          {priceInfo.original}
+                        </div>
+                        {priceInfo.hasDiscount && (
+                          <div className="discount-badge">
+                            {priceInfo.discountPercentage}% OFF
+                          </div>
+                        )}
+                      </>
+                    );
+                  } else if (priceInfo.hasDiscount) {
+                    // Show discounted price with crossed out original price (single price product)
                     return (
                       <>
                         <div className="discounted-price">
@@ -520,6 +581,7 @@ const ProductDetailPage = () => {
                     );
                   }
                   
+                  // Show regular price
                   return (
                     <div className="regular-price">
                       <span className="price-currency" style={{ fontSize: '30px'}}>₱</span>

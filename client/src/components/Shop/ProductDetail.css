@@ -170,7 +170,8 @@
 /* only apply on product detail page */
 .product-detail-price-section .regular-price,
 .product-detail-price-section .discounted-price,
-.product-detail-price-section .original-price {
+.product-detail-price-section .original-price,
+.product-detail-price-section .price-range {
   font-size: 28px !important;
   font-weight: 700;
   color: var(--dark-gray);
