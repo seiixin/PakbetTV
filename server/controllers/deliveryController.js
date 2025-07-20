@@ -3,7 +3,7 @@ const crypto = require('crypto');
 const config = require('../config/keys');
 const ninjaVanAuth = require('../services/ninjaVanAuth');
 const API_BASE_URL = config.NINJAVAN_API_URL || 'https://api.ninjavan.co';
-const COUNTRY_CODE = config.NINJAVAN_COUNTRY_CODE || 'SG';
+const COUNTRY_CODE = config.NINJAVAN_COUNTRY_CODE || 'PH';
 const db = require('../config/db');
 
 function verifyNinjaVanSignature(req, res, next) {
@@ -198,90 +198,77 @@ async function estimateShipping(req, res) {
       });
     }
 
-    const token = await ninjaVanAuth.getValidToken();
-    
-    // Construct the rate request with SG addresses for sandbox
-    const rateRequest = {
-      service_type: "Parcel",
-      service_level: "Standard",
-      from: {
-        address1: "30 Jln Kilang Barat",
-        city: "Singapore",
-        state: "Singapore",
-        country: "SG",
-        postcode: "159336"
-      },
-      to: {
-        address1: toAddress.address1 || "",
-        city: toAddress.city,
-        state: toAddress.state,
-        country: "SG", // Force SG for sandbox
-        postcode: toAddress.postcode
-      },
-      parcel_job: {
-        dimensions: {
-          weight: weight || 1,
-          length: dimensions?.length || 20,
-          width: dimensions?.width || 15,
-          height: dimensions?.height || 10
-        }
-      }
-    };
-
-    console.log('Sending rate request to NinjaVan:', rateRequest);
-
     try {
+      // Look up L1 and L2 tier codes from the database using case-insensitive search
+      const [toL1] = await db.query('SELECT l1_tier_code FROM shipping_details WHERE LOWER(province) = LOWER(?) LIMIT 1', [toAddress.state]);
+      const [toL2] = await db.query('SELECT l2_tier_code FROM shipping_details WHERE LOWER(city_municipality) = LOWER(?) LIMIT 1', [toAddress.city]);
+
+      if (!toL1.length || !toL2.length) {
+        console.warn(`Unsupported location: province='${toAddress.state}', city='${toAddress.city}'`);
+        return res.status(400).json({
+          message: 'Location not supported',
+          details: 'Shipping to this location is not currently available. Please contact support.'
+        });
+      }
+
+      // Pickup location is hardcoded for now, this can be moved to config
+      const from = {
+        l1_tier_code: "NCR_METRO_MANILA",
+        l2_tier_code: "NCR_METRO_MANILA_QUEZON_CITY"
+      };
+
+      const rateRequest = {
+        weight: weight || 1.0,
+        service_level: "Standard",
+        from: from,
+        to: {
+          l1_tier_code: toL1[0].l1_tier_code,
+          l2_tier_code: toL2[0].l2_tier_code
+        }
+      };
+      
+      console.log('Sending rate request to NinjaVan:', JSON.stringify(rateRequest, null, 2));
+
+      // Use the authenticated endpoint for pricing
+      const token = await ninjaVanAuth.getValidToken();
       const response = await axios.post(
-        `${API_BASE_URL}/${COUNTRY_CODE}/4.1/rates`,
+        `${API_BASE_URL}/${COUNTRY_CODE}/5.0/pricing/rates`,
         rateRequest,
-        { 
+        {
           headers: { 
             'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          } 
+            'Content-Type': 'application/json',
+            'User-Agent': 'PakbetTV-E-Commerce/1.0'
+          }
         }
       );
+      
+      console.log('Received rate response from NinjaVan:', JSON.stringify(response.data, null, 2));
 
       res.status(200).json({
         success: true,
-        estimatedFee: response.data.data?.[0]?.total_fee || 0,
-        currency: response.data.data?.[0]?.currency || 'SGD',
-        service_type: response.data.data?.[0]?.service_type || 'Standard',
-        rates: response.data.data
+        estimatedFee: response.data.total_fee, // Assuming total_fee is directly on the response
+        currency: 'PHP',
+        method: 'ninjavan-api'
       });
-    } catch (apiError) {
-      // Check if it's a "no Route matched" error which is common for Philippines addresses
-      if (apiError.response?.data?.message?.includes('no Route matched') || 
-          (apiError.response?.status === 400 && apiError.response?.data?.message)) {
-        console.log('NinjaVan route not found, using fallback shipping rate');
-        
-        // Return a fallback shipping rate for Philippines addresses
-        return res.status(200).json({
-          success: true,
-          estimatedFee: 250.00, // Fallback fee for Philippines in PHP
-          currency: 'PHP',
-          service_type: 'Standard',
-          fallback: true,
-          message: 'Using standard shipping rate for this location'
-        });
+      
+    } catch (error) {
+      const errorMessage = error.response?.data?.error?.message || error.response?.data?.message || error.message;
+      console.error('Error from NinjaVan API:', errorMessage);
+      
+      let responseMessage = 'Failed to get shipping estimate from NinjaVan';
+      if (errorMessage && errorMessage.includes('no Route matched')) {
+        responseMessage = `No shipping route found for the provided locations. From: NCR_METRO_MANILA, NCR_METRO_MANILA_QUEZON_CITY. To: ${toL1[0]?.l1_tier_code || 'unknown'}, ${toL2[0]?.l2_tier_code || 'unknown'}. Please verify these tier codes in your Ninja Van dashboard.`;
       }
       
-      // Re-throw for other errors
-      throw apiError;
+      res.status(500).json({
+        error: responseMessage,
+        details: errorMessage
+      });
     }
-  } catch (error) {
-    console.error('Error getting NinjaVan shipping estimate:', error.response?.data || error.message);
-    
-    // Provide a fallback response even for unexpected errors
-    res.status(200).json({
-      success: true,
-      estimatedFee: 250.00, // Fallback fee in PHP
-      currency: 'PHP',
-      service_type: 'Standard',
-      fallback: true,
-      error: error.response?.data?.message || error.message || 'Unknown error',
-      message: 'Using standard shipping rate due to estimation error'
-    });
+  } catch (err) {
+    console.error('Error in estimateShipping function:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
   }
 }
 
@@ -584,7 +571,7 @@ async function createShippingOrder(orderId) {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
         [
           orderId, userShipping.address1, userShipping.address2 || '', userShipping.area || '',
-          userShipping.city, userShipping.state, userShipping.postcode, userShipping.country || 'SG',
+          userShipping.city, userShipping.state, userShipping.postcode, userShipping.country || 'PH',
           userShipping.region || '', userShipping.province || '', userShipping.city_municipality || '',
           userShipping.barangay || ''
         ]
@@ -654,7 +641,7 @@ async function createShippingOrder(orderId) {
           city: "Mandaluyong City",
           state: "NCR",
           address_type: "office",
-          country: "SG",
+          country: "PH",
           postcode: "486015"
         }
       },
@@ -669,7 +656,7 @@ async function createShippingOrder(orderId) {
           city: userShipping.city,
           state: userShipping.state,
           address_type: "home",
-          country: "SG",
+          country: "PH",
           postcode: formatPostalCode(userShipping.postcode)
         }
       },
@@ -681,7 +668,7 @@ async function createShippingOrder(orderId) {
         pickup_timeslot: {
           start_time: "09:00",
           end_time: "12:00",
-          timezone: "Asia/Singapore"
+          timezone: "Asia/Manila"
         },
         pickup_instructions: "Pickup with care!",
         delivery_instructions: "If recipient is not around, leave parcel in power riser.",
@@ -689,7 +676,7 @@ async function createShippingOrder(orderId) {
         delivery_timeslot: {
           start_time: "09:00",
           end_time: "12:00",
-          timezone: "Asia/Singapore"
+          timezone: "Asia/Manila"
         },
         dimensions: {
           weight: totalWeight

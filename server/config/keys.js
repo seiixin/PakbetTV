@@ -20,7 +20,7 @@ if (missingVars.length > 0 && process.env.NODE_ENV === 'production') {
 
 // NinjaVan Environment Configuration
 const NINJAVAN_ENV = process.env.NINJAVAN_ENV || 'sandbox';
-const NINJAVAN_COUNTRY = process.env.NINJAVAN_COUNTRY_CODE || 'SG';
+const NINJAVAN_COUNTRY = process.env.NINJAVAN_COUNTRY_CODE || 'PH';
 
 // DragonPay Environment Configuration
 const DRAGONPAY_ENV = process.env.DRAGONPAY_ENV || 'sandbox';

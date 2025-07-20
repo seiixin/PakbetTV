@@ -17,7 +17,7 @@ const config = require('../config/keys');
 const ninjaVanAuth = require('../services/ninjaVanAuth');
 const { createShippingOrder } = require('./deliveryController');
 const API_BASE_URL = config.NINJAVAN_API_URL || 'https://api.ninjavan.co';
-const COUNTRY_CODE = config.NINJAVAN_COUNTRY_CODE || 'SG';
+const COUNTRY_CODE = config.NINJAVAN_COUNTRY_CODE || 'PH';
 
 // Constants
 const MERCHANT_ID = config.DRAGONPAY_MERCHANT_ID || 'TEST';
@@ -328,7 +328,7 @@ exports.createOrder = async (req, res) => {
           shipping_details.city || '',
           shipping_details.state || '',
           shipping_details.postal_code || '',
-          'SG' // Default to Singapore
+          'PH' // Default to Philippines
         ]
       );
       console.log('Structured shipping details saved');

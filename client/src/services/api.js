@@ -306,8 +306,12 @@ export const authService = {
 
   getRegions: async () => {
     try {
-      return await api.get('/locations/regions');
+      console.log('🔍 [API] Making GET request to /locations/regions');
+      const response = await api.get('/locations/regions');
+      console.log('🔍 [API] Regions response:', response);
+      return response;
     } catch (error) {
+      console.error('❌ [API] Error fetching regions:', error);
       handleApiError(error);
       throw error;
     }
@@ -315,8 +319,12 @@ export const authService = {
   
   getProvinces: async (regionId) => {
     try {
-      return await api.get(`/locations/provinces/${regionId}`);
+      console.log('🔍 [API] Making GET request to /locations/provinces/' + regionId);
+      const response = await api.get(`/locations/provinces/${regionId}`);
+      console.log('🔍 [API] Provinces response:', response);
+      return response;
     } catch (error) {
+      console.error('❌ [API] Error fetching provinces:', error);
       handleApiError(error);
       throw error;
     }
@@ -324,7 +332,38 @@ export const authService = {
   
   getCities: async (provinceId) => {
     try {
-      return await api.get(`/locations/cities/${provinceId}`);
+      console.log('🔍 [API] Making GET request to /locations/cities/' + provinceId);
+      const response = await api.get(`/locations/cities/${provinceId}`);
+      console.log('🔍 [API] Cities response:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ [API] Error fetching cities:', error);
+      handleApiError(error);
+      throw error;
+    }
+  },
+  
+  getBarangays: async (cityId) => {
+    try {
+      return await api.get(`/locations/barangays/${cityId}`);
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
+  },
+  
+  validateAddress: async (addressData) => {
+    try {
+      return await api.post('/locations/validate-address', addressData);
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
+  },
+  
+  clearPSGCCache: async () => {
+    try {
+      return await api.post('/locations/clear-cache');
     } catch (error) {
       handleApiError(error);
       throw error;

@@ -7,7 +7,7 @@ const { runManualPaymentCheck } = require('../cron/paymentStatusChecker'); // Im
 
 // Ninja Van API Config
 const API_BASE_URL = config.NINJAVAN_API_URL;
-const COUNTRY_CODE = 'SG'; // Always use SG as per requirements
+const COUNTRY_CODE = 'PH'; // Always use PH for Philippines
 
 // Create the NinjaVan axios instance with token refresh
 const ninjaVanApi = ninjaVanAuth.createAxiosInstance();

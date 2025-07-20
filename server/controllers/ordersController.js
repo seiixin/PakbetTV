@@ -5,7 +5,7 @@ const config = require('../config/keys');
 const { v4: uuidv4 } = require('uuid');
 const ninjaVanAuth = require('../services/ninjaVanAuth');
 const API_BASE_URL = config.NINJAVAN_API_URL || 'https://api.ninjavan.co';
-const COUNTRY_CODE = config.NINJAVAN_COUNTRY_CODE || 'SG';
+const COUNTRY_CODE = config.NINJAVAN_COUNTRY_CODE || 'PH';
 
 async function createNinjaVanDelivery(orderData, shippingAddress, customerInfo) {
   // ...migrated as-is from the route file

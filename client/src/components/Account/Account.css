@@ -132,6 +132,8 @@ select:-webkit-autofill:active {
   grid-template-columns: repeat(2, 1fr);
   gap: 1.5rem;
   border: 1px solid rgba(255, 255, 255, 0.2);
+  position: relative;
+  z-index: 1;
 }
 
 .account-column {
@@ -141,6 +143,8 @@ select:-webkit-autofill:active {
   border: 1px solid rgba(0, 0, 0, 0.05);
   box-shadow: 0 3px 12px rgba(0, 0, 0, 0.04);
   transition: all 0.3s ease;
+  position: relative;
+  z-index: 1;
 }
 
 .account-column:hover {
@@ -313,6 +317,8 @@ select:-webkit-autofill:active {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  position: relative;
+  z-index: 1;
 }
 
 .account-column label {
@@ -329,6 +335,8 @@ select:-webkit-autofill:active {
   border-radius: 4px;
   font-size: 0.85rem;
   transition: border-color 0.2s ease;
+  position: relative;
+  z-index: 1;
 }
 
 .account-column input:focus,
@@ -336,6 +344,37 @@ select:-webkit-autofill:active {
   outline: none;
   border-color: #800000;
   box-shadow: 0 0 0 2px rgba(128, 0, 0, 0.1);
+  z-index: 10;
+}
+
+/* CRITICAL: Fix dropdown z-index issues - ULTRA HIGH PRIORITY */
+.account-column select {
+  position: relative;
+  z-index: 1;
+}
+
+.account-column select:focus {
+  z-index: 9999 !important;
+}
+
+/* Ensure select dropdowns are always clickable */
+.account-column select {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
+/* Fix stacking context for form groups */
+.form-group {
+  position: relative;
+  z-index: 1;
+}
+
+.form-group:focus-within {
+  z-index: 10;
+}
+
+.form-group select:focus {
+  z-index: 9999 !important;
 }
 
 /* Responsive styles for hero */
@@ -610,6 +649,8 @@ select:-webkit-autofill:active {
 /* Improve form group spacing */
 .form-group {
   margin-bottom: 1.2rem;
+  position: relative;
+  z-index: 1;
 }
 
 .form-group label {
@@ -636,6 +677,8 @@ select:-webkit-autofill:active {
   background-position: right 0.4rem center;
   background-size: 0.9em;
   padding-right: 2.2rem;
+  position: relative;
+  z-index: 1;
 }
 
 /* Remove default arrow in IE */
@@ -651,4 +694,90 @@ select:-webkit-autofill:active {
   color: #666;
   font-weight: normal;
   font-style: italic;
+}
+
+/* CRITICAL: Ensure dropdowns are always on top - ULTRA HIGH PRIORITY */
+.account-column form {
+  position: relative;
+  z-index: 1;
+}
+
+.account-column form:focus-within {
+  z-index: 10;
+}
+
+/* Force select dropdowns to be clickable */
+.account-column select {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  position: relative;
+  z-index: 1;
+}
+
+.account-column select:focus {
+  z-index: 9999 !important;
+}
+
+/* Ensure no other elements interfere with dropdowns */
+.account-column * {
+  pointer-events: auto;
+}
+
+/* Fix for any potential overlay issues */
+.account-column {
+  overflow: visible !important;
+}
+
+.account-container {
+  overflow: visible !important;
+}
+
+/* ULTRA CRITICAL: Override any navbar z-index conflicts */
+.account-column select {
+  z-index: 9999 !important;
+}
+
+.account-column select:focus {
+  z-index: 9999 !important;
+}
+
+/* Ensure form elements are above everything */
+.account-column form {
+  z-index: 9998 !important;
+}
+
+.account-column form:focus-within {
+  z-index: 9999 !important;
+}
+
+/* Force dropdowns to be above navbar */
+.account-column select,
+.account-column select:focus,
+.account-column select:hover {
+  z-index: 9999 !important;
+  position: relative !important;
+}
+
+/* Override any potential conflicts */
+.account-column select {
+  z-index: 9999 !important;
+  position: relative !important;
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
+/* Ensure the entire form container has proper stacking */
+.account-column[aria-labelledby="shipping-details-title"] {
+  z-index: 9998 !important;
+  position: relative !important;
+}
+
+.account-column[aria-labelledby="shipping-details-title"] form {
+  z-index: 9999 !important;
+  position: relative !important;
+}
+
+.account-column[aria-labelledby="shipping-details-title"] select {
+  z-index: 9999 !important;
+  position: relative !important;
 }

@@ -188,46 +188,34 @@ const Checkout = () => {
             hasAddress = true;
             phoneNumber = defaultAddress.phone || profileData.phone || '';
             
-            // Build address components from shipping addresses
-            const addressParts = [];
-            
-            // Primary address (house number, building, street, barangay)
-            const address1Parts = [];
-            if (defaultAddress.house_number) address1Parts.push(defaultAddress.house_number);
-            if (defaultAddress.building) address1Parts.push(defaultAddress.building);
-            if (defaultAddress.street_name) address1Parts.push(defaultAddress.street_name);
-            if (defaultAddress.barangay) address1Parts.push(defaultAddress.barangay);
-            
-            if (address1Parts.length > 0) {
-              addressParts.push(address1Parts.join(', '));
-            } else if (defaultAddress.address1) {
-              addressParts.push(defaultAddress.address1);
+            const streetAddressParts = [
+              defaultAddress.house_number,
+              defaultAddress.building,
+              defaultAddress.street_name
+            ].filter(Boolean);
+
+            let streetAddress = streetAddressParts.join(', ');
+            if (!streetAddress && defaultAddress.address1) {
+              streetAddress = defaultAddress.address1;
             }
-            
-            // Secondary address parts
-            if (defaultAddress.address2) addressParts.push(defaultAddress.address2);
-            
-            formattedAddress = addressParts.join(', ');
-            
-            // Set shipping details from the shipping address data
-            setShippingDetails({
+            if (defaultAddress.address2) {
+              streetAddress += `, ${defaultAddress.address2}`;
+            }
+
+            const shippingDetailsPayload = {
               name: `${profileData.firstName || ''} ${profileData.lastName || ''}`.trim(),
               phone: phoneNumber,
               email: profileData.email || '',
-              address: formattedAddress,
+              address: streetAddress,
+              barangay: defaultAddress.barangay || '',
               city: defaultAddress.city_municipality || defaultAddress.city || '',
               state: defaultAddress.province || defaultAddress.state || '',
               postal_code: defaultAddress.postcode || '',
-            });
-            
-            // Calculate shipping fee with the new address
-            const addressForShipping = {
-              address: formattedAddress,
-              city: defaultAddress.city_municipality || defaultAddress.city || '',
-              state: defaultAddress.province || defaultAddress.state || '',
-              postal_code: defaultAddress.postcode || ''
             };
-            calculateShippingFee(addressForShipping);
+            
+            setShippingDetails(shippingDetailsPayload);
+            
+            calculateShippingFee(shippingDetailsPayload);
           }
         } catch (addressError) {
           console.error("Error fetching shipping addresses:", addressError);
@@ -248,7 +236,6 @@ const Checkout = () => {
           if (sd.house_number) address1Parts.push(sd.house_number);
           if (sd.building) address1Parts.push(sd.building);
           if (sd.street_name) address1Parts.push(sd.street_name);
-          if (sd.barangay) address1Parts.push(sd.barangay);
           
           if (address1Parts.length > 0) {
             addressParts.push(address1Parts.join(', '));
@@ -263,24 +250,19 @@ const Checkout = () => {
           
           // Only set shipping details if we haven't already set them from shipping addresses
           if (!shippingDetails.address) {
-            setShippingDetails({
+            const fallbackDetails = {
               name: `${profileData.firstName || ''} ${profileData.lastName || ''}`.trim(),
               phone: phoneNumber,
               email: profileData.email || '',
               address: formattedAddress,
+              barangay: sd.barangay || '',
               city: sd.city || '',
               state: sd.state || '',
               postal_code: sd.postal_code || '',
-            });
-            
-            // Calculate shipping fee with the fallback address
-            const addressForShipping = {
-              address: formattedAddress,
-              city: sd.city || '',
-              state: sd.state || '',
-              postal_code: sd.postal_code || ''
             };
-            calculateShippingFee(addressForShipping);
+            setShippingDetails(fallbackDetails);
+            
+            calculateShippingFee(fallbackDetails);
           }
         } else if (!hasAddress && profileData.address) {
           // Fallback to user's main address field if available
@@ -576,24 +558,8 @@ const Checkout = () => {
 
   // Format the complete address for display
   const getFormattedAddress = () => {
-    if (!shippingDetails.address) {
-      return profileLoading ? 'Loading...' : 'No address provided';
-    }
-    
-    // Return the address as is if it's already a complete string
-    if (typeof shippingDetails.address === 'string' && shippingDetails.address.trim().length > 0) {
-      return shippingDetails.address;
-    }
-    
-    // Otherwise build the address from components
-    const parts = [];
-    
-    if (shippingDetails.address) parts.push(shippingDetails.address);
-    if (shippingDetails.city) parts.push(shippingDetails.city);
-    if (shippingDetails.state) parts.push(shippingDetails.state);
-    if (shippingDetails.postal_code) parts.push(shippingDetails.postal_code);
-    
-    return parts.join(', ');
+    const { address, barangay, city, state, postal_code } = shippingDetails;
+    return [address, barangay, city, state, postal_code].filter(Boolean).join(', ');
   };
 
   return (
