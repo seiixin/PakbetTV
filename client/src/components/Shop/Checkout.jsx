@@ -22,9 +22,16 @@ const Checkout = () => {
     state: '',
     postal_code: '',
     phone: '',
+    region: '',
+    barangay: '',
   });
   const [profileLoading, setProfileLoading] = useState(false);
   const [hasShippingAddress, setHasShippingAddress] = useState(false);
+  
+  // Address serviceability state
+  const [isAddressServiceable, setIsAddressServiceable] = useState(null);
+  const [serviceabilityChecking, setServiceabilityChecking] = useState(false);
+  const [serviceabilityMessage, setServiceabilityMessage] = useState('');
   
   // Shipping fee calculation state
   const [shippingFee, setShippingFee] = useState(0);
@@ -57,6 +64,47 @@ const Checkout = () => {
   } = useCart();
 
   const selectedItems = cartItems.filter(item => item.selected);
+
+  // Check address serviceability with NinjaVan shipping locations
+  const checkAddressServiceability = async (addressDetails) => {
+    if (!addressDetails.region || !addressDetails.state || !addressDetails.city) {
+      console.log('Address incomplete for serviceability check:', addressDetails);
+      setServiceabilityChecking(false);
+      return;
+    }
+
+    setServiceabilityChecking(true);
+    setServiceabilityMessage('');
+
+    try {
+      console.log('Checking address serviceability:', addressDetails);
+      
+      const addressData = {
+        region: addressDetails.region,
+        province: addressDetails.state, // state is province in our context
+        city: addressDetails.city,
+        barangay: addressDetails.barangay || '',
+      };
+
+      const validationResult = await authService.validateAddress(addressData);
+      
+      if (validationResult.data) {
+        const { serviceable, message } = validationResult.data;
+        setIsAddressServiceable(serviceable);
+        setServiceabilityMessage(serviceable ? 
+          '✅ This address is serviceable for delivery' : 
+          '❌ This address is not serviceable. Orders cannot proceed to this location.'
+        );
+        console.log('Address serviceability result:', { serviceable, message });
+      }
+    } catch (error) {
+      console.error('Error checking address serviceability:', error);
+      setIsAddressServiceable(false);
+      setServiceabilityMessage('❌ Unable to verify address serviceability. Please contact support.');
+    } finally {
+      setServiceabilityChecking(false);
+    }
+  };
 
   // Calculate shipping fee based on address and items
   const calculateShippingFee = async (address) => {
@@ -210,11 +258,14 @@ const Checkout = () => {
               barangay: defaultAddress.barangay || '',
               city: defaultAddress.city_municipality || defaultAddress.city || '',
               state: defaultAddress.province || defaultAddress.state || '',
+              region: defaultAddress.region || '',
               postal_code: defaultAddress.postcode || '',
             };
             
             setShippingDetails(shippingDetailsPayload);
             
+            // Check address serviceability
+            checkAddressServiceability(shippingDetailsPayload);
             calculateShippingFee(shippingDetailsPayload);
           }
         } catch (addressError) {
@@ -258,10 +309,13 @@ const Checkout = () => {
               barangay: sd.barangay || '',
               city: sd.city || '',
               state: sd.state || '',
+              region: sd.region || '',
               postal_code: sd.postal_code || '',
             };
             setShippingDetails(fallbackDetails);
             
+            // Check address serviceability
+            checkAddressServiceability(fallbackDetails);
             calculateShippingFee(fallbackDetails);
           }
         } else if (!hasAddress && profileData.address) {
@@ -278,11 +332,13 @@ const Checkout = () => {
               address: formattedAddress,
               city: '',
               state: '',
+              region: '',
+              barangay: '',
               postal_code: '',
             });
             
-            // Note: Cannot calculate shipping fee without city/state/postal_code
-            console.log('Cannot calculate shipping fee - missing city/state/postal code');
+            // Note: Cannot calculate shipping fee or check serviceability without complete address
+            console.log('Cannot calculate shipping fee or check serviceability - missing address details');
           }
         }
         
@@ -316,6 +372,22 @@ const Checkout = () => {
       return;
     }
 
+    // Check address serviceability before proceeding
+    if (isAddressServiceable === false) {
+      notify.error('Cannot proceed with checkout. The delivery address is not serviceable by our shipping partner.');
+      return;
+    }
+
+    if (isAddressServiceable === null && !serviceabilityChecking) {
+      notify.error('Please wait while we verify your delivery address serviceability.');
+      return;
+    }
+
+    if (serviceabilityChecking) {
+      notify.error('Please wait while we verify your delivery address.');
+      return;
+    }
+
     // Ensure we have a complete address with all components
     const completeAddress = getFormattedAddress();
     const updatedShippingDetails = {
@@ -331,6 +403,7 @@ const Checkout = () => {
       console.log('[Checkout] Selected items:', selectedItems.length);
       console.log('[Checkout] Shipping fee:', shippingFee);
       console.log('[Checkout] Shipping details:', updatedShippingDetails);
+      console.log('[Checkout] Address serviceable:', isAddressServiceable);
       
       // Create the order with shipping fee, payment method, and voucher code
       const orderResult = await createOrder(
@@ -420,7 +493,9 @@ const Checkout = () => {
       // Handle specific error cases
       let errorMessage = err.message || 'An error occurred during checkout';
       
-      if (errorMessage.includes('stock')) {
+      if (errorMessage.includes('serviceable') || errorMessage.includes('shipping location')) {
+        notify.error('Your delivery address is not serviceable. Please update your address or contact support.');
+      } else if (errorMessage.includes('stock')) {
         notify.error('Some items in your cart are no longer available. Please review your cart.');
       } else if (errorMessage.includes('phone')) {
         notify.error('Please provide a valid phone number in the format: +63 912 345 6789 or 09123456789');
@@ -605,6 +680,23 @@ const Checkout = () => {
               <div className="info-value address-text">
                 {getFormattedAddress()}
               </div>
+              
+              {/* Address Serviceability Status */}
+              {hasShippingAddress && (
+                <div className="address-serviceability">
+                  {serviceabilityChecking ? (
+                    <div className="serviceability-checking">
+
+                      Verifying delivery serviceability...
+                    </div>
+                  ) : serviceabilityMessage && (
+                    <div className={`serviceability-status ${isAddressServiceable ? 'serviceable' : 'not-serviceable'}`}>
+                      {serviceabilityMessage}
+                    </div>
+                  )}
+                </div>
+              )}
+              
               {!hasShippingAddress && !profileLoading && (
                 <>
                   <div className="address-warning">
@@ -831,7 +923,7 @@ const Checkout = () => {
           <button 
             className="place-order-button" 
             onClick={handlePlaceOrder}
-            disabled={loading || !hasShippingAddress || !termsAccepted}
+            disabled={loading || !hasShippingAddress || !termsAccepted || isAddressServiceable === false || serviceabilityChecking}
           >
             {loading ? 'Processing...' : selectedPaymentMethod === 'cod' ? 'Place COD Order' : 'Place Order'}
           </button>
@@ -873,4 +965,4 @@ const Checkout = () => {
   );
 };
 
-export default Checkout; 
+export default Checkout;

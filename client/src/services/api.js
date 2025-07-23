@@ -352,6 +352,19 @@ export const authService = {
     }
   },
   
+  getDistricts: async (regionId = '130000000') => {
+    try {
+      console.log('🔍 [API] Making GET request to /locations/districts/' + regionId);
+      const response = await api.get(`/locations/districts/${regionId}`);
+      console.log('🔍 [API] Districts response:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ [API] Error fetching districts:', error);
+      handleApiError(error);
+      throw error;
+    }
+  },
+  
   validateAddress: async (addressData) => {
     try {
       return await api.post('/locations/validate-address', addressData);

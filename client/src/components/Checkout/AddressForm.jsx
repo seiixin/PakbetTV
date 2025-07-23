@@ -1,10 +1,25 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { usePSGC } from '../../hooks/usePSGC';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { authService } from '../../services/api';
 import './AddressForm.css';
 
+// Debounce hook for performance optimization
+const useDebounce = (value, delay) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+};
+
 const AddressForm = ({ onChange, initialAddress = {}, disabled = false }) => {
-  const { regions, loadingRegions, errorRegions, fetchProvinces, fetchCities, fetchBarangays } = usePSGC();
-  
   // Address state
   const [address, setAddress] = useState({
     house_number: '',
@@ -20,11 +35,13 @@ const AddressForm = ({ onChange, initialAddress = {}, disabled = false }) => {
   });
 
   // PSGC data state
+  const [regions, setRegions] = useState([]);
   const [provinces, setProvinces] = useState([]);
   const [cities, setCities] = useState([]);
   const [barangays, setBarangays] = useState([]);
   
   // Loading states
+  const [loadingRegions, setLoadingRegions] = useState(false);
   const [loadingProvinces, setLoadingProvinces] = useState(false);
   const [loadingCities, setLoadingCities] = useState(false);
   const [loadingBarangays, setLoadingBarangays] = useState(false);
@@ -38,10 +55,57 @@ const AddressForm = ({ onChange, initialAddress = {}, disabled = false }) => {
   // Validation state
   const [errors, setErrors] = useState({});
   const [isValid, setIsValid] = useState(false);
+  const [errorRegions, setErrorRegions] = useState(null);
+
+  // NCR district handling
+  const [isNCR, setIsNCR] = useState(false);
+
+  // Serviceability checking state
+  const [serviceabilityStatus, setServiceabilityStatus] = useState(null); // null, 'checking', 'serviceable', 'not-serviceable', 'error'
+  const [serviceabilityMessage, setServiceabilityMessage] = useState('');
+
+  // Debounced values for API calls to improve performance
+  const debouncedRegionId = useDebounce(selectedRegionId, 300);
+  const debouncedProvinceId = useDebounce(selectedProvinceId, 300);
+  const debouncedCityId = useDebounce(selectedCityId, 300);
+
+  // Memoized complete address for serviceability checking
+  const completeAddressForServiceability = useMemo(() => {
+    if (!address.province || !address.region) return null;
+    
+    return {
+      region: address.region,
+      province: address.province,
+      city: address.city_municipality || '',
+      barangay: address.barangay || ''
+    };
+  }, [address.region, address.province, address.city_municipality, address.barangay]);
+
+  // Debounced serviceability check
+  const debouncedServiceabilityAddress = useDebounce(completeAddressForServiceability, 800);
+
+  // Load regions on component mount
+  useEffect(() => {
+    const loadRegions = async () => {
+      try {
+        setLoadingRegions(true);
+        setErrorRegions(null);
+        const response = await authService.getRegions();
+        setRegions(response.data || []);
+      } catch (error) {
+        console.error('Error loading regions:', error);
+        setErrorRegions('Failed to load regions. Please refresh the page.');
+      } finally {
+        setLoadingRegions(false);
+      }
+    };
+
+    loadRegions();
+  }, []);
 
   // Initialize form with initial address data
   useEffect(() => {
-    if (initialAddress) {
+    if (initialAddress && Object.keys(initialAddress).length > 0) {
       setAddress(prev => ({
         ...prev,
         ...initialAddress
@@ -50,6 +114,7 @@ const AddressForm = ({ onChange, initialAddress = {}, disabled = false }) => {
       // Set PSGC selections if available
       if (initialAddress.region_id) {
         setSelectedRegionId(initialAddress.region_id);
+        setIsNCR(initialAddress.region_id === '130000000');
       }
       if (initialAddress.province_id) {
         setSelectedProvinceId(initialAddress.province_id);
@@ -63,10 +128,11 @@ const AddressForm = ({ onChange, initialAddress = {}, disabled = false }) => {
     }
   }, [initialAddress]);
 
-  // Load provinces when region changes
+  // Load provinces/districts when region changes (debounced)
   useEffect(() => {
-    if (selectedRegionId) {
-      loadProvinces(selectedRegionId);
+    if (debouncedRegionId) {
+      setIsNCR(debouncedRegionId === '130000000');
+      loadProvinces(debouncedRegionId);
     } else {
       setProvinces([]);
       setCities([]);
@@ -74,35 +140,46 @@ const AddressForm = ({ onChange, initialAddress = {}, disabled = false }) => {
       setSelectedProvinceId('');
       setSelectedCityId('');
       setSelectedBarangayId('');
+      setIsNCR(false);
     }
-  }, [selectedRegionId]);
+  }, [debouncedRegionId]);
 
-  // Load cities when province changes
+  // Load cities when province changes (debounced)
   useEffect(() => {
-    if (selectedProvinceId) {
-      loadCities(selectedProvinceId);
+    if (debouncedProvinceId) {
+      loadCities(debouncedProvinceId);
     } else {
       setCities([]);
       setBarangays([]);
       setSelectedCityId('');
       setSelectedBarangayId('');
     }
-  }, [selectedProvinceId]);
+  }, [debouncedProvinceId]);
 
-  // Load barangays when city changes
+  // Load barangays when city changes (debounced)
   useEffect(() => {
-    if (selectedCityId) {
-      loadBarangays(selectedCityId);
+    if (debouncedCityId) {
+      loadBarangays(debouncedCityId);
     } else {
       setBarangays([]);
       setSelectedBarangayId('');
     }
-  }, [selectedCityId]);
+  }, [debouncedCityId]);
 
   // Validate form whenever address changes
   useEffect(() => {
     validateForm();
   }, [address, selectedRegionId, selectedProvinceId, selectedCityId, selectedBarangayId]);
+
+  // Check serviceability when complete address is available (debounced)
+  useEffect(() => {
+    if (debouncedServiceabilityAddress && debouncedServiceabilityAddress.province) {
+      checkServiceability(debouncedServiceabilityAddress);
+    } else {
+      setServiceabilityStatus(null);
+      setServiceabilityMessage('');
+    }
+  }, [debouncedServiceabilityAddress]);
 
   // Notify parent component of changes
   useEffect(() => {
@@ -116,53 +193,114 @@ const AddressForm = ({ onChange, initialAddress = {}, disabled = false }) => {
         region: regions.find(r => r.region_id === selectedRegionId)?.region_name || '',
         province: provinces.find(p => p.province_id === selectedProvinceId)?.province_name || '',
         city_municipality: cities.find(c => c.city_id === selectedCityId)?.city_name || '',
-        barangay: barangays.find(b => b.barangay_id === selectedBarangayId)?.barangay_name || ''
+        barangay: barangays.find(b => b.barangay_id === selectedBarangayId)?.barangay_name || '',
+        serviceability: {
+          status: serviceabilityStatus,
+          message: serviceabilityMessage
+        }
       };
       
       onChange(completeAddress, isValid);
     }
-  }, [address, selectedRegionId, selectedProvinceId, selectedCityId, selectedBarangayId, isValid, onChange, regions, provinces, cities, barangays]);
+  }, [address, selectedRegionId, selectedProvinceId, selectedCityId, selectedBarangayId, isValid, onChange, regions, provinces, cities, barangays, serviceabilityStatus, serviceabilityMessage]);
 
-  const loadProvinces = async (regionId) => {
+  const loadProvinces = useCallback(async (regionId) => {
     try {
       setLoadingProvinces(true);
-      const provincesData = await fetchProvinces(regionId);
-      setProvinces(provincesData);
+      setErrors(prev => ({ ...prev, provinces: '' }));
+      const response = await authService.getProvinces(regionId);
+      const data = response.data || [];
+      setProvinces(data);
+      
+      if (data.length === 0) {
+        setErrors(prev => ({ 
+          ...prev, 
+          provinces: isNCR ? 'No districts found for NCR' : 'No provinces found for this region' 
+        }));
+      }
     } catch (error) {
       console.error('Error loading provinces:', error);
-      setErrors(prev => ({ ...prev, provinces: 'Failed to load provinces' }));
+      setErrors(prev => ({ 
+        ...prev, 
+        provinces: isNCR ? 'Failed to load districts. Please try again.' : 'Failed to load provinces. Please try again.'
+      }));
     } finally {
       setLoadingProvinces(false);
     }
-  };
+  }, [isNCR]);
 
-  const loadCities = async (provinceId) => {
+  const loadCities = useCallback(async (provinceId) => {
     try {
       setLoadingCities(true);
-      const citiesData = await fetchCities(provinceId);
-      setCities(citiesData);
+      setErrors(prev => ({ ...prev, cities: '' }));
+      const response = await authService.getCities(provinceId);
+      const data = response.data || [];
+      setCities(data);
+      
+      if (data.length === 0) {
+        setErrors(prev => ({ 
+          ...prev, 
+          cities: isNCR ? 'No cities found for this district' : 'No cities found for this province'
+        }));
+      }
     } catch (error) {
       console.error('Error loading cities:', error);
-      setErrors(prev => ({ ...prev, cities: 'Failed to load cities' }));
+      setErrors(prev => ({ ...prev, cities: 'Failed to load cities. Please try again.' }));
     } finally {
       setLoadingCities(false);
     }
-  };
+  }, [isNCR]);
 
-  const loadBarangays = async (cityId) => {
+  const loadBarangays = useCallback(async (cityId) => {
     try {
       setLoadingBarangays(true);
-      const barangaysData = await fetchBarangays(cityId);
-      setBarangays(barangaysData);
+      setErrors(prev => ({ ...prev, barangays: '' }));
+      const response = await authService.getBarangays(cityId);
+      const data = response.data || [];
+      setBarangays(data);
+      
+      if (data.length === 0) {
+        setErrors(prev => ({ 
+          ...prev, 
+          barangays: 'No barangays found for this city'
+        }));
+      }
     } catch (error) {
       console.error('Error loading barangays:', error);
-      setErrors(prev => ({ ...prev, barangays: 'Failed to load barangays' }));
+      setErrors(prev => ({ ...prev, barangays: 'Failed to load barangays. Please try again.' }));
     } finally {
       setLoadingBarangays(false);
     }
-  };
+  }, []);
 
-  const handleInputChange = (e) => {
+  const checkServiceability = useCallback(async (addressData) => {
+    try {
+      setServiceabilityStatus('checking');
+      setServiceabilityMessage('Checking delivery serviceability...');
+      
+      const response = await authService.validateAddress(addressData);
+      
+      if (response.data.success) {
+        const { serviceable, message } = response.data;
+        setServiceabilityStatus(serviceable ? 'serviceable' : 'not-serviceable');
+        setServiceabilityMessage(serviceable ? 
+          '✅ This address is serviceable for delivery' : 
+          '⚠️ Address not serviceable by our courier'
+        );
+      } else {
+        // Fallback to assuming serviceable with warning
+        setServiceabilityStatus('error');
+        setServiceabilityMessage('⚠️ Could not verify delivery serviceability. Standard rates may apply.');
+      }
+    } catch (error) {
+      console.error('Error checking serviceability:', error);
+      // Fallback: Don't block the user, just show a warning
+      setServiceabilityStatus('error');
+      setServiceabilityMessage('⚠️ Could not verify delivery serviceability. Standard rates may apply.');
+    }
+  }, []);
+
+  const handleInputChange = useCallback((e) => {
     const { name, value } = e.target;
     setAddress(prev => ({
       ...prev,
@@ -173,9 +311,9 @@ const AddressForm = ({ onChange, initialAddress = {}, disabled = false }) => {
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
-  };
+  }, [errors]);
 
-  const handleRegionChange = (e) => {
+  const handleRegionChange = useCallback((e) => {
     const regionId = e.target.value;
     setSelectedRegionId(regionId);
     
@@ -187,6 +325,9 @@ const AddressForm = ({ onChange, initialAddress = {}, disabled = false }) => {
     }));
     
     // Clear dependent fields
+    setSelectedProvinceId('');
+    setSelectedCityId('');
+    setSelectedBarangayId('');
     setAddress(prev => ({
       ...prev,
       province: '',
@@ -197,9 +338,9 @@ const AddressForm = ({ onChange, initialAddress = {}, disabled = false }) => {
     if (errors.region) {
       setErrors(prev => ({ ...prev, region: '' }));
     }
-  };
+  }, [regions, errors]);
 
-  const handleProvinceChange = (e) => {
+  const handleProvinceChange = useCallback((e) => {
     const provinceId = e.target.value;
     setSelectedProvinceId(provinceId);
     
@@ -211,6 +352,8 @@ const AddressForm = ({ onChange, initialAddress = {}, disabled = false }) => {
     }));
     
     // Clear dependent fields
+    setSelectedCityId('');
+    setSelectedBarangayId('');
     setAddress(prev => ({
       ...prev,
       city_municipality: '',
@@ -220,9 +363,9 @@ const AddressForm = ({ onChange, initialAddress = {}, disabled = false }) => {
     if (errors.province) {
       setErrors(prev => ({ ...prev, province: '' }));
     }
-  };
+  }, [provinces, errors]);
 
-  const handleCityChange = (e) => {
+  const handleCityChange = useCallback((e) => {
     const cityId = e.target.value;
     setSelectedCityId(cityId);
     
@@ -234,6 +377,7 @@ const AddressForm = ({ onChange, initialAddress = {}, disabled = false }) => {
     }));
     
     // Clear dependent fields
+    setSelectedBarangayId('');
     setAddress(prev => ({
       ...prev,
       barangay: ''
@@ -242,9 +386,9 @@ const AddressForm = ({ onChange, initialAddress = {}, disabled = false }) => {
     if (errors.city) {
       setErrors(prev => ({ ...prev, city: '' }));
     }
-  };
+  }, [cities, errors]);
 
-  const handleBarangayChange = (e) => {
+  const handleBarangayChange = useCallback((e) => {
     const barangayId = e.target.value;
     setSelectedBarangayId(barangayId);
     
@@ -258,9 +402,9 @@ const AddressForm = ({ onChange, initialAddress = {}, disabled = false }) => {
     if (errors.barangay) {
       setErrors(prev => ({ ...prev, barangay: '' }));
     }
-  };
+  }, [barangays, errors]);
 
-  const validateForm = () => {
+  const validateForm = useCallback(() => {
     const newErrors = {};
     
     // Required fields validation
@@ -280,7 +424,7 @@ const AddressForm = ({ onChange, initialAddress = {}, disabled = false }) => {
     
     setErrors(newErrors);
     setIsValid(Object.keys(newErrors).length === 0);
-  };
+  }, [selectedRegionId, selectedProvinceId, selectedCityId, selectedBarangayId, address.house_number, address.street_name, address.postcode]);
 
   const getFormattedAddress = () => {
     const parts = [];
@@ -294,6 +438,21 @@ const AddressForm = ({ onChange, initialAddress = {}, disabled = false }) => {
     if (address.postcode) parts.push(address.postcode);
     
     return parts.join(', ');
+  };
+
+  const getServiceabilityClassName = () => {
+    switch (serviceabilityStatus) {
+      case 'serviceable':
+        return 'serviceability-status serviceable';
+      case 'not-serviceable':
+        return 'serviceability-status not-serviceable';
+      case 'error':
+        return 'serviceability-status warning';
+      case 'checking':
+        return 'serviceability-status checking';
+      default:
+        return '';
+    }
   };
 
   if (loadingRegions) {
@@ -311,6 +470,12 @@ const AddressForm = ({ onChange, initialAddress = {}, disabled = false }) => {
       <div className="address-form">
         <div className="form-group">
           <div className="error-message">Error loading address form: {errorRegions}</div>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="retry-button"
+          >
+            Retry
+          </button>
         </div>
       </div>
     );
@@ -320,10 +485,22 @@ const AddressForm = ({ onChange, initialAddress = {}, disabled = false }) => {
     <div className="address-form">
       <h3>Delivery Address</h3>
       
-      {/* Region and Province */}
+      {/* Serviceability Status */}
+      {serviceabilityMessage && (
+        <div className={getServiceabilityClassName()}>
+          {serviceabilityMessage}
+          {serviceabilityStatus === 'not-serviceable' && (
+            <small className="serviceability-note">
+              You can still save this address, but delivery may not be available.
+            </small>
+          )}
+        </div>
+      )}
+      
+      {/* Region and Province/District */}
       <div className="form-row">
-        <div className="form-group half">
-          <label htmlFor="region">Region *</label>
+        <div className="form-group half required">
+          <label htmlFor="region">Region</label>
           <select
             id="region"
             value={selectedRegionId}
@@ -341,8 +518,8 @@ const AddressForm = ({ onChange, initialAddress = {}, disabled = false }) => {
           {errors.region && <span className="error-text">{errors.region}</span>}
         </div>
         
-        <div className="form-group half">
-          <label htmlFor="province">Province *</label>
+        <div className="form-group half required">
+          <label htmlFor="province">{isNCR ? 'District' : 'Province'}</label>
           <select
             id="province"
             value={selectedProvinceId}
@@ -350,22 +527,22 @@ const AddressForm = ({ onChange, initialAddress = {}, disabled = false }) => {
             disabled={disabled || !selectedRegionId || loadingProvinces}
             required
           >
-            <option value="">Select Province</option>
+            <option value="">{isNCR ? 'Select District' : 'Select Province'}</option>
             {provinces.map(province => (
               <option key={province.province_id} value={province.province_id}>
                 {province.province_name}
               </option>
             ))}
           </select>
-          {loadingProvinces && <span className="loading-text">Loading provinces...</span>}
-          {errors.province && <span className="error-text">{errors.province}</span>}
+          {loadingProvinces && <span className="loading-text">Loading {isNCR ? 'districts' : 'provinces'}...</span>}
+          {errors.provinces && <span className="error-text">{errors.provinces}</span>}
         </div>
       </div>
 
       {/* City/Municipality and Barangay */}
       <div className="form-row">
-        <div className="form-group half">
-          <label htmlFor="city">City/Municipality *</label>
+        <div className="form-group half required">
+          <label htmlFor="city">City/Municipality</label>
           <select
             id="city"
             value={selectedCityId}
@@ -381,11 +558,14 @@ const AddressForm = ({ onChange, initialAddress = {}, disabled = false }) => {
             ))}
           </select>
           {loadingCities && <span className="loading-text">Loading cities...</span>}
-          {errors.city && <span className="error-text">{errors.city}</span>}
+          {errors.cities && <span className="error-text">{errors.cities}</span>}
+          {cities.length === 0 && !loadingCities && !errors.cities && selectedProvinceId && (
+            <span className="empty-data-message">No cities available</span>
+          )}
         </div>
         
-        <div className="form-group half">
-          <label htmlFor="barangay">Barangay *</label>
+        <div className="form-group half required">
+          <label htmlFor="barangay">Barangay</label>
           <select
             id="barangay"
             value={selectedBarangayId}
@@ -401,13 +581,16 @@ const AddressForm = ({ onChange, initialAddress = {}, disabled = false }) => {
             ))}
           </select>
           {loadingBarangays && <span className="loading-text">Loading barangays...</span>}
-          {errors.barangay && <span className="error-text">{errors.barangay}</span>}
+          {errors.barangays && <span className="error-text">{errors.barangays}</span>}
+          {barangays.length === 0 && !loadingBarangays && !errors.barangays && selectedCityId && (
+            <span className="empty-data-message">No barangays available</span>
+          )}
         </div>
       </div>
       
       {/* Street Name */}
-      <div className="form-group">
-        <label htmlFor="street_name">Street Name *</label>
+      <div className="form-group required">
+        <label htmlFor="street_name">Street Name</label>
         <input
           type="text"
           id="street_name"
@@ -423,8 +606,8 @@ const AddressForm = ({ onChange, initialAddress = {}, disabled = false }) => {
 
       {/* House Number and Building */}
       <div className="form-row">
-        <div className="form-group half">
-          <label htmlFor="house_number">House Number *</label>
+        <div className="form-group half required">
+          <label htmlFor="house_number">House Number</label>
           <input
             type="text"
             id="house_number"
@@ -454,8 +637,8 @@ const AddressForm = ({ onChange, initialAddress = {}, disabled = false }) => {
 
       {/* Postal Code and Address Type */}
       <div className="form-row">
-        <div className="form-group half">
-          <label htmlFor="postcode">Postal Code *</label>
+        <div className="form-group half required">
+          <label htmlFor="postcode">Postal Code</label>
           <input
             type="text"
             id="postcode"

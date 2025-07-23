@@ -3,15 +3,125 @@
   position: relative;
 }
 
-.address-form h3 {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: #1f2937;
+/* Serviceability Status Styles */
+.serviceability-status {
+  padding: 0.75rem;
+  border-radius: 0.375rem;
   margin-bottom: 1rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid #e5e7eb;
+  font-size: 0.875rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  animation: fadeIn 0.3s ease-in-out;
 }
 
+.serviceability-status.serviceable {
+  background-color: #dcfce7;
+  border: 1px solid #86efac;
+  color: #166534;
+}
+
+.serviceability-status.not-serviceable {
+  background-color: #fef3c7;
+  border: 1px solid #fbbf24;
+  color: #92400e;
+}
+
+.serviceability-status.warning {
+  background-color: #fef3c7;
+  border: 1px solid #f59e0b;
+  color: #92400e;
+}
+
+.serviceability-status.checking {
+  background-color: #f0f9ff;
+  border: 1px solid #7dd3fc;
+  color: #0c4a6e;
+  position: relative;
+}
+
+.serviceability-status.checking::before {
+  content: '';
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid #0c4a6e;
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-right: 0.25rem;
+}
+
+.serviceability-note {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: normal;
+  opacity: 0.8;
+}
+
+/* Animation keyframes */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Retry button */
+.retry-button {
+  background-color: #ef5a3f;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  margin-top: 0.5rem;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.retry-button:hover {
+  background-color: #dc4a39;
+}
+
+/* Remove all default browser styles for select elements */
+.form-group select {
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 0.75rem center !important;
+  background-size: 1em !important;
+  padding-right: 2.5rem !important;
+}
+
+/* Remove default arrow in IE and Edge */
+.form-group select::-ms-expand {
+  display: none;
+}
+
+/* Remove default arrow in Firefox */
+.form-group select {
+  text-indent: 1px;
+  text-overflow: '';
+}
+
+/* Base styles */
 .form-group {
   margin-bottom: 1rem;
   position: relative;
@@ -25,14 +135,16 @@
   color: #374151;
 }
 
-.form-group label:after {
-  content: " *";
-  color: #ef4444;
+/* Remove ALL asterisks first */
+.form-group label::after {
+  display: none;
 }
 
-.form-group label[for="building"]:after,
-.form-group label[for="address_type"]:after {
-  content: "";
+/* Add asterisk ONLY to required fields */
+.form-group.required label::after {
+  content: " *";
+  color: #ef4444;
+  display: inline;
 }
 
 .form-group input,
@@ -48,9 +160,9 @@
   background-color: white;
   position: relative;
   z-index: 1;
-  cursor: pointer;
 }
 
+/* Custom select styling with single arrow */
 .form-group select {
   -webkit-appearance: none;
   -moz-appearance: none;
@@ -60,6 +172,12 @@
   background-position: right 0.75rem center;
   background-size: 1em;
   padding-right: 2.5rem;
+  cursor: pointer;
+}
+
+/* Remove default arrow in IE */
+.form-group select::-ms-expand {
+  display: none;
 }
 
 .form-group select:hover {
@@ -74,12 +192,22 @@
 }
 
 .form-group input:focus,
-.form-group select:focus,
 .form-group textarea:focus {
   border-color: #ef5a3f;
   outline: none;
   box-shadow: 0 0 0 2px rgba(239, 90, 63, 0.2);
   z-index: 2;
+}
+
+.form-group.empty-data {
+  opacity: 0.7;
+}
+
+.empty-data-message {
+  color: #6b7280;
+  font-size: 0.875rem;
+  font-style: italic;
+  margin-top: 0.25rem;
 }
 
 .form-group input:invalid,
@@ -116,6 +244,12 @@ select:disabled {
   opacity: 0.7;
 }
 
+input:disabled {
+  background-color: #f3f4f6;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
 /* Loading states */
 .loading-placeholder {
   padding: 1rem;
@@ -133,6 +267,7 @@ select:disabled {
   font-size: 0.75rem;
   margin-top: 0.25rem;
   font-style: italic;
+  animation: pulse 1.5s ease-in-out infinite;
 }
 
 .error-message {
@@ -155,6 +290,7 @@ select:disabled {
   font-size: 0.875rem;
   line-height: 1.4;
   word-break: break-word;
+  transition: all 0.2s ease-in-out;
 }
 
 /* Debug styles */
@@ -186,6 +322,27 @@ select:disabled {
   z-index: 2;
 }
 
+/* Pulse animation for loading text */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Performance optimization - reduce paint operations */
+.form-group input,
+.form-group select {
+  will-change: border-color, box-shadow;
+}
+
+.form-group input:not(:focus),
+.form-group select:not(:focus) {
+  will-change: auto;
+}
+
 /* Responsive design */
 @media (max-width: 640px) {
   .form-row {
@@ -210,4 +367,13 @@ select:disabled {
     font-size: 0.8rem;
     padding: 0.5rem;
   }
-} 
+  
+  .serviceability-status {
+    padding: 0.5rem;
+    font-size: 0.8rem;
+  }
+  
+  .serviceability-note {
+    font-size: 0.7rem;
+  }
+}
