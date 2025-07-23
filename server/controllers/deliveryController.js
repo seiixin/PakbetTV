@@ -2,6 +2,7 @@ const axios = require('axios');
 const crypto = require('crypto');
 const config = require('../config/keys');
 const ninjaVanAuth = require('../services/ninjaVanAuth');
+const { sendOrderDispatchedEmail } = require('../services/emailService');
 const API_BASE_URL = config.NINJAVAN_API_URL || 'https://api.ninjavan.co';
 const COUNTRY_CODE = config.NINJAVAN_COUNTRY_CODE || 'PH';
 const db = require('../config/db');
@@ -26,6 +27,376 @@ function verifyNinjaVanSignature(req, res, next) {
   } catch (error) {
     console.error('Error verifying webhook signature:', error);
     res.status(500).json({ message: 'Internal server error' });
+  }
+}
+
+// Enhanced webhook handler for all NinjaVan status updates
+async function ninjavanUnifiedWebhookHandler(req, res) {
+  try {
+    console.log('🔄 NinjaVan Unified Webhook received:', JSON.stringify(req.body, null, 2));
+    
+    const { 
+      tracking_id, 
+      status, 
+      timestamp, 
+      shipper_order_ref_no,
+      from_address,
+      to_address,
+      comments,
+      failure_reason,
+      delivery_instructions,
+      updated_by 
+    } = req.body;
+
+    if (!tracking_id) {
+      console.error('❌ No tracking_id provided in webhook');
+      return res.status(400).json({ error: 'tracking_id is required' });
+    }
+
+    // Find the order associated with this tracking number
+    const [orders] = await db.query(
+      `SELECT o.order_id, o.order_status, o.user_id, o.total_price, o.payment_method,
+              u.first_name, u.last_name, u.email, u.phone
+       FROM shipping s 
+       JOIN orders o ON s.order_id = o.order_id
+       JOIN users u ON o.user_id = u.user_id
+       WHERE s.tracking_number = ?`,
+      [tracking_id]
+    );
+
+    if (orders.length === 0) {
+      console.error(`❌ No order found for tracking number: ${tracking_id}`);
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    const order = orders[0];
+    console.log(`📦 Processing webhook for Order ID: ${order.order_id}, Status: ${status}`);
+
+    // Map NinjaVan status to internal order status
+    const statusMapping = await mapNinjaVanStatusToOrderStatus(status, order);
+    
+    if (statusMapping.shouldUpdate) {
+      await updateOrderFromWebhook(order, statusMapping, {
+        tracking_id,
+        status,
+        timestamp,
+        comments,
+        failure_reason,
+        updated_by
+      });
+    }
+
+    // Save tracking event
+    await saveTrackingEvent(tracking_id, order.order_id, status, {
+      timestamp,
+      comments,
+      failure_reason,
+      location: from_address || to_address,
+      updated_by
+    });
+
+    // Handle special status actions
+    await handleSpecialStatusActions(order, status, tracking_id);
+
+    res.status(200).json({ 
+      success: true, 
+      message: 'Webhook processed successfully',
+      order_id: order.order_id,
+      new_status: statusMapping.orderStatus
+    });
+
+  } catch (error) {
+    console.error('❌ Error processing NinjaVan webhook:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+// Map NinjaVan statuses to internal order statuses
+async function mapNinjaVanStatusToOrderStatus(ninjaVanStatus, order) {
+  const mapping = {
+    // Pickup related statuses
+    'Pending Pickup': { 
+      orderStatus: 'for_shipping', 
+      shouldUpdate: order.order_status === 'for_packing' || order.order_status === 'packed',
+      description: 'Order is ready for pickup by courier'
+    },
+    'Driver dispatched for Pickup': { 
+      orderStatus: 'for_shipping', 
+      shouldUpdate: true,
+      description: 'Driver is on the way to pickup your order'
+    },
+    'Pickup Exception': { 
+      orderStatus: 'for_shipping', 
+      shouldUpdate: false,
+      description: 'Pickup attempt failed, will retry'
+    },
+    'Picked Up': { 
+      orderStatus: 'picked_up', 
+      shouldUpdate: true,
+      description: 'Order has been picked up by courier'
+    },
+
+    // Transit statuses
+    'Arrived at Origin Hub': { 
+      orderStatus: 'picked_up', 
+      shouldUpdate: true,
+      description: 'Order arrived at origin sorting facility'
+    },
+    'In Transit to Next Sorting Hub': { 
+      orderStatus: 'shipped', 
+      shouldUpdate: true,
+      description: 'Order is in transit to next facility'
+    },
+    'Arrived at Transit Hub': { 
+      orderStatus: 'shipped', 
+      shouldUpdate: true,
+      description: 'Order arrived at transit hub'
+    },
+    'Arrived at Destination Hub': { 
+      orderStatus: 'shipped', 
+      shouldUpdate: true,
+      description: 'Order arrived at destination facility'
+    },
+
+    // Delivery statuses
+    'On Vehicle for Delivery': { 
+      orderStatus: 'out_for_delivery', 
+      shouldUpdate: true,
+      description: 'Order is out for delivery'
+    },
+    'At PUDO': { 
+      orderStatus: 'out_for_delivery', 
+      shouldUpdate: true,
+      description: 'Order is at pickup point'
+    },
+    'Delivered': { 
+      orderStatus: 'delivered', 
+      shouldUpdate: true,
+      description: 'Order has been delivered successfully'
+    },
+    'Delivery Exception': { 
+      orderStatus: 'delivery_exception', 
+      shouldUpdate: true,
+      description: 'Delivery attempt failed'
+    },
+
+    // Special statuses
+    'Parcel Measurements Update': { 
+      orderStatus: order.order_status, 
+      shouldUpdate: false,
+      description: 'Parcel measurements updated'
+    },
+    'Cancelled': { 
+      orderStatus: 'cancelled', 
+      shouldUpdate: true,
+      description: 'Order has been cancelled'
+    },
+    'Return To Sender': { 
+      orderStatus: 'returned', 
+      shouldUpdate: true,
+      description: 'Order is being returned to sender'
+    },
+    'Return to Shipper Exception': { 
+      orderStatus: 'returned', 
+      shouldUpdate: true,
+      description: 'Return to shipper failed'
+    },
+    'International Transit': { 
+      orderStatus: 'shipped', 
+      shouldUpdate: true,
+      description: 'Order is in international transit'
+    }
+  };
+
+  return mapping[ninjaVanStatus] || { 
+    orderStatus: order.order_status, 
+    shouldUpdate: false,
+    description: `Status update: ${ninjaVanStatus}`
+  };
+}
+
+// Update order status from webhook
+async function updateOrderFromWebhook(order, statusMapping, webhookData) {
+  const connection = await db.getConnection();
+  
+  try {
+    await connection.beginTransaction();
+
+    // Update order status
+    await connection.query(
+      'UPDATE orders SET order_status = ?, updated_at = NOW() WHERE order_id = ?',
+      [statusMapping.orderStatus, order.order_id]
+    );
+
+    // Update shipping status
+    await connection.query(
+      'UPDATE shipping SET status = ?, updated_at = NOW() WHERE order_id = ?',
+      [statusMapping.orderStatus, order.order_id]
+    );
+
+    await connection.commit();
+    console.log(`✅ Order ${order.order_id} status updated to: ${statusMapping.orderStatus}`);
+
+  } catch (error) {
+    await connection.rollback();
+    console.error(`❌ Error updating order ${order.order_id}:`, error);
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
+// Simplified auto-completion process - no separate table needed
+async function processAutoCompletions() {
+  try {
+    console.log('🕒 Processing scheduled auto-completions...');
+
+    // Find delivered orders that are older than 3 days
+    const [deliveredOrders] = await db.query(
+      `SELECT order_id, order_code, updated_at 
+       FROM orders 
+       WHERE order_status = 'delivered' 
+       AND updated_at <= DATE_SUB(NOW(), INTERVAL 3 DAY)`
+    );
+
+    if (deliveredOrders.length === 0) {
+      console.log('✅ No orders ready for auto-completion');
+      return { completed: 0 };
+    }
+
+    let completedCount = 0;
+    
+    for (const order of deliveredOrders) {
+      try {
+        await db.query(
+          'UPDATE orders SET order_status = ?, updated_at = NOW() WHERE order_id = ? AND order_status = ?',
+          ['completed', order.order_id, 'delivered']
+        );
+
+        console.log(`✅ Auto-completed Order ${order.order_id} (delivered on ${order.updated_at})`);
+        completedCount++;
+
+      } catch (error) {
+        console.error(`❌ Error auto-completing Order ${order.order_id}:`, error);
+      }
+    }
+
+    console.log(`🎯 Auto-completion process completed: ${completedCount}/${deliveredOrders.length} orders`);
+    return { completed: completedCount, total: deliveredOrders.length };
+
+  } catch (error) {
+    console.error('❌ Error in auto-completion process:', error);
+    throw error;
+  }
+}
+
+// Handle special actions for specific statuses
+async function handleSpecialStatusActions(order, status, trackingId) {
+  try {
+    switch (status) {
+      case 'Picked Up':
+      case 'On Vehicle for Delivery':
+        // Send dispatch notification email
+        await sendOrderDispatchedEmail({
+          customerName: `${order.first_name} ${order.last_name}`,
+          customerEmail: order.email,
+          trackingNumber: trackingId
+        });
+        console.log(`📧 Dispatch email sent for Order ${order.order_id}`);
+        break;
+
+      case 'Delivered':
+        // Send delivery confirmation (optional)
+        console.log(`📦 Order ${order.order_id} delivered successfully`);
+        break;
+
+      case 'Delivery Exception':
+        // Could implement retry logic or customer notification
+        console.log(`⚠️ Delivery exception for Order ${order.order_id}`);
+        break;
+
+      case 'Cancelled':
+      case 'Return To Sender':
+        // Handle cancellation/return logic
+        console.log(`🔄 Order ${order.order_id} status: ${status}`);
+        break;
+    }
+  } catch (error) {
+    console.error(`❌ Error in special status action for ${status}:`, error);
+    // Don't throw - we don't want to fail the webhook for email issues
+  }
+}
+
+// Enhanced tracking event storage
+async function saveTrackingEvent(trackingNumber, orderId, status, eventData = {}) {
+  try {
+    const description = eventData.comments || eventData.failure_reason || `Status: ${status}`;
+    const location = eventData.location || 'In Transit';
+    const eventTimestamp = eventData.timestamp || new Date().toISOString();
+
+    await db.query(
+      `INSERT INTO tracking_events 
+       (tracking_number, order_id, status, description, location, event_timestamp, created_at, webhook_data)
+       VALUES (?, ?, ?, ?, ?, ?, NOW(), ?)`,
+      [
+        trackingNumber, 
+        orderId, 
+        status, 
+        description, 
+        location, 
+        eventTimestamp,
+        JSON.stringify(eventData)
+      ]
+    );
+
+    console.log(`📝 Tracking event saved for Order ${orderId}: ${status}`);
+  } catch (error) {
+    console.error(`❌ Error saving tracking event for Order ${orderId}:`, error);
+    // Don't throw - tracking events are supplementary
+  }
+}
+
+// Auto-completion cron job function
+async function processAutoCompletions() {
+  try {
+    console.log('🕒 Processing scheduled auto-completions...');
+
+    // Find delivered orders that are older than 3 days
+    const [deliveredOrders] = await db.query(
+      `SELECT order_id, order_code, updated_at 
+       FROM orders 
+       WHERE order_status = 'delivered' 
+       AND updated_at <= DATE_SUB(NOW(), INTERVAL 3 DAY)`
+    );
+
+    if (deliveredOrders.length === 0) {
+      console.log('✅ No orders ready for auto-completion');
+      return { completed: 0 };
+    }
+
+    let completedCount = 0;
+    
+    for (const order of deliveredOrders) {
+      try {
+        await db.query(
+          'UPDATE orders SET order_status = ?, updated_at = NOW() WHERE order_id = ? AND order_status = ?',
+          ['completed', order.order_id, 'delivered']
+        );
+
+        console.log(`✅ Auto-completed Order ${order.order_id} (delivered on ${order.updated_at})`);
+        completedCount++;
+
+      } catch (error) {
+        console.error(`❌ Error auto-completing Order ${order.order_id}:`, error);
+      }
+    }
+
+    console.log(`🎯 Auto-completion process completed: ${completedCount}/${deliveredOrders.length} orders`);
+    return { completed: completedCount, total: deliveredOrders.length };
+
+  } catch (error) {
+    console.error('❌ Error in auto-completion process:', error);
+    throw error;
   }
 }
 
@@ -934,7 +1305,10 @@ async function createShippingOrder(orderId) {
 
 module.exports = {
   verifyNinjaVanSignature,
-  ninjavanWebhookHandler,
+  ninjavanWebhookHandler: ninjavanUnifiedWebhookHandler, // Use the new unified handler
+  ninjavanUnifiedWebhookHandler,
+  processAutoCompletions,
+  mapNinjaVanStatusToOrderStatus,
   createOrder,
   getTracking,
   getWaybill,

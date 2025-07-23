@@ -148,6 +148,7 @@ const voucherRoutes = require('./routes/vouchers');
 // Import cron jobs
 const { scheduleOrderConfirmation } = require('./cron/orderConfirmation');
 const { startPaymentStatusChecker } = require('./cron/paymentStatusChecker');
+const { startAutoCompletionJob } = require('./cron/autoCompletionCron');
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -290,7 +291,9 @@ app.listen(PORT, async () => {
     console.log('Order confirmation cron scheduled');
     startPaymentStatusChecker();
     console.log('Payment checker cron started');
+    startAutoCompletionJob();
+    console.log('Auto-completion cron started');
   } catch (cronError) {
     console.error('Cron start error:', cronError);
   }
-}); 
+});

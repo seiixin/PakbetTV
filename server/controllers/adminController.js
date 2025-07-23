@@ -1,277 +1,180 @@
 const db = require('../config/db');
-const config = require('../config/keys');
-const ninjaVanAuth = require('../services/ninjaVanAuth');
-const deliveryRouter = require('../routes/delivery'); // Import delivery router for createShippingOrder function
-const { sendOrderConfirmationEmail } = require('../services/emailService');
-const { runManualPaymentCheck } = require('../cron/paymentStatusChecker'); // Import manual payment check
+const { createShippingOrder } = require('./deliveryController');
+const paymentStatusChecker = require('../services/paymentStatusChecker');
 
-// Ninja Van API Config
-const API_BASE_URL = config.NINJAVAN_API_URL;
-const COUNTRY_CODE = 'PH'; // Always use PH for Philippines
-
-// Create the NinjaVan axios instance with token refresh
-const ninjaVanApi = ninjaVanAuth.createAxiosInstance();
-
-// Note: Using ninjaVanAuth service for token management with caching
-
-// Add a helper function to format postal code
-function formatPostalCode(postcode) {
-  if (!postcode) return "000000";
-  
-  // Convert to string and trim any whitespace
-  const cleanPostcode = postcode.toString().trim();
-  
-  // If it's already 6 digits, return as is
-  if (cleanPostcode.length === 6) return cleanPostcode;
-  
-  // If it's 4 digits, pad with leading zeros
-  if (cleanPostcode.length === 4) return `00${cleanPostcode}`;
-  
-  // For any other case, pad with zeros until 6 digits
-  return cleanPostcode.padStart(6, '0');
-}
-
-// Handler for GET /api/admin/check-payments
-async function checkPayments(req, res) {
+// Manual payment check trigger
+const checkPayments = async (req, res) => {
   try {
-    console.log('Manual Dragonpay status check triggered via API');
+    console.log('Admin triggered manual payment status check...');
     
-    const result = await runManualPaymentCheck();
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Timeout')), 10000)
+    );
     
-    res.status(200).json({
-      success: true,
-      message: 'Dragonpay Transaction Status check completed',
-      data: {
-        status: result.status,
-        checked: result.checked || 0,
-        updated: result.updated || 0,
-        errors: result.errors || 0,
-        skipped: result.skipped || 0,
-        retries: result.retries || 0,
-        duration: result.duration || 0,
-        timestamp: new Date().toISOString()
-      }
-    });
+    const checkPromise = paymentStatusChecker.checkPendingPayments();
     
-    console.log(`Manual check done: ${result.updated || 0} orders updated`);
-    
+    try {
+      const result = await Promise.race([checkPromise, timeoutPromise]);
+      
+      res.json({
+        success: true,
+        message: 'Payment status check completed successfully',
+        result: {
+          checked: result.checked || 0,
+          updated: result.updated || 0,
+          errors: result.errors || 0,
+          duration: result.duration || 0
+        }
+      });
+    } catch (timeoutError) {
+      res.json({
+        success: true,
+        message: 'Payment status check started in background',
+        note: 'Check is running, please wait for updates'
+      });
+    }
   } catch (error) {
-    console.error('❌ Error in manual payment check API:', error.message);
-    
+    console.error('Error in admin payment check:', error);
     res.status(500).json({
       success: false,
-      message: 'Error running payment status check',
-      error: error.message,
-      timestamp: new Date().toISOString()
+      message: 'Failed to trigger payment status check',
+      error: error.message
     });
   }
-}
+};
 
-// Handler for GET /api/admin/payments/check
-async function paymentsCheck(req, res) {
-  try {
-    console.log('Global Dragonpay check triggered from frontend');
-    
-    const result = await runManualPaymentCheck();
-    
-    // Simple response for frontend consumption
-    res.status(200).json({
-      success: true,
-      checked: result.checked || 0,
-      updated: result.updated || 0,
-      message: result.updated > 0 ? 
-        `${result.updated} payment(s) processed successfully` : 
-        'No pending payments found',
-      timestamp: new Date().toISOString()
-    });
-    
-  } catch (error) {
-    console.error('❌ Error in global payment check:', error.message);
-    
-    res.status(200).json({
-      success: false,
-      checked: 0,
-      updated: 0,
-      message: 'Payment check failed',
-      timestamp: new Date().toISOString()
-    });
-  }
-}
+// Alternative payment check endpoint (same functionality, different route)
+const paymentsCheck = async (req, res) => {
+  return checkPayments(req, res);
+};
 
-// Handler for POST /api/admin/confirm-payment/:orderId
-async function confirmPayment(req, res) {
-  const { orderId } = req.params;
+// Confirm payment and create shipping order
+const confirmPayment = async (req, res) => {
   const connection = await db.getConnection();
   
   try {
     await connection.beginTransaction();
     
+    const { orderId } = req.params;
+    
+    if (!orderId) {
+      await connection.rollback();
+      return res.status(400).json({ 
+        success: false,
+        message: 'Order ID is required' 
+      });
+    }
+    
     // Get order details
     const [orders] = await connection.query(
-      'SELECT o.*, u.first_name, u.last_name, u.email, u.phone, u.user_id, ' +
-      's.address as shipping_address, s.tracking_number ' +
-      'FROM orders o ' +
-      'JOIN users u ON o.user_id = u.user_id ' +
-      'LEFT JOIN shipping s ON o.order_id = s.order_id ' +
-      'WHERE o.order_id = ?',
+      `SELECT o.*, u.first_name, u.last_name, u.email, u.phone
+       FROM orders o 
+       JOIN users u ON o.user_id = u.user_id
+       WHERE o.order_id = ?`,
       [orderId]
     );
     
     if (orders.length === 0) {
       await connection.rollback();
-      return res.status(404).json({ message: 'Order not found' });
+      return res.status(404).json({ 
+        success: false,
+        message: 'Order not found' 
+      });
     }
     
     const order = orders[0];
     
-    // Check if order is in the correct state
-    if (order.payment_status !== 'awaiting_for_confirmation' || order.order_status !== 'processing') {
+    // Check if order is in correct status for confirmation
+    if (order.payment_status !== 'awaiting_for_confirmation' && order.payment_status !== 'pending') {
       await connection.rollback();
       return res.status(400).json({ 
-        message: 'Order cannot be confirmed. It must be in processing status with payment awaiting confirmation.' 
+        success: false,
+        message: `Order payment status is '${order.payment_status}'. Only orders with 'awaiting_for_confirmation' or 'pending' status can be confirmed.`
       });
     }
-
-    // Get order items for email
-    const [orderItems] = await connection.query(
-      `SELECT oi.*, p.name
-       FROM order_items oi
-       JOIN products p ON oi.product_id = p.product_id
-       WHERE oi.order_id = ?`,
-      [orderId]
-    );
-
-    // Generate transaction ID
-    const transactionId = `order_${orderId}_${Date.now()}`;
     
-    // Update order status
+    // Update order status to for_packing and payment status to paid
     await connection.query(
-      'UPDATE orders SET payment_status = ?, order_status = ?, updated_at = NOW() WHERE order_id = ?',
-      ['paid', 'for_packing', orderId]
+      'UPDATE orders SET order_status = ?, payment_status = ?, updated_at = NOW() WHERE order_id = ?',
+      ['for_packing', 'paid', orderId]
     );
     
-    // Update payment status and transaction ID
+    // Update payment record
     await connection.query(
-      'UPDATE payments SET status = ?, transaction_id = ?, updated_at = NOW() WHERE order_id = ? AND status = ?',
-      ['completed', transactionId, orderId, 'waiting_for_confirmation']
+      'UPDATE payments SET status = ?, updated_at = NOW() WHERE order_id = ?',
+      ['completed', orderId]
     );
-
-    // Get payment details for email
-    const [payments] = await connection.query(
-      'SELECT * FROM payments WHERE order_id = ? ORDER BY payment_id DESC LIMIT 1',
-      [orderId]
-    );
-
-    // Prepare email details
-    const emailDetails = {
-      orderNumber: orderId,
-      customerName: `${order.first_name} ${order.last_name}`,
-      customerEmail: order.email,
-      customerPhone: order.phone,
-      items: orderItems.map(item => ({
-        name: item.name,
-        quantity: item.quantity,
-        price: item.price
-      })),
-      totalAmount: order.total_price,
-      shippingFee: 0, // Shipping fee not stored in shipping table
-      shippingAddress: order.shipping_address,
-      paymentMethod: payments.length > 0 ? payments[0].payment_method : 'Unknown',
-      paymentReference: payments.length > 0 ? payments[0].reference_number : transactionId,
-      trackingNumber: order.tracking_number
-    };
-
-    // Send confirmation email
-    try {
-      await sendOrderConfirmationEmail(emailDetails);
-      console.log('Order confirmation email sent');
-    } catch (emailError) {
-      console.error('Failed to send order confirmation email:', emailError);
-      // Don't fail the transaction if email fails
-    }
-
+    
     await connection.commit();
-
-    try {
-      // Use the shared delivery service to create the shipping order
-      const shippingResult = await deliveryRouter.createShippingOrder(orderId);
-      
-      // Send another email with tracking number if it wasn't included in the first email
-      if (shippingResult.tracking_number && !order.tracking_number) {
-        const updatedEmailDetails = {
-          ...emailDetails,
-          trackingNumber: shippingResult.tracking_number
-        };
-
-        try {
-          await sendOrderConfirmationEmail(updatedEmailDetails);
-          console.log('Order confirmation email sent with tracking number');
-        } catch (emailError) {
-          console.error('Failed to send updated order confirmation email:', emailError);
-        }
-      }
-      
-      res.status(200).json({
-        message: 'Payment confirmed and shipping order created successfully',
-        order_status: 'for_packing',
-        payment_status: 'paid',
-        transaction_id: transactionId,
-        shipping: shippingResult
-      });
-      
-    } catch (shippingError) {
-      console.error('Error creating shipping order:', shippingError);
-      
-      res.status(200).json({
-        message: 'Payment confirmed but failed to create shipping order. Please create shipping manually.',
-        order_status: 'for_packing',
-        payment_status: 'paid',
-        transaction_id: transactionId,
-        error: shippingError.response?.data || shippingError.message
-      });
-    }
-
-  } catch (error) {
-    console.error('Error in confirm-payment:', error);
-    await connection.rollback();
+    console.log(`Payment confirmed for order ${orderId}`);
     
+    // Create shipping order (this happens outside the transaction)
+    let shippingResult = null;
+    try {
+      shippingResult = await createShippingOrder(orderId);
+      console.log(`Shipping order created for order ${orderId}:`, shippingResult?.tracking_number);
+    } catch (shippingError) {
+      console.error(`Failed to create shipping order for order ${orderId}:`, shippingError.message);
+      // Don't fail the payment confirmation if shipping creation fails
+    }
+    
+    res.json({
+      success: true,
+      message: 'Payment confirmed and shipping order created successfully',
+      order: {
+        order_id: orderId,
+        order_status: 'for_packing',
+        payment_status: 'paid',
+        tracking_number: shippingResult?.tracking_number || null
+      },
+      shipping: shippingResult
+    });
+    
+  } catch (error) {
+    await connection.rollback();
+    console.error('Error confirming payment:', error);
     res.status(500).json({
-      message: 'Error processing payment confirmation',
+      success: false,
+      message: 'Failed to confirm payment',
       error: error.message
     });
   } finally {
     connection.release();
   }
-}
+};
 
-// Handler for POST /api/admin/create-shipping/:orderId
-async function createShipping(req, res) {
-  const { orderId } = req.params;
-  
+// Create shipping order manually
+const createShipping = async (req, res) => {
   try {
-    // Use the shared delivery service to create the shipping order
-    const shippingResult = await deliveryRouter.createShippingOrder(orderId);
+    const { orderId } = req.params;
     
-    res.status(200).json({
-      message: 'Shipping order created successfully',
-      shipping: shippingResult
-    });
-  } catch (error) {
-    console.error('Error creating shipping order:', error);
-    
-    if (error.response?.data) {
-      return res.status(error.response.status).json({
-        message: 'Error creating shipping order',
-        error: error.response.data
+    if (!orderId) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Order ID is required' 
       });
     }
-
+    
+    console.log(`Admin manually creating shipping order for order ${orderId}`);
+    
+    const shippingResult = await createShippingOrder(orderId);
+    
+    res.json({
+      success: true,
+      message: 'Shipping order created successfully',
+      shipping: shippingResult,
+      tracking_number: shippingResult?.tracking_number || null
+    });
+    
+  } catch (error) {
+    console.error('Error creating shipping order:', error);
     res.status(500).json({
-      message: 'Error creating shipping order',
+      success: false,
+      message: 'Failed to create shipping order',
       error: error.message
     });
   }
-}
+};
 
 module.exports = {
   checkPayments,

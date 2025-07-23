@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import ninjaVanService from '../../services/ninjaVanService';
 import CancelOrderModal from '../common/CancelOrderModal';
+import TrackingDisplay from '../DeliveryTracking/TrackingDisplay';
 import './OrderConfirmation.css';
 import NavBar from '../NavBar';
 import Footer from '../Footer';
@@ -175,6 +176,12 @@ function OrderConfirmation() {
 
         <div className="order-card">
           <div className="section-title">ORDER INFORMATION</div>
+          
+          {/* Add Order Status Tracking Graphics */}
+          <div className="order-status-section">
+            <TrackingDisplay orderStatus={order.order_status} />
+          </div>
+          
           <div className="order-info-grid">
             <div className="info-item">
               <span className="label">Order Code</span>
@@ -212,22 +219,22 @@ function OrderConfirmation() {
                   <span className="label">Delivery Address</span>
                   <span className="value">
                     {(() => {
-                      // Use the exact shipping address that was sent to Ninja Van
+                      // Priority 1: Use the exact shipping address from the backend (which now includes NinjaVan address)
                       if (order.shipping?.address) {
                         return order.shipping.address;
                       }
                       
-                      // Fallback to shipping_address field
+                      // Priority 2: Use shipping_address field (fallback)
                       if (order.shipping_address) {
                         return order.shipping_address;
                       }
                       
-                      // Final fallback to order.address if available
+                      // Priority 3: Final fallback to order.address if available
                       if (order.address) {
                         return order.address;
                       }
                       
-                      return 'Not provided';
+                      return 'Address not available';
                     })()}
                   </span>
             </div>
@@ -335,4 +342,4 @@ function OrderConfirmation() {
   );
 }
 
-export default OrderConfirmation; 
+export default OrderConfirmation;

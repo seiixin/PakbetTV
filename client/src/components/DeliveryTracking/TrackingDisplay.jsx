@@ -1,22 +1,22 @@
 import React from 'react';
 import './TrackingDisplay.css';
-import { FaBoxOpen, FaShippingFast, FaBox, FaTruck, FaCheckCircle } from 'react-icons/fa';
+import { FaBoxOpen, FaBox, FaShippingFast, FaTruck, FaCheckCircle } from 'react-icons/fa';
 
 const TrackingDisplay = ({ trackingData, orderStatus }) => {
   if (!trackingData && !orderStatus) {
     return <div className="tracking-unavailable">Tracking information not available yet.</div>;
   }
 
-  // Define the stages for the order tracking
+  // Define the stages for the order tracking with better mapping
   const stages = [
-    { key: 'processing', label: 'Processing', icon: <FaBoxOpen size={24} /> },
-    { key: 'for_packing', label: 'Packing', icon: <FaBox size={24} /> },
-    { key: 'shipped', label: 'Shipped', icon: <FaShippingFast size={24} /> },
-    { key: 'picked_up', label: 'Delivery', icon: <FaTruck size={24} /> },
-    { key: 'completed', label: 'Completed', icon: <FaCheckCircle size={24} /> }
+    { key: 'processing', label: 'Processing', icon: <FaBoxOpen />, description: 'Order is being prepared' },
+    { key: 'packing', label: 'Packing', icon: <FaBox />, description: 'Items are being packed' },
+    { key: 'shipping', label: 'Shipped', icon: <FaShippingFast />, description: 'Package is in transit' },
+    { key: 'delivery', label: 'Delivery', icon: <FaTruck />, description: 'Out for delivery' },
+    { key: 'completed', label: 'Received', icon: <FaCheckCircle />, description: 'Order completed' }
   ];
 
-  // Map the order status to the tracking stages
+  // Enhanced status mapping
   const getStageIndex = (status) => {
     const statusMap = {
       'pending_payment': -1,
@@ -25,7 +25,8 @@ const TrackingDisplay = ({ trackingData, orderStatus }) => {
       'packed': 1,
       'for_shipping': 2,
       'shipped': 2,
-      'picked_up': 3,
+      'picked_up': 2,
+      'out_for_delivery': 3,
       'delivered': 4,
       'completed': 4,
       'returned': -1,
@@ -36,55 +37,44 @@ const TrackingDisplay = ({ trackingData, orderStatus }) => {
 
   const currentStageIndex = getStageIndex(orderStatus);
 
+  // Calculate progress line width percentage
+  const getProgressWidth = () => {
+    if (currentStageIndex <= 0) return '0%';
+    if (currentStageIndex >= stages.length - 1) return '100%';
+    return `${(currentStageIndex / (stages.length - 1)) * 100}%`;
+  };
+
   return (
     <div className="tracking-display-container">
-      <h3 className="tracking-title">Order Status</h3>
       
-      <div className="tracking-stages">
+      <div className="order-status-progress" style={{ '--progress-width': getProgressWidth() }}>
+        {/* Progress line background */}
+        <div className="progress-line-bg"></div>
+        {/* Progress line filled */}
+        <div className="progress-line-fill" style={{ width: getProgressWidth() }}></div>
+        
         {stages.map((stage, index) => {
-          const isActive = index <= currentStageIndex;
-          const isCurrentStage = index === currentStageIndex;
+          const isCompleted = index < currentStageIndex;
+          const isActive = index === currentStageIndex;
+          const isPending = index > currentStageIndex;
           
           return (
-            <div 
-              key={stage.key} 
-              className={`tracking-stage ${isActive ? 'active' : ''} ${isCurrentStage ? 'current' : ''}`}
-            >
-              <div className="stage-icon-container">
-                <div className="stage-icon">
+            <div key={stage.key} className={`progress-step ${isCompleted ? 'completed' : ''} ${isActive ? 'active' : ''} ${isPending ? 'pending' : ''}`}>
+              <div className="step-circle">
+                <div className="step-icon">
                   {stage.icon}
                 </div>
-                {index < stages.length - 1 && (
-                  <div className={`stage-line ${isActive ? 'active' : ''}`}></div>
-                )}
               </div>
-              <div className="stage-label">{stage.label}</div>
+              <div className="step-content">
+                <div className="step-label">{stage.label}</div>
+                <div className="step-description">{stage.description}</div>
+              </div>
             </div>
           );
         })}
       </div>
-      
-      {trackingData && trackingData.events && trackingData.events.length > 0 && (
-        <div className="tracking-events">
-          <h4>Tracking Updates</h4>
-          <div className="tracking-timeline">
-            {trackingData.events.map((event, index) => (
-              <div key={index} className="timeline-item">
-                <div className="timeline-date">
-                  {new Date(event.created_at).toLocaleDateString()} 
-                  {new Date(event.created_at).toLocaleTimeString()}
-                </div>
-                <div className="timeline-content">
-                  <div className="timeline-title">{event.status}</div>
-                  <div className="timeline-description">{event.description}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 };
 
-export default TrackingDisplay; 
+export default TrackingDisplay;

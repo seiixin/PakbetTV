@@ -70,6 +70,18 @@ async function getOrderById(req, res) {
          -- Shipping details (nullable)
          s.tracking_number            AS tracking_number,
          s.address                    AS shipping_address,
+         -- Structured shipping details from NinjaVan integration
+         sd.address1                  AS nv_address1,
+         sd.address2                  AS nv_address2,
+         sd.area                      AS nv_area,
+         sd.city                      AS nv_city,
+         sd.state                     AS nv_state,
+         sd.postcode                  AS nv_postcode,
+         sd.country                   AS nv_country,
+         sd.region                    AS nv_region,
+         sd.province                  AS nv_province,
+         sd.city_municipality         AS nv_city_municipality,
+         sd.barangay                  AS nv_barangay,
          -- Payment details (nullable)
          pay.payment_method           AS payment_method,
          pay.transaction_id           AS transaction_id,
@@ -79,9 +91,10 @@ async function getOrderById(req, res) {
          u.email                      AS email,
          u.phone                      AS phone
        FROM orders o
-       LEFT JOIN shipping     s   ON s.order_id  = o.order_id
-       LEFT JOIN payments     pay ON pay.order_id = o.order_id
-       LEFT JOIN users        u   ON u.user_id   = o.user_id
+       LEFT JOIN shipping        s   ON s.order_id  = o.order_id
+       LEFT JOIN shipping_details sd ON sd.order_id = o.order_id
+       LEFT JOIN payments        pay ON pay.order_id = o.order_id
+       LEFT JOIN users           u   ON u.user_id   = o.user_id
        WHERE o.order_id = ? AND o.user_id = ?
        LIMIT 1`,
       [orderId, userId]
@@ -92,6 +105,27 @@ async function getOrderById(req, res) {
     }
 
     const order = orderRows[0];
+
+    // Build the complete NinjaVan delivery address
+    let ninjaVanDeliveryAddress = '';
+    if (order.nv_address1) {
+      // Use structured address components from shipping_details (NinjaVan format)
+      const addressParts = [];
+      
+      if (order.nv_address1) addressParts.push(order.nv_address1);
+      if (order.nv_address2) addressParts.push(order.nv_address2);
+      if (order.nv_barangay) addressParts.push(order.nv_barangay);
+      if (order.nv_city_municipality || order.nv_city) addressParts.push(order.nv_city_municipality || order.nv_city);
+      if (order.nv_province || order.nv_state) addressParts.push(order.nv_province || order.nv_state);
+      if (order.nv_region) addressParts.push(order.nv_region);
+      if (order.nv_postcode) addressParts.push(order.nv_postcode);
+      if (order.nv_country) addressParts.push(order.nv_country);
+      
+      ninjaVanDeliveryAddress = addressParts.filter(Boolean).join(', ');
+    } else if (order.shipping_address) {
+      // Fallback to shipping.address if structured details not available
+      ninjaVanDeliveryAddress = order.shipping_address;
+    }
 
     // Fetch order items
     const [itemRows] = await db.query(
@@ -119,13 +153,13 @@ async function getOrderById(req, res) {
       created_at: order.created_at,
       updated_at: order.updated_at,
       tracking_number: order.tracking_number,
-      shipping_address: order.shipping_address,
+      shipping_address: ninjaVanDeliveryAddress, // Use the NinjaVan delivery address
       // Nested helpers
       shipping: {
         name: order.first_name + ' ' + order.last_name,
         phone: order.phone,
         email: order.email,
-        address: order.shipping_address
+        address: ninjaVanDeliveryAddress // Ensure this matches the exact NinjaVan address
       },
       payment: {
         payment_method: order.payment_method,
