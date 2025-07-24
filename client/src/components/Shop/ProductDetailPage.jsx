@@ -432,6 +432,36 @@ const ProductDetailPage = () => {
     }
   };
 
+  // Helper function to format product descriptions with proper bullet points
+  const formatProductDescription = (description) => {
+    if (!description) return '';
+    
+    // Replace asterisks at the beginning of lines with proper HTML list items
+    let formatted = description
+      // Replace multiple asterisks in a row with bullet points
+      .replace(/^\s*\*\s+(.+)/gm, '<li>$1</li>')
+      // Wrap consecutive list items in ul tags
+      .replace(/(<li>.*<\/li>\s*)+/gs, (match) => {
+        return `<ul>${match}</ul>`;
+      })
+      // Replace line breaks with paragraph breaks for non-list content
+      .replace(/\n\n+/g, '</p><p>')
+      // Wrap the entire content in paragraphs if it doesn't start with a list
+      .replace(/^(?!<ul>)(.+?)(?=<ul>|$)/gs, '<p>$1</p>')
+      // Clean up any empty paragraphs
+      .replace(/<p>\s*<\/p>/g, '')
+      // Ensure proper spacing around lists
+      .replace(/<\/p>\s*<ul>/g, '</p><ul>')
+      .replace(/<\/ul>\s*<p>/g, '</ul><p>');
+
+    // If the content doesn't start with a paragraph or list, wrap it
+    if (!formatted.startsWith('<p>') && !formatted.startsWith('<ul>')) {
+      formatted = `<p>${formatted}</p>`;
+    }
+
+    return formatted;
+  };
+
   // Update the scroll detection useEffect
   useEffect(() => {
     const handleScroll = () => {
@@ -715,7 +745,7 @@ const ProductDetailPage = () => {
               <h2 className="section-title">Product Specifications</h2>
             </div>
             <div className="product-description-container">
-              {product.description && <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(product.description) }} />}
+              {product.description && <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(formatProductDescription(product.description)) }} />}
               
               {product.specs && (
                 <div className="product-specs">
@@ -852,4 +882,4 @@ const ProductDetailPage = () => {
   );
 };
 
-export default ProductDetailPage; 
+export default ProductDetailPage;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useCart } from '../../context/CartContext';
+import { useCartData } from '../../hooks/useCart';
 import { useAuth } from '../../context/AuthContext';
 import './Checkout.css';
 import API_BASE_URL from '../../config';
@@ -11,6 +11,7 @@ import { authService } from '../../services/api';
 import ninjaVanService from '../../services/ninjaVanService';
 import LegalModal from '../common/LegalModal';
 import { getAuthToken } from '../../utils/cookies';
+import api from '../../services/axiosConfig';
 
 const Checkout = () => {
   const [loading, setLoading] = useState(false);
@@ -59,11 +60,117 @@ const Checkout = () => {
     cartItems, 
     getTotalPrice,
     getSelectedCount,
-    createOrder,
-    processPayment
-  } = useCart();
+    updateQuantity
+  } = useCartData();
 
   const selectedItems = cartItems.filter(item => item.selected);
+
+  // Create order function
+  const createOrder = async (userId, shippingFee = 0, shippingDetails = {}, paymentMethod = 'dragonpay', voucherCode = null) => {
+    try {
+      // Validate inputs
+      if (selectedItems.length === 0) {
+        throw new Error('No items selected for order');
+      }
+
+      if (!shippingDetails.address || !shippingDetails.phone) {
+        throw new Error('Shipping address and phone number are required');
+      }
+
+      // Transform cart items for the backend
+      const orderItems = selectedItems.map(item => ({
+        product_id: item.id || item.product_id,
+        variant_id: item.variant_id || null,
+        quantity: item.quantity,
+        price: item.price,
+        variant_attributes: item.variant_attributes || {}
+      }));
+
+      const subtotal = getTotalPrice();
+      const totalAmount = subtotal + shippingFee;
+
+      const orderData = {
+        user_id: userId,
+        items: orderItems,
+        subtotal: subtotal,
+        shipping_fee: shippingFee,
+        total_amount: totalAmount,
+        shipping_details: shippingDetails,
+        payment_method: paymentMethod,
+        voucher_code: voucherCode
+      };
+
+      const token = getAuthToken();
+      if (!token) {
+        throw new Error('Please log in to place an order');
+      }
+
+      console.log('[Checkout] Creating order with data:', orderData);
+
+      const response = await api.post('/transactions/orders', orderData, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log('[Checkout] Order created successfully:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('[Checkout] Error creating order:', error);
+      
+      if (error.response) {
+        const errorMessage = error.response.data?.message || error.message;
+        
+        if (errorMessage.includes('stock')) {
+          throw new Error('Some items in your cart are no longer available in the requested quantity. Please update your cart.');
+        } else if (errorMessage.includes('phone')) {
+          throw new Error('Please provide a valid phone number (e.g., +63 912 345 6789 or 09123456789)');
+        } else if (errorMessage.includes('shipping details')) {
+          throw new Error('Please provide complete shipping details including address and contact information');
+        } else {
+          throw new Error(errorMessage);
+        }
+      } else if (error.request) {
+        throw new Error('Unable to connect to the server. Please check your internet connection and try again.');
+      } else {
+        throw new Error('An error occurred while creating your order. Please try again.');
+      }
+    }
+  };
+
+  // Process payment function
+  const processPayment = async (orderId, userEmail, paymentMethod = 'dragonpay') => {
+    try {
+      const token = getAuthToken();
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      const paymentData = {
+        order_id: orderId,
+        payment_method: paymentMethod,
+        payment_details: {
+          email: userEmail
+        }
+      };
+
+      console.log('[Checkout] Processing payment with data:', paymentData);
+
+      const response = await api.post('/transactions/payment', paymentData, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log('[Checkout] Payment processed successfully:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('[Checkout] Error processing payment:', error);
+      throw error;
+    }
+  };
 
   // Check address serviceability with NinjaVan shipping locations
   const checkAddressServiceability = async (addressDetails) => {
@@ -168,12 +275,12 @@ const Checkout = () => {
   };
 
   const getFullImageUrl = (url) => {
-    if (!url) return '/placeholder-product.jpg';
+    if (!url) return '/ImageFallBack.png';
     
     // Type check to prevent errors
     if (typeof url !== 'string') {
       console.warn('URL is not a string:', url);
-      return '/placeholder-product.jpg';
+      return '/ImageFallBack.png';
     }
     
     // Handle base64 encoded images (longblob from database)
@@ -637,6 +744,27 @@ const Checkout = () => {
     return [address, barangay, city, state, postal_code].filter(Boolean).join(', ');
   };
 
+  // Handle quantity change for an item
+  const handleQuantityChange = async (item, newQuantity) => {
+    if (newQuantity < 1) return;
+    
+    try {
+      console.log('[Checkout] Updating quantity for item:', item, 'new quantity:', newQuantity);
+      
+      await updateQuantity({
+        productId: item.id || item.product_id,
+        quantity: newQuantity,
+        variantId: item.variant_id,
+        cartId: item.cart_id
+      });
+      
+      // The cart context will handle updating the state and recalculating totals
+    } catch (error) {
+      console.error('Failed to update quantity:', error);
+      notify.error('Failed to update quantity. Please try again.');
+    }
+  };
+
   return (
     <div className="checkout-page">
       <NavBar />
@@ -732,7 +860,7 @@ const Checkout = () => {
                   src={getFullImageUrl(item.image_url)} 
                   alt={item.name}
                   className="item-image"
-                  onError={(e) => e.target.src = '/placeholder-product.jpg'}
+                  onError={(e) => e.target.src = '/ImageFallBack.png'}
                 />
                 <div className="item-details">
                   <div className="item-name">{item.name}</div>
@@ -743,7 +871,26 @@ const Checkout = () => {
                         .join(', ')}
                     </div>
                   )}
-                  <div className="item-quantity">Quantity: {item.quantity}</div>
+                  <div className="item-quantity-controls">
+                    <label>Quantity:</label>
+                    <div className="quantity-control">
+                      <button 
+                        className="quantity-btn decrement" 
+                        onClick={() => handleQuantityChange(item, item.quantity - 1)}
+                        disabled={item.quantity <= 1}
+                      >
+                        <i className="fas fa-minus"></i>
+                      </button>
+                      <span className="quantity-display">{item.quantity}</span>
+                      <button 
+                        className="quantity-btn increment"
+                        onClick={() => handleQuantityChange(item, item.quantity + 1)}
+                        disabled={item.quantity >= (item.stock || 999)}
+                      >
+                        <i className="fas fa-plus"></i>
+                      </button>
+                    </div>
+                  </div>
                   <div className="item-price">{formatPrice(item.price * item.quantity)}</div>
                 </div>
               </div>

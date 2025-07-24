@@ -55,8 +55,8 @@ async function ninjavanUnifiedWebhookHandler(req, res) {
 
     // Find the order associated with this tracking number
     const [orders] = await db.query(
-      `SELECT o.order_id, o.order_status, o.user_id, o.total_price, o.payment_method,
-              u.first_name, u.last_name, u.email, u.phone
+      `SELECT o.order_id, o.order_status, o.user_id, o.total_price, o.payment_status,
+              u.first_name, u.last_name, u.email, u.phone, u.user_type
        FROM shipping s 
        JOIN orders o ON s.order_id = o.order_id
        JOIN users u ON o.user_id = u.user_id

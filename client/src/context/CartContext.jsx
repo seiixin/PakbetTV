@@ -151,7 +151,7 @@ export const CartProvider = ({ children }) => {
     // Ensure image URL is properly formatted
     const productWithProperImageUrl = {
       ...product,
-      image_url: product.image_url ? getFullImageUrl(product.image_url) : '/placeholder-product.jpg'
+      image_url: product.image_url ? getFullImageUrl(product.image_url) : '/ImageFallBack.png'
     };
     
     if (user?.id) {
@@ -622,4 +622,4 @@ export const CartProvider = ({ children }) => {
       {children}
     </CartContext.Provider>
   );
-}; 
+};

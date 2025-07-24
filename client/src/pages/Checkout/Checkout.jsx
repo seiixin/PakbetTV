@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import AddressForm from '../components/Checkout/AddressForm';
 import { useAuth } from '../context/AuthContext';
-import { useCart } from '../context/CartContext';
+import { useCartData } from '../hooks/useCart'; // Changed from CartContext to useCart hook
 import { getCart } from '../utils/cookies';
 import { getFullImageUrl } from '../utils/imageUtils';
 import NavBar from '../components/NavBar';
@@ -15,8 +15,10 @@ const Checkout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  const [cartItems, setCartItems] = useState([]);
-  const [selectedItems, setSelectedItems] = useState([]);
+  
+  // Use the new cart hook instead of manual state management
+  const { cartItems, loading: cartLoading } = useCartData();
+  
   const [loading, setLoading] = useState(true);
   const [processingOrder, setProcessingOrder] = useState(false);
   const [error, setError] = useState(null);
@@ -33,7 +35,7 @@ const Checkout = () => {
     city: '',
     state: '',
     postcode: '',
-    country: 'MY',
+    country: 'PH', // Default to Philippines
     address_type: 'home'
   });
   const [addressValid, setAddressValid] = useState(false);
@@ -85,61 +87,16 @@ const Checkout = () => {
     }
   }, [user]);
   
-  // Get cart items on component mount and handle persistence
+  // Get cart items on component mount and handle user authentication
   useEffect(() => {
     if (!user) {
       navigate('/login', { state: { from: '/checkout' } });
       return;
     }
     
-    // First try to get cart from cookies to persist across refreshes
-    const savedCart = getCart(user?.id || 'guest');
-    if (savedCart && savedCart.length > 0) {
-      setCartItems(savedCart);
-      setSelectedItems(savedCart.map(item => item.id));
-      setLoading(false);
-      return;
-    }
-    
-    // If we have items from previous page, use those
-    if (location.state && location.state.items) {
-      const items = location.state.items;
-      setCartItems(items);
-      setSelectedItems(items.map(item => item.id));
-      setLoading(false);
-    } else {
-      fetchCartItems();
-    }
-  }, [user, navigate, location]);
-  
-  const fetchCartItems = async () => {
-    try {
-      setLoading(true);
-      const token = localStorage.getItem('token');
-      const response = await axios.get('/api/cart', {
-        headers: {
-          'x-auth-token': token
-        }
-      });
-      
-      // Check if response.data is an array, if not, look for items property
-      const items = Array.isArray(response.data) ? response.data : response.data.items;
-      
-      // Validate that we have an array of items
-      if (!Array.isArray(items)) {
-        throw new Error('Invalid response format from server');
-      }
-      
-      setCartItems(items);
-      // Select all items by default
-      setSelectedItems(items.map(item => item.id));
-      setLoading(false);
-    } catch (err) {
-      console.error('Failed to fetch cart items:', err);
-      setError('Failed to load cart items. Please try again.');
-      setLoading(false);
-    }
-  };
+    // Set loading to false since we're using the cart hook now
+    setLoading(false);
+  }, [user, navigate]);
   
   const handleAddressChange = (addressData, isValid) => {
     setAddress(addressData);
@@ -269,7 +226,7 @@ const Checkout = () => {
     }
   };
   
-  if (loading) {
+  if (loading || cartLoading) {
     return (
       <div className="checkout-container">
         <div className="loading-spinner">Loading...</div>
@@ -473,4 +430,4 @@ const Checkout = () => {
   );
 };
 
-export default Checkout; 
+export default Checkout;

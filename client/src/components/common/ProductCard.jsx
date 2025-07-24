@@ -115,7 +115,14 @@ const ProductCard = ({ product }) => {
     if (product.image_url) {
       return getFullImageUrl(product.image_url);
     }
-    return '/placeholder-product.jpg';
+    return '/ImageFallBack.png'; // Use ImageFallBack.png as fallback
+  };
+
+  // Handle image loading errors
+  const handleImageError = (e) => {
+    console.error('Image load error:', e.target.src);
+    e.target.onerror = null; // Prevent infinite loop
+    e.target.src = '/ImageFallBack.png'; // Use ImageFallBack.png when image fails to load
   };
 
   const itemsSold = product.items_sold || 0;
@@ -199,11 +206,7 @@ const ProductCard = ({ product }) => {
           src={getPrimaryImage()} 
           alt={product.name}
           className="product-card-image"
-          onError={(e) => { 
-            console.error('Image load error:', e.target.src); 
-            e.target.onerror = null; // Prevent infinite loop
-            e.target.src = '/placeholder-product.jpg'; 
-          }}
+          onError={handleImageError}
           loading="lazy"
         />
         {product.discount_percentage > 0 && (

@@ -257,15 +257,30 @@ exports.createOrder = async (req, res) => {
     const initialOrderStatus = payment_method === 'cod' ? 'for_packing' : 'processing';
     const initialPaymentStatus = payment_method === 'cod' ? 'cod_pending' : 'pending';
     
-    // Create the order first
+    // Create the order first - without voucher columns since they don't exist in the current schema
+    console.log('Attempting to create order with values:', {
+      user_id,
+      finalTotalAmount,
+      initialOrderStatus,
+      initialPaymentStatus,
+      orderCode
+    });
+    
     const [orderResult] = await connection.query(
       `INSERT INTO orders 
-       (user_id, voucher_id, total_price, voucher_discount, order_status, payment_status, order_code, created_at, updated_at) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-      [user_id, voucherId, finalTotalAmount, voucherDiscount, initialOrderStatus, initialPaymentStatus, orderCode]
+       (user_id, total_price, order_status, payment_status, order_code, created_at, updated_at) 
+       VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
+      [user_id, finalTotalAmount, initialOrderStatus, initialPaymentStatus, orderCode]
     );
     
+    console.log('Order insert result:', orderResult);
     const orderId = orderResult.insertId;
+    
+    if (!orderId || orderId === 0) {
+      await connection.rollback();
+      throw new Error('Failed to create order - no order ID returned from database');
+    }
+    
     console.log('Order created with ID:', orderId);
 
     // Record voucher redemption if voucher was used
@@ -297,20 +312,20 @@ exports.createOrder = async (req, res) => {
       console.log('COD payment record created');
     }
 
-    // Always save shipping details
+    // Always save shipping details to the correct shipping table
+    // With AUTO_INCREMENT, we don't need to manually calculate shipping_id
     await connection.query(
       `INSERT INTO shipping (
-        order_id, user_id, status, address, 
-        phone, email, name, created_at, updated_at
+        order_id, user_id, address, status, phone, email, name, created_at, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
       [
         orderId, 
         user_id, 
-        'pending',
         shipping_details.address,
-        shipping_details.phone,
-        shipping_details.email,
-        shipping_details.name
+        'pending',
+        shipping_details.phone || null,
+        shipping_details.email || null,
+        shipping_details.name || null
       ]
     );
     console.log('Shipping details saved');
@@ -319,16 +334,12 @@ exports.createOrder = async (req, res) => {
     try {
       await connection.query(
         `INSERT INTO shipping_details (
-          order_id, address1, address2, city, state, postcode, country
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          country_code, province, city_municipality, created_at, updated_at
+        ) VALUES (?, ?, ?, NOW(), NOW())`,
         [
-          orderId,
-          shipping_details.address,
-          null, // address2
-          shipping_details.city || '',
-          shipping_details.state || '',
-          shipping_details.postal_code || '',
-          'PH' // Default to Philippines
+          'PH', // Default to Philippines
+          shipping_details.province || null,
+          shipping_details.city || null
         ]
       );
       console.log('Structured shipping details saved');
@@ -541,11 +552,8 @@ exports.processPayment = async (req, res) => {
       queryParams.append('returnurl', returnUrl);
       queryParams.append('cancelurl', `${process.env.CLIENT_URL || process.env.FRONTEND_URL || 'https://michaeldemesa.com'}/cart`);
       
-      const redirectUrl = `https://test.dragonpay.ph/Pay.aspx?${queryParams.toString()}`;
+      const redirectUrl = `https://gw.dragonpay.ph/Pay.aspx?${queryParams.toString()}`;
       console.log('Redirecting to Dragonpay URL:', redirectUrl);
-      console.log('URL length:', redirectUrl.length);
-      console.log('URL parameters count:', Object.keys(payload).length);
-      console.log('Query string:', queryParams.toString());
       
       // Test URL accessibility (optional - for debugging)
       try {

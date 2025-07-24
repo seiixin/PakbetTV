@@ -1,6 +1,5 @@
-
 import Sidebar from '../common/Sidebar';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import './Shop.css';
 import API_BASE_URL from '../../config';
@@ -14,7 +13,31 @@ import { useCategories } from '../../hooks/useCategories';
 const ProductPage = () => {
   const { getAllProducts, getNewArrivals, getBestSellers, getFlashDeals } = useProducts();
   const { getAllCategories } = useCategories();
-  const { data: productsData, isLoading: productsLoading, error: productsError } = getAllProducts;
+  
+  // Use regular query to load all products
+  const { 
+    data: productsData, 
+    isLoading: productsLoading, 
+    error: productsError
+  } = getAllProducts;
+
+  // Extract products from the data structure
+  const allProducts = useMemo(() => {
+    if (!productsData) return [];
+    // Handle both array and object with products property
+    if (Array.isArray(productsData)) return productsData;
+    if (productsData.products && Array.isArray(productsData.products)) return productsData.products;
+    return [];
+  }, [productsData]);
+
+  // Debugging information
+  console.log('Products Debug:', {
+    productsData,
+    productsLoading,
+    productsError,
+    allProductsLength: allProducts.length
+  });
+
   const { data: categoriesData, isLoading: categoriesLoading, error: categoriesError } = getAllCategories;
   const { data: newArrivals = [], isLoading: newArrivalsLoading, error: newArrivalsError } = getNewArrivals;
   const { data: bestSellers = [], isLoading: bestSellersLoading, error: bestSellersError } = getBestSellers;
@@ -222,22 +245,13 @@ const ProductPage = () => {
 
   // Process products when data changes
   useEffect(() => {
-    if (productsData?.products && Array.isArray(productsData.products)) {
-      // Process flash deals
-      const validFlashDeals = productsData.products.filter(product => {
-        const hasValidDiscount = product.discounted_price > 0 && product.discount_percentage > 0;
-        return hasValidDiscount;
-      });
-      // setFlashDeals(validFlashDeals); // This line is removed as per the edit hint
-      
+    if (allProducts && Array.isArray(allProducts)) {
       // Filter products based on category and search
-      filterProducts(productsData.products);
+      filterProducts(allProducts);
     } else {
-      // Set empty arrays as fallback
-      // setFlashDeals([]); // This line is removed as per the edit hint
       setFilteredProducts([]);
     }
-  }, [productsData, selectedCategory, searchParams]);
+  }, [allProducts, selectedCategory, searchParams]);
 
   // Toggle mobile menu
   const toggleMobileMenu = () => {
@@ -663,21 +677,23 @@ const ProductPage = () => {
                 )}
               </div>
             ) : (
-              <div className="shop-products-grid">
-                {Array.isArray(filteredProducts) ? filteredProducts.map(product => (
-                  <ProductCard 
-                    key={product.product_id} 
-                    product={{
-                      ...product,
-                      price: product.price,
-                      originalPrice: product.price,
-                      discountedPrice: product.discounted_price,
-                      discount_percentage: product.discount_percentage,
-                      isDiscountValid: product.discount_percentage > 0
-                    }} 
-                  />
-                )) : null}
-              </div>
+              <>
+                <div className="shop-products-grid">
+                  {Array.isArray(filteredProducts) ? filteredProducts.map(product => (
+                    <ProductCard 
+                      key={product.product_id} 
+                      product={{
+                        ...product,
+                        price: product.price,
+                        originalPrice: product.price,
+                        discountedPrice: product.discounted_price,
+                        discount_percentage: product.discount_percentage,
+                        isDiscountValid: product.discount_percentage > 0
+                      }} 
+                    />
+                  )) : null}
+                </div>
+              </>
             )}
             </div>
           </div>

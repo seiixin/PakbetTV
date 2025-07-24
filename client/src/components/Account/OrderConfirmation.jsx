@@ -219,22 +219,22 @@ function OrderConfirmation() {
                   <span className="label">Delivery Address</span>
                   <span className="value">
                     {(() => {
-                      // Priority 1: Use the exact shipping address from the backend (which now includes NinjaVan address)
+                      // Use the exact shipping address that was sent to Ninja Van
                       if (order.shipping?.address) {
                         return order.shipping.address;
                       }
                       
-                      // Priority 2: Use shipping_address field (fallback)
+                      // Fallback to shipping_address field
                       if (order.shipping_address) {
                         return order.shipping_address;
                       }
                       
-                      // Priority 3: Final fallback to order.address if available
+                      // Final fallback to order.address if available
                       if (order.address) {
                         return order.address;
                       }
                       
-                      return 'Address not available';
+                      return 'Not provided';
                     })()}
                   </span>
             </div>
