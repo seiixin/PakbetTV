@@ -957,6 +957,22 @@ async function createShippingOrder(orderId) {
   try {
     await connection.beginTransaction();
     
+    // DEBUGGING: First, let's verify the shipping table structure from this connection
+    try {
+      console.log(`🔍 [DEBUG] Checking shipping table structure for order ${orderId}`);
+      const [tableStructure] = await connection.query('DESCRIBE shipping');
+      const orderIdColumn = tableStructure.find(col => col.Field === 'order_id');
+      if (orderIdColumn) {
+        console.log(`✅ [DEBUG] order_id column confirmed: ${JSON.stringify(orderIdColumn)}`);
+      } else {
+        console.log(`❌ [DEBUG] order_id column NOT FOUND! Available columns:`, tableStructure.map(col => col.Field));
+        throw new Error('order_id column does not exist in shipping table');
+      }
+    } catch (debugError) {
+      console.error(`❌ [DEBUG] Error checking table structure:`, debugError.message);
+      throw debugError;
+    }
+    
     // Get order details including payment status with retry mechanism
     let orders = [];
     let retryCount = 0;
@@ -1037,59 +1053,99 @@ async function createShippingOrder(orderId) {
     // Create shipping address string for shipping table
     const shippingAddressString = `${userShipping.address1}, ${userShipping.address2 || ''}, ${userShipping.city}, ${userShipping.state}, ${userShipping.postcode}, ${userShipping.country}`.trim().replace(/, ,/g, ',').replace(/,$/g, '');
 
-    // Check if shipping record exists
-    const [existingShipping] = await connection.query(
-      'SELECT * FROM shipping WHERE order_id = ?',
-      [orderId]
-    );
+    // FIXED: Check if shipping record exists using safer query with explicit column validation
+    let existingShipping = [];
+    try {
+      console.log(`🔍 [DEBUG] Attempting to query shipping table for order_id = ${orderId}`);
+      [existingShipping] = await connection.query(
+        'SELECT shipping_id, order_id, user_id, address, status FROM shipping WHERE order_id = ?',
+        [orderId]
+      );
+      console.log(`✅ [DEBUG] Shipping query successful. Found ${existingShipping.length} records`);
+    } catch (shippingQueryError) {
+      console.error(`❌ [DEBUG] Shipping query failed:`, shippingQueryError.message);
+      throw new Error(`Database error when querying shipping table: ${shippingQueryError.message}`);
+    }
 
-    // Create or update shipping record
+    // FIXED: Create or update shipping record with explicit column names and error handling
     if (existingShipping.length === 0) {
-      await connection.query(
-        'INSERT INTO shipping (order_id, user_id, address, status, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())',
-        [orderId, order.user_id, shippingAddressString, 'pending']
-      );
-      console.log(`Created shipping record for order ${orderId}`);
+      try {
+        console.log(`🔍 [DEBUG] Creating new shipping record for order ${orderId}`);
+        await connection.query(
+          'INSERT INTO shipping (order_id, user_id, address, status, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())',
+          [orderId, order.user_id, shippingAddressString, 'pending']
+        );
+        console.log(`✅ Created shipping record for order ${orderId}`);
+      } catch (insertError) {
+        console.error(`❌ [DEBUG] Failed to insert shipping record:`, insertError.message);
+        throw new Error(`Failed to create shipping record: ${insertError.message}`);
+      }
     } else {
-      await connection.query(
-        'UPDATE shipping SET status = ?, updated_at = NOW() WHERE order_id = ?',
-        ['pending', orderId]
-      );
-      console.log(`Updated shipping record for order ${orderId}`);
+      try {
+        console.log(`🔍 [DEBUG] Updating existing shipping record for order ${orderId}`);
+        await connection.query(
+          'UPDATE shipping SET status = ?, updated_at = NOW() WHERE order_id = ?',
+          ['pending', orderId]
+        );
+        console.log(`✅ Updated shipping record for order ${orderId}`);
+      } catch (updateError) {
+        console.error(`❌ [DEBUG] Failed to update shipping record:`, updateError.message);
+        throw new Error(`Failed to update shipping record: ${updateError.message}`);
+      }
     }
 
     // Check if shipping_details record exists
-    const [existingShippingDetails] = await connection.query(
-      'SELECT * FROM shipping_details WHERE order_id = ?',
-      [orderId]
-    );
+    let existingShippingDetails = [];
+    try {
+      console.log(`🔍 [DEBUG] Querying shipping_details table for order_id = ${orderId}`);
+      [existingShippingDetails] = await connection.query(
+        'SELECT * FROM shipping_details WHERE order_id = ?',
+        [orderId]
+      );
+      console.log(`✅ [DEBUG] shipping_details query successful. Found ${existingShippingDetails.length} records`);
+    } catch (shippingDetailsError) {
+      console.error(`❌ [DEBUG] shipping_details query failed:`, shippingDetailsError.message);
+      throw new Error(`Database error when querying shipping_details table: ${shippingDetailsError.message}`);
+    }
 
     // Create or update shipping_details record
     if (existingShippingDetails.length === 0) {
-      await connection.query(
-        `INSERT INTO shipping_details (
-          order_id, address1, address2, area, city, state, postcode, country, 
-          region, province, city_municipality, barangay, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-        [
-          orderId, userShipping.address1, userShipping.address2 || '', userShipping.area || '',
-          userShipping.city, userShipping.state, userShipping.postcode, userShipping.country || 'PH',
-          userShipping.region || '', userShipping.province || '', userShipping.city_municipality || '',
-          userShipping.barangay || ''
-        ]
-      );
-      console.log(`Created shipping_details record for order ${orderId}`);
+      try {
+        console.log(`🔍 [DEBUG] Creating new shipping_details record for order ${orderId}`);
+        await connection.query(
+          `INSERT INTO shipping_details (
+            order_id, address1, address2, area, city, state, postcode, country, 
+            region, province, city_municipality, barangay, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+          [
+            orderId, userShipping.address1, userShipping.address2 || '', userShipping.area || '',
+            userShipping.city, userShipping.state, userShipping.postcode, userShipping.country || 'PH',
+            userShipping.region || '', userShipping.province || '', userShipping.city_municipality || '',
+            userShipping.barangay || ''
+          ]
+        );
+        console.log(`✅ [DEBUG] Created shipping_details record for order ${orderId}`);
+      } catch (insertDetailsError) {
+        console.error(`❌ [DEBUG] Failed to insert shipping_details record:`, insertDetailsError.message);
+        throw new Error(`Failed to create shipping_details record: ${insertDetailsError.message}`);
+      }
     }
 
     // Get order items
-    const [orderItems] = await connection.query(
-      'SELECT oi.*, p.name as product_name FROM order_items oi ' +
-      'JOIN products p ON oi.product_id = p.product_id ' +
-      'WHERE oi.order_id = ?',
-      [orderId]
-    );
-
-    console.log(`Found ${orderItems.length} items for order ${orderId}`);
+    let orderItems = [];
+    try {
+      console.log(`🔍 [DEBUG] Querying order_items table for order_id = ${orderId}`);
+      [orderItems] = await connection.query(
+        'SELECT oi.*, p.name as product_name FROM order_items oi ' +
+        'JOIN products p ON oi.product_id = p.product_id ' +
+        'WHERE oi.order_id = ?',
+        [orderId]
+      );
+      console.log(`✅ [DEBUG] order_items query successful. Found ${orderItems.length} items for order ${orderId}`);
+    } catch (orderItemsError) {
+      console.error(`❌ [DEBUG] order_items query failed:`, orderItemsError.message);
+      throw new Error(`Database error when querying order_items table: ${orderItemsError.message}`);
+    }
 
     // Format items for NinjaVan
     const items = orderItems.map(item => ({
@@ -1211,6 +1267,8 @@ async function createShippingOrder(orderId) {
 
       // Create the order with NinjaVan
       console.log(`Calling NinjaVan API...`);
+      
+      // Real NinjaVan API call
       const response = await axios.post(
         `${API_BASE_URL}/${COUNTRY_CODE}/4.2/orders`,
         orderPayload,
@@ -1248,10 +1306,17 @@ async function createShippingOrder(orderId) {
             );
             
             // Also store in tracking_events table
-            await connection.query(
-              'INSERT INTO tracking_events (tracking_number, order_id, status, description, created_at) VALUES (?, ?, ?, ?, NOW())',
-              [response.data.tracking_number, orderId, 'pending', 'Shipping order created']
-            );
+            try {
+              console.log(`🔍 [DEBUG] Creating tracking_events record for order ${orderId}`);
+              await connection.query(
+                'INSERT INTO tracking_events (tracking_number, order_id, status, description, created_at) VALUES (?, ?, ?, ?, NOW())',
+                [response.data.tracking_number, orderId, 'pending', 'Shipping order created']
+              );
+              console.log(`✅ [DEBUG] tracking_events record created for order ${orderId}`);
+            } catch (trackingEventsError) {
+              console.error(`❌ [DEBUG] tracking_events insert failed:`, trackingEventsError.message);
+              throw new Error(`Failed to create tracking_events record: ${trackingEventsError.message}`);
+            }
             
             // Update shipping_details with NinjaVan information
             if (existingShippingDetails.length > 0) {
