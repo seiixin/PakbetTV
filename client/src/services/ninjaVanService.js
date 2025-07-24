@@ -131,10 +131,7 @@ class NinjaVanService {
 
       const response = await api.post('/delivery/ninjavan/estimate', {
         ...addressData,
-        to: {
-          ...addressData.address,
-          country: 'SG' // Using Singapore for NinjaVan sandbox
-        }
+        toAddress: addressData.address
       });
 
       return response.data;

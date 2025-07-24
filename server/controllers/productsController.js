@@ -276,7 +276,7 @@ async function getFlashDeals(req, res) {
   try {
     const limit = 12; // Limit to 12 flash deals
 
-    // Optimized SQL for flash deals with better performance
+    // Updated SQL for flash deals with consistent stock calculation
     let sql = `
       SELECT
         p.product_id,
@@ -294,11 +294,19 @@ async function getFlashDeals(req, res) {
         p.review_count,
         c.name                          AS category_name,
         p.stock as base_stock,
-        p.stock AS stock,
-        FALSE as has_variants
+        COALESCE(
+          (SELECT SUM(stock) FROM product_variants WHERE product_id = p.product_id),
+          p.stock,
+          0
+        ) AS stock,
+        EXISTS (SELECT 1 FROM product_variants WHERE product_id = p.product_id) as has_variants
       FROM products p
       LEFT JOIN categories c     ON p.category_id = c.category_id
-      WHERE p.stock > 0
+      WHERE COALESCE(
+        (SELECT SUM(stock) FROM product_variants WHERE product_id = p.product_id),
+        p.stock,
+        0
+      ) > 0
       AND p.discounted_price > 0
       AND p.discount_percentage > 0
       ORDER BY p.discount_percentage DESC, p.created_at DESC
@@ -342,7 +350,7 @@ async function getNewArrivals(req, res) {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    // Optimized SQL for new arrivals with better performance
+    // Updated SQL for new arrivals with consistent stock calculation
     let sql = `
       SELECT
         p.product_id,
@@ -360,11 +368,19 @@ async function getNewArrivals(req, res) {
         p.review_count,
         c.name                          AS category_name,
         p.stock as base_stock,
-        p.stock AS stock,
-        FALSE as has_variants
+        COALESCE(
+          (SELECT SUM(stock) FROM product_variants WHERE product_id = p.product_id),
+          p.stock,
+          0
+        ) AS stock,
+        EXISTS (SELECT 1 FROM product_variants WHERE product_id = p.product_id) as has_variants
       FROM products p
       LEFT JOIN categories c     ON p.category_id = c.category_id
-      WHERE p.stock > 0
+      WHERE COALESCE(
+        (SELECT SUM(stock) FROM product_variants WHERE product_id = p.product_id),
+        p.stock,
+        0
+      ) > 0
       AND p.created_at >= ?
       ORDER BY p.created_at DESC
       LIMIT ?`;
@@ -403,22 +419,10 @@ async function getNewArrivals(req, res) {
 // Handler for GET /api/products (get products list)
 async function getProducts(req, res) {
   try {
-    // ----- Pagination params -----
-    const limitParam = parseInt(req.query.limit, 10);
-    const limit = Number.isInteger(limitParam) && limitParam > 0 ? Math.min(limitParam, 50) : 20;
-
+    // Remove pagination completely - load all products
     const category = req.query.category || null;
-    const cursorCreatedAt = req.query.cursorCreatedAt; // ISO date string
-    const cursorId = req.query.cursorId;               // last seen product_id
 
-    // ----- Simple in-memory cache -----
-    const cacheKey = JSON.stringify({ limit, category, cursorCreatedAt, cursorId });
-    const cached = productCache.get(cacheKey);
-    if (cached) {
-      return res.json(cached);
-    }
-
-    // ----- Build SQL (key-set pagination) -----
+    // ----- Build SQL without limits -----
     let sql = `
       SELECT
         p.product_id,
@@ -458,35 +462,15 @@ async function getProducts(req, res) {
       params.push(category);
     }
 
-    if (cursorCreatedAt && cursorId) {
-      // Fetch rows *before* the cursor (key-set pagination)
-      sql += ' AND (p.created_at < ? OR (p.created_at = ? AND p.product_id < ?))';
-      params.push(cursorCreatedAt, cursorCreatedAt, cursorId);
-    }
-
     sql += `
       GROUP BY p.product_id, p.name, p.product_code, p.description, p.category_id,
                p.created_at, p.updated_at, c.name, p.price, p.is_featured
-      ORDER BY p.created_at DESC, p.product_id DESC
-      LIMIT ?`;
-    params.push(limit + 1); // ask for one extra row to know if next page exists
+      ORDER BY p.created_at DESC, p.product_id DESC`;
 
     const [productsResult] = await db.query(sql, params);
     let products = productsResult;
 
-    // Add debug logging for stock values
-    console.log('Products with stock values:', products.map(p => ({
-      product_id: p.product_id,
-      name: p.name,
-      stock: p.stock,
-      has_variants: products.some(prod => prod.product_id === p.product_id)
-    })));
-
-    // ----- Determine if there is a next page -----
-    const hasNextPage = products.length > limit;
-    if (hasNextPage) {
-      products = products.slice(0, limit);
-    }
+    console.log('All products loaded:', products.length);
 
     // Process numeric fields
     for (const product of products) {
@@ -504,26 +488,8 @@ async function getProducts(req, res) {
     const includeImages = req.query.includeImages !== 'false' && req.query.includeImages !== '0';
     await processProductImages(products, includeImages);
 
-    // Prepare next cursor (if any)
-    let nextCursor = null;
-    if (hasNextPage) {
-      const last = products[products.length - 1];
-      nextCursor = { createdAt: last.created_at, id: last.product_id };
-    }
-
-    const responsePayload = {
-      products,
-      pagination: {
-        limit,
-        hasNextPage,
-        nextCursor
-      }
-    };
-
-    // Cache the response for 5 minutes (stdTTL already set in constructor)
-    productCache.set(cacheKey, responsePayload);
-
-    return res.json(responsePayload);
+    // Return simple array structure instead of pagination object
+    return res.json({ products });
   } catch (err) {
     console.error('Error in products route:', err);
     return res.status(500).json({ message: 'Server error while fetching products' });
@@ -770,6 +736,7 @@ async function getBestSellers(req, res) {
     const limit = 12; // Limit to 12 best sellers
 
     // SQL to calculate best sellers based on actual sales data
+    // Updated to use consistent stock calculation with main products query
     let sql = `
       SELECT
         p.product_id,
@@ -787,15 +754,23 @@ async function getBestSellers(req, res) {
         p.review_count,
         c.name                          AS category_name,
         p.stock as base_stock,
-        p.stock AS stock,
-        FALSE as has_variants,
+        COALESCE(
+          (SELECT SUM(stock) FROM product_variants WHERE product_id = p.product_id),
+          p.stock,
+          0
+        ) AS stock,
+        EXISTS (SELECT 1 FROM product_variants WHERE product_id = p.product_id) as has_variants,
         COALESCE(SUM(oi.quantity), 0) as total_sold
       FROM products p
       LEFT JOIN categories c     ON p.category_id = c.category_id
       LEFT JOIN order_items oi  ON p.product_id = oi.product_id
       LEFT JOIN orders o        ON oi.order_id = o.order_id 
                                  AND o.order_status IN ('completed', 'delivered')
-      WHERE p.stock > 0
+      WHERE COALESCE(
+        (SELECT SUM(stock) FROM product_variants WHERE product_id = p.product_id),
+        p.stock,
+        0
+      ) > 0
       GROUP BY p.product_id, p.name, p.product_code, p.description, p.category_id,
                p.created_at, p.updated_at, p.is_featured, p.price, p.discounted_price,
                p.discount_percentage, p.average_rating, p.review_count, c.name, p.stock

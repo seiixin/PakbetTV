@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query'
 import api from '../services/api'
 
 // In development, use relative paths to leverage Vite's proxy
@@ -69,6 +69,24 @@ export const useProducts = () => {
       return { products: [] }
     }
   })
+
+  // Add infinite query for all products
+  const getAllProductsInfinite = useInfiniteQuery({
+    queryKey: ['products', 'infinite'],
+    queryFn: async ({ pageParam = null }) => {
+      let url = '/products?limit=20'; // Start with 20 products per page
+      if (pageParam) {
+        url += `&cursorCreatedAt=${pageParam.createdAt}&cursorId=${pageParam.id}`;
+      }
+      const { data } = await api.get(url);
+      return data;
+    },
+    getNextPageParam: (lastPage) => {
+      return lastPage.pagination?.hasNextPage ? lastPage.pagination.nextCursor : undefined;
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    cacheTime: 1000 * 60 * 30, // 30 minutes
+  });
 
   // Fetch single product with optimizations
   const getProduct = (id) => useQuery({
@@ -196,6 +214,7 @@ export const useProducts = () => {
 
   return {
     getAllProducts,
+    getAllProductsInfinite, // Add this new hook
     getProduct,
     createProduct,
     updateProduct,
@@ -204,4 +223,4 @@ export const useProducts = () => {
     getBestSellers,
     getFlashDeals
   }
-} 
+}

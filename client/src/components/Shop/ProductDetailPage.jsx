@@ -297,6 +297,50 @@ const ProductDetailPage = () => {
   };
 
   const getDisplayPrice = (variant, product) => {
+    // Use the new priceRange data if available
+    if (product.priceRange) {
+      const { minPrice, maxPrice, hasVariants } = product.priceRange;
+      const discount = product.discount_percentage;
+      
+      // Check if we have a price range (variants with different prices)
+      const hasPriceRange = hasVariants && minPrice !== maxPrice;
+      
+      if (hasPriceRange) {
+        // Show price range (no crossed out price, but discount percentage is still shown)
+        const discountPercentage = discount && discount > 0 ? (discount <= 1 ? discount * 100 : discount) : 0;
+        return {
+          original: `₱${minPrice.toFixed(2)} - ₱${maxPrice.toFixed(2)}`,
+          discounted: null,
+          hasDiscount: discountPercentage > 0,
+          discountPercentage: discountPercentage,
+          hasPriceRange: true
+        };
+      } else {
+        // Single price (either no variants or all variants have same price)
+        const basePrice = minPrice; // minPrice and maxPrice are the same
+        const discountPercentage = discount && discount > 0 ? (discount <= 1 ? discount * 100 : discount) : 0;
+        
+        if (discountPercentage > 0 && product.discounted_price > 0) {
+          return {
+            original: formatPrice(basePrice),
+            discounted: formatPrice(product.discounted_price),
+            hasDiscount: true,
+            discountPercentage: discountPercentage,
+            hasPriceRange: false
+          };
+        }
+        
+        return {
+          original: formatPrice(basePrice),
+          discounted: null,
+          hasDiscount: false,
+          discountPercentage: 0,
+          hasPriceRange: false
+        };
+      }
+    }
+    
+    // Fallback to old logic if priceRange is not available
     const basePrice = variant ? variant.price : product.price;
     const discount = product.discount_percentage;
     
@@ -307,7 +351,8 @@ const ProductDetailPage = () => {
         original: formatPrice(basePrice),
         discounted: formatPrice(product.discounted_price),
         hasDiscount: true,
-        discountPercentage: discountPercentage
+        discountPercentage: discountPercentage,
+        hasPriceRange: false
       };
     }
     
@@ -315,7 +360,8 @@ const ProductDetailPage = () => {
       original: formatPrice(basePrice),
       discounted: null,
       hasDiscount: false,
-      discountPercentage: 0
+      discountPercentage: 0,
+      hasPriceRange: false
     };
   };
 
@@ -384,6 +430,36 @@ const ProductDetailPage = () => {
     } finally {
       setReviewLoading(false);
     }
+  };
+
+  // Helper function to format product descriptions with proper bullet points
+  const formatProductDescription = (description) => {
+    if (!description) return '';
+    
+    // Replace asterisks at the beginning of lines with proper HTML list items
+    let formatted = description
+      // Replace multiple asterisks in a row with bullet points
+      .replace(/^\s*\*\s+(.+)/gm, '<li>$1</li>')
+      // Wrap consecutive list items in ul tags
+      .replace(/(<li>.*<\/li>\s*)+/gs, (match) => {
+        return `<ul>${match}</ul>`;
+      })
+      // Replace line breaks with paragraph breaks for non-list content
+      .replace(/\n\n+/g, '</p><p>')
+      // Wrap the entire content in paragraphs if it doesn't start with a list
+      .replace(/^(?!<ul>)(.+?)(?=<ul>|$)/gs, '<p>$1</p>')
+      // Clean up any empty paragraphs
+      .replace(/<p>\s*<\/p>/g, '')
+      // Ensure proper spacing around lists
+      .replace(/<\/p>\s*<ul>/g, '</p><ul>')
+      .replace(/<\/ul>\s*<p>/g, '</ul><p>');
+
+    // If the content doesn't start with a paragraph or list, wrap it
+    if (!formatted.startsWith('<p>') && !formatted.startsWith('<ul>')) {
+      formatted = `<p>${formatted}</p>`;
+    }
+
+    return formatted;
   };
 
   // Update the scroll detection useEffect
@@ -502,7 +578,22 @@ const ProductDetailPage = () => {
                 {(() => {
                   const priceInfo = getDisplayPrice(selectedVariant, product);
                   
-                  if (priceInfo.hasDiscount) {
+                  if (priceInfo.hasPriceRange) {
+                    // Show price range (no crossed out price, but discount badge is still shown)
+                    return (
+                      <>
+                        <div className="price-range">
+                          {priceInfo.original}
+                        </div>
+                        {priceInfo.hasDiscount && (
+                          <div className="discount-badge">
+                            {priceInfo.discountPercentage}% OFF
+                          </div>
+                        )}
+                      </>
+                    );
+                  } else if (priceInfo.hasDiscount) {
+                    // Show discounted price with crossed out original price (single price product)
                     return (
                       <>
                         <div className="discounted-price">
@@ -520,6 +611,7 @@ const ProductDetailPage = () => {
                     );
                   }
                   
+                  // Show regular price
                   return (
                     <div className="regular-price">
                       <span className="price-currency" style={{ fontSize: '30px'}}>₱</span>
@@ -653,7 +745,7 @@ const ProductDetailPage = () => {
               <h2 className="section-title">Product Specifications</h2>
             </div>
             <div className="product-description-container">
-              {product.description && <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(product.description) }} />}
+              {product.description && <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(formatProductDescription(product.description)) }} />}
               
               {product.specs && (
                 <div className="product-specs">
@@ -790,4 +882,4 @@ const ProductDetailPage = () => {
   );
 };
 
-export default ProductDetailPage; 
+export default ProductDetailPage;

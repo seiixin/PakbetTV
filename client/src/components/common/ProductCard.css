@@ -119,6 +119,17 @@
   align-items: baseline;
 }
 
+.price-with-range {
+  display: flex;
+  align-items: baseline;
+}
+
+.price-range {
+  font-size: 0.765rem !important;
+  font-weight: 500;
+  color: #ee4d2d;
+}
+
 .discounted-price {
   font-size: 0.765rem !important;
   font-weight: 500;

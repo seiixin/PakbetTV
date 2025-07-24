@@ -148,12 +148,12 @@ export const useCartData = () => {
   const removeFromCartMutation = useMutation({
     mutationFn: async ({ productId, variantId = null, cartId = null }) => {
       if (user?.id && cartId) {
-        // User is logged in - remove from database
+        // User is logged in - remove from database ONLY
         await api.delete(`/cart/${cartId}`);
         console.log('[useCart] Item removed from database cart');
         return { cartId };
-      } else {
-        // Guest user - update local storage
+      } else if (!user?.id) {
+        // Guest user ONLY - update local storage
         const currentCart = queryClient.getQueryData(['cart', 'guest']) || [];
         const updatedCart = currentCart.filter(item => {
           if (variantId && item.variant_id) {
@@ -165,6 +165,8 @@ export const useCartData = () => {
         setCart(updatedCart, 'guest');
         console.log('[useCart] Updated guest cart after removal:', updatedCart);
         return updatedCart;
+      } else {
+        throw new Error('Cannot remove item: missing cart_id for authenticated user');
       }
     },
     onSuccess: () => {
@@ -179,18 +181,22 @@ export const useCartData = () => {
   // Update quantity mutation
   const updateQuantityMutation = useMutation({
     mutationFn: async ({ productId, quantity, variantId = null, cartId = null }) => {
+      console.log('[useCart] updateQuantity called with:', { productId, quantity, variantId, cartId, userLoggedIn: !!user?.id });
+      
       if (quantity <= 0) {
         // Remove item if quantity is 0 or negative
         return removeFromCartMutation.mutateAsync({ productId, variantId, cartId });
       }
       
       if (user?.id && cartId) {
-        // User is logged in - update in database
+        // User is logged in - update in database ONLY
+        console.log('[useCart] Updating cart item in database, cart_id:', cartId);
         await api.put(`/cart/${cartId}`, { quantity });
         console.log('[useCart] Quantity updated in database cart');
         return { cartId, quantity };
-      } else {
-        // Guest user - update local storage
+      } else if (!user?.id) {
+        // Guest user ONLY - update local storage
+        console.log('[useCart] Updating guest cart in localStorage');
         const currentCart = queryClient.getQueryData(['cart', 'guest']) || [];
         const updatedCart = currentCart.map(item => {
           if (variantId && item.variant_id) {
@@ -202,6 +208,9 @@ export const useCartData = () => {
         setCart(updatedCart, 'guest');
         console.log('[useCart] Updated guest cart quantity:', updatedCart);
         return updatedCart;
+      } else {
+        console.error('[useCart] Cannot update quantity - user is logged in but cart_id is missing:', { userId: user?.id, cartId });
+        throw new Error('Cannot update quantity: missing cart_id for authenticated user');
       }
     },
     onSuccess: () => {
@@ -453,4 +462,4 @@ export const useCartSummary = () => {
     itemCount: cartItems.length,
     loading: isLoading
   };
-}; 
+};

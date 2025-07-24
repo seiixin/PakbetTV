@@ -143,10 +143,12 @@ const adminRoutes = require('./routes/admin');
 const cmsRoutes = require('./routes/cms');
 const emailRoutes = require('./routes/email');
 const locationRoutes = require('./routes/locations');
+const voucherRoutes = require('./routes/vouchers');
 
 // Import cron jobs
 const { scheduleOrderConfirmation } = require('./cron/orderConfirmation');
 const { startPaymentStatusChecker } = require('./cron/paymentStatusChecker');
+const { startAutoCompletionJob } = require('./cron/autoCompletionCron');
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -167,6 +169,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/cms', cmsRoutes);
 app.use('/api/email', emailRoutes);
 app.use('/api/locations', locationRoutes);
+app.use('/api/vouchers', voucherRoutes);
 
 app.get('/transaction-complete', (req, res) => {
   console.log(`Received Dragonpay return:`, req.query.txnid, req.query.status);
@@ -288,7 +291,9 @@ app.listen(PORT, async () => {
     console.log('Order confirmation cron scheduled');
     startPaymentStatusChecker();
     console.log('Payment checker cron started');
+    startAutoCompletionJob();
+    console.log('Auto-completion cron started');
   } catch (cronError) {
     console.error('Cron start error:', cronError);
   }
-}); 
+});

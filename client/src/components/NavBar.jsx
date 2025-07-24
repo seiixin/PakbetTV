@@ -45,7 +45,7 @@ const NavBar = () => {
       }
       return !prev;
     });
-  };
+  }
 
 
   useEffect(() => {
@@ -449,7 +449,6 @@ const NavBar = () => {
                   onClick={() => navigate('/cart')}
                 >
                   <span className="cart-text">Cart ({getTotalCount()})</span>
-                  <span className="cart-count-mobile">({getTotalCount()})</span>
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="navbar-cart-icon">
                     <circle cx="9" cy="21" r="1"></circle>
                     <circle cx="20" cy="21" r="1"></circle>
@@ -691,4 +690,4 @@ const NavBar = () => {
   );
 };
 
-export default NavBar; 
+export default NavBar;

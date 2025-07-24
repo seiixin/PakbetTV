@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useCart } from '../../context/CartContext';
+import { useCartData } from '../../hooks/useCart';
 import { useAuth } from '../../context/AuthContext';
 import './Checkout.css';
 import API_BASE_URL from '../../config';
@@ -10,6 +10,8 @@ import { notify } from '../../utils/notifications';
 import { authService } from '../../services/api';
 import ninjaVanService from '../../services/ninjaVanService';
 import LegalModal from '../common/LegalModal';
+import { getAuthToken } from '../../utils/cookies';
+import api from '../../services/axiosConfig';
 
 const Checkout = () => {
   const [loading, setLoading] = useState(false);
@@ -21,9 +23,16 @@ const Checkout = () => {
     state: '',
     postal_code: '',
     phone: '',
+    region: '',
+    barangay: '',
   });
   const [profileLoading, setProfileLoading] = useState(false);
   const [hasShippingAddress, setHasShippingAddress] = useState(false);
+  
+  // Address serviceability state
+  const [isAddressServiceable, setIsAddressServiceable] = useState(null);
+  const [serviceabilityChecking, setServiceabilityChecking] = useState(false);
+  const [serviceabilityMessage, setServiceabilityMessage] = useState('');
   
   // Shipping fee calculation state
   const [shippingFee, setShippingFee] = useState(0);
@@ -38,17 +47,171 @@ const Checkout = () => {
   const [showManualRedirect, setShowManualRedirect] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('dragonpay');
   
+  // Voucher state
+  const [voucherCode, setVoucherCode] = useState('');
+  const [voucherDiscount, setVoucherDiscount] = useState(0);
+  const [voucherLoading, setVoucherLoading] = useState(false);
+  const [voucherError, setVoucherError] = useState('');
+  const [appliedVoucher, setAppliedVoucher] = useState(null);
+  
   const navigate = useNavigate();
   const { user } = useAuth();
   const { 
     cartItems, 
     getTotalPrice,
     getSelectedCount,
-    createOrder,
-    processPayment
-  } = useCart();
+    updateQuantity
+  } = useCartData();
 
   const selectedItems = cartItems.filter(item => item.selected);
+
+  // Create order function
+  const createOrder = async (userId, shippingFee = 0, shippingDetails = {}, paymentMethod = 'dragonpay', voucherCode = null) => {
+    try {
+      // Validate inputs
+      if (selectedItems.length === 0) {
+        throw new Error('No items selected for order');
+      }
+
+      if (!shippingDetails.address || !shippingDetails.phone) {
+        throw new Error('Shipping address and phone number are required');
+      }
+
+      // Transform cart items for the backend
+      const orderItems = selectedItems.map(item => ({
+        product_id: item.id || item.product_id,
+        variant_id: item.variant_id || null,
+        quantity: item.quantity,
+        price: item.price,
+        variant_attributes: item.variant_attributes || {}
+      }));
+
+      const subtotal = getTotalPrice();
+      const totalAmount = subtotal + shippingFee;
+
+      const orderData = {
+        user_id: userId,
+        items: orderItems,
+        subtotal: subtotal,
+        shipping_fee: shippingFee,
+        total_amount: totalAmount,
+        shipping_details: shippingDetails,
+        payment_method: paymentMethod,
+        voucher_code: voucherCode
+      };
+
+      const token = getAuthToken();
+      if (!token) {
+        throw new Error('Please log in to place an order');
+      }
+
+      console.log('[Checkout] Creating order with data:', orderData);
+
+      const response = await api.post('/transactions/orders', orderData, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log('[Checkout] Order created successfully:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('[Checkout] Error creating order:', error);
+      
+      if (error.response) {
+        const errorMessage = error.response.data?.message || error.message;
+        
+        if (errorMessage.includes('stock')) {
+          throw new Error('Some items in your cart are no longer available in the requested quantity. Please update your cart.');
+        } else if (errorMessage.includes('phone')) {
+          throw new Error('Please provide a valid phone number (e.g., +63 912 345 6789 or 09123456789)');
+        } else if (errorMessage.includes('shipping details')) {
+          throw new Error('Please provide complete shipping details including address and contact information');
+        } else {
+          throw new Error(errorMessage);
+        }
+      } else if (error.request) {
+        throw new Error('Unable to connect to the server. Please check your internet connection and try again.');
+      } else {
+        throw new Error('An error occurred while creating your order. Please try again.');
+      }
+    }
+  };
+
+  // Process payment function
+  const processPayment = async (orderId, userEmail, paymentMethod = 'dragonpay') => {
+    try {
+      const token = getAuthToken();
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      const paymentData = {
+        order_id: orderId,
+        payment_method: paymentMethod,
+        payment_details: {
+          email: userEmail
+        }
+      };
+
+      console.log('[Checkout] Processing payment with data:', paymentData);
+
+      const response = await api.post('/transactions/payment', paymentData, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log('[Checkout] Payment processed successfully:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('[Checkout] Error processing payment:', error);
+      throw error;
+    }
+  };
+
+  // Check address serviceability with NinjaVan shipping locations
+  const checkAddressServiceability = async (addressDetails) => {
+    if (!addressDetails.region || !addressDetails.state || !addressDetails.city) {
+      console.log('Address incomplete for serviceability check:', addressDetails);
+      setServiceabilityChecking(false);
+      return;
+    }
+
+    setServiceabilityChecking(true);
+    setServiceabilityMessage('');
+
+    try {
+      console.log('Checking address serviceability:', addressDetails);
+      
+      const addressData = {
+        region: addressDetails.region,
+        province: addressDetails.state, // state is province in our context
+        city: addressDetails.city,
+        barangay: addressDetails.barangay || '',
+      };
+
+      const validationResult = await authService.validateAddress(addressData);
+      
+      if (validationResult.data) {
+        const { serviceable, message } = validationResult.data;
+        setIsAddressServiceable(serviceable);
+        setServiceabilityMessage(serviceable ? 
+          '✅ This address is serviceable for delivery' : 
+          '❌ This address is not serviceable. Orders cannot proceed to this location.'
+        );
+        console.log('Address serviceability result:', { serviceable, message });
+      }
+    } catch (error) {
+      console.error('Error checking address serviceability:', error);
+      setIsAddressServiceable(false);
+      setServiceabilityMessage('❌ Unable to verify address serviceability. Please contact support.');
+    } finally {
+      setServiceabilityChecking(false);
+    }
+  };
 
   // Calculate shipping fee based on address and items
   const calculateShippingFee = async (address) => {
@@ -112,12 +275,12 @@ const Checkout = () => {
   };
 
   const getFullImageUrl = (url) => {
-    if (!url) return '/placeholder-product.jpg';
+    if (!url) return '/ImageFallBack.png';
     
     // Type check to prevent errors
     if (typeof url !== 'string') {
       console.warn('URL is not a string:', url);
-      return '/placeholder-product.jpg';
+      return '/ImageFallBack.png';
     }
     
     // Handle base64 encoded images (longblob from database)
@@ -180,46 +343,37 @@ const Checkout = () => {
             hasAddress = true;
             phoneNumber = defaultAddress.phone || profileData.phone || '';
             
-            // Build address components from shipping addresses
-            const addressParts = [];
-            
-            // Primary address (house number, building, street, barangay)
-            const address1Parts = [];
-            if (defaultAddress.house_number) address1Parts.push(defaultAddress.house_number);
-            if (defaultAddress.building) address1Parts.push(defaultAddress.building);
-            if (defaultAddress.street_name) address1Parts.push(defaultAddress.street_name);
-            if (defaultAddress.barangay) address1Parts.push(defaultAddress.barangay);
-            
-            if (address1Parts.length > 0) {
-              addressParts.push(address1Parts.join(', '));
-            } else if (defaultAddress.address1) {
-              addressParts.push(defaultAddress.address1);
+            const streetAddressParts = [
+              defaultAddress.house_number,
+              defaultAddress.building,
+              defaultAddress.street_name
+            ].filter(Boolean);
+
+            let streetAddress = streetAddressParts.join(', ');
+            if (!streetAddress && defaultAddress.address1) {
+              streetAddress = defaultAddress.address1;
             }
-            
-            // Secondary address parts
-            if (defaultAddress.address2) addressParts.push(defaultAddress.address2);
-            
-            formattedAddress = addressParts.join(', ');
-            
-            // Set shipping details from the shipping address data
-            setShippingDetails({
+            if (defaultAddress.address2) {
+              streetAddress += `, ${defaultAddress.address2}`;
+            }
+
+            const shippingDetailsPayload = {
               name: `${profileData.firstName || ''} ${profileData.lastName || ''}`.trim(),
               phone: phoneNumber,
               email: profileData.email || '',
-              address: formattedAddress,
+              address: streetAddress,
+              barangay: defaultAddress.barangay || '',
               city: defaultAddress.city_municipality || defaultAddress.city || '',
               state: defaultAddress.province || defaultAddress.state || '',
+              region: defaultAddress.region || '',
               postal_code: defaultAddress.postcode || '',
-            });
-            
-            // Calculate shipping fee with the new address
-            const addressForShipping = {
-              address: formattedAddress,
-              city: defaultAddress.city_municipality || defaultAddress.city || '',
-              state: defaultAddress.province || defaultAddress.state || '',
-              postal_code: defaultAddress.postcode || ''
             };
-            calculateShippingFee(addressForShipping);
+            
+            setShippingDetails(shippingDetailsPayload);
+            
+            // Check address serviceability
+            checkAddressServiceability(shippingDetailsPayload);
+            calculateShippingFee(shippingDetailsPayload);
           }
         } catch (addressError) {
           console.error("Error fetching shipping addresses:", addressError);
@@ -240,7 +394,6 @@ const Checkout = () => {
           if (sd.house_number) address1Parts.push(sd.house_number);
           if (sd.building) address1Parts.push(sd.building);
           if (sd.street_name) address1Parts.push(sd.street_name);
-          if (sd.barangay) address1Parts.push(sd.barangay);
           
           if (address1Parts.length > 0) {
             addressParts.push(address1Parts.join(', '));
@@ -255,24 +408,22 @@ const Checkout = () => {
           
           // Only set shipping details if we haven't already set them from shipping addresses
           if (!shippingDetails.address) {
-            setShippingDetails({
+            const fallbackDetails = {
               name: `${profileData.firstName || ''} ${profileData.lastName || ''}`.trim(),
               phone: phoneNumber,
               email: profileData.email || '',
               address: formattedAddress,
+              barangay: sd.barangay || '',
               city: sd.city || '',
               state: sd.state || '',
+              region: sd.region || '',
               postal_code: sd.postal_code || '',
-            });
-            
-            // Calculate shipping fee with the fallback address
-            const addressForShipping = {
-              address: formattedAddress,
-              city: sd.city || '',
-              state: sd.state || '',
-              postal_code: sd.postal_code || ''
             };
-            calculateShippingFee(addressForShipping);
+            setShippingDetails(fallbackDetails);
+            
+            // Check address serviceability
+            checkAddressServiceability(fallbackDetails);
+            calculateShippingFee(fallbackDetails);
           }
         } else if (!hasAddress && profileData.address) {
           // Fallback to user's main address field if available
@@ -288,11 +439,13 @@ const Checkout = () => {
               address: formattedAddress,
               city: '',
               state: '',
+              region: '',
+              barangay: '',
               postal_code: '',
             });
             
-            // Note: Cannot calculate shipping fee without city/state/postal_code
-            console.log('Cannot calculate shipping fee - missing city/state/postal code');
+            // Note: Cannot calculate shipping fee or check serviceability without complete address
+            console.log('Cannot calculate shipping fee or check serviceability - missing address details');
           }
         }
         
@@ -326,6 +479,22 @@ const Checkout = () => {
       return;
     }
 
+    // Check address serviceability before proceeding
+    if (isAddressServiceable === false) {
+      notify.error('Cannot proceed with checkout. The delivery address is not serviceable by our shipping partner.');
+      return;
+    }
+
+    if (isAddressServiceable === null && !serviceabilityChecking) {
+      notify.error('Please wait while we verify your delivery address serviceability.');
+      return;
+    }
+
+    if (serviceabilityChecking) {
+      notify.error('Please wait while we verify your delivery address.');
+      return;
+    }
+
     // Ensure we have a complete address with all components
     const completeAddress = getFormattedAddress();
     const updatedShippingDetails = {
@@ -341,9 +510,16 @@ const Checkout = () => {
       console.log('[Checkout] Selected items:', selectedItems.length);
       console.log('[Checkout] Shipping fee:', shippingFee);
       console.log('[Checkout] Shipping details:', updatedShippingDetails);
+      console.log('[Checkout] Address serviceable:', isAddressServiceable);
       
-      // Create the order with shipping fee and payment method
-      const orderResult = await createOrder(user.id, shippingFee, updatedShippingDetails, selectedPaymentMethod);
+      // Create the order with shipping fee, payment method, and voucher code
+      const orderResult = await createOrder(
+        user.id, 
+        shippingFee, 
+        updatedShippingDetails, 
+        selectedPaymentMethod,
+        voucherCode.trim() || null
+      );
       console.log('[Checkout] Order created:', orderResult);
       
       if (!orderResult || !orderResult.order || !orderResult.order.order_id) {
@@ -424,7 +600,9 @@ const Checkout = () => {
       // Handle specific error cases
       let errorMessage = err.message || 'An error occurred during checkout';
       
-      if (errorMessage.includes('stock')) {
+      if (errorMessage.includes('serviceable') || errorMessage.includes('shipping location')) {
+        notify.error('Your delivery address is not serviceable. Please update your address or contact support.');
+      } else if (errorMessage.includes('stock')) {
         notify.error('Some items in your cart are no longer available. Please review your cart.');
       } else if (errorMessage.includes('phone')) {
         notify.error('Please provide a valid phone number in the format: +63 912 345 6789 or 09123456789');
@@ -498,39 +676,102 @@ const Checkout = () => {
     }
   };
 
+  // Voucher validation function
+  const validateVoucher = async () => {
+    if (!voucherCode.trim()) {
+      setVoucherError('Please enter a voucher code');
+      return;
+    }
+
+    setVoucherLoading(true);
+    setVoucherError('');
+
+    try {
+      const token = getAuthToken();
+      const response = await fetch(`${API_BASE_URL}/api/vouchers/validate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          code: voucherCode.trim(),
+          order_amount: getTotalPrice()
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setAppliedVoucher(data.voucher);
+        setVoucherDiscount(data.voucher.discount_amount);
+        notify.success('Voucher applied successfully!');
+      } else {
+        setVoucherError(data.message || 'Invalid voucher code');
+        setAppliedVoucher(null);
+        setVoucherDiscount(0);
+      }
+    } catch (error) {
+      console.error('Error validating voucher:', error);
+      setVoucherError('Failed to validate voucher. Please try again.');
+      setAppliedVoucher(null);
+      setVoucherDiscount(0);
+    } finally {
+      setVoucherLoading(false);
+    }
+  };
+
+  const removeVoucher = () => {
+    setVoucherCode('');
+    setVoucherDiscount(0);
+    setAppliedVoucher(null);
+    setVoucherError('');
+  };
+
+  const getTotalWithVoucher = () => {
+    const subtotal = getTotalPrice();
+    const total = subtotal + shippingFee - voucherDiscount;
+    return Math.max(0, total);
+  };
+
   if (selectedItems.length === 0) {
     return null; // Will redirect in useEffect
   }
 
   // Format the complete address for display
   const getFormattedAddress = () => {
-    if (!shippingDetails.address) {
-      return profileLoading ? 'Loading...' : 'No address provided';
+    const { address, barangay, city, state, postal_code } = shippingDetails;
+    return [address, barangay, city, state, postal_code].filter(Boolean).join(', ');
+  };
+
+  // Handle quantity change for an item
+  const handleQuantityChange = async (item, newQuantity) => {
+    if (newQuantity < 1) return;
+    
+    try {
+      console.log('[Checkout] Updating quantity for item:', item, 'new quantity:', newQuantity);
+      
+      await updateQuantity({
+        productId: item.id || item.product_id,
+        quantity: newQuantity,
+        variantId: item.variant_id,
+        cartId: item.cart_id
+      });
+      
+      // The cart context will handle updating the state and recalculating totals
+    } catch (error) {
+      console.error('Failed to update quantity:', error);
+      notify.error('Failed to update quantity. Please try again.');
     }
-    
-    // Return the address as is if it's already a complete string
-    if (typeof shippingDetails.address === 'string' && shippingDetails.address.trim().length > 0) {
-      return shippingDetails.address;
-    }
-    
-    // Otherwise build the address from components
-    const parts = [];
-    
-    if (shippingDetails.address) parts.push(shippingDetails.address);
-    if (shippingDetails.city) parts.push(shippingDetails.city);
-    if (shippingDetails.state) parts.push(shippingDetails.state);
-    if (shippingDetails.postal_code) parts.push(shippingDetails.postal_code);
-    
-    return parts.join(', ');
   };
 
   return (
     <div className="checkout-page">
       <NavBar />
-      <div className="checkout-container">
-        <h2>Checkout</h2>
-        
-        {/* Shipping Details Section */}
+      <section className="blog-hero" role="banner" tabIndex={0}>
+        <div className="blog-hero-text">Checkout Page</div>
+      </section>  
+      <div className="checkout-container">  
         <div className="checkout-section">
           <h3>Shipping Details</h3>
           <div className="shipping-details">
@@ -567,6 +808,23 @@ const Checkout = () => {
               <div className="info-value address-text">
                 {getFormattedAddress()}
               </div>
+              
+              {/* Address Serviceability Status */}
+              {hasShippingAddress && (
+                <div className="address-serviceability">
+                  {serviceabilityChecking ? (
+                    <div className="serviceability-checking">
+
+                      Verifying delivery serviceability...
+                    </div>
+                  ) : serviceabilityMessage && (
+                    <div className={`serviceability-status ${isAddressServiceable ? 'serviceable' : 'not-serviceable'}`}>
+                      {serviceabilityMessage}
+                    </div>
+                  )}
+                </div>
+              )}
+              
               {!hasShippingAddress && !profileLoading && (
                 <>
                   <div className="address-warning">
@@ -602,7 +860,7 @@ const Checkout = () => {
                   src={getFullImageUrl(item.image_url)} 
                   alt={item.name}
                   className="item-image"
-                  onError={(e) => e.target.src = '/placeholder-product.jpg'}
+                  onError={(e) => e.target.src = '/ImageFallBack.png'}
                 />
                 <div className="item-details">
                   <div className="item-name">{item.name}</div>
@@ -613,7 +871,26 @@ const Checkout = () => {
                         .join(', ')}
                     </div>
                   )}
-                  <div className="item-quantity">Quantity: {item.quantity}</div>
+                  <div className="item-quantity-controls">
+                    <label>Quantity:</label>
+                    <div className="quantity-control">
+                      <button 
+                        className="quantity-btn decrement" 
+                        onClick={() => handleQuantityChange(item, item.quantity - 1)}
+                        disabled={item.quantity <= 1}
+                      >
+                        <i className="fas fa-minus"></i>
+                      </button>
+                      <span className="quantity-display">{item.quantity}</span>
+                      <button 
+                        className="quantity-btn increment"
+                        onClick={() => handleQuantityChange(item, item.quantity + 1)}
+                        disabled={item.quantity >= (item.stock || 999)}
+                      >
+                        <i className="fas fa-plus"></i>
+                      </button>
+                    </div>
+                  </div>
                   <div className="item-price">{formatPrice(item.price * item.quantity)}</div>
                 </div>
               </div>
@@ -662,6 +939,62 @@ const Checkout = () => {
           </div>
         </div>
 
+        {/* Voucher Section */}
+        <div className="checkout-section">
+          <h3>Voucher Code</h3>
+          <div className="voucher-section">
+            {!appliedVoucher ? (
+              <div className="voucher-input-group">
+                <input
+                  type="text"
+                  placeholder="Enter voucher code"
+                  value={voucherCode}
+                  onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
+                  className="voucher-input"
+                  disabled={voucherLoading}
+                />
+                <button
+                  type="button"
+                  onClick={validateVoucher}
+                  className="apply-voucher-btn"
+                  disabled={voucherLoading || !voucherCode.trim()}
+                >
+                  {voucherLoading ? 'Validating...' : 'Apply'}
+                </button>
+              </div>
+            ) : (
+              <div className="applied-voucher">
+                <div className="voucher-info">
+                  {appliedVoucher.image_url && (
+                    <img 
+                      src={getFullImageUrl(appliedVoucher.image_url)} 
+                      alt={appliedVoucher.name}
+                      className="applied-voucher-image"
+                    />
+                  )}
+                  <div className="voucher-details">
+                    <span className="voucher-code">{appliedVoucher.code}</span>
+                    <span className="voucher-name">{appliedVoucher.name}</span>
+                    <span className="voucher-discount">
+                      -{formatPrice(appliedVoucher.discount_amount)}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={removeVoucher}
+                  className="remove-voucher-btn"
+                >
+                  Remove
+                </button>
+              </div>
+            )}
+            {voucherError && (
+              <div className="voucher-error">{voucherError}</div>
+            )}
+          </div>
+        </div>
+
         {/* Order Total Section */}
         <div className="checkout-section">
           <div className="order-summary">
@@ -679,9 +1012,15 @@ const Checkout = () => {
                 )}
               </div>
             </div>
+            {voucherDiscount > 0 && (
+              <div className="summary-row voucher-discount">
+                <span>Voucher Discount</span>
+                <span>-{formatPrice(voucherDiscount)}</span>
+              </div>
+            )}
             <div className="summary-row total">
               <span>Total</span>
-              <span>{formatPrice(getTotalPrice() + shippingFee)}</span>
+              <span>{formatPrice(getTotalWithVoucher())}</span>
             </div>
           </div>
         </div>
@@ -731,7 +1070,7 @@ const Checkout = () => {
           <button 
             className="place-order-button" 
             onClick={handlePlaceOrder}
-            disabled={loading || !hasShippingAddress || !termsAccepted}
+            disabled={loading || !hasShippingAddress || !termsAccepted || isAddressServiceable === false || serviceabilityChecking}
           >
             {loading ? 'Processing...' : selectedPaymentMethod === 'cod' ? 'Place COD Order' : 'Place Order'}
           </button>
@@ -762,7 +1101,7 @@ const Checkout = () => {
           </div>
         )}
       </div>
-      <Footer />
+      <Footer forceShow={false} />
       
       <LegalModal 
         isOpen={legalModal.isOpen} 
@@ -773,4 +1112,4 @@ const Checkout = () => {
   );
 };
 
-export default Checkout; 
+export default Checkout;

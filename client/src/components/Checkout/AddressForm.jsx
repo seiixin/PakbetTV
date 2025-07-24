@@ -1,546 +1,685 @@
-import React, { useState, useEffect } from 'react';
-import { usePSGC } from '../../hooks/usePSGC';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { authService } from '../../services/api';
 import './AddressForm.css';
 
-const AddressForm = ({ onChange, initialAddress = {} }) => {
+// Debounce hook for performance optimization
+const useDebounce = (value, delay) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+};
+
+const AddressForm = ({ onChange, initialAddress = {}, disabled = false }) => {
+  // Address state
   const [address, setAddress] = useState({
-    address1: '',
-    address2: '',
-    area: '',
-    city: '',
-    state: '',
+    house_number: '',
+    building: '',
+    street_name: '',
+    barangay: '',
+    city_municipality: '',
+    province: '',
     region: '',
     postcode: '',
-    country: 'PH',
     address_type: 'home',
     ...initialAddress
   });
 
+  // PSGC data state
+  const [regions, setRegions] = useState([]);
+  const [provinces, setProvinces] = useState([]);
+  const [cities, setCities] = useState([]);
+  const [barangays, setBarangays] = useState([]);
+  
+  // Loading states
+  const [loadingRegions, setLoadingRegions] = useState(false);
+  const [loadingProvinces, setLoadingProvinces] = useState(false);
+  const [loadingCities, setLoadingCities] = useState(false);
+  const [loadingBarangays, setLoadingBarangays] = useState(false);
+  
+  // Selected PSGC IDs
+  const [selectedRegionId, setSelectedRegionId] = useState('');
+  const [selectedProvinceId, setSelectedProvinceId] = useState('');
+  const [selectedCityId, setSelectedCityId] = useState('');
+  const [selectedBarangayId, setSelectedBarangayId] = useState('');
+
+  // Validation state
   const [errors, setErrors] = useState({});
+  const [isValid, setIsValid] = useState(false);
+  const [errorRegions, setErrorRegions] = useState(null);
 
-  const philippineProvinces = [
-    'Abra',
-    'Agusan del Norte',
-    'Agusan del Sur',
-    'Aklan',
-    'Albay',
-    'Antique',
-    'Apayao',
-    'Aurora',
-    'Bataan',
-    'Batanes',
-    'Batangas',
-    'Benguet',
-    'Bohol',
-    'Bukidnon',
-    'Bulacan',
-    'Cagayan',
-    'Camarines Norte',
-    'Camarines Sur',
-    'Camiguin',
-    'Capiz',
-    'Catanduanes',
-    'Cavite',
-    'Cebu',
-    'Davao de Oro',
-    'Davao del Norte',
-    'Davao del Sur',
-    'Davao Occidental',
-    'Eastern Samar',
-    'Guimaras',
-    'Ifugao',
-    'Ilocos Norte',
-    'Ilocos Sur',
-    'Iloilo',
-    'Isabela',
-    'Kalinga',
-    'La Union',
-    'Laguna',
-    'Leyte',
-    'Maguindanao',
-    'Marinduque',
-    'Masbate',
-    'Metro Manila',
-    'Misamis Occidental',
-    'Misamis Oriental',
-    'Mountain Province',
-    'Negros Occidental',
-    'Negros Oriental',
-    'Northern Samar',
-    'Nueva Ecija',
-    'Nueva Vizcaya',
-    'Occidental Mindoro',
-    'Oriental Mindoro',
-    'Palawan',
-    'Pampanga',
-    'Pangasinan',
-    'Quezon',
-    'Quirino',
-    'Rizal',
-    'Romblon',
-    'Samar',
-    'Sarangani',
-    'Siquijor',
-    'Sorsogon',
-    'South Cotabato',
-    'Southern Leyte',
-    'Sultan Kudarat',
-    'Surigao del Norte',
-    'Surigao del Sur',
-    'Tarlac',
-    'Tawi-Tawi',
-    'Zambales',
-    'Zamboanga del Norte',
-    'Zamboanga del Sur',
-    'Zamboanga Sibugay'
-  ];
+  // NCR district handling
+  const [isNCR, setIsNCR] = useState(false);
 
-  const malaysianStates = [
-    'Johor',
-    'Kedah',
-    'Kelantan',
-    'Melaka',
-    'Negeri Sembilan',
-    'Pahang',
-    'Perak',
-    'Perlis',
-    'Pulau Pinang',
-    'Sabah',
-    'Sarawak',
-    'Selangor',
-    'Terengganu',
-    'Kuala Lumpur',
-    'Labuan',
-    'Putrajaya'
-  ];
+  // Serviceability checking state
+  const [serviceabilityStatus, setServiceabilityStatus] = useState(null); // null, 'checking', 'serviceable', 'not-serviceable', 'error'
+  const [serviceabilityMessage, setServiceabilityMessage] = useState('');
 
-  /* ------------------------------------------------------------------
-   * PSGC – Philippine geographic data (regions / provinces / cities / barangays)
-   * ------------------------------------------------------------------ */
-  const { 
-    regions, 
-    fetchProvinces, 
-    fetchCities, 
-    fetchBarangays 
-  } = usePSGC(address.country);
+  // Debounced values for API calls to improve performance
+  const debouncedRegionId = useDebounce(selectedRegionId, 300);
+  const debouncedProvinceId = useDebounce(selectedProvinceId, 300);
+  const debouncedCityId = useDebounce(selectedCityId, 300);
 
-  const [provinceOptions, setProvinceOptions] = useState([]);
-  const [cityOptions, setCityOptions] = useState([]);
-  const [barangayOptions, setBarangayOptions] = useState([]);
+  // Memoized complete address for serviceability checking
+  const completeAddressForServiceability = useMemo(() => {
+    if (!address.province || !address.region) return null;
+    
+    return {
+      region: address.region,
+      province: address.province,
+      city: address.city_municipality || '',
+      barangay: address.barangay || ''
+    };
+  }, [address.region, address.province, address.city_municipality, address.barangay]);
 
+  // Debounced serviceability check
+  const debouncedServiceabilityAddress = useDebounce(completeAddressForServiceability, 800);
+
+  // Load regions on component mount
   useEffect(() => {
-    if (typeof initialAddress === 'string') {
-      // Try to parse from string format
-      const parts = initialAddress.split(',').map(part => part.trim());
-      const newAddress = { ...address };
-      
-      if (parts.length > 0) newAddress.address1 = parts[0];
-      if (parts.length > 1) newAddress.area = parts[1];
-      if (parts.length > 2) newAddress.city = parts[parts.length - 2];
-      if (parts.length > 3) newAddress.state = parts[parts.length - 1];
-      
-      // Extract postcode if present
-      const postcodeMatch = initialAddress.match(/\d{5,6}/);
-      if (postcodeMatch) {
-        newAddress.postcode = postcodeMatch[0];
+    const loadRegions = async () => {
+      try {
+        setLoadingRegions(true);
+        setErrorRegions(null);
+        const response = await authService.getRegions();
+        setRegions(response.data || []);
+      } catch (error) {
+        console.error('Error loading regions:', error);
+        setErrorRegions('Failed to load regions. Please refresh the page.');
+      } finally {
+        setLoadingRegions(false);
       }
-      
-      setAddress(newAddress);
-    } else if (typeof initialAddress === 'object') {
-      setAddress({
-        address1: '',
-        address2: '',
-        area: '',
-        city: '',
-        state: '',
-        region: '',
-        postcode: '',
-        country: 'PH',
-        address_type: 'home',
+    };
+
+    loadRegions();
+  }, []);
+
+  // Initialize form with initial address data
+  useEffect(() => {
+    if (initialAddress && Object.keys(initialAddress).length > 0) {
+      setAddress(prev => ({
+        ...prev,
         ...initialAddress
-      });
+      }));
+      
+      // Set PSGC selections if available
+      if (initialAddress.region_id) {
+        setSelectedRegionId(initialAddress.region_id);
+        setIsNCR(initialAddress.region_id === '130000000');
+      }
+      if (initialAddress.province_id) {
+        setSelectedProvinceId(initialAddress.province_id);
+      }
+      if (initialAddress.city_id) {
+        setSelectedCityId(initialAddress.city_id);
+      }
+      if (initialAddress.barangay_id) {
+        setSelectedBarangayId(initialAddress.barangay_id);
+      }
     }
   }, [initialAddress]);
 
-  const handleChange = (e) => {
+  // Load provinces/districts when region changes (debounced)
+  useEffect(() => {
+    if (debouncedRegionId) {
+      setIsNCR(debouncedRegionId === '130000000');
+      loadProvinces(debouncedRegionId);
+    } else {
+      setProvinces([]);
+      setCities([]);
+      setBarangays([]);
+      setSelectedProvinceId('');
+      setSelectedCityId('');
+      setSelectedBarangayId('');
+      setIsNCR(false);
+    }
+  }, [debouncedRegionId]);
+
+  // Load cities when province changes (debounced)
+  useEffect(() => {
+    if (debouncedProvinceId) {
+      loadCities(debouncedProvinceId);
+    } else {
+      setCities([]);
+      setBarangays([]);
+      setSelectedCityId('');
+      setSelectedBarangayId('');
+    }
+  }, [debouncedProvinceId]);
+
+  // Load barangays when city changes (debounced)
+  useEffect(() => {
+    if (debouncedCityId) {
+      loadBarangays(debouncedCityId);
+    } else {
+      setBarangays([]);
+      setSelectedBarangayId('');
+    }
+  }, [debouncedCityId]);
+
+  // Validate form whenever address changes
+  useEffect(() => {
+    validateForm();
+  }, [address, selectedRegionId, selectedProvinceId, selectedCityId, selectedBarangayId]);
+
+  // Check serviceability when complete address is available (debounced)
+  useEffect(() => {
+    if (debouncedServiceabilityAddress && debouncedServiceabilityAddress.province) {
+      checkServiceability(debouncedServiceabilityAddress);
+    } else {
+      setServiceabilityStatus(null);
+      setServiceabilityMessage('');
+    }
+  }, [debouncedServiceabilityAddress]);
+
+  // Notify parent component of changes
+  useEffect(() => {
+    if (onChange) {
+      const completeAddress = {
+        ...address,
+        region_id: selectedRegionId,
+        province_id: selectedProvinceId,
+        city_id: selectedCityId,
+        barangay_id: selectedBarangayId,
+        region: regions.find(r => r.region_id === selectedRegionId)?.region_name || '',
+        province: provinces.find(p => p.province_id === selectedProvinceId)?.province_name || '',
+        city_municipality: cities.find(c => c.city_id === selectedCityId)?.city_name || '',
+        barangay: barangays.find(b => b.barangay_id === selectedBarangayId)?.barangay_name || '',
+        serviceability: {
+          status: serviceabilityStatus,
+          message: serviceabilityMessage
+        }
+      };
+      
+      onChange(completeAddress, isValid);
+    }
+  }, [address, selectedRegionId, selectedProvinceId, selectedCityId, selectedBarangayId, isValid, onChange, regions, provinces, cities, barangays, serviceabilityStatus, serviceabilityMessage]);
+
+  const loadProvinces = useCallback(async (regionId) => {
+    try {
+      setLoadingProvinces(true);
+      setErrors(prev => ({ ...prev, provinces: '' }));
+      const response = await authService.getProvinces(regionId);
+      const data = response.data || [];
+      setProvinces(data);
+      
+      if (data.length === 0) {
+        setErrors(prev => ({ 
+          ...prev, 
+          provinces: isNCR ? 'No districts found for NCR' : 'No provinces found for this region' 
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading provinces:', error);
+      setErrors(prev => ({ 
+        ...prev, 
+        provinces: isNCR ? 'Failed to load districts. Please try again.' : 'Failed to load provinces. Please try again.'
+      }));
+    } finally {
+      setLoadingProvinces(false);
+    }
+  }, [isNCR]);
+
+  const loadCities = useCallback(async (provinceId) => {
+    try {
+      setLoadingCities(true);
+      setErrors(prev => ({ ...prev, cities: '' }));
+      const response = await authService.getCities(provinceId);
+      const data = response.data || [];
+      setCities(data);
+      
+      if (data.length === 0) {
+        setErrors(prev => ({ 
+          ...prev, 
+          cities: isNCR ? 'No cities found for this district' : 'No cities found for this province'
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading cities:', error);
+      setErrors(prev => ({ ...prev, cities: 'Failed to load cities. Please try again.' }));
+    } finally {
+      setLoadingCities(false);
+    }
+  }, [isNCR]);
+
+  const loadBarangays = useCallback(async (cityId) => {
+    try {
+      setLoadingBarangays(true);
+      setErrors(prev => ({ ...prev, barangays: '' }));
+      const response = await authService.getBarangays(cityId);
+      const data = response.data || [];
+      setBarangays(data);
+      
+      if (data.length === 0) {
+        setErrors(prev => ({ 
+          ...prev, 
+          barangays: 'No barangays found for this city'
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading barangays:', error);
+      setErrors(prev => ({ ...prev, barangays: 'Failed to load barangays. Please try again.' }));
+    } finally {
+      setLoadingBarangays(false);
+    }
+  }, []);
+
+  const checkServiceability = useCallback(async (addressData) => {
+    try {
+      setServiceabilityStatus('checking');
+      setServiceabilityMessage('Checking delivery serviceability...');
+      
+      const response = await authService.validateAddress(addressData);
+      
+      if (response.data.success) {
+        const { serviceable, message } = response.data;
+        setServiceabilityStatus(serviceable ? 'serviceable' : 'not-serviceable');
+        setServiceabilityMessage(serviceable ? 
+          '✅ This address is serviceable for delivery' : 
+          '⚠️ Address not serviceable by our courier'
+        );
+      } else {
+        // Fallback to assuming serviceable with warning
+        setServiceabilityStatus('error');
+        setServiceabilityMessage('⚠️ Could not verify delivery serviceability. Standard rates may apply.');
+      }
+    } catch (error) {
+      console.error('Error checking serviceability:', error);
+      // Fallback: Don't block the user, just show a warning
+      setServiceabilityStatus('error');
+      setServiceabilityMessage('⚠️ Could not verify delivery serviceability. Standard rates may apply.');
+    }
+  }, []);
+
+  const handleInputChange = useCallback((e) => {
     const { name, value } = e.target;
     setAddress(prev => ({
       ...prev,
       [name]: value
     }));
     
-    // Clear error when field is edited
+    // Clear error for this field
     if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: ''
-      }));
+      setErrors(prev => ({ ...prev, [name]: '' }));
     }
+  }, [errors]);
+
+  const handleRegionChange = useCallback((e) => {
+    const regionId = e.target.value;
+    setSelectedRegionId(regionId);
     
-    // Call parent onChange handler with updated address
-    onChange({
-      ...address,
-      [name]: value
-    });
-  };
-
-  /* -----------------------------
-   * Cascading PSGC selectors
-   * ----------------------------- */
-  const handleRegionSelect = async (e) => {
-    const regionCode = e.target.value;
-    const regionObj = regions.find(r => String(r.code) === String(regionCode));
-    const regionName = regionObj ? (regionObj.regionName || regionObj.name) : '';
-
-    // Reset downstream selections
+    // Update address with region name
+    const selectedRegion = regions.find(r => r.region_id === regionId);
     setAddress(prev => ({
       ...prev,
-      region: regionName,
-      state: '',
-      city: '',
-      area: ''
+      region: selectedRegion?.region_name || ''
     }));
-
-    onChange({
-      ...address,
-      region: regionName,
-      state: '',
-      city: '',
-      area: ''
-    });
-
-    // Clear and fetch provinces for the selected region
-    setProvinceOptions([]);
-    setCityOptions([]);
-    setBarangayOptions([]);
-
-    if (regionCode) {
-      try {
-        const data = await fetchProvinces(regionCode);
-        setProvinceOptions(data);
-      } catch (err) {
-        console.error('Failed to load provinces:', err);
-      }
+    
+    // Clear dependent fields
+    setSelectedProvinceId('');
+    setSelectedCityId('');
+    setSelectedBarangayId('');
+    setAddress(prev => ({
+      ...prev,
+      province: '',
+      city_municipality: '',
+      barangay: ''
+    }));
+    
+    if (errors.region) {
+      setErrors(prev => ({ ...prev, region: '' }));
     }
-  };
+  }, [regions, errors]);
 
-  const handleProvinceSelect = async (e) => {
-    const provinceCode = e.target.value;
-    const provObj = provinceOptions.find(p => String(p.code) === String(provinceCode));
-    const provName = provObj ? provObj.name : '';
-
+  const handleProvinceChange = useCallback((e) => {
+    const provinceId = e.target.value;
+    setSelectedProvinceId(provinceId);
+    
+    // Update address with province name
+    const selectedProvince = provinces.find(p => p.province_id === provinceId);
     setAddress(prev => ({
       ...prev,
-      state: provName,
-      city: '',
-      area: ''
+      province: selectedProvince?.province_name || ''
     }));
-    onChange({
-      ...address,
-      state: provName,
-      city: '',
-      area: ''
-    });
-
-    setCityOptions([]);
-    setBarangayOptions([]);
-    if (provinceCode) {
-      try {
-        const data = await fetchCities(provinceCode);
-        setCityOptions(data);
-      } catch (err) {
-        console.error('Failed to load cities:', err);
-      }
+    
+    // Clear dependent fields
+    setSelectedCityId('');
+    setSelectedBarangayId('');
+    setAddress(prev => ({
+      ...prev,
+      city_municipality: '',
+      barangay: ''
+    }));
+    
+    if (errors.province) {
+      setErrors(prev => ({ ...prev, province: '' }));
     }
-  };
+  }, [provinces, errors]);
 
-  const handleCitySelect = async (e) => {
-    const cityCode = e.target.value;
-    const cityObj = cityOptions.find(c => String(c.code) === String(cityCode));
-    const cityName = cityObj ? cityObj.name : '';
-
+  const handleCityChange = useCallback((e) => {
+    const cityId = e.target.value;
+    setSelectedCityId(cityId);
+    
+    // Update address with city name
+    const selectedCity = cities.find(c => c.city_id === cityId);
     setAddress(prev => ({
       ...prev,
-      city: cityName,
-      area: ''
+      city_municipality: selectedCity?.city_name || ''
     }));
-    onChange({
-      ...address,
-      city: cityName,
-      area: ''
-    });
-
-    setBarangayOptions([]);
-    if (cityCode) {
-      try {
-        const data = await fetchBarangays(cityCode);
-        setBarangayOptions(data);
-      } catch (err) {
-        console.error('Failed to load barangays:', err);
-      }
+    
+    // Clear dependent fields
+    setSelectedBarangayId('');
+    setAddress(prev => ({
+      ...prev,
+      barangay: ''
+    }));
+    
+    if (errors.city) {
+      setErrors(prev => ({ ...prev, city: '' }));
     }
-  };
+  }, [cities, errors]);
 
-  const handleBarangaySelect = (e) => {
-    const barangayCode = e.target.value;
-    const brgyObj = barangayOptions.find(b => String(b.code) === String(barangayCode));
-    const brgyName = brgyObj ? brgyObj.name : '';
-
+  const handleBarangayChange = useCallback((e) => {
+    const barangayId = e.target.value;
+    setSelectedBarangayId(barangayId);
+    
+    // Update address with barangay name
+    const selectedBarangay = barangays.find(b => b.barangay_id === barangayId);
     setAddress(prev => ({
       ...prev,
-      area: brgyName
+      barangay: selectedBarangay?.barangay_name || ''
     }));
-    onChange({
-      ...address,
-      area: brgyName
-    });
-  };
+    
+    if (errors.barangay) {
+      setErrors(prev => ({ ...prev, barangay: '' }));
+    }
+  }, [barangays, errors]);
 
-  const validateForm = () => {
+  const validateForm = useCallback(() => {
     const newErrors = {};
     
-    if (!address.address1.trim()) {
-      newErrors.address1 = 'Address line 1 is required';
-    }
+    // Required fields validation
+    if (!selectedRegionId) newErrors.region = 'Region is required';
+    if (!selectedProvinceId) newErrors.province = 'Province is required';
+    if (!selectedCityId) newErrors.city = 'City/Municipality is required';
+    if (!selectedBarangayId) newErrors.barangay = 'Barangay is required';
+    if (!address.house_number.trim()) newErrors.house_number = 'House number is required';
+    if (!address.street_name.trim()) newErrors.street_name = 'Street name is required';
+    if (!address.postcode.trim()) newErrors.postcode = 'Postal code is required';
     
-    if (address.country === 'PH') {
-      if (!address.region) {
-        newErrors.region = 'Region is required';
-      }
-      if (!address.state) {
-        newErrors.state = 'Province is required';
-      }
-      if (!address.city.trim()) {
-        newErrors.city = 'City is required';
-      }
-      if (!address.area.trim()) {
-        newErrors.area = 'Barangay is required';
-      }
-    } else {
-      if (!address.city.trim()) {
-        newErrors.city = 'City is required';
-      }
-      if (!address.state) {
-        newErrors.state = 'State/Province is required';
-      }
-    }
-    
-    if (!address.postcode.trim()) {
-      newErrors.postcode = 'Postal code is required';
-    } else if (!/^\d{4,6}$/.test(address.postcode.trim())) {
-      newErrors.postcode = 'Enter a valid postal code';
+    // Postal code validation (Philippine format)
+    const postcodeRegex = /^\d{4}$/;
+    if (address.postcode && !postcodeRegex.test(address.postcode)) {
+      newErrors.postcode = 'Postal code must be 4 digits';
     }
     
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    setIsValid(Object.keys(newErrors).length === 0);
+  }, [selectedRegionId, selectedProvinceId, selectedCityId, selectedBarangayId, address.house_number, address.street_name, address.postcode]);
+
+  const getFormattedAddress = () => {
+    const parts = [];
+    
+    if (address.house_number) parts.push(address.house_number);
+    if (address.building) parts.push(address.building);
+    if (address.street_name) parts.push(address.street_name);
+    if (address.barangay) parts.push(address.barangay);
+    if (address.city_municipality) parts.push(address.city_municipality);
+    if (address.province) parts.push(address.province);
+    if (address.postcode) parts.push(address.postcode);
+    
+    return parts.join(', ');
   };
 
-  // Validate address when submitting the form
-  useEffect(() => {
-    if (onChange) {
-      const isValid = validateForm();
-      onChange(address, isValid);
+  const getServiceabilityClassName = () => {
+    switch (serviceabilityStatus) {
+      case 'serviceable':
+        return 'serviceability-status serviceable';
+      case 'not-serviceable':
+        return 'serviceability-status not-serviceable';
+      case 'error':
+        return 'serviceability-status warning';
+      case 'checking':
+        return 'serviceability-status checking';
+      default:
+        return '';
     }
-  }, [address]);
-
-  // Get appropriate state/province list based on country
-  const getStateOptions = () => {
-    if (address.country === 'MY') {
-      return malaysianStates;
-    }
-    return provinceOptions.map(p => p.name);
   };
 
-  // Get label for state/province based on country
-  const getStateLabel = () => {
-    return address.country === 'MY' ? 'State' : 'Province';
-  };
+  if (loadingRegions) {
+    return (
+      <div className="address-form">
+        <div className="form-group">
+          <div className="loading-placeholder">Loading address form...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (errorRegions) {
+    return (
+      <div className="address-form">
+        <div className="form-group">
+          <div className="error-message">Error loading address form: {errorRegions}</div>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="retry-button"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="address-form">
-      {/* Region selector (PH only) */}
-      {address.country === 'PH' && (
-        <div className="form-group">
-          <label htmlFor="region">Region *</label>
+      <h3>Delivery Address</h3>
+      
+      {/* Serviceability Status */}
+      {serviceabilityMessage && (
+        <div className={getServiceabilityClassName()}>
+          {serviceabilityMessage}
+          {serviceabilityStatus === 'not-serviceable' && (
+            <small className="serviceability-note">
+              You can still save this address, but delivery may not be available.
+            </small>
+          )}
+        </div>
+      )}
+      
+      {/* Region and Province/District */}
+      <div className="form-row">
+        <div className="form-group half required">
+          <label htmlFor="region">Region</label>
           <select
             id="region"
-            name="region"
-            value={regions.find(r => (r.regionName || r.name) === address.region)?.code || ''}
-            onChange={handleRegionSelect}
-            className={errors.region ? 'error' : ''}
+            value={selectedRegionId}
+            onChange={handleRegionChange}
+            disabled={disabled || loadingRegions}
+            required
           >
             <option value="">Select Region</option>
-            {regions.map(r => (
-              <option key={r.code} value={r.code}>
-                {r.regionName || r.name}
+            {regions.map(region => (
+              <option key={region.region_id} value={region.region_id}>
+                {region.region_name}
               </option>
             ))}
           </select>
           {errors.region && <span className="error-text">{errors.region}</span>}
         </div>
-      )}
-      <div className="form-group">
-        <label htmlFor="address1">Address Line 1 *</label>
-        <input
-          type="text"
-          id="address1"
-          name="address1"
-          value={address.address1}
-          onChange={handleChange}
-          placeholder="House/Unit number and street name"
-          className={errors.address1 ? 'error' : ''}
-        />
-        {errors.address1 && <span className="error-text">{errors.address1}</span>}
-      </div>
-      
-      <div className="form-group">
-        <label htmlFor="address2">Address Line 2</label>
-        <input
-          type="text"
-          id="address2"
-          name="address2"
-          value={address.address2}
-          onChange={handleChange}
-          placeholder="Apartment, suite, unit, building, floor, etc."
-        />
-      </div>
-      
-      {/* Barangay selector (PH) or free text (others) */}
-      <div className="form-group">
-        <label htmlFor="area">{address.country === 'PH' ? 'Barangay *' : 'Area/Barangay'}</label>
-        {address.country === 'PH' ? (
+        
+        <div className="form-group half required">
+          <label htmlFor="province">{isNCR ? 'District' : 'Province'}</label>
           <select
-            id="barangay"
-            name="barangay"
-            value={barangayOptions.find(b => b.name === address.area)?.code || ''}
-            onChange={handleBarangaySelect}
-            className={errors.area ? 'error' : ''}
+            id="province"
+            value={selectedProvinceId}
+            onChange={handleProvinceChange}
+            disabled={disabled || !selectedRegionId || loadingProvinces}
+            required
           >
-            <option value="">Select Barangay</option>
-            {barangayOptions.map(b => (
-              <option key={b.code} value={b.code}>{b.name}</option>
+            <option value="">{isNCR ? 'Select District' : 'Select Province'}</option>
+            {provinces.map(province => (
+              <option key={province.province_id} value={province.province_id}>
+                {province.province_name}
+              </option>
             ))}
           </select>
-        ) : (
-          <input
-            type="text"
-            id="area"
-            name="area"
-            value={address.area}
-            onChange={handleChange}
-            placeholder="Neighborhood, barangay or area name"
-          />
-        )}
-        {errors.area && <span className="error-text">{errors.area}</span>}
+          {loadingProvinces && <span className="loading-text">Loading {isNCR ? 'districts' : 'provinces'}...</span>}
+          {errors.provinces && <span className="error-text">{errors.provinces}</span>}
+        </div>
+      </div>
+
+      {/* City/Municipality and Barangay */}
+      <div className="form-row">
+        <div className="form-group half required">
+          <label htmlFor="city">City/Municipality</label>
+          <select
+            id="city"
+            value={selectedCityId}
+            onChange={handleCityChange}
+            disabled={disabled || !selectedProvinceId || loadingCities}
+            required
+          >
+            <option value="">Select City/Municipality</option>
+            {cities.map(city => (
+              <option key={city.city_id} value={city.city_id}>
+                {city.city_name}
+              </option>
+            ))}
+          </select>
+          {loadingCities && <span className="loading-text">Loading cities...</span>}
+          {errors.cities && <span className="error-text">{errors.cities}</span>}
+          {cities.length === 0 && !loadingCities && !errors.cities && selectedProvinceId && (
+            <span className="empty-data-message">No cities available</span>
+          )}
+        </div>
+        
+        <div className="form-group half required">
+          <label htmlFor="barangay">Barangay</label>
+          <select
+            id="barangay"
+            value={selectedBarangayId}
+            onChange={handleBarangayChange}
+            disabled={disabled || !selectedCityId || loadingBarangays}
+            required
+          >
+            <option value="">Select Barangay</option>
+            {barangays.map(barangay => (
+              <option key={barangay.barangay_id} value={barangay.barangay_id}>
+                {barangay.barangay_name}
+              </option>
+            ))}
+          </select>
+          {loadingBarangays && <span className="loading-text">Loading barangays...</span>}
+          {errors.barangays && <span className="error-text">{errors.barangays}</span>}
+          {barangays.length === 0 && !loadingBarangays && !errors.barangays && selectedCityId && (
+            <span className="empty-data-message">No barangays available</span>
+          )}
+        </div>
       </div>
       
+      {/* Street Name */}
+      <div className="form-group required">
+        <label htmlFor="street_name">Street Name</label>
+        <input
+          type="text"
+          id="street_name"
+          name="street_name"
+          value={address.street_name}
+          onChange={handleInputChange}
+          placeholder="e.g., Rizal Street"
+          disabled={disabled}
+          required
+        />
+        {errors.street_name && <span className="error-text">{errors.street_name}</span>}
+      </div>
+
+      {/* House Number and Building */}
       <div className="form-row">
-        <div className="form-group half">
-          <label htmlFor="city">City/Municipality *</label>
-          {address.country === 'PH' ? (
-            <select
-              id="city"
-              name="citySelect"
-              value={cityOptions.find(c => c.name === address.city)?.code || ''}
-              onChange={handleCitySelect}
-              className={errors.city ? 'error' : ''}
-            >
-              <option value="">Select City/Municipality</option>
-              {cityOptions.map(c => (
-                <option key={c.code} value={c.code}>{c.name}</option>
-              ))}
-            </select>
-          ) : (
-            <input
-              type="text"
-              id="city"
-              name="city"
-              value={address.city}
-              onChange={handleChange}
-              placeholder="City or municipality"
-              className={errors.city ? 'error' : ''}
-            />
-          )}
-          {errors.city && <span className="error-text">{errors.city}</span>}
+        <div className="form-group half required">
+          <label htmlFor="house_number">House Number</label>
+          <input
+            type="text"
+            id="house_number"
+            name="house_number"
+            value={address.house_number}
+            onChange={handleInputChange}
+            placeholder="e.g., 123"
+            disabled={disabled}
+            required
+          />
+          {errors.house_number && <span className="error-text">{errors.house_number}</span>}
         </div>
         
         <div className="form-group half">
-          <label htmlFor="postcode">Postal/ZIP Code *</label>
+          <label htmlFor="building">Building/Floor/Unit (Optional)</label>
+          <input
+            type="text"
+            id="building"
+            name="building"
+            value={address.building}
+            onChange={handleInputChange}
+            placeholder="e.g., Unit 5A, 2nd Floor"
+            disabled={disabled}
+          />
+        </div>
+      </div>
+
+      {/* Postal Code and Address Type */}
+      <div className="form-row">
+        <div className="form-group half required">
+          <label htmlFor="postcode">Postal Code</label>
           <input
             type="text"
             id="postcode"
             name="postcode"
             value={address.postcode}
-            onChange={handleChange}
-            placeholder={address.country === 'PH' ? 'e.g. 1000' : 'e.g. 50000'}
-            className={errors.postcode ? 'error' : ''}
-            maxLength={6}
+            onChange={handleInputChange}
+            placeholder="e.g., 1234"
+            maxLength="4"
+            disabled={disabled}
+            required
           />
           {errors.postcode && <span className="error-text">{errors.postcode}</span>}
         </div>
-      </div>
-      
-      <div className="form-group">
-        <label htmlFor="country">Country *</label>
-        <select
-          id="country"
-          name="country"
-          value={address.country}
-          onChange={handleChange}
-        >
-          <option value="PH">Philippines</option>
-          <option value="MY">Malaysia</option>
-          <option value="SG">Singapore</option>
-        </select>
-      </div>
-      
-      <div className="form-group">
-        <label htmlFor="state">{getStateLabel()} *</label>
-        {address.country === 'PH' ? (
+        
+        <div className="form-group half">
+          <label htmlFor="address_type">Address Type</label>
           <select
-            id="state"
-            name="stateSelect"
-            value={provinceOptions.find(p => p.name === address.state)?.code || ''}
-            onChange={handleProvinceSelect}
-            className={errors.state ? 'error' : ''}
+            id="address_type"
+            name="address_type"
+            value={address.address_type}
+            onChange={handleInputChange}
+            disabled={disabled}
           >
-            <option value="">Select Province</option>
-            {provinceOptions.map(p => (
-              <option key={p.code} value={p.code}>{p.name}</option>
-            ))}
+            <option value="home">Home</option>
+            <option value="work">Work</option>
+            <option value="other">Other</option>
           </select>
-        ) : (
-          <select
-            id="state"
-            name="state"
-            value={address.state}
-            onChange={handleChange}
-            className={errors.state ? 'error' : ''}
-          >
-            <option value="">Select {getStateLabel()}</option>
-            {getStateOptions().map(state => (
-              <option key={state} value={state}>{state}</option>
-            ))}
-          </select>
-        )}
-        {errors.state && <span className="error-text">{errors.state}</span>}
+        </div>
       </div>
-      
-      <div className="form-group">
-        <label htmlFor="address_type">Address Type</label>
-        <select
-          id="address_type"
-          name="address_type"
-          value={address.address_type}
-          onChange={handleChange}
-        >
-          <option value="home">Home</option>
-          <option value="work">Work</option>
-          <option value="other">Other</option>
-        </select>
-      </div>
+
+      {/* Address Preview */}
+      {isValid && (
+        <div className="form-group">
+          <label>Complete Address Preview</label>
+          <div className="address-preview">
+            {getFormattedAddress()}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
-export default AddressForm; 
+export default AddressForm;

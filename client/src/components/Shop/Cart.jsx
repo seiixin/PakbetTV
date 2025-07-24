@@ -45,11 +45,11 @@ const Cart = () => {
   const allSelected = cartItems.length > 0 && cartItems.every(item => item.selected);
 
   const getFullImageUrl = (url) => {
-    if (!url) return '/placeholder-product.jpg';
+    if (!url) return '/ImageFallBack.png';
     
     if (typeof url !== 'string') {
       console.warn('URL is not a string:', url);
-      return '/placeholder-product.jpg';
+      return '/ImageFallBack.png';
     }
     
     if (url.startsWith('data:')) {
@@ -73,6 +73,14 @@ const Cart = () => {
 
   const handleQuantityChange = async (item, newQuantity) => {
     if (newQuantity < 1) return;
+    
+    console.log('[Cart] handleQuantityChange called with item:', {
+      cart_id: item.cart_id,
+      id: item.id,
+      product_id: item.product_id,
+      name: item.name,
+      newQuantity
+    });
     
     try {
       await updateQuantity({
@@ -187,7 +195,7 @@ const Cart = () => {
                 className="cart-item-image-new"
                 onError={(e) => {
                   e.target.onerror = null;
-                  e.target.src = '/placeholder-product.jpg'; 
+                  e.target.src = '/ImageFallBack.png'; 
                 }}
               />
               <div className="cart-item-details-new">
@@ -263,7 +271,7 @@ const Cart = () => {
             className="cart-item-image-new"
             onError={(e) => {
               e.target.onerror = null;
-              e.target.src = '/placeholder-product.jpg'; 
+              e.target.src = '/ImageFallBack.png'; 
             }}
           />
           <div className="cart-item-details-new">
@@ -423,4 +431,4 @@ const Cart = () => {
   );
 };
 
-export default Cart; 
+export default Cart;

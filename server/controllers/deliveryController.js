@@ -2,8 +2,9 @@ const axios = require('axios');
 const crypto = require('crypto');
 const config = require('../config/keys');
 const ninjaVanAuth = require('../services/ninjaVanAuth');
+const { sendOrderDispatchedEmail } = require('../services/emailService');
 const API_BASE_URL = config.NINJAVAN_API_URL || 'https://api.ninjavan.co';
-const COUNTRY_CODE = config.NINJAVAN_COUNTRY_CODE || 'SG';
+const COUNTRY_CODE = config.NINJAVAN_COUNTRY_CODE || 'PH';
 const db = require('../config/db');
 
 function verifyNinjaVanSignature(req, res, next) {
@@ -26,6 +27,376 @@ function verifyNinjaVanSignature(req, res, next) {
   } catch (error) {
     console.error('Error verifying webhook signature:', error);
     res.status(500).json({ message: 'Internal server error' });
+  }
+}
+
+// Enhanced webhook handler for all NinjaVan status updates
+async function ninjavanUnifiedWebhookHandler(req, res) {
+  try {
+    console.log('🔄 NinjaVan Unified Webhook received:', JSON.stringify(req.body, null, 2));
+    
+    const { 
+      tracking_id, 
+      status, 
+      timestamp, 
+      shipper_order_ref_no,
+      from_address,
+      to_address,
+      comments,
+      failure_reason,
+      delivery_instructions,
+      updated_by 
+    } = req.body;
+
+    if (!tracking_id) {
+      console.error('❌ No tracking_id provided in webhook');
+      return res.status(400).json({ error: 'tracking_id is required' });
+    }
+
+    // Find the order associated with this tracking number
+    const [orders] = await db.query(
+      `SELECT o.order_id, o.order_status, o.user_id, o.total_price, o.payment_status,
+              u.first_name, u.last_name, u.email, u.phone, u.user_type
+       FROM shipping s 
+       JOIN orders o ON s.order_id = o.order_id
+       JOIN users u ON o.user_id = u.user_id
+       WHERE s.tracking_number = ?`,
+      [tracking_id]
+    );
+
+    if (orders.length === 0) {
+      console.error(`❌ No order found for tracking number: ${tracking_id}`);
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    const order = orders[0];
+    console.log(`📦 Processing webhook for Order ID: ${order.order_id}, Status: ${status}`);
+
+    // Map NinjaVan status to internal order status
+    const statusMapping = await mapNinjaVanStatusToOrderStatus(status, order);
+    
+    if (statusMapping.shouldUpdate) {
+      await updateOrderFromWebhook(order, statusMapping, {
+        tracking_id,
+        status,
+        timestamp,
+        comments,
+        failure_reason,
+        updated_by
+      });
+    }
+
+    // Save tracking event
+    await saveTrackingEvent(tracking_id, order.order_id, status, {
+      timestamp,
+      comments,
+      failure_reason,
+      location: from_address || to_address,
+      updated_by
+    });
+
+    // Handle special status actions
+    await handleSpecialStatusActions(order, status, tracking_id);
+
+    res.status(200).json({ 
+      success: true, 
+      message: 'Webhook processed successfully',
+      order_id: order.order_id,
+      new_status: statusMapping.orderStatus
+    });
+
+  } catch (error) {
+    console.error('❌ Error processing NinjaVan webhook:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+// Map NinjaVan statuses to internal order statuses
+async function mapNinjaVanStatusToOrderStatus(ninjaVanStatus, order) {
+  const mapping = {
+    // Pickup related statuses
+    'Pending Pickup': { 
+      orderStatus: 'for_shipping', 
+      shouldUpdate: order.order_status === 'for_packing' || order.order_status === 'packed',
+      description: 'Order is ready for pickup by courier'
+    },
+    'Driver dispatched for Pickup': { 
+      orderStatus: 'for_shipping', 
+      shouldUpdate: true,
+      description: 'Driver is on the way to pickup your order'
+    },
+    'Pickup Exception': { 
+      orderStatus: 'for_shipping', 
+      shouldUpdate: false,
+      description: 'Pickup attempt failed, will retry'
+    },
+    'Picked Up': { 
+      orderStatus: 'picked_up', 
+      shouldUpdate: true,
+      description: 'Order has been picked up by courier'
+    },
+
+    // Transit statuses
+    'Arrived at Origin Hub': { 
+      orderStatus: 'picked_up', 
+      shouldUpdate: true,
+      description: 'Order arrived at origin sorting facility'
+    },
+    'In Transit to Next Sorting Hub': { 
+      orderStatus: 'shipped', 
+      shouldUpdate: true,
+      description: 'Order is in transit to next facility'
+    },
+    'Arrived at Transit Hub': { 
+      orderStatus: 'shipped', 
+      shouldUpdate: true,
+      description: 'Order arrived at transit hub'
+    },
+    'Arrived at Destination Hub': { 
+      orderStatus: 'shipped', 
+      shouldUpdate: true,
+      description: 'Order arrived at destination facility'
+    },
+
+    // Delivery statuses
+    'On Vehicle for Delivery': { 
+      orderStatus: 'out_for_delivery', 
+      shouldUpdate: true,
+      description: 'Order is out for delivery'
+    },
+    'At PUDO': { 
+      orderStatus: 'out_for_delivery', 
+      shouldUpdate: true,
+      description: 'Order is at pickup point'
+    },
+    'Delivered': { 
+      orderStatus: 'delivered', 
+      shouldUpdate: true,
+      description: 'Order has been delivered successfully'
+    },
+    'Delivery Exception': { 
+      orderStatus: 'delivery_exception', 
+      shouldUpdate: true,
+      description: 'Delivery attempt failed'
+    },
+
+    // Special statuses
+    'Parcel Measurements Update': { 
+      orderStatus: order.order_status, 
+      shouldUpdate: false,
+      description: 'Parcel measurements updated'
+    },
+    'Cancelled': { 
+      orderStatus: 'cancelled', 
+      shouldUpdate: true,
+      description: 'Order has been cancelled'
+    },
+    'Return To Sender': { 
+      orderStatus: 'returned', 
+      shouldUpdate: true,
+      description: 'Order is being returned to sender'
+    },
+    'Return to Shipper Exception': { 
+      orderStatus: 'returned', 
+      shouldUpdate: true,
+      description: 'Return to shipper failed'
+    },
+    'International Transit': { 
+      orderStatus: 'shipped', 
+      shouldUpdate: true,
+      description: 'Order is in international transit'
+    }
+  };
+
+  return mapping[ninjaVanStatus] || { 
+    orderStatus: order.order_status, 
+    shouldUpdate: false,
+    description: `Status update: ${ninjaVanStatus}`
+  };
+}
+
+// Update order status from webhook
+async function updateOrderFromWebhook(order, statusMapping, webhookData) {
+  const connection = await db.getConnection();
+  
+  try {
+    await connection.beginTransaction();
+
+    // Update order status
+    await connection.query(
+      'UPDATE orders SET order_status = ?, updated_at = NOW() WHERE order_id = ?',
+      [statusMapping.orderStatus, order.order_id]
+    );
+
+    // Update shipping status
+    await connection.query(
+      'UPDATE shipping SET status = ?, updated_at = NOW() WHERE order_id = ?',
+      [statusMapping.orderStatus, order.order_id]
+    );
+
+    await connection.commit();
+    console.log(`✅ Order ${order.order_id} status updated to: ${statusMapping.orderStatus}`);
+
+  } catch (error) {
+    await connection.rollback();
+    console.error(`❌ Error updating order ${order.order_id}:`, error);
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
+// Simplified auto-completion process - no separate table needed
+async function processAutoCompletions() {
+  try {
+    console.log('🕒 Processing scheduled auto-completions...');
+
+    // Find delivered orders that are older than 3 days
+    const [deliveredOrders] = await db.query(
+      `SELECT order_id, order_code, updated_at 
+       FROM orders 
+       WHERE order_status = 'delivered' 
+       AND updated_at <= DATE_SUB(NOW(), INTERVAL 3 DAY)`
+    );
+
+    if (deliveredOrders.length === 0) {
+      console.log('✅ No orders ready for auto-completion');
+      return { completed: 0 };
+    }
+
+    let completedCount = 0;
+    
+    for (const order of deliveredOrders) {
+      try {
+        await db.query(
+          'UPDATE orders SET order_status = ?, updated_at = NOW() WHERE order_id = ? AND order_status = ?',
+          ['completed', order.order_id, 'delivered']
+        );
+
+        console.log(`✅ Auto-completed Order ${order.order_id} (delivered on ${order.updated_at})`);
+        completedCount++;
+
+      } catch (error) {
+        console.error(`❌ Error auto-completing Order ${order.order_id}:`, error);
+      }
+    }
+
+    console.log(`🎯 Auto-completion process completed: ${completedCount}/${deliveredOrders.length} orders`);
+    return { completed: completedCount, total: deliveredOrders.length };
+
+  } catch (error) {
+    console.error('❌ Error in auto-completion process:', error);
+    throw error;
+  }
+}
+
+// Handle special actions for specific statuses
+async function handleSpecialStatusActions(order, status, trackingId) {
+  try {
+    switch (status) {
+      case 'Picked Up':
+      case 'On Vehicle for Delivery':
+        // Send dispatch notification email
+        await sendOrderDispatchedEmail({
+          customerName: `${order.first_name} ${order.last_name}`,
+          customerEmail: order.email,
+          trackingNumber: trackingId
+        });
+        console.log(`📧 Dispatch email sent for Order ${order.order_id}`);
+        break;
+
+      case 'Delivered':
+        // Send delivery confirmation (optional)
+        console.log(`📦 Order ${order.order_id} delivered successfully`);
+        break;
+
+      case 'Delivery Exception':
+        // Could implement retry logic or customer notification
+        console.log(`⚠️ Delivery exception for Order ${order.order_id}`);
+        break;
+
+      case 'Cancelled':
+      case 'Return To Sender':
+        // Handle cancellation/return logic
+        console.log(`🔄 Order ${order.order_id} status: ${status}`);
+        break;
+    }
+  } catch (error) {
+    console.error(`❌ Error in special status action for ${status}:`, error);
+    // Don't throw - we don't want to fail the webhook for email issues
+  }
+}
+
+// Enhanced tracking event storage
+async function saveTrackingEvent(trackingNumber, orderId, status, eventData = {}) {
+  try {
+    const description = eventData.comments || eventData.failure_reason || `Status: ${status}`;
+    const location = eventData.location || 'In Transit';
+    const eventTimestamp = eventData.timestamp || new Date().toISOString();
+
+    await db.query(
+      `INSERT INTO tracking_events 
+       (tracking_number, order_id, status, description, location, event_timestamp, created_at, webhook_data)
+       VALUES (?, ?, ?, ?, ?, ?, NOW(), ?)`,
+      [
+        trackingNumber, 
+        orderId, 
+        status, 
+        description, 
+        location, 
+        eventTimestamp,
+        JSON.stringify(eventData)
+      ]
+    );
+
+    console.log(`📝 Tracking event saved for Order ${orderId}: ${status}`);
+  } catch (error) {
+    console.error(`❌ Error saving tracking event for Order ${orderId}:`, error);
+    // Don't throw - tracking events are supplementary
+  }
+}
+
+// Auto-completion cron job function
+async function processAutoCompletions() {
+  try {
+    console.log('🕒 Processing scheduled auto-completions...');
+
+    // Find delivered orders that are older than 3 days
+    const [deliveredOrders] = await db.query(
+      `SELECT order_id, order_code, updated_at 
+       FROM orders 
+       WHERE order_status = 'delivered' 
+       AND updated_at <= DATE_SUB(NOW(), INTERVAL 3 DAY)`
+    );
+
+    if (deliveredOrders.length === 0) {
+      console.log('✅ No orders ready for auto-completion');
+      return { completed: 0 };
+    }
+
+    let completedCount = 0;
+    
+    for (const order of deliveredOrders) {
+      try {
+        await db.query(
+          'UPDATE orders SET order_status = ?, updated_at = NOW() WHERE order_id = ? AND order_status = ?',
+          ['completed', order.order_id, 'delivered']
+        );
+
+        console.log(`✅ Auto-completed Order ${order.order_id} (delivered on ${order.updated_at})`);
+        completedCount++;
+
+      } catch (error) {
+        console.error(`❌ Error auto-completing Order ${order.order_id}:`, error);
+      }
+    }
+
+    console.log(`🎯 Auto-completion process completed: ${completedCount}/${deliveredOrders.length} orders`);
+    return { completed: completedCount, total: deliveredOrders.length };
+
+  } catch (error) {
+    console.error('❌ Error in auto-completion process:', error);
+    throw error;
   }
 }
 
@@ -189,99 +560,217 @@ async function getWaybill(req, res) {
 }
 
 async function estimateShipping(req, res) {
+  /**
+   * Enhanced shipping rate calculation with proper fallbacks
+   * 
+   * Primary: Use NinjaVan database for accurate rates
+   * Fallback 1: Use static rates based on region classification
+   * Fallback 2: Default Philippine standard rate
+   */
   try {
-    const { toAddress, weight, dimensions } = req.body;
-    if (!toAddress || !toAddress.postcode || !toAddress.city || !toAddress.state) {
+    const {
+      toAddress = {},
+      weight = 1 // default 1 kg when none supplied
+    } = req.body || {};
+
+    if (!toAddress.state) {
       return res.status(400).json({
-        message: 'Missing required address fields',
-        details: 'Please provide destination postcode, city, and state'
+        success: false,
+        error: 'Destination state/province is required for shipping calculation',
+        estimatedFee: 250.00, // Fallback rate
+        fallbackUsed: 'default'
       });
     }
 
-    const token = await ninjaVanAuth.getValidToken();
-    
-    // Construct the rate request with SG addresses for sandbox
-    const rateRequest = {
-      service_type: "Parcel",
-      service_level: "Standard",
-      from: {
-        address1: "30 Jln Kilang Barat",
-        city: "Singapore",
-        state: "Singapore",
-        country: "SG",
-        postcode: "159336"
-      },
-      to: {
-        address1: toAddress.address1 || "",
-        city: toAddress.city,
-        state: toAddress.state,
-        country: "SG", // Force SG for sandbox
-        postcode: toAddress.postcode
-      },
-      parcel_job: {
-        dimensions: {
-          weight: weight || 1,
-          length: dimensions?.length || 20,
-          width: dimensions?.width || 15,
-          height: dimensions?.height || 10
-        }
-      }
-    };
+    console.log('🚚 [SHIPPING] Calculating shipping for:', {
+      state: toAddress.state,
+      city: toAddress.city,
+      weight: weight
+    });
 
-    console.log('Sending rate request to NinjaVan:', rateRequest);
+    let shippingFee = 250.00; // Default fallback
+    let fallbackUsed = null;
+    let serviceDetails = {};
 
     try {
-      const response = await axios.post(
-        `${API_BASE_URL}/${COUNTRY_CODE}/4.1/rates`,
-        rateRequest,
-        { 
-          headers: { 
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          } 
-        }
+      // Try to get shipping rate from NinjaVan locations database
+      const db = require('../config/db');
+      
+      // Check if address is serviceable and get zone information
+      const [locationRows] = await db.query(
+        `SELECT status, "Zone Name", province_name, municipality_name 
+         FROM Shipping_Locations_Ninjavan 
+         WHERE LOWER(province_name) LIKE LOWER(?) 
+         LIMIT 1`,
+        [`%${toAddress.state}%`]
       );
 
-      res.status(200).json({
-        success: true,
-        estimatedFee: response.data.data?.[0]?.total_fee || 0,
-        currency: response.data.data?.[0]?.currency || 'SGD',
-        service_type: response.data.data?.[0]?.service_type || 'Standard',
-        rates: response.data.data
-      });
-    } catch (apiError) {
-      // Check if it's a "no Route matched" error which is common for Philippines addresses
-      if (apiError.response?.data?.message?.includes('no Route matched') || 
-          (apiError.response?.status === 400 && apiError.response?.data?.message)) {
-        console.log('NinjaVan route not found, using fallback shipping rate');
+      if (locationRows && locationRows.length > 0) {
+        const location = locationRows[0];
+        const zoneName = location['Zone Name'] || '';
         
-        // Return a fallback shipping rate for Philippines addresses
-        return res.status(200).json({
-          success: true,
-          estimatedFee: 250.00, // Fallback fee for Philippines in PHP
-          currency: 'PHP',
-          service_type: 'Standard',
-          fallback: true,
-          message: 'Using standard shipping rate for this location'
+        // Calculate rate based on database zone information
+        shippingFee = calculateZoneBasedRate(zoneName, weight);
+        serviceDetails = {
+          zone: zoneName,
+          province: location.province_name,
+          municipality: location.municipality_name,
+          serviceable: location.status && location.status.toLowerCase().includes('serviceable')
+        };
+        
+        console.log('✅ [SHIPPING] Database rate calculation successful:', {
+          zone: zoneName,
+          fee: shippingFee,
+          serviceable: serviceDetails.serviceable
         });
+      } else {
+        // Fallback to region-based calculation
+        shippingFee = calculateRegionBasedRate(toAddress.state, weight);
+        fallbackUsed = 'region-based';
+        console.log('⚠️ [SHIPPING] Using region-based fallback rate:', shippingFee);
       }
-      
-      // Re-throw for other errors
-      throw apiError;
+    } catch (dbError) {
+      console.error('❌ [SHIPPING] Database error, using region fallback:', dbError.message);
+      shippingFee = calculateRegionBasedRate(toAddress.state, weight);
+      fallbackUsed = 'region-based';
     }
-  } catch (error) {
-    console.error('Error getting NinjaVan shipping estimate:', error.response?.data || error.message);
-    
-    // Provide a fallback response even for unexpected errors
-    res.status(200).json({
+
+    // Ensure minimum shipping fee
+    shippingFee = Math.max(shippingFee, 150.00);
+
+    const response = {
       success: true,
-      estimatedFee: 250.00, // Fallback fee in PHP
+      estimatedFee: Math.round(shippingFee * 100) / 100, // Round to 2 decimal places
       currency: 'PHP',
-      service_type: 'Standard',
-      fallback: true,
-      error: error.response?.data?.message || error.message || 'Unknown error',
-      message: 'Using standard shipping rate due to estimation error'
-    });
+      weight: weight,
+      destination: {
+        state: toAddress.state,
+        city: toAddress.city || '',
+        country: 'PH'
+      },
+      serviceDetails,
+      fallbackUsed,
+      message: fallbackUsed ? 
+        'Estimated rate using fallback calculation' : 
+        'Rate calculated from delivery database'
+    };
+
+    console.log('🚚 [SHIPPING] Final calculation result:', response);
+    res.status(200).json(response);
+
+  } catch (error) {
+    console.error('❌ [SHIPPING] Error calculating shipping fee:', error);
+    
+    // Always provide a fallback rate, never fail completely
+    const fallbackResponse = {
+      success: true,
+      estimatedFee: 250.00,
+      currency: 'PHP',
+      weight: req.body?.weight || 1,
+      destination: {
+        state: req.body?.toAddress?.state || 'Unknown',
+        city: req.body?.toAddress?.city || '',
+        country: 'PH'
+      },
+      fallbackUsed: 'error-fallback',
+      message: 'Using standard Philippine shipping rate due to calculation error',
+      error: 'Shipping calculation temporarily unavailable'
+    };
+
+    res.status(200).json(fallbackResponse);
+  }
+}
+
+/**
+ * Calculate shipping rate based on NinjaVan zone classification
+ */
+function calculateZoneBasedRate(zoneName, weight) {
+  const zones = {
+    // Metro Manila and nearby areas
+    'MM': { base: 150, perKg: 50 },
+    'METRO MANILA': { base: 150, perKg: 50 },
+    
+    // Greater Manila Area, North & South Luzon
+    'GMA_NLZ_SLZ': { base: 200, perKg: 75 },
+    'LUZON': { base: 200, perKg: 75 },
+    'NORTH LUZON': { base: 200, perKg: 75 },
+    'SOUTH LUZON': { base: 200, perKg: 75 },
+    
+    // Visayas
+    'VIS': { base: 280, perKg: 100 },
+    'VISAYAS': { base: 280, perKg: 100 },
+    
+    // Mindanao
+    'MIN': { base: 320, perKg: 120 },
+    'MINDANAO': { base: 320, perKg: 120 }
+  };
+
+  const zone = zones[zoneName.toUpperCase()] || zones['LUZON']; // Default to Luzon rates
+  
+  if (weight <= 0.5) {
+    return zone.base - 30; // Discount for very light items
+  } else if (weight <= 1) {
+    return zone.base;
+  } else if (weight <= 3) {
+    return zone.base + (zone.perKg * 0.5);
+  } else {
+    // For over 3kg, charge base rate for first 3kg + per kg for excess
+    const excessWeight = Math.ceil(weight - 3);
+    return zone.base + (zone.perKg * 0.5) + (excessWeight * zone.perKg);
+  }
+}
+
+/**
+ * Fallback calculation based on province/region names
+ */
+function calculateRegionBasedRate(state, weight) {
+  const metroManilaProvinces = [
+    'ncr', 'metro manila', 'national capital region', 'manila', 
+    'quezon city', 'caloocan', 'las piñas', 'las pinas', 'makati',
+    'malabon', 'mandaluyong', 'marikina', 'muntinlupa', 'navotas',
+    'parañaque', 'paranaque', 'pasay', 'pasig', 'san juan', 'taguig',
+    'valenzuela', 'pateros'
+  ];
+
+  const luzonProvinces = [
+    'bataan', 'batangas', 'bulacan', 'cavite', 'laguna', 'nueva ecija',
+    'pampanga', 'rizal', 'tarlac', 'zambales', 'aurora', 'batanes',
+    'cagayan', 'isabela', 'nueva vizcaya', 'quirino', 'albay',
+    'camarines norte', 'camarines sur', 'catanduanes', 'masbate',
+    'sorsogon', 'abra', 'apayao', 'benguet', 'ifugao', 'kalinga',
+    'mountain province', 'ilocos norte', 'ilocos sur', 'la union',
+    'pangasinan'
+  ];
+
+  const visayasProvinces = [
+    'aklan', 'antique', 'capiz', 'guimaras', 'iloilo', 'negros occidental',
+    'bohol', 'cebu', 'negros oriental', 'siquijor', 'biliran',
+    'eastern samar', 'leyte', 'northern samar', 'samar', 'southern leyte'
+  ];
+
+  const mindanaoProvinces = [
+    'zamboanga del norte', 'zamboanga del sur', 'zamboanga sibugay',
+    'bukidnon', 'camiguin', 'lanao del norte', 'misamis occidental',
+    'misamis oriental', 'davao de oro', 'davao del norte', 'davao del sur',
+    'davao occidental', 'davao oriental', 'cotabato', 'sarangani',
+    'south cotabato', 'sultan kudarat', 'agusan del norte', 'agusan del sur',
+    'dinagat islands', 'surigao del norte', 'surigao del sur',
+    'basilan', 'lanao del sur', 'maguindanao', 'sulu', 'tawi-tawi'
+  ];
+
+  const stateLower = state.toLowerCase();
+
+  if (metroManilaProvinces.some(province => stateLower.includes(province))) {
+    return calculateZoneBasedRate('MM', weight);
+  } else if (luzonProvinces.some(province => stateLower.includes(province))) {
+    return calculateZoneBasedRate('LUZON', weight);
+  } else if (visayasProvinces.some(province => stateLower.includes(province))) {
+    return calculateZoneBasedRate('VISAYAS', weight);
+  } else if (mindanaoProvinces.some(province => stateLower.includes(province))) {
+    return calculateZoneBasedRate('MINDANAO', weight);
+  } else {
+    // Default to Luzon rates for unknown provinces
+    return calculateZoneBasedRate('LUZON', weight);
   }
 }
 
@@ -584,7 +1073,7 @@ async function createShippingOrder(orderId) {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
         [
           orderId, userShipping.address1, userShipping.address2 || '', userShipping.area || '',
-          userShipping.city, userShipping.state, userShipping.postcode, userShipping.country || 'SG',
+          userShipping.city, userShipping.state, userShipping.postcode, userShipping.country || 'PH',
           userShipping.region || '', userShipping.province || '', userShipping.city_municipality || '',
           userShipping.barangay || ''
         ]
@@ -654,7 +1143,7 @@ async function createShippingOrder(orderId) {
           city: "Mandaluyong City",
           state: "NCR",
           address_type: "office",
-          country: "SG",
+          country: "PH",
           postcode: "486015"
         }
       },
@@ -669,7 +1158,7 @@ async function createShippingOrder(orderId) {
           city: userShipping.city,
           state: userShipping.state,
           address_type: "home",
-          country: "SG",
+          country: "PH",
           postcode: formatPostalCode(userShipping.postcode)
         }
       },
@@ -681,7 +1170,7 @@ async function createShippingOrder(orderId) {
         pickup_timeslot: {
           start_time: "09:00",
           end_time: "12:00",
-          timezone: "Asia/Singapore"
+          timezone: "Asia/Manila"
         },
         pickup_instructions: "Pickup with care!",
         delivery_instructions: "If recipient is not around, leave parcel in power riser.",
@@ -689,7 +1178,7 @@ async function createShippingOrder(orderId) {
         delivery_timeslot: {
           start_time: "09:00",
           end_time: "12:00",
-          timezone: "Asia/Singapore"
+          timezone: "Asia/Manila"
         },
         dimensions: {
           weight: totalWeight
@@ -816,7 +1305,10 @@ async function createShippingOrder(orderId) {
 
 module.exports = {
   verifyNinjaVanSignature,
-  ninjavanWebhookHandler,
+  ninjavanWebhookHandler: ninjavanUnifiedWebhookHandler, // Use the new unified handler
+  ninjavanUnifiedWebhookHandler,
+  processAutoCompletions,
+  mapNinjaVanStatusToOrderStatus,
   createOrder,
   getTracking,
   getWaybill,

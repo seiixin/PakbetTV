@@ -170,7 +170,8 @@
 /* only apply on product detail page */
 .product-detail-price-section .regular-price,
 .product-detail-price-section .discounted-price,
-.product-detail-price-section .original-price {
+.product-detail-price-section .original-price,
+.product-detail-price-section .price-range {
   font-size: 28px !important;
   font-weight: 700;
   color: var(--dark-gray);
@@ -487,6 +488,41 @@
 .product-description-container {
   margin-top: 1.5rem;
   line-height: 1.6;
+}
+
+.product-description-container ul {
+  margin: 1rem 0;
+  padding-left: 1.5rem;
+  list-style-type: none;
+}
+
+.product-description-container li {
+  margin: 0.5rem 0;
+  position: relative;
+  line-height: 1.6;
+  padding-left: 1rem;
+}
+
+.product-description-container li::before {
+  content: "•";
+  color: var(--maroon);
+  font-weight: bold;
+  position: absolute;
+  left: 0;
+  font-size: 1.2em;
+}
+
+.product-description-container p {
+  margin: 1rem 0;
+  line-height: 1.6;
+}
+
+.product-description-container p:first-child {
+  margin-top: 0;
+}
+
+.product-description-container p:last-child {
+  margin-bottom: 0;
 }
 
 .product-specs {
@@ -1082,5 +1118,3 @@
     padding: 0.5rem 1rem;
   }
 }
-
-/*

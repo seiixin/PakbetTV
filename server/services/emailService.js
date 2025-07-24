@@ -25,129 +25,6 @@ const transporter = nodemailer.createTransport({
   socketTimeout: 60000,
 });
 
-// Enhanced caching with TTL and size limits
-class EnhancedImageCache {
-  constructor(maxSize = 100, ttl = 3600000) { // 1 hour TTL
-    this.cache = new Map();
-    this.maxSize = maxSize;
-    this.ttl = ttl;
-  }
-
-  set(key, value) {
-    // Remove oldest entries if cache is full
-    if (this.cache.size >= this.maxSize) {
-      const firstKey = this.cache.keys().next().value;
-      this.cache.delete(firstKey);
-    }
-    
-    this.cache.set(key, {
-      data: value,
-      timestamp: Date.now()
-    });
-  }
-
-  get(key) {
-    const item = this.cache.get(key);
-    if (!item) return null;
-    
-    // Check if item has expired
-    if (Date.now() - item.timestamp > this.ttl) {
-      this.cache.delete(key);
-      return null;
-    }
-    
-    return item.data;
-  }
-
-  has(key) {
-    const item = this.cache.get(key);
-    if (!item) return false;
-    
-    // Check if item has expired
-    if (Date.now() - item.timestamp > this.ttl) {
-      this.cache.delete(key);
-      return false;
-    }
-    
-    return true;
-  }
-
-  clear() {
-    this.cache.clear();
-  }
-}
-
-// Enhanced cache instance
-const imageCache = new EnhancedImageCache(100, 3600000); // 100 items, 1 hour TTL
-
-// Connection pool for database connections
-let connectionPool = null;
-
-const getConnectionPool = async () => {
-  return db; // Use the existing db configuration instead of creating a new pool
-};
-
-// Optimized batch image fetching
-const getBatchProductImages = async (productIds) => {
-  if (!productIds.length) return new Map();
-  
-  const results = new Map();
-  const uncachedIds = [];
-  
-  // First, check cache for all product IDs
-  for (const id of productIds) {
-    if (imageCache.has(id)) {
-      results.set(id, imageCache.get(id));
-    } else {
-      uncachedIds.push(id);
-    }
-  }
-  
-  // If all images are cached, return immediately
-  if (uncachedIds.length === 0) {
-    return results;
-  }
-  
-  // Fetch uncached images in a single query
-  try {
-    const placeholders = uncachedIds.map(() => '?').join(',');
-    const [images] = await db.query(
-      `SELECT DISTINCT product_id, image_url 
-       FROM product_images 
-       WHERE product_id IN (${placeholders}) 
-       ORDER BY product_id, sort_order`,
-      uncachedIds
-    );
-    
-    // Group images by product_id and take the first one
-    const imageMap = new Map();
-    for (const image of images) {
-      if (!imageMap.has(image.product_id)) {
-        imageMap.set(image.product_id, image.image_url);
-      }
-    }
-    
-    // Cache and add to results
-    for (const id of uncachedIds) {
-      const imageUrl = imageMap.get(id) || null;
-      imageCache.set(id, imageUrl);
-      results.set(id, imageUrl);
-    }
-    
-  } catch (error) {
-    console.error('Error fetching batch product images:', error);
-    // For failed IDs, set null in cache to avoid repeated queries
-    for (const id of uncachedIds) {
-      if (!results.has(id)) {
-        imageCache.set(id, null);
-        results.set(id, null);
-      }
-    }
-  }
-  
-  return results;
-};
-
 // Function to format price with right alignment
 const formatPrice = (price) => {
   return `₱${Number(price).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -157,11 +34,6 @@ const formatPrice = (price) => {
 const API_BASE_URL = process.env.NODE_ENV === 'production'
   ? 'https://api.michaeldemesa.com'
   : process.env.API_BASE_URL || 'http://localhost:5000';
-
-// Function to get full image URL
-const getImageUrl = (productId) => {
-  return `${API_BASE_URL}/api/products/image/${productId}`;
-};
 
 // Function to generate common footer HTML
 const generateFooterHtml = () => `
@@ -208,11 +80,6 @@ const generateEmailTemplate = (content) => `
   </html>
 `;
 
-// Function to sanitize filename
-const sanitizeFilename = (name) => {
-  return name.replace(/[^a-z0-9]/gi, '-').toLowerCase();
-};
-
 // Function to get email header attachment
 const getEmailHeaderAttachment = () => ({
   filename: 'Michael De Mesa Feng Shui Consultancy-header.png',
@@ -221,17 +88,7 @@ const getEmailHeaderAttachment = () => ({
   contentDisposition: 'inline'
 });
 
-// Function to create image attachment
-const createImageAttachment = (imageData, name, cid) => ({
-  filename: `Michael De Mesa Feng Shui Consultancy-${sanitizeFilename(name)}.jpg`,
-  content: imageData,
-  cid: cid,
-  encoding: 'base64',
-  contentType: 'image/jpeg',
-  contentDisposition: 'inline'
-});
-
-// Optimized function to send order confirmation email
+// Simplified function to send order confirmation email (without product images)
 const sendOrderConfirmationEmail = async (orderDetails) => {
   const {
     orderNumber,
@@ -251,37 +108,15 @@ const sendOrderConfirmationEmail = async (orderDetails) => {
   const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const calculatedTotal = subtotal + shippingFee - discount;
 
-  // Prepare attachments array with header image
+  // Only include header image attachment (no product images)
   const attachments = [getEmailHeaderAttachment()];
 
-  // Get all product IDs that have images
-  const productIds = items
-    .filter(item => item.product_id)
-    .map(item => item.product_id);
-
-  // Batch fetch all images at once
-  const imageMap = await getBatchProductImages(productIds);
-
-  // Generate items HTML using pre-fetched images
+  // Generate items HTML without images
   const itemsHtml = items.map(item => {
-    let imageHtml = `<div style="width:50px; height:50px; background-color:#f5f5f5; margin-right:10px; border-radius:4px; display:flex; align-items:center; justify-content:center;"><span style="color:#999; font-size:10px;">No Image</span></div>`;
-    
-    if (item.product_id && imageMap.has(item.product_id)) {
-      const imageData = imageMap.get(item.product_id);
-      if (imageData) {
-        const imageCid = `product-${item.product_id}`;
-        attachments.push(createImageAttachment(imageData, item.name, imageCid));
-        imageHtml = `<img src="cid:${imageCid}" alt="${item.name}" style="width:50px; height:50px; object-fit:cover; margin-right:10px; border-radius:4px;" />`;
-      }
-    }
-
     return `
       <tr>
         <td style="padding: 8px; border: 1px solid #ddd;">
-          <div style="display: flex; align-items: center;">
-            ${imageHtml}
-            <span style="flex: 1;">${item.name}</span>
-          </div>
+          <span>${item.name}</span>
         </td>
         <td style="padding: 8px; text-align: right; border: 1px solid #ddd; width: 100px;">${item.quantity}</td>
         <td style="padding: 8px; text-align: right; border: 1px solid #ddd; width: 120px;">₱${item.price.toFixed(2)}</td>
@@ -366,7 +201,7 @@ const sendOrderConfirmationEmail = async (orderDetails) => {
   }
 };
 
-// Optimized review request email
+// Simplified review request email (without product images)
 const sendReviewRequestEmail = async (details) => {
   const {
     orderNumber,
@@ -378,32 +213,10 @@ const sendReviewRequestEmail = async (details) => {
   const FRONTEND_BASE_URL = process.env.FRONTEND_BASE_URL || 'https://michaeldemesa.com';
   const attachments = [getEmailHeaderAttachment()];
 
-  // Get all product IDs that have images
-  const productIds = items
-    .filter(item => item.product_id)
-    .map(item => item.product_id);
-
-  // Batch fetch all images at once
-  const imageMap = await getBatchProductImages(productIds);
-
-  // Generate items HTML using pre-fetched images
+  // Generate items HTML without images
   const itemsHtml = items.map(item => {
-    let imageHtml = `<div style="width:100%; height:100%; background-color:#e0e0e0; display:flex; align-items:center; justify-content:center; font-size:10px; color:#666;">No Image</div>`;
-    
-    if (item.product_id && imageMap.has(item.product_id)) {
-      const imageData = imageMap.get(item.product_id);
-      if (imageData) {
-        const imageCid = `product-${item.product_id}`;
-        attachments.push(createImageAttachment(imageData, item.name, imageCid));
-        imageHtml = `<img src="cid:${imageCid}" alt="${item.name}" style="width:100%; height:100%; object-fit:cover; display:block;" />`;
-      }
-    }
-
     return `
       <li style="display:flex; align-items:center; margin-bottom:16px; background-color:#ffffff; border-radius:6px; box-shadow:0 1px 3px rgba(0,0,0,0.08); padding:12px;">
-        <div style="flex-shrink:0; width:64px; height:64px; border-radius:4px; overflow:hidden; margin-right:12px; background-color:#f5f5f5;">
-          ${imageHtml}
-        </div>
         <div style="flex:1;">
           <p style="margin:0 0 8px 0; font-weight:600; color:#333333; font-size:14px;">${item.name}</p>
           <a href="${FRONTEND_BASE_URL}/product/${item.product_id}" target="_blank" style="background-color:#FEC16E; color:#000000; padding:6px 14px; text-decoration:none; border-radius:4px; font-size:12px; display:inline-block;">Leave a Review</a>
@@ -459,7 +272,7 @@ const sendReviewRequestEmail = async (details) => {
   }
 };
 
-// Other email functions remain the same but with optimized transporter
+// Contact form email - updated to use hello@michaeldemesa.com
 const sendContactFormEmail = async (contactDetails) => {
   const { name, email, phone, message } = contactDetails;
 
@@ -482,7 +295,7 @@ const sendContactFormEmail = async (contactDetails) => {
   try {
     const info = await transporter.sendMail({
       from: `"MICHAEL DE MESA - BAZI & FENG SHUI CONSULTANCY" <${process.env.SMTP_USER}>`,
-      to: 'juatonfelix90@gmail.com',
+      to: 'hello@michaeldemesa.com',
       replyTo: email,
       subject: `New Contact Form Message from ${name}`,
       html: generateEmailTemplate(content),
@@ -497,6 +310,7 @@ const sendContactFormEmail = async (contactDetails) => {
   }
 };
 
+// Appointment request email - updated to use hello@michaeldemesa.com
 const sendAppointmentRequestEmail = async (appointmentDetails) => {
   const { name, email, phone, message, subject } = appointmentDetails;
 
@@ -525,7 +339,7 @@ const sendAppointmentRequestEmail = async (appointmentDetails) => {
   try {
     const info = await transporter.sendMail({
       from: `"MICHAEL DE MESA - BAZI & FENG SHUI CONSULTANCY" <${process.env.SMTP_USER}>`,
-      to: 'juatonfelix90@gmail.com',
+      to: 'hello@michaeldemesa.com',
       replyTo: email,
       subject: `New Appointment Request from ${name}`,
       html: generateEmailTemplate(content),
@@ -680,7 +494,6 @@ const cleanup = async () => {
       checkPool();
     }).then(() => {
       transporter.close();
-      imageCache.clear();
       console.log('Email service cleanup completed');
     });
   } catch (error) {
@@ -688,7 +501,6 @@ const cleanup = async () => {
     // Ensure we still close connections even if there's an error
     try {
       transporter.close();
-      imageCache.clear();
     } catch (e) {
       console.error('Error during forced cleanup:', e);
     }
@@ -717,4 +529,4 @@ module.exports = {
   sendOrderDispatchedEmail,
   sendReviewRequestEmail,
   cleanup
-}; 
+};

@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import ninjaVanService from '../../services/ninjaVanService';
 import CancelOrderModal from '../common/CancelOrderModal';
+import TrackingDisplay from '../DeliveryTracking/TrackingDisplay';
 import './OrderConfirmation.css';
 import NavBar from '../NavBar';
 import Footer from '../Footer';
@@ -175,6 +176,12 @@ function OrderConfirmation() {
 
         <div className="order-card">
           <div className="section-title">ORDER INFORMATION</div>
+          
+          {/* Add Order Status Tracking Graphics */}
+          <div className="order-status-section">
+            <TrackingDisplay orderStatus={order.order_status} />
+          </div>
+          
           <div className="order-info-grid">
             <div className="info-item">
               <span className="label">Order Code</span>
@@ -335,4 +342,4 @@ function OrderConfirmation() {
   );
 }
 
-export default OrderConfirmation; 
+export default OrderConfirmation;
