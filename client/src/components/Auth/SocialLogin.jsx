@@ -1,6 +1,5 @@
 import React from 'react';
-import { FaGoogle, FaFacebook } from 'react-icons/fa';
-import FacebookLoginButton from './FacebookLoginButton';
+import { FaGoogle } from 'react-icons/fa';
 import { setCookie } from '../../utils/cookies';
 import './SocialLogin.css';
 
@@ -29,11 +28,11 @@ const SocialLogin = () => {
         >
           <FaGoogle size={20} />
         </a>
-        
-        <FacebookLoginButton />
+        {/* Facebook button temporarily disabled */}
+        {/* <FacebookLoginButton /> */}
       </div>
     </div>
   );
 };
 
-export default SocialLogin; 
+export default SocialLogin;

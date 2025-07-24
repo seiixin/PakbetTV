@@ -107,9 +107,10 @@ const BlogDetail = () => {
             <div className="blog-share mt-4">
               <h5>Share this article</h5>
               <div className="social-icons">
-                <a href={`https://www.facebook.com/sharer/sharer.php?u=${window.location.href}`} target="_blank" rel="noopener noreferrer" className="social-icon facebook">
+                {/* Facebook share button temporarily disabled */}
+                {/* <a href={`https://www.facebook.com/sharer/sharer.php?u=${window.location.href}`} target="_blank" rel="noopener noreferrer" className="social-icon facebook">
                   <i className="bi bi-facebook"></i>
-                </a>
+                </a> */}
                 <a href={`https://twitter.com/intent/tweet?url=${window.location.href}&text=${encodeURIComponent(blog.title)}`} target="_blank" rel="noopener noreferrer" className="social-icon twitter">
                   <i className="bi bi-twitter"></i>
                 </a>
@@ -161,4 +162,4 @@ const BlogDetail = () => {
   );
 };
 
-export default BlogDetail; 
+export default BlogDetail;
