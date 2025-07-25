@@ -14,9 +14,7 @@ const DailyVideo = () => {
           Naniniwala ka ba <br />sa Feng Shui?
         </h1>
         <p className="daily-description">
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam
-          interdum feugiat purus, vitae finibus eros convallis id.
-        </p>
+Learn the basics of feng shui with Sir Michael De Mesa on PakBet TV. Discover simple tips to improve the flow of energy in your space. Attract positivity and balance into your home or workplace today.        </p>
         <a className="daily-btn-watch" href={videoLink} target="_blank"style={{ textDecoration: 'none' }}  rel="noopener noreferrer">
           Watch Now
         </a>
