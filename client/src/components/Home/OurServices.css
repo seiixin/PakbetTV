@@ -1,0 +1,135 @@
+.our-service-section {
+  position: relative;
+  padding: 1rem 0;
+  overflow: hidden;
+}
+.our-service-title {
+  position: absolute;
+  top: 1rem;
+  left: 1.5rem;
+  font-size: 1.5rem; /* Smaller size */
+  color: white;
+  z-index: 2;
+  font-weight: bold;
+}
+
+.gradient-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(to top left, darkblue, #3e0505ff);
+  opacity: 0.8;
+  z-index: 1;
+}
+
+
+
+.our-service-slider-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+.our-service-slider {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  position: relative;
+  width: 100%;
+  justify-content: center;
+}
+
+.center-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.service-card {
+  border-radius: 1rem;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+  opacity: 0.4;
+  transform: scale(0.8);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+}
+
+.service-card.center {
+  opacity: 1;
+  transform: scale(1);
+  z-index: 3;
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.3);
+  width: 100%;
+  max-width: 380px;
+}
+
+.service-card.side {
+  width: 240px;
+}
+
+.service-img {
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+  display: block;
+  aspect-ratio: 16 / 9;
+}
+
+.slider-btn {
+  background: transparent;
+  border: none;
+  width: 0;
+  height: 0;
+  padding: 0;
+  cursor: pointer;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+}
+
+.slider-btn.left {
+  border-top: 20px solid transparent;
+  border-bottom: 20px solid transparent;
+  border-right: 20px solid #f3f652ff;
+  left: 0; /* adjust if needed */
+}
+
+.slider-btn.right {
+  border-top: 20px solid transparent;
+  border-bottom: 20px solid transparent;
+  border-left: 20px solid #f3f652ff;
+  right: 0; /* adjust if needed */
+}
+
+.slider-btn:hover {
+  filter: brightness(1.2);
+}
+
+@media (max-width: 768px) {
+  .slider-btn.left {
+    left: -14px;
+  }
+
+  .slider-btn.right {
+    right: -14px;
+  }
+
+  .service-card.center {
+    max-width: 300px;
+  }
+
+  .service-card.side {
+    width: 180px;
+  }
+
+  .our-service-slider {
+    gap: 0.5rem;
+  }
+}
