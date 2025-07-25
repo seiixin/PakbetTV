@@ -1,0 +1,192 @@
+/* Fullscreen layout */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.home-hero-section {
+  position: relative;
+  width: 100vw;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+
+.video-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+}
+
+.home-hero-section .gradient-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(to top left, darkblue, #3e0505ff);
+  opacity: 0.8;
+  z-index: 1;
+}
+
+.hero-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: stretch; /* ⬅️ stretch content to full height */
+  justify-content: center;
+  padding: 2rem;
+  min-height: 100vh; /* keep this to ensure full screen */
+  height: 100%;
+}
+
+.hero-container {
+  display: flex;
+  flex-direction: row;
+  gap: 2rem;
+  max-width: 1200px;
+  width: 100%;
+  color: white;
+}
+
+/* Text content styling */
+.text-content,
+.image-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.headline {
+  font-weight: 800;
+  font-size: clamp(2.8rem, 5vw, 5.5rem);
+  line-height: 1.1;
+  margin-bottom: 1rem;
+}
+
+.yellow-bold {
+  color: #fdea18;
+  font-weight: 900;
+}
+
+.white-bold {
+  color: #fff;
+  font-weight: 700;
+}
+
+.buttons {
+  display: flex;
+  gap: 24px;
+  margin-top: 24px;
+  flex-wrap: wrap;
+}
+
+.btn-ask {
+  background-color: #05263e;
+  border-radius: 40px;
+  padding: 14px 32px;
+  font-weight: 600;
+  font-size: 1.125rem;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.btn-ask strong {
+  color: #fdea18;
+  font-weight: 700;
+}
+
+.btn-ask:hover {
+  background-color: #093354;
+}
+
+.btn-shop {
+  background: transparent;
+  color: #fdea18;
+  font-weight: 700;
+  font-size: 1.125rem;
+  border: 2px solid #fdea18;
+  border-radius: 40px;
+  padding: 14px 30px;
+  cursor: pointer;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+.btn-shop:hover {
+  background: #fdea18;
+  color: #05263e;
+}
+
+.features {
+  display: flex;
+  justify-content: center;
+  gap: 32px;
+  padding: 20px 0;
+  flex-wrap: nowrap; /* ONE line only */
+  overflow-x: auto;   /* scrolls on small screens */
+}
+
+
+.feature-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: #fdea18;
+  font-weight: 600;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+
+
+.feature-icon {
+  width: 28px;
+  height: 28px;
+  stroke: #fdea18;
+  stroke-width: 2.5;
+  fill: none;
+  margin-bottom: 6px;
+}
+/* Image */
+.image-container {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;  /* ⬅️ ilalagay ang image sa pinakailalim ng container */
+  justify-content: center;
+  height: 100%;
+}
+
+.image-container img {
+  width: auto;
+  height: 100%;
+  object-fit: contain; /* or cover if you want it to crop/fill */
+  display: block;
+}
+
+/* Responsive tweaks */
+@media (max-width: 768px) {
+  .hero-container {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  .buttons {
+    justify-content: center;
+  }
+}

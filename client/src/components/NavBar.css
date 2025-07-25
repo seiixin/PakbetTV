@@ -2,6 +2,7 @@
 body {
   margin: 0;
   padding: 0;
+  background-color: black;
 }
 
 html {
@@ -70,6 +71,16 @@ body {
   box-sizing: border-box;
 }
 
+
+.navbar-fixed {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 5; /* HIGHER than gradient-overlay */
+}
+
+
 /* FIRST ROW - SHIPPING BANNER */
 .navbar-shipping-banner {
   background-color: var(--primary-color, #ab1125);
@@ -96,7 +107,7 @@ body {
 
 /* SECOND ROW - MAIN CONTENT */
 .navbar-main-row {
-  background-color: var(--primary-color, #ab1125);
+  background: linear-gradient(to left, black, #3e0505ff);
   padding: 12px 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
@@ -113,7 +124,7 @@ body {
 
 /* THIRD ROW - NAVIGATION */
 .navbar-nav-row {
-  background-color: var(--primary-color, #ab1125);
+  background: linear-gradient(to left, black, #3e0505ff);
   padding: 12px 0;
 }
 

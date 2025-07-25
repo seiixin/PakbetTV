@@ -45,7 +45,7 @@ const NavBar = () => {
       }
       return !prev;
     });
-  }
+  };
 
 
   useEffect(() => {
@@ -343,11 +343,7 @@ const NavBar = () => {
     <>
       <nav className={navClassName}>
         {/* First Row - Shipping Banner */}
-        <div className="navbar-shipping-banner">
-          <div className="navbar-shipping-content">
-            <span>Nationwide shipping rate of PHP 28</span>
-          </div>
-        </div>
+
 
         {/* Second Row - Logo, Search, Actions */}
         <div className="navbar-main-row">
@@ -449,6 +445,7 @@ const NavBar = () => {
                   onClick={() => navigate('/cart')}
                 >
                   <span className="cart-text">Cart ({getTotalCount()})</span>
+                  <span className="cart-count-mobile">({getTotalCount()})</span>
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="navbar-cart-icon">
                     <circle cx="9" cy="21" r="1"></circle>
                     <circle cx="20" cy="21" r="1"></circle>
@@ -496,6 +493,10 @@ const NavBar = () => {
                     <Link to="/product-guide" className="navbar-submenu-link">Product Guide</Link>
                   </div>
               </li>
+
+              <li className="navbar-navbar-item">
+                <Link to="/contact" className="navbar-navbar-link">Contact Us</Link>
+              </li>
             </ul>
 
             {/* Phone Number */}
@@ -503,7 +504,7 @@ const NavBar = () => {
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
               </svg>
-                  <Link to="/contact" className="navbar-navbar-link">Contact Us</Link>
+                  <Link to="/contact" className="navbar-navbar-link">0981-194-9999</Link>
             </div>
           </div>
         </div>
@@ -690,4 +691,4 @@ const NavBar = () => {
   );
 };
 
-export default NavBar;
+export default NavBar; 

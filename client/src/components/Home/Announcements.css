@@ -1,0 +1,11 @@
+.announcement-banner {
+  background-color: #A2201A;
+  color: #fff;
+  padding: 1rem 2rem;
+  font-size: 1rem;
+  text-align: center;
+  font-weight: 600;
+  font-family: 'ZCOOL XiaoWei', serif;
+  z-index: 3;
+  position: relative; /* keep it in normal flow */
+}

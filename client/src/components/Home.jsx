@@ -9,7 +9,12 @@ import API_BASE_URL from '../config';
 import ProductCard from './common/ProductCard';
 import axios from 'axios';
 import Swal from 'sweetalert2';
-
+import './Home/HomeHeroSection.css';
+import OurService from './Home/OurService';
+import DailyHoroScopeSection from './Home/DailyHoroScopeSection';
+import './Home/Banner.css'; // Import the CSS for the banner
+import Banner from './Home/Banner';
+import DailyVideo from './Home/DailyVideo';
 
 const constructUrl = (baseUrl, path) => {
   const defaultImageUrl = '/images/default-placeholder.png'; 
@@ -150,175 +155,131 @@ const Home = () => {
     setCurrentSlide(index);
   };
 
-  const renderNewArrivals = () => (
-    <section className="home-new-arrivals">
-      <div className="home-section-header">
-        <h2>New Arrivals</h2>
-      </div>
-      {newArrivalsLoading ? (
-        <div className="home-new-arrivals-loading-container">
-          <div className="spinner-border" role="status">
-            <span className="visually-hidden">Loading...</span>
+const renderNewArrivals = () => (
+  <section className="home-new-arrivals">
+    {newArrivalsLoading || newArrivalsError || newArrivals.length > 0 ? (
+      <>
+        <div className="home-section-header">
+          <h2>New Arrivals</h2>
+        </div>
+
+        {newArrivalsLoading ? (
+          <div className="home-new-arrivals-loading-container">
+            <div className="spinner-border" role="status">
+              <span className="visually-hidden">Loading...</span>
+            </div>
           </div>
-        </div>
-      ) : newArrivalsError ? (
-        <div className="error-message">{newArrivalsError.message}</div>
-      ) : newArrivals.length === 0 ? (
-        <div className="no-products">No new arrivals at the moment.</div>
-      ) : (
-        <div className="home-new-arrivals-grid">
-          {newArrivals.slice(0, 10).map(product => (
-            <ProductCard key={product.product_id} product={product} />
-          ))}
-        </div>
-      )}
-      <Link to="/shop" className="view-all-btn">View All Products</Link>
-    </section>
-  );
+        ) : newArrivalsError ? (
+          <div className="error-message">{newArrivalsError.message}</div>
+        ) : (
+          <div className="home-new-arrivals-grid">
+            {newArrivals.slice(0, 10).map(product => (
+              <ProductCard key={product.product_id} product={product} />
+            ))}
+          </div>
+        )}
 
-  const Hero = () => {
-    return (
-      <section className="blog-hero" role="banner" tabIndex={0}>
-        <div className="blog-hero-text">
-          Bring the auspicious into your life today!
-        </div>
-        <Link to="/shop">
-          <button className="blog-hero-button" type="button" tabIndex={0}>
-            SHOP NOW
-          </button>
-        </Link>
-      </section>
-    );
-  };
-
-  const max_limit_display = 5;
-
+        <Link to="/shop" className="view-all-btn">View All Products</Link>
+      </>
+    ) : null}
+  </section>
+);
   return (
     <div className="home-page">
-      <NavBar />
-      <section className="home-hero-section">
-        {/* The background image will display automatically via CSS */}
-      </section>
-        <div className="why-consult-section">
-          <h1>Why Consult with Master Michael De Mesa</h1>
-          <div className="why-consult-grid">
-            <div className="why-consult-item">
-              <img src="/Icons-1.png" alt="Icons-1" className="why-consult-icon" />
-              <h3>International Feng Shui Affiliate Member</h3>
-              <p>Extensive international expertise in Feng Shui consultations across diverse cultures and environments.</p>
-            </div>
-            <div className="why-consult-item">
-              <img src="/Icons-2.png" alt="Icons-2.png" className="why-consult-icon" />
-              <h3>Realistic Solution</h3>
-              <p>Tailored Feng Shui solutions that integrate both traditional wisdom and modern lifestyle needs.</p>
-            </div>
-            <div className="why-consult-item">
-              <img src="/Icons-3.png" alt="Icons-3.png" className="why-consult-icon" />
-              <h3>Over 96% Customer Satisfaction</h3>
-              <p>Custom recommendations based on your specific goals, space, and personal circumstances.</p>
-            </div>
-            <div className="why-consult-item">
-              <img src="/Icons-4.png" alt="Icons-4.png" className="why-consult-icon" />
-              <h3>Comprehensive Advices</h3>
-              <p>Track record of successful transformations in both residential and commercial spaces.</p>
-            </div>
-            <div className="why-consult-item">
-              <img src="/Icons-5.png" alt="Icons-5.png" className="why-consult-icon" />
-              <h3>Expert Team</h3>
-              <p>Clear, practical advice that makes Feng Shui principles easy to understand and implement.</p>
-            </div>
-            <div className="why-consult-item">
-              <img src="/Icons-6.png" alt="Icons-6.png" className="why-consult-icon" />
-              <h3>Reasonable Pricing</h3>
-              <p>Dedicated to helping clients achieve harmony, prosperity, and well-being in their spaces.</p>
-            </div>
-          </div>
-        </div>
-      {renderNewArrivals()}
-      
-      <section className="home-featured-carousel">
-        <div className="home-carousel">
-          <div className="home-carousel-track" style={{ transform: `translateX(-${currentSlide * 100}%)` }}>
-            {carouselData.map((slide, index) => (
-              <div className="home-carousel-slide" key={index}>
-                <div className="home-carousel-content">
-                  <div 
-                    className="home-carousel-section"
-                    style={{ 
-                      background: slide.side === "left" 
-                        ? slide.leftBackground || slide.leftColor 
-                        : slide.rightBackground || slide.rightColor,
-                      backgroundSize: 'cover',
-                      backgroundPosition: 'center',
-                      order: slide.side === "left" ? 1 : 2
-                    }}
-                  />
-                  <div 
-                    className="home-carousel-text-section"
-                    style={{ 
-                      background: slide.side === "left" 
-                        ? slide.rightBackground || slide.rightColor 
-                        : slide.leftBackground || slide.leftColor,
-                      backgroundSize: 'cover',
-                      backgroundPosition: 'center',
-                      order: slide.side === "left" ? 2 : 1
-                    }}
-                  >
-                    <div className="home-carousel-text">
-                      <h2>{slide.title}</h2>
-                      <p>{slide.description}</p>
-                      <Link to={slide.buttonLink} className="home-carousel-button">
-                        {slide.buttonText}
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-          <button className="home-carousel-nav prev" onClick={handlePrevSlide}>❮</button>
-          <button className="home-carousel-nav next" onClick={handleNextSlide}>❯</button>
-          <div className="home-carousel-dots">
-            {carouselData.map((_, index) => (
-              <span 
-                key={index}
-                className={`home-carousel-dot ${currentSlide === index ? 'active' : ''}`} 
-                onClick={() => handleDotClick(index)}
-              ></span>
-            ))}
-          </div>
-        </div>
-      </section>
+           <NavBar />
 
-      <section className="home-categories">
-        <div className="home-section-header">
-          <h2>CATEGORIES</h2>
-        </div>
-        <div className="home-categories-grid">
-          {homeCategories.map(category => (
-            <Link to={`/shop?category=${category.filterId}`} key={category.filterId} className="home-category-card">
-              <div className="home-category-image">
-                <img src={category.image} alt={`${category.name} Icon`} />
-              </div>
-              <h3>{category.name}</h3>
-            </Link>
-          ))}
-        </div>
-      </section>
+<section className="home-hero-section">
+  {/* Background video */}
+  <video
+    className="video-background"
+    src="/HomeHeroVideo.mp4"
+    autoPlay
+    muted
+    loop
+    playsInline
+  />
 
-    
-      <section className="blog-hero" role="banner" tabIndex={0}>
-        <div className="blog-hero-text">
-          Bring the auspicious into your life today!
-        </div>
-        <Link to="/shop">
-          <button className="blog-hero-button" type="button" tabIndex={0}>
-            SHOP NOW
-          </button>
+  {/* Gradient overlay */}
+  <div className="gradient-overlay"></div>
+
+  {/* Foreground content */}
+  <div className="hero-content">
+    <main className="hero-container" role="main" aria-label="Simplifying Feng Shui">
+
+      {/* Left content */}
+      <div className="text-content">
+        <h1 className="headline">
+          <span className="yellow-bold">Simplifying</span><br />
+          <span className="white-bold">Feng Shui</span><br />
+          <span className="yellow-bold">for everyone.</span>
+        </h1>
+
+        <section className="buttons" aria-label="Primary actions">
+          <Link to="/contact"  style={{ textDecoration: 'none' }} className="btn-ask">
+            Ask <strong>Master Michael</strong> now
+          </Link>
+        <Link to="/shop" style={{ textDecoration: 'none' }} className="btn-shop">
+          Go to Shop
         </Link>
-      </section>
+        </section>
 
+        <section className="features" aria-label="Key Features and Benefits">
+          <article className="feature-item">
+            <svg className="feature-icon" viewBox="0 0 24 24">
+              <path d="M12 2L15 8H9L12 2Z" />
+              <circle cx="12" cy="16" r="6" />
+            </svg>
+            Expert<br />Guidance
+          </article>
+          <article className="feature-item">
+            <svg className="feature-icon" viewBox="0 0 24 24">
+              <path d="M4 4h16v16H4z" />
+              <path d="M4 9h16" />
+            </svg>
+            Personalized<br />Analysis
+          </article>
+          <article className="feature-item">
+            <svg className="feature-icon" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M8 12h8" />
+            </svg>
+            Realistic<br />Solution
+          </article>
+          <article className="feature-item">
+            <svg className="feature-icon" viewBox="0 0 24 24">
+              <path d="M12 2a10 10 0 0 1 10 10" />
+              <path d="M2 12a10 10 0 0 0 10 10" />
+            </svg>
+            Modern<br />Practice
+          </article>
+          <article className="feature-item">
+            <svg className="feature-icon" viewBox="0 0 24 24">
+              <path d="M3 12h18M12 3v18" />
+            </svg>
+            Life<br />Harmony
+          </article>
+          <article className="feature-item">
+            <svg className="feature-icon" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 6v6l4 2" />
+            </svg>
+            Timely<br />Advice
+          </article>
+        </section>
+      </div>
 
+      {/* Right picture */}
+      <div className="image-container">
+        <img src="/MasterMichael.png" alt="Master Michael" />
+      </div>
+
+    </main>
+  </div>
+</section>
+      {renderNewArrivals()}
+<OurService />
+<DailyHoroScopeSection />
+<DailyVideo />
       <section className="home-prosper-guide-section">
         <div className="home-section-header home-prosper-header">
           <h2>2025 PROSPER GUIDE</h2>
@@ -335,7 +296,7 @@ const Home = () => {
       </section>
 
       <section className="home-shop-aspirations">
-        <div className="home-section-header">
+        <div className="home-section-header-aspirations">
           <h2>SHOP BY ASPIRATION</h2>
           <p>Find products aligned with your life goals</p>
         </div>
@@ -348,45 +309,6 @@ const Home = () => {
               <h3>{item.name}</h3>
             </Link>
           ))}
-        </div>
-      </section>
-      <section className="home-blog-section">
-        <div className="home-blog-container">
-          <div className="home-blog-section-header">
-            <h2>BLOG</h2>
-            <p>Latest insights on Feng Shui and wellness</p>
-          </div>
-          {blogLoading ? (
-            <div className="home-blog-loading">
-              <div className="spinner-border" role="status">
-                <span className="visually-hidden">Loading...</span>
-              </div>
-            </div>
-          ) : (
-            <div className="home-blog-grid">
-              {blogs.slice(0, 4).map(blog => (
-                <div className="home-blog-card" key={blog.blogID}>
-                  <img
-                    src={blog.cover_image}
-                    className="home-blog-image"
-                    alt="Blog Cover"
-                  />
-                  <div className="home-blog-content">
-                    <h5 className="home-blog-title">{blog.title}</h5>
-                    <p className="home-blog-meta">
-                      {blog.category} • {new Date(blog.publish_date).toLocaleDateString()}
-                    </p>
-                    <p className="home-blog-excerpt">
-                      {blog.content.substring(0, 120)}...
-                    </p>
-                    <Link to={`/blog/${blog.blogID}`} className="home-blog-read-more">
-                      Read More
-                    </Link>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       </section>
   <Footer forceShow={false} />
