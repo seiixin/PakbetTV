@@ -9,6 +9,9 @@ router.post('/payment', auth, transactionsController.processPayment);
 router.get('/verify', transactionsController.verifyPayment);
 router.post('/postback', transactionsController.handlePostback);
 
+// Payment continuation route for "Continue Payment" functionality
+router.get('/payment-url/:orderId', auth, transactionsController.getPaymentUrl);
+
 // Utility routes
 router.post('/simulate-payment', transactionsController.simulatePayment);
 router.post('/prepare-for-confirmation', transactionsController.prepareForConfirmation);

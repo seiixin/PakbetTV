@@ -242,7 +242,7 @@ const Checkout = () => {
       
       setSuccess('Order placed successfully!');
       setTimeout(() => {
-        navigate(`/orders/${response.data.order.order_id}`);
+        navigate('/account/purchases');
       }, 2000);
     } catch (err) {
       console.error('Failed to place order:', err);

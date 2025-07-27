@@ -7,6 +7,7 @@ import CancelOrderModal from '../common/CancelOrderModal';
 import './Purchases.css';
 import NavBar from '../NavBar';
 import Footer from '../Footer';
+import { notify } from '../../utils/notifications';
 
 function Purchases() {
   const { isAuthenticated, token } = useAuth();
@@ -63,45 +64,111 @@ function Purchases() {
     setSelectedOrder(null);
   };
 
+  // Handle "Continue Payment" functionality
+  const handleContinuePayment = async (order) => {
+    try {
+      console.log('Continue payment for order:', order.order_id);
+      
+      // Get payment URL from backend
+      const response = await api.get(`/transactions/payment-url/${order.order_id}`);
+      
+      if (response.data.success) {
+        const { payment_url, hours_remaining } = response.data;
+        
+        // Show notification about time remaining
+        notify.info(`You have ${Math.ceil(hours_remaining)} hours remaining to complete payment.`);
+        
+        // Redirect to DragonPay payment
+        window.location.href = payment_url;
+      } else {
+        // Handle specific error cases
+        if (response.data.expired) {
+          notify.error('Payment window has expired. Please place a new order.');
+        } else if (response.data.completed) {
+          notify.info('Payment has already been processed for this order.');
+          // Refresh orders to update status
+          fetchOrders();
+        } else {
+          notify.error(response.data.message || 'Unable to continue payment at this time.');
+        }
+      }
+    } catch (error) {
+      console.error('Error continuing payment:', error);
+      if (error.response?.status === 401) {
+        notify.error('Please log in to continue payment.');
+        navigate('/login');
+      } else if (error.response?.status === 404) {
+        notify.error('Payment information not found for this order.');
+      } else {
+        notify.error('Failed to retrieve payment information. Please try again.');
+      }
+    }
+  };
+
+  // Check if order can continue payment
+  const canContinuePayment = (order) => {
+    // Order must be in pending/processing status with unpaid payment status
+    const validOrderStatuses = ['pending', 'processing', 'pending_payment'];
+    const validPaymentStatuses = ['pending', 'awaiting_for_confirmation'];
+    
+    console.log('[Continue Payment Check]', {
+      order_id: order.order_id,
+      order_status: order.order_status,
+      payment_status: order.payment_status,
+      payment_method: order.payment_method,
+      validOrderStatus: validOrderStatuses.includes(order.order_status),
+      validPaymentStatus: validPaymentStatuses.includes(order.payment_status),
+      notCOD: order.payment_method !== 'cod',
+      canContinue: validOrderStatuses.includes(order.order_status) && 
+                   validPaymentStatuses.includes(order.payment_status) &&
+                   order.payment_method !== 'cod'
+    });
+    
+    return validOrderStatuses.includes(order.order_status) && 
+           validPaymentStatuses.includes(order.payment_status) &&
+           order.payment_method !== 'cod'; // Don't show for COD orders
+  };
+
+  // Fetch orders function
+  const fetchOrders = async () => {
+    try {
+      setLoading(true);
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      const response = await api.get('/orders');
+      
+      // Check if response is valid JSON
+      if (typeof response.data === 'string') {
+        console.error('Invalid response format:', response.data);
+        setError('Invalid response from server. Please try again later.');
+        setOrders([]);
+        setFilteredOrders([]);
+        return;
+      }
+
+      // Ensure response.data is an array
+      const ordersData = Array.isArray(response.data) ? response.data : [];
+      console.log('Orders fetched successfully:', ordersData);
+      
+      setOrders(ordersData);
+      setFilteredOrders(ordersData);
+    } catch (err) {
+      console.error('Error fetching orders:', err);
+      setError('Failed to load your purchase history. Please try again later.');
+      setOrders([]);
+      setFilteredOrders([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!isAuthenticated) {
       navigate('/login');
       return;
     }
-
-    const fetchOrders = async () => {
-      try {
-        setLoading(true);
-        if (!token) {
-          throw new Error('No authentication token found');
-        }
-
-        const response = await api.get('/orders');
-        
-        // Check if response is valid JSON
-        if (typeof response.data === 'string') {
-          console.error('Invalid response format:', response.data);
-          setError('Invalid response from server. Please try again later.');
-          setOrders([]);
-          setFilteredOrders([]);
-          return;
-        }
-
-        // Ensure response.data is an array
-        const ordersData = Array.isArray(response.data) ? response.data : [];
-        console.log('Orders fetched successfully:', ordersData);
-        
-        setOrders(ordersData);
-        setFilteredOrders(ordersData);
-      } catch (err) {
-        console.error('Error fetching orders:', err);
-        setError('Failed to load your purchase history. Please try again later.');
-        setOrders([]);
-        setFilteredOrders([]);
-      } finally {
-        setLoading(false);
-      }
-    };
 
     fetchOrders();
   }, [isAuthenticated, navigate, token]);
@@ -277,6 +344,15 @@ function Purchases() {
                 <Link to={`/account/orders/${order.order_id}`} className="purchase-view-details-btn">
                   View Details
                 </Link>
+                {canContinuePayment(order) && (
+                  <button 
+                    className="purchase-continue-payment-btn" 
+                    onClick={() => handleContinuePayment(order)}
+                    title="Continue payment for this order"
+                  >
+                    Continue Payment
+                  </button>
+                )}
                 {ninjaVanService.canCancelOrder(order.order_status) && (
                   <button 
                     className="purchase-cancel-btn" 

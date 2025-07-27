@@ -33,10 +33,12 @@ async function getOrders(req, res) {
          o.created_at,
          COALESCE(s.tracking_number, '')       AS tracking_number,
          COALESCE(s.address, '')              AS shipping_address,
+         COALESCE(p.payment_method, '')       AS payment_method,
          COUNT(oi.order_item_id)               AS item_count
        FROM orders o
        LEFT JOIN order_items oi ON oi.order_id = o.order_id
        LEFT JOIN shipping     s ON s.order_id  = o.order_id
+       LEFT JOIN payments     p ON p.order_id  = o.order_id
        WHERE o.user_id = ?
        GROUP BY o.order_id
        ORDER BY o.created_at DESC`,

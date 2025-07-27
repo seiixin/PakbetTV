@@ -150,6 +150,7 @@ const promotionRoutes = require('./routes/promotions');
 const { scheduleOrderConfirmation } = require('./cron/orderConfirmation');
 const { startPaymentStatusChecker } = require('./cron/paymentStatusChecker');
 const { startAutoCompletionJob } = require('./cron/autoCompletionCron');
+const orderTimeoutCron = require('./cron/orderTimeoutCron');
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -295,6 +296,8 @@ app.listen(PORT, async () => {
     console.log('Payment checker cron started');
     startAutoCompletionJob();
     console.log('Auto-completion cron started');
+    orderTimeoutCron.start();
+    console.log('Order timeout cron started - will cancel unpaid orders after 3 hours');
   } catch (cronError) {
     console.error('Cron start error:', cronError);
   }

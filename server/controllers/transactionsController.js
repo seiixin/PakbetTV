@@ -600,9 +600,10 @@ exports.processPayment = async (req, res) => {
         console.warn('DragonPay URL test failed:', urlTestError.message);
       }
       
+      // Store payment URL and reference number for "Continue Payment" functionality
       await db.query(
-        'UPDATE payments SET reference_number = ? WHERE payment_id = ?',
-        [txnId, paymentId]
+        'UPDATE payments SET reference_number = ?, payment_url = ? WHERE payment_id = ?',
+        [txnId, redirectUrl, paymentId]
       );
       res.json({
         success: true,
@@ -1298,6 +1299,99 @@ exports.getPendingPayments = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to get pending payments',
+      error: error.message
+    });
+  }
+};
+
+// Get payment URL for incomplete orders - for "Continue Payment" functionality
+exports.getPaymentUrl = async (req, res) => {
+  try {
+    const orderId = req.params.orderId;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Authentication required' 
+      });
+    }
+
+    // Get payment details with order verification
+    const [payments] = await db.query(`
+      SELECT 
+        p.payment_url,
+        p.reference_number,
+        p.status as payment_status,
+        o.order_status,
+        o.payment_status as order_payment_status,
+        o.user_id,
+        TIMESTAMPDIFF(HOUR, p.created_at, NOW()) as hours_since_created
+      FROM payments p
+      JOIN orders o ON p.order_id = o.order_id
+      WHERE p.order_id = ? AND o.user_id = ?
+      ORDER BY p.created_at DESC
+      LIMIT 1
+    `, [orderId, userId]);
+
+    if (payments.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Payment not found for this order'
+      });
+    }
+
+    const payment = payments[0];
+
+    // Check if payment URL is available and order is in correct state
+    if (!payment.payment_url) {
+      return res.status(400).json({
+        success: false,
+        message: 'No payment URL available for this order'
+      });
+    }
+
+    // Check if order is still within payment window (3 hours)
+    if (payment.hours_since_created >= 3) {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment window has expired. Please place a new order.',
+        expired: true
+      });
+    }
+
+    // Check if payment is still pending/incomplete
+    const validStatuses = ['pending', 'waiting_for_confirmation', 'awaiting_for_confirmation'];
+    if (!validStatuses.includes(payment.payment_status) && !validStatuses.includes(payment.order_payment_status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment has already been processed',
+        completed: true
+      });
+    }
+
+    // Update order status to 'processing' when user accesses payment URL
+    // This indicates payment was initiated but user may have gone back
+    if (payment.order_status === 'pending' || payment.order_status === 'pending_payment') {
+      await db.query(
+        'UPDATE orders SET order_status = ?, updated_at = NOW() WHERE order_id = ?',
+        ['processing', orderId]
+      );
+    }
+
+    res.json({
+      success: true,
+      payment_url: payment.payment_url,
+      reference_number: payment.reference_number,
+      hours_remaining: Math.max(0, 3 - payment.hours_since_created),
+      message: 'Payment URL retrieved successfully'
+    });
+
+  } catch (error) {
+    console.error('Error getting payment URL:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve payment URL',
       error: error.message
     });
   }
