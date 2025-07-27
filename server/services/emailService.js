@@ -455,6 +455,64 @@ const sendOrderDispatchedEmail = async (details) => {
   }
 };
 
+// Send email verification email
+const sendEmailVerification = async (email, verificationToken, userFirstName) => {
+  const FRONTEND_BASE_URL = process.env.FRONTEND_BASE_URL || 'https://michaeldemesa.com';
+  const verificationUrl = `${FRONTEND_BASE_URL}/verify-email/${verificationToken}`;
+  
+  const content = `
+    <h2>Welcome to MICHAEL DE MESA - BAZI & FENG SHUI CONSULTANCY!</h2>
+    <p>Hi ${userFirstName},</p>
+    <p>Thank you for creating an account with us! To complete your registration and access all features, please verify your email address.</p>
+    
+    <div class="verification-info" style="background-color: #f9f9f9; padding: 15px; margin: 20px 0; border-radius: 4px;">
+      <h3>Verification Required:</h3>
+      <p>Please click the button below to verify your email address and activate your account:</p>
+    </div>
+    
+    <div style="text-align: center; margin: 20px 0;">
+      <a href="${verificationUrl}" 
+         style="background-color: #A2201A; 
+                color: #ffffff; 
+                padding: 12px 28px; 
+                text-decoration: none; 
+                border-radius: 6px; 
+                font-weight: bold;
+                display: inline-block;">
+        Verify Email Address
+      </a>
+    </div>
+    
+    <div class="important-note" style="background-color: #fff3e0; padding: 15px; margin: 20px 0; border-radius: 4px;">
+      <p style="margin: 0;"><strong>Important:</strong></p>
+      <p style="margin: 10px 0 0 0;">This verification link will expire in 24 hours for security reasons.</p>
+      <p style="margin: 10px 0 0 0;">Until your email is verified, you won't be able to access shopping features, place orders, or use other account functions.</p>
+    </div>
+    
+    <p>If you did not create this account, please ignore this email or contact our support team.</p>
+    <p>Alternatively, you can copy and paste this URL into your browser:</p>
+    <p style="word-break: break-all; background-color: #f0f0f0; padding: 10px; border-radius: 4px;">${verificationUrl}</p>
+    
+    <p>Welcome to our community Ka-PakBet!</p>
+  `;
+
+  try {
+    const info = await transporter.sendMail({
+      from: `"MICHAEL DE MESA - BAZI & FENG SHUI CONSULTANCY" <${process.env.SMTP_USER}>`,
+      to: email,
+      subject: 'Verify Your Email Address - Account Activation Required',
+      html: generateEmailTemplate(content),
+      attachments: [getEmailHeaderAttachment()]
+    });
+
+    console.log('Email verification sent:', info.messageId);
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    console.error('Email verification error:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
 // Test function remains the same
 const sendTestEmail = async (recipientEmail) => {
   const sampleOrderDetails = {
@@ -527,6 +585,7 @@ module.exports = {
   sendAppointmentRequestEmail,
   sendPasswordResetEmail,
   sendOrderDispatchedEmail,
+  sendEmailVerification,
   sendReviewRequestEmail,
   cleanup
 };

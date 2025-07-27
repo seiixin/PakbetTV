@@ -158,6 +158,107 @@
   stroke: #A2201A;
 }
 
+/* Password Requirements Styles */
+.password-step {
+  flex-direction: column !important;
+}
+
+.password-requirements {
+  margin-top: 10px;
+  padding: 12px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+}
+
+.requirements-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #495057;
+  margin: 0 0 8px 0;
+}
+
+.requirements-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.requirements-list li {
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
+  font-size: 0.8rem;
+  transition: all 0.2s ease;
+}
+
+.requirements-list li:last-child {
+  margin-bottom: 0;
+}
+
+.requirement-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.requirement-met {
+  color: #28a745;
+}
+
+.requirement-met .requirement-icon {
+  background-color: #28a745;
+  color: white;
+}
+
+.requirement-unmet {
+  color: #6c757d;
+}
+
+.requirement-unmet .requirement-icon {
+  background-color: #e9ecef;
+  color: #6c757d;
+  border: 1px solid #dee2e6;
+}
+
+.password-match-indicator {
+  margin-top: 8px;
+}
+
+.password-match-success {
+  display: flex;
+  align-items: center;
+  color: #28a745;
+  font-size: 0.8rem;
+  font-weight: 500;
+  margin: 0;
+}
+
+.password-match-error {
+  display: flex;
+  align-items: center;
+  color: #dc3545;
+  font-size: 0.8rem;
+  font-weight: 500;
+  margin: 0;
+}
+
+.password-match-success .requirement-icon,
+.password-match-error .requirement-icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 6px;
+  font-size: 0.9rem;
+  font-weight: bold;
+}
+
 .auth-links {
   text-align: right;
   margin-bottom: 0.7rem;
@@ -346,6 +447,49 @@
   border-left: 3px solid #e74c3c;
   font-weight: 500;
   backdrop-filter: blur(5px);
+}
+
+.verification-notice {
+  margin-bottom: 0.8rem;
+  text-align: center;
+}
+
+.verification-notice p {
+  color: #666;
+  font-size: 0.65rem;
+  margin: 0 0 0.6rem 0;
+  text-align: center;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.resend-verification-btn {
+  background: linear-gradient(135deg, #a2201a, #8b1c16);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 4px rgba(162, 32, 26, 0.2);
+}
+
+.resend-verification-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #8b1c16, #721612);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(162, 32, 26, 0.3);
+}
+
+.resend-verification-btn:disabled {
+  background: linear-gradient(135deg, #bdc3c7, #95a5a6);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .auth-form p {

@@ -31,8 +31,8 @@ router.post('/signup', limiter, [
 ], authController.signup);
 
 router.post('/login', limiter, [
-    body('emailOrUsername', 'Email or username is required').exists().trim(),
-    body('password', 'Password is required').exists()
+    body('emailOrUsername', 'Email or username is required').notEmpty().trim(),
+    body('password', 'Password is required').notEmpty()
 ], authController.login);
 
 router.get('/me', auth, authController.me);
@@ -56,6 +56,12 @@ router.put('/update-password', auth, [
   body('currentPassword', 'Current password is required').exists(),
   passwordValidation.withMessage('New password must be at least 8 characters long and contain uppercase, lowercase, number, and special character')
 ], authController.updatePassword);
+
+// Email verification routes
+router.get('/verify-email/:token', authController.verifyEmail);
+router.post('/resend-verification', limiter, [
+  body('email', 'Please include a valid email').isEmail().normalizeEmail()
+], authController.resendVerification);
 
 // Catch-all for malformed OAuth redirect URLs
 router.get('*/social-auth-success', authController.malformedSocialAuthSuccess);

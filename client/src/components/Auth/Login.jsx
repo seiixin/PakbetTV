@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { toast } from 'react-toastify';
 import SocialLogin from './SocialLogin';
+import API_BASE_URL from '../../config';
 import './Auth.css';
 
 function Login() {
@@ -21,6 +22,9 @@ function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [needsVerification, setNeedsVerification] = useState(false);
+  const [userEmail, setUserEmail] = useState('');
+  const [resendLoading, setResendLoading] = useState(false);
 
   useEffect(() => {
     if (location.state?.from === '/cart') {
@@ -43,6 +47,12 @@ function Login() {
       ...prev,
       [name]: value
     }));
+    
+    // Clear verification state when user starts typing again
+    if (needsVerification) {
+      setNeedsVerification(false);
+      setError('');
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -79,14 +89,59 @@ function Login() {
       const redirectPath = location.state?.from || '/';
       navigate(redirectPath);
     } else {
-      setError(result.message);
-      toast.error(result.message || 'Login failed');
+      if (result.needsVerification) {
+        // Show verification required state in the form
+        setNeedsVerification(true);
+        setUserEmail(result.email || formData.emailOrUsername);
+        setError(result.message);
+        toast.error(result.message);
+      } else {
+        setNeedsVerification(false);
+        setError(result.message);
+        toast.error(result.message || 'Login failed');
+      }
       setLoading(false);
     }
   };
 
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
+  };
+
+  const handleResendVerification = async () => {
+    if (!userEmail) {
+      toast.error('Email address not found');
+      return;
+    }
+
+    setResendLoading(true);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/resend-verification`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email: userEmail })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success(data.message || 'Verification email sent! Please check your inbox.');
+      } else {
+        if (response.status === 429) {
+          toast.error(data.message, { autoClose: 8000 });
+        } else {
+          toast.error(data.message || 'Failed to send verification email');
+        }
+      }
+    } catch (err) {
+      console.error('Resend verification error:', err);
+      toast.error('Something went wrong. Please try again.');
+    } finally {
+      setResendLoading(false);
+    }
   };
 
   return (
@@ -155,6 +210,20 @@ function Login() {
             </button>
           </div>
         </div>
+        
+        {needsVerification && (
+          <div className="verification-notice">
+            <p>Your account needs email verification to continue.</p>
+            <button
+              type="button"
+              onClick={handleResendVerification}
+              className="resend-verification-btn"
+              disabled={resendLoading}
+            >
+              {resendLoading ? 'Sending...' : 'Resend Verification Email'}
+            </button>
+          </div>
+        )}
         
         <div className="auth-links">
           <Link to="/forgot-password" className="forgot-password-link">Forgot Password?</Link>

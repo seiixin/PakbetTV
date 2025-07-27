@@ -22,6 +22,13 @@ function Signup() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordRequirements, setPasswordRequirements] = useState({
+    length: false,
+    lowercase: false,
+    uppercase: false,
+    number: false,
+    symbol: false
+  });
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -29,6 +36,21 @@ function Signup() {
       ...prev,
       [name]: value
     }));
+
+    // Update password requirements if password field is being changed
+    if (name === 'password') {
+      checkPasswordRequirements(value);
+    }
+  };
+
+  const checkPasswordRequirements = (password) => {
+    setPasswordRequirements({
+      length: password.length >= 8,
+      lowercase: /[a-z]/.test(password),
+      uppercase: /[A-Z]/.test(password),
+      number: /\d/.test(password),
+      symbol: /[@$!%*?&]/.test(password)
+    });
   };
 
   const validateStep = (step) => {
@@ -58,8 +80,27 @@ function Signup() {
           toast.error('Passwords do not match');
           return false;
         }
-        if (formData.password.length < 6) {
-          toast.error('Password must be at least 6 characters');
+        
+        // Check all password requirements
+        const { length, lowercase, uppercase, number, symbol } = passwordRequirements;
+        if (!length) {
+          toast.error('Password must be at least 8 characters long');
+          return false;
+        }
+        if (!lowercase) {
+          toast.error('Password must contain at least one lowercase letter');
+          return false;
+        }
+        if (!uppercase) {
+          toast.error('Password must contain at least one uppercase letter');
+          return false;
+        }
+        if (!number) {
+          toast.error('Password must contain at least one number');
+          return false;
+        }
+        if (!symbol) {
+          toast.error('Password must contain at least one symbol (@$!%*?&)');
           return false;
         }
         break;
@@ -98,7 +139,7 @@ function Signup() {
     
     const result = await register(userData);
     if (result.success) {
-      toast.success('Registration successful! Please log in.');
+      toast.success('Registration successful! Please check your email to verify your account.');
       navigate('/login');
     } else {
       toast.error(result.message || 'Registration failed');
@@ -212,7 +253,7 @@ function Signup() {
       
       case 3:
         return (
-          <div className="form-row two-columns">
+          <div className="form-row password-step">
             <div className="form-group">
               <label htmlFor="password">Password*</label>
               <div className="password-input-container">
@@ -245,7 +286,45 @@ function Signup() {
                   )}
                 </button>
               </div>
+              
+              {/* Password Requirements Indicator */}
+              <div className="password-requirements">
+                <p className="requirements-title">Password must contain:</p>
+                <ul className="requirements-list">
+                  <li className={passwordRequirements.length ? 'requirement-met' : 'requirement-unmet'}>
+                    <span className="requirement-icon">
+                      {passwordRequirements.length ? '✓' : '○'}
+                    </span>
+                    At least 8 characters
+                  </li>
+                  <li className={passwordRequirements.lowercase ? 'requirement-met' : 'requirement-unmet'}>
+                    <span className="requirement-icon">
+                      {passwordRequirements.lowercase ? '✓' : '○'}
+                    </span>
+                    One lowercase letter (a-z)
+                  </li>
+                  <li className={passwordRequirements.uppercase ? 'requirement-met' : 'requirement-unmet'}>
+                    <span className="requirement-icon">
+                      {passwordRequirements.uppercase ? '✓' : '○'}
+                    </span>
+                    One uppercase letter (A-Z)
+                  </li>
+                  <li className={passwordRequirements.number ? 'requirement-met' : 'requirement-unmet'}>
+                    <span className="requirement-icon">
+                      {passwordRequirements.number ? '✓' : '○'}
+                    </span>
+                    One number (0-9)
+                  </li>
+                  <li className={passwordRequirements.symbol ? 'requirement-met' : 'requirement-unmet'}>
+                    <span className="requirement-icon">
+                      {passwordRequirements.symbol ? '✓' : '○'}
+                    </span>
+                    One symbol (@$!%*?&)
+                  </li>
+                </ul>
+              </div>
             </div>
+            
             <div className="form-group">
               <label htmlFor="confirmPassword">Confirm Password*</label>
               <div className="password-input-container">
@@ -278,6 +357,23 @@ function Signup() {
                   )}
                 </button>
               </div>
+              
+              {/* Password Match Indicator */}
+              {formData.confirmPassword && (
+                <div className="password-match-indicator">
+                  {formData.password === formData.confirmPassword ? (
+                    <p className="password-match-success">
+                      <span className="requirement-icon">✓</span>
+                      Passwords match
+                    </p>
+                  ) : (
+                    <p className="password-match-error">
+                      <span className="requirement-icon">×</span>
+                      Passwords do not match
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         );

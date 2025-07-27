@@ -146,9 +146,23 @@ export const AuthProvider = ({ children }) => {
       setUserState(userData);
       return { success: true };
     } catch (error) {
+      const message = error.response?.data?.message || 
+                     (error.response?.data?.errors && error.response.data.errors[0]?.msg) || 
+                     'Login failed';
+      
+      // Check if it's an email verification error
+      if (error.response?.status === 403) {
+        return { 
+          success: false, 
+          message: message,
+          needsVerification: true,
+          email: error.response?.data?.email
+        };
+      }
+      
       return { 
         success: false, 
-        message: error.response?.data?.message || 'Login failed' 
+        message: message 
       };
     } finally {
       setLoading(false);

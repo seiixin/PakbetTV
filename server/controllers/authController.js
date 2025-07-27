@@ -8,11 +8,17 @@ const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
+const { sendEmailVerification } = require('../services/emailService');
 
 // Account lockout tracking (in production, consider using Redis)
 const loginAttempts = new Map();
 const LOCKOUT_TIME = 15 * 60 * 1000; // 15 minutes
 const MAX_LOGIN_ATTEMPTS = 5; // Maximum attempts before lockout
+
+// Email verification rate limiting (in production, consider using Redis)
+const emailResendAttempts = new Map();
+const EMAIL_RESEND_LIMIT = 3; // Maximum resend attempts per email
+const EMAIL_RESEND_WINDOW = 60 * 60 * 1000; // 1 hour window
 
 // Email configuration
 const transporter = nodemailer.createTransport({
@@ -73,6 +79,52 @@ const clearLoginAttempts = (identifier) => {
   loginAttempts.delete(identifier);
 };
 
+// Helper functions for email resend rate limiting
+const checkEmailResendLimit = (email) => {
+  const attempts = emailResendAttempts.get(email);
+  
+  if (!attempts) {
+    return { allowed: true, remainingAttempts: EMAIL_RESEND_LIMIT };
+  }
+  
+  const now = Date.now();
+  
+  // If the window has expired, reset attempts
+  if (now - attempts.firstAttempt > EMAIL_RESEND_WINDOW) {
+    emailResendAttempts.delete(email);
+    return { allowed: true, remainingAttempts: EMAIL_RESEND_LIMIT };
+  }
+  
+  // Check if limit exceeded
+  if (attempts.count >= EMAIL_RESEND_LIMIT) {
+    const timeRemaining = Math.ceil((EMAIL_RESEND_WINDOW - (now - attempts.firstAttempt)) / (60 * 1000)); // minutes
+    return { 
+      allowed: false, 
+      remainingAttempts: 0,
+      timeRemaining: timeRemaining
+    };
+  }
+  
+  return { 
+    allowed: true, 
+    remainingAttempts: EMAIL_RESEND_LIMIT - attempts.count 
+  };
+};
+
+const recordEmailResendAttempt = (email) => {
+  const now = Date.now();
+  const attempts = emailResendAttempts.get(email);
+  
+  if (!attempts) {
+    emailResendAttempts.set(email, {
+      count: 1,
+      firstAttempt: now
+    });
+  } else {
+    attempts.count++;
+  }
+};
+
 // Helper function to generate JWT token
 const generateToken = (user) => {
   return jwt.sign(
@@ -125,20 +177,33 @@ exports.signup = async (req, res) => {
     const salt = await bcrypt.genSalt(12); // Increased from 10 to 12 for better security
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Create user
+    // Generate verification token
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const verificationTokenExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+
+    // Create user (is_verified defaults to FALSE)
     const [insertResult] = await db.query(
-      'INSERT INTO users (username, first_name, last_name, email, password) VALUES (?, ?, ?, ?, ?)',
-      [username, firstname, lastname, email, hashedPassword]
+      'INSERT INTO users (username, first_name, last_name, email, password, verification_token, verification_token_expires) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [username, firstname, lastname, email, hashedPassword, verificationToken, verificationTokenExpires]
     );
 
-    const token = generateToken({ user_id: insertResult.insertId, email });
+    // Send verification email
+    try {
+      await sendEmailVerification(email, verificationToken, firstname);
+      console.log(`Verification email sent to ${email}`);
+    } catch (emailError) {
+      console.error('Failed to send verification email:', emailError);
+      // Note: We don't fail the registration if email fails, but we log it
+    }
 
+    // Don't generate a token immediately - user needs to verify email first
     res.status(201).json({
-      token,
+      message: 'Registration successful! Please check your email to verify your account.',
       user: {
         id: insertResult.insertId,
         username,
-        email
+        email,
+        verified: false
       }
     });
   } catch (err) {
@@ -161,13 +226,13 @@ exports.login = async (req, res) => {
     const lockoutStatus = checkAccountLockout(emailOrUsername);
     if (lockoutStatus.locked) {
       return res.status(429).json({
-        errors: [{ msg: `Account temporarily locked. Try again in ${lockoutStatus.remainingTime} minutes.` }]
+        message: `Account temporarily locked. Try again in ${lockoutStatus.remainingTime} minutes.`
       });
     }
 
-    // Find user with user_type (select only needed columns)
+    // Find user with user_type and verification status (select only needed columns)
     const [rows] = await db.query(
-      'SELECT user_id, username, email, password, user_type FROM users WHERE email = ? OR username = ? LIMIT 1',
+      'SELECT user_id, username, email, password, user_type, is_verified FROM users WHERE email = ? OR username = ? LIMIT 1',
       [emailOrUsername, emailOrUsername]
     );
 
@@ -175,7 +240,7 @@ exports.login = async (req, res) => {
     if (!user) {
       recordFailedAttempt(emailOrUsername);
       return res.status(400).json({
-        errors: [{ msg: 'Invalid credentials' }]
+        message: 'Invalid credentials'
       });
     }
 
@@ -184,7 +249,16 @@ exports.login = async (req, res) => {
     if (!isMatch) {
       recordFailedAttempt(emailOrUsername);
       return res.status(400).json({
-        errors: [{ msg: 'Invalid credentials' }]
+        message: 'Invalid credentials'
+      });
+    }
+
+    // Check if email is verified
+    if (!user.is_verified) {
+      return res.status(403).json({
+        message: 'Please Verify Your Account',
+        needsVerification: true,
+        email: user.email
       });
     }
 
@@ -390,6 +464,128 @@ exports.updatePassword = async (req, res) => {
     res.json({ message: 'Password updated successfully' });
   } catch (err) {
     console.error('Auth error:', err.message);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Verify email address
+exports.verifyEmail = async (req, res) => {
+  try {
+    const { token } = req.params;
+
+    if (!token) {
+      return res.status(400).json({ message: 'Verification token is required' });
+    }
+
+    // Find user with this verification token that hasn't expired
+    const [rows] = await db.query(
+      'SELECT user_id, email, first_name, is_verified FROM users WHERE verification_token = ? AND verification_token_expires > ? LIMIT 1',
+      [token, Date.now()]
+    );
+
+    const user = rows[0];
+    if (!user) {
+      return res.status(400).json({ 
+        message: 'Invalid or expired verification token. Please request a new verification email.',
+        expired: true
+      });
+    }
+
+    if (user.is_verified) {
+      return res.status(200).json({ 
+        message: 'Email already verified. You can now log in.',
+        alreadyVerified: true
+      });
+    }
+
+    // Update user to verified and clear verification token
+    await db.query(
+      'UPDATE users SET is_verified = TRUE, verification_token = NULL, verification_token_expires = NULL WHERE user_id = ?',
+      [user.user_id]
+    );
+
+    console.log(`Email verified for user: ${user.email}`);
+
+    res.status(200).json({ 
+      message: 'Email verified successfully! You can now log in to your account.',
+      verified: true
+    });
+  } catch (err) {
+    console.error('Email verification error:', err.message);
+    res.status(500).json({ message: 'Server error during email verification' });
+  }
+};
+
+// Resend verification email
+exports.resendVerification = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
+
+    // Check rate limiting
+    const rateLimitStatus = checkEmailResendLimit(email);
+    if (!rateLimitStatus.allowed) {
+      return res.status(429).json({ 
+        message: `Too many verification email requests. Please wait ${rateLimitStatus.timeRemaining} minutes before trying again.`
+      });
+    }
+
+    // Find user by email
+    const [rows] = await db.query(
+      'SELECT user_id, email, first_name, is_verified FROM users WHERE email = ? LIMIT 1',
+      [email]
+    );
+
+    const user = rows[0];
+    if (!user) {
+      // Still record attempt even for non-existent users to prevent enumeration
+      recordEmailResendAttempt(email);
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (user.is_verified) {
+      recordEmailResendAttempt(email);
+      return res.status(400).json({ 
+        message: 'Email is already verified. You can log in to your account.' 
+      });
+    }
+
+    // Record the resend attempt
+    recordEmailResendAttempt(email);
+
+    // Generate new verification token
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const verificationTokenExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+
+    // Update user with new verification token
+    await db.query(
+      'UPDATE users SET verification_token = ?, verification_token_expires = ? WHERE user_id = ?',
+      [verificationToken, verificationTokenExpires, user.user_id]
+    );
+
+    // Send verification email
+    try {
+      await sendEmailVerification(email, verificationToken, user.first_name);
+      console.log(`Verification email resent to ${email}`);
+    } catch (emailError) {
+      console.error('Failed to resend verification email:', emailError);
+      return res.status(500).json({ message: 'Failed to send verification email. Please try again later.' });
+    }
+
+    const remainingAttempts = rateLimitStatus.remainingAttempts - 1;
+    const responseMessage = remainingAttempts > 0 
+      ? `Verification email sent! Please check your inbox. You have ${remainingAttempts} resend attempts remaining.`
+      : 'Verification email sent! Please check your inbox. No more resend attempts available for the next hour.';
+
+    res.status(200).json({ 
+      message: responseMessage,
+      remainingAttempts: remainingAttempts
+    });
+  } catch (err) {
+    console.error('Resend verification error:', err.message);
     res.status(500).json({ message: 'Server error' });
   }
 };

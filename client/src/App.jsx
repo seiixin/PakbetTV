@@ -11,6 +11,8 @@ import API_BASE_URL from './config'
 import Home from './components/Home'
 import Login from './components/Auth/Login'
 import Signup from './components/Auth/Signup'
+import EmailVerification from './components/Auth/EmailVerification'
+import ResendVerification from './components/Auth/ResendVerification'
 import Account from './components/Account/Account'
 import Purchases from './components/Account/Purchases'
 import OrderConfirmation from './components/Account/OrderConfirmation'
@@ -131,6 +133,8 @@ function AppContent() {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/verify-email/:token" element={<EmailVerification />} />
+        <Route path="/resend-verification" element={<ResendVerification />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password/:token" element={<ResetPassword />} />
         <Route path="/contact" element={<Contact />} />

@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const dotenv = require('dotenv');
+const db = require('../config/db');
 dotenv.config();
 
 const auth = (req, res, next) => {
@@ -121,4 +122,37 @@ const admin = (req, res, next) => {
   }
 };
 
-module.exports = { auth, admin };
+// Middleware to check if user's email is verified
+const requireVerification = async (req, res, next) => {
+  try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+
+    // Check user's verification status from database
+    const [rows] = await db.query(
+      'SELECT is_verified, email FROM users WHERE user_id = ? LIMIT 1',
+      [req.user.id]
+    );
+
+    const user = rows[0];
+    if (!user) {
+      return res.status(401).json({ message: 'User not found' });
+    }
+
+    if (!user.is_verified) {
+      return res.status(403).json({ 
+        message: 'Please Verify Your Account',
+        needsVerification: true,
+        email: user.email
+      });
+    }
+
+    next();
+  } catch (err) {
+    console.error('Verification check error:', err);
+    res.status(500).json({ message: 'Server error during verification check' });
+  }
+};
+
+module.exports = { auth, admin, requireVerification };

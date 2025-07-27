@@ -1,16 +1,16 @@
 const express = require('express');
 const router = express.Router();
-const { auth } = require('../middleware/auth');
+const { auth, requireVerification } = require('../middleware/auth');
 const transactionsController = require('../controllers/transactionsController');
 
 // Main transaction routes - using unified controller that supports both voucher and promotion systems
-router.post('/orders', auth, transactionsController.createOrder);
-router.post('/payment', auth, transactionsController.processPayment);
+router.post('/orders', auth, requireVerification, transactionsController.createOrder);
+router.post('/payment', auth, requireVerification, transactionsController.processPayment);
 router.get('/verify', transactionsController.verifyPayment);
 router.post('/postback', transactionsController.handlePostback);
 
 // Payment continuation route for "Continue Payment" functionality
-router.get('/payment-url/:orderId', auth, transactionsController.getPaymentUrl);
+router.get('/payment-url/:orderId', auth, requireVerification, transactionsController.getPaymentUrl);
 
 // Utility routes
 router.post('/simulate-payment', transactionsController.simulatePayment);
