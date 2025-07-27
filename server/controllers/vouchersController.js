@@ -424,9 +424,11 @@ exports.deleteVoucher = async (req, res) => {
   }
 };
 
-// Validate voucher code (for users)
+// Validate voucher code (for users) - DEPRECATED, use promotions instead
 exports.validateVoucher = async (req, res) => {
   try {
+    console.log('DEPRECATED: Using old voucher validation. Please migrate to /api/promotions/validate');
+    
     const { code, order_amount = 0 } = req.body;
     const userId = req.user?.id;
 
@@ -438,103 +440,41 @@ exports.validateVoucher = async (req, res) => {
       return res.status(401).json({ message: 'Authentication required' });
     }
 
-    // Get voucher details
-    const [vouchers] = await db.query(
-      `SELECT 
-        voucher_id,
-        code,
-        name,
-        description,
-        type,
-        discount_type,
-        discount_value,
-        max_discount,
-        min_order_amount,
-        max_redemptions,
-        current_redemptions,
-        start_date,
-        end_date,
-        is_active
-       FROM vouchers 
-       WHERE code = ?`,
-      [code]
-    );
-
-    if (vouchers.length === 0) {
-      return res.status(404).json({ message: 'Invalid voucher code' });
-    }
-
-    const voucher = vouchers[0];
-
-    // Check if voucher is active
-    if (!voucher.is_active) {
-      return res.status(400).json({ message: 'Voucher is not active' });
-    }
-
-    // Check if voucher is within valid date range
-    const now = new Date();
-    const startDate = new Date(voucher.start_date);
-    const endDate = new Date(voucher.end_date);
-
-    if (now < startDate) {
-      return res.status(400).json({ message: 'Voucher is not yet active' });
-    }
-
-    if (now > endDate) {
-      return res.status(400).json({ message: 'Voucher has expired' });
-    }
-
-    // Check minimum order amount
-    if (order_amount < voucher.min_order_amount) {
+    // Try to use the new promotions system
+    try {
+      const promotionsController = require('./promotionsController');
+      
+      const transformedReq = {
+        ...req,
+        body: {
+          code: code,
+          order_amount: order_amount || 0,
+          items: []
+        }
+      };
+      
+      return await promotionsController.validatePromotion(transformedReq, res);
+      
+    } catch (promotionError) {
+      console.log('Promotion system not available, returning deprecation message');
+      
+      // Return a helpful error message
       return res.status(400).json({ 
-        message: `Minimum order amount of ₱${voucher.min_order_amount} required` 
+        valid: false,
+        message: 'Voucher system has been upgraded to promotions. Please ask admin to migrate your voucher codes to the new promotions system.',
+        migration_needed: true,
+        code: code
       });
     }
-
-    // Check maximum redemptions
-    if (voucher.max_redemptions && voucher.current_redemptions >= voucher.max_redemptions) {
-      return res.status(400).json({ message: 'Voucher has reached maximum redemptions' });
-    }
-
-    // Check if user has already used this voucher
-    const [userRedemptions] = await db.query(
-      'SELECT COUNT(*) as count FROM voucher_redemptions WHERE voucher_id = ? AND user_id = ?',
-      [voucher.voucher_id, userId]
-    );
-
-    if (userRedemptions[0].count > 0) {
-      return res.status(400).json({ message: 'You have already used this voucher' });
-    }
-
-    // Calculate discount amount
-    let discountAmount = 0;
-    if (voucher.discount_type === 'percentage') {
-      discountAmount = (order_amount * voucher.discount_value) / 100;
-      if (voucher.max_discount && discountAmount > voucher.max_discount) {
-        discountAmount = voucher.max_discount;
-      }
-    } else {
-      discountAmount = voucher.discount_value;
-    }
-
-    res.json({
-      message: 'Voucher is valid',
-      voucher: {
-        voucher_id: voucher.voucher_id,
-        code: voucher.code,
-        name: voucher.name,
-        description: voucher.description,
-        type: voucher.type,
-        discount_type: voucher.discount_type,
-        discount_value: voucher.discount_value,
-        max_discount: voucher.max_discount,
-        discount_amount: discountAmount
-      }
-    });
-
+    
   } catch (error) {
-    console.error('Error validating voucher:', error);
-    res.status(500).json({ message: 'Failed to validate voucher', error: error.message });
+    console.error('Error in deprecated voucher validation:', error);
+    res.status(500).json({ 
+      valid: false,
+      message: 'Voucher validation system is deprecated. Please use the new promotions system.',
+      deprecated: true,
+      error: error.message 
+    });
   }
 };
 

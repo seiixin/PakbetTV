@@ -99,7 +99,7 @@ exports.createOrder = async (req, res) => {
     await connection.beginTransaction();
     console.log('Transaction started');
     
-    const { user_id, total_amount, subtotal, shipping_fee = 0, items, shipping_details, payment_method, voucher_code } = req.body;
+    const { user_id, total_amount, subtotal, shipping_fee = 0, items, shipping_details, payment_method, voucher_code, promo_code } = req.body;
 
     // Validate required fields
     if (!user_id || !items || !Array.isArray(items) || items.length === 0) {
@@ -130,123 +130,53 @@ exports.createOrder = async (req, res) => {
     const standardPhone = cleanPhone.replace(/^0/, '+63');
     shipping_details.phone = standardPhone;
 
-    // Validate and apply voucher if provided
-    let voucherDiscount = 0;
-    let voucherId = null;
-    let voucherType = null;
+    // Validate and apply discount if provided (supports both voucher and promotion systems)
+    let discountAmount = 0;
+    let productDiscount = 0;
+    let shippingDiscount = 0;
+    let discountId = null;
+    let discountType = null;
+    let discountSystemUsed = null;
     let finalTotalAmount = total_amount;
+    let finalSubtotal = subtotal;
+    let finalShippingFee = shipping_fee;
 
-    if (voucher_code) {
+    // Use promotion system for both promo_code and voucher_code (unified approach)
+    const discount_code = promo_code || voucher_code;
+    
+    if (discount_code) {
       try {
-        // Get voucher details
-        const [vouchers] = await connection.query(
-          `SELECT 
-            voucher_id,
-            code,
-            name,
-            type,
-            discount_type,
-            discount_value,
-            max_discount,
-            min_order_amount,
-            max_redemptions,
-            current_redemptions,
-            start_date,
-            end_date,
-            is_active
-           FROM vouchers 
-           WHERE code = ?`,
-          [voucher_code]
-        );
+        console.log('Using promotion system for discount code:', discount_code);
+        const promotionService = require('../services/promotionService');
+        
+        const cartData = {
+          items,
+          subtotal,
+          shipping_fee,
+          promo_code: discount_code
+        };
+        
+        const promotionResult = await promotionService.applyPromotions(cartData, user_id);
 
-        if (vouchers.length === 0) {
-          await connection.rollback();
-          return res.status(400).json({ message: 'Invalid voucher code' });
+        productDiscount = promotionResult.product_discount || 0;
+        shippingDiscount = promotionResult.shipping_discount || 0;
+        discountAmount = productDiscount + shippingDiscount;
+        finalTotalAmount = promotionResult.final_total;
+        finalSubtotal = promotionResult.final_subtotal;
+        finalShippingFee = promotionResult.final_shipping;
+        discountSystemUsed = 'promotion';
+        
+        // Get promotion ID from applied promotions
+        if (promotionResult.applied_promotions && promotionResult.applied_promotions.length > 0) {
+          discountId = promotionResult.applied_promotions[0].promotion_id;
         }
+        
+        console.log(`Promotion applied: Product ₱${productDiscount}, Shipping ₱${shippingDiscount}`);
 
-        const voucher = vouchers[0];
-
-        // Check if voucher is active
-        if (!voucher.is_active) {
-          await connection.rollback();
-          return res.status(400).json({ message: 'Voucher is not active' });
-        }
-
-        // Check if voucher is within valid date range
-        const now = new Date();
-        const startDate = new Date(voucher.start_date);
-        const endDate = new Date(voucher.end_date);
-
-        if (now < startDate) {
-          await connection.rollback();
-          return res.status(400).json({ message: 'Voucher is not yet active' });
-        }
-
-        if (now > endDate) {
-          await connection.rollback();
-          return res.status(400).json({ message: 'Voucher has expired' });
-        }
-
-        // Check minimum order amount
-        if (subtotal < voucher.min_order_amount) {
-          await connection.rollback();
-          return res.status(400).json({ 
-            message: `Minimum order amount of ₱${voucher.min_order_amount} required` 
-          });
-        }
-
-        // Check maximum redemptions
-        if (voucher.max_redemptions && voucher.current_redemptions >= voucher.max_redemptions) {
-          await connection.rollback();
-          return res.status(400).json({ message: 'Voucher has reached maximum redemptions' });
-        }
-
-        // Check if user has already used this voucher
-        const [userRedemptions] = await connection.query(
-          'SELECT COUNT(*) as count FROM voucher_redemptions WHERE voucher_id = ? AND user_id = ?',
-          [voucher.voucher_id, user_id]
-        );
-
-        if (userRedemptions[0].count > 0) {
-          await connection.rollback();
-          return res.status(400).json({ message: 'You have already used this voucher' });
-        }
-
-        // Calculate discount amount
-        if (voucher.discount_type === 'percentage') {
-          if (voucher.type === 'total_price') {
-            voucherDiscount = (subtotal * voucher.discount_value) / 100;
-            if (voucher.max_discount && voucherDiscount > voucher.max_discount) {
-              voucherDiscount = voucher.max_discount;
-            }
-          } else if (voucher.type === 'shipping') {
-            voucherDiscount = (shipping_fee * voucher.discount_value) / 100;
-            if (voucher.max_discount && voucherDiscount > voucher.max_discount) {
-              voucherDiscount = voucher.max_discount;
-            }
-          }
-        } else {
-          if (voucher.type === 'total_price') {
-            voucherDiscount = Math.min(voucher.discount_value, subtotal);
-          } else if (voucher.type === 'shipping') {
-            voucherDiscount = Math.min(voucher.discount_value, shipping_fee);
-          }
-        }
-
-        voucherId = voucher.voucher_id;
-        voucherType = voucher.type;
-        finalTotalAmount = total_amount - voucherDiscount;
-
-        // Update voucher redemption count
-        await connection.query(
-          'UPDATE vouchers SET current_redemptions = current_redemptions + 1 WHERE voucher_id = ?',
-          [voucher.voucher_id]
-        );
-
-      } catch (voucherError) {
+      } catch (discountError) {
         await connection.rollback();
         return res.status(400).json({ 
-          message: `Error processing voucher: ${voucherError.message}` 
+          message: `Error processing discount: ${discountError.message}` 
         });
       }
     }
@@ -272,7 +202,7 @@ exports.createOrder = async (req, res) => {
       `INSERT INTO orders 
        (user_id, total_price, total_product_price, total_shipping_fee, order_status, payment_status, order_code, created_at, updated_at) 
        VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-      [user_id, finalTotalAmount, subtotal || (total_amount - shipping_fee), shipping_fee, initialOrderStatus, initialPaymentStatus, orderCode]
+      [user_id, finalTotalAmount, finalSubtotal, finalShippingFee, initialOrderStatus, initialPaymentStatus, orderCode]
     );
     
     console.log('Order insert result:', orderResult);
@@ -285,21 +215,23 @@ exports.createOrder = async (req, res) => {
     
     console.log('Order created with ID:', orderId);
 
-    // Record voucher redemption if voucher was used
-    if (voucherId && voucherDiscount > 0) {
+    // Record promotion usage if discount was applied
+    if (discountSystemUsed === 'promotion' && discountId) {
+      console.log('Recording promotion usage...');
       await connection.query(
-        `INSERT INTO voucher_redemptions (
-          voucher_id, order_id, user_id, discount_amount, applied_to, redeemed_at
+        `INSERT INTO promotion_usage (
+          promotion_id, order_id, user_id, discount_amount, shipping_discount, used_at
         ) VALUES (?, ?, ?, ?, ?, NOW())`,
-        [
-          voucherId,
-          orderId,
-          user_id,
-          voucherDiscount,
-          voucherType === 'shipping' ? 'shipping' : 'total_price'
-        ]
+        [discountId, orderId, user_id, productDiscount, shippingDiscount]
       );
-      console.log('Voucher redemption recorded');
+
+      // Update promotion usage count
+      await connection.query(
+        'UPDATE promotions SET current_usage_count = current_usage_count + 1 WHERE promotion_id = ?',
+        [discountId]
+      );
+      
+      console.log('Promotion usage recorded');
     }
 
     // For COD orders, create a payment record
@@ -309,7 +241,7 @@ exports.createOrder = async (req, res) => {
           order_id, payment_method, status, amount,
           reference_number, created_at, updated_at
         ) VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
-        [orderId, 'cod', 'cod_pending', total_amount, `COD-${orderCode}`]
+        [orderId, 'cod', 'cod_pending', finalTotalAmount, `COD-${orderCode}`]
       );
       console.log('COD payment record created');
     }
@@ -546,7 +478,12 @@ exports.createOrder = async (req, res) => {
           order_id: orderId,
           order_code: orderCode,
           payment_status: initialPaymentStatus,
-          order_status: initialOrderStatus
+          order_status: initialOrderStatus,
+          final_total: finalTotalAmount,
+          product_discount: productDiscount,
+          shipping_discount: shippingDiscount,
+          total_savings: productDiscount + shippingDiscount,
+          discount_system_used: discountSystemUsed
         }
       });
     }
@@ -562,7 +499,12 @@ exports.createOrder = async (req, res) => {
         order_id: orderId,
         order_code: orderCode,
         payment_status: initialPaymentStatus,
-        order_status: initialOrderStatus
+        order_status: initialOrderStatus,
+        final_total: finalTotalAmount,
+        product_discount: productDiscount,
+        shipping_discount: shippingDiscount,
+        total_savings: productDiscount + shippingDiscount,
+        discount_system_used: discountSystemUsed
       }
     });
 

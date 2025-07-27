@@ -75,6 +75,19 @@ async function getCart(req, res) {
           0
         ) AS price,
         
+        -- Include discount information
+        p.discount_percentage,
+        CASE 
+          WHEN p.discount_percentage > 0 THEN
+            CASE 
+              WHEN p.discount_percentage <= 1 THEN
+                COALESCE(pv.price, p.price) * (1 - p.discount_percentage)
+              ELSE 
+                COALESCE(pv.price, p.price) * (1 - p.discount_percentage / 100)
+            END
+          ELSE 0
+        END AS discounted_price,
+        
         -- Efficient stock calculation
         COALESCE(
           pv.stock,
@@ -121,6 +134,8 @@ async function getCart(req, res) {
     const processedCartItems = validatedItems.map(item => ({
       ...item,
       price: Number(item.price) || 0,
+      discounted_price: Number(item.discounted_price) || 0,
+      discount_percentage: Number(item.discount_percentage) || 0,
       stock: Number(item.stock) || 0,
       image_url: item.image_url || '/placeholder-product.jpg'
     }));

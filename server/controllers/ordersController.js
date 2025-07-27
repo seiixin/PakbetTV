@@ -113,6 +113,34 @@ async function getOrderById(req, res) {
       [orderId]
     );
 
+    // Fetch promotion usage details to get discount breakdown
+    const [promotionRows] = await db.query(
+      `SELECT 
+         pu.discount_amount,
+         pu.shipping_discount,
+         pr.promotion_code,
+         pr.promotion_name,
+         pr.promotion_type
+       FROM promotion_usage pu
+       JOIN promotions pr ON pr.promotion_id = pu.promotion_id
+       WHERE pu.order_id = ?`,
+      [orderId]
+    );
+
+    // Calculate discount totals
+    let totalDiscount = 0;
+    let productDiscount = 0;
+    let shippingDiscount = 0;
+    
+    promotionRows.forEach(promo => {
+      totalDiscount += parseFloat(promo.discount_amount || 0);
+      if (promo.promotion_type === 'shipping_discount') {
+        shippingDiscount += parseFloat(promo.shipping_discount || promo.discount_amount || 0);
+      } else if (promo.promotion_type === 'product_discount') {
+        productDiscount += parseFloat(promo.discount_amount || 0);
+      }
+    });
+
     // Structure the response to match front-end expectations
     const responseData = {
       order_id: order.order_id,
@@ -126,6 +154,10 @@ async function getOrderById(req, res) {
       updated_at: order.updated_at,
       tracking_number: order.tracking_number,
       shipping_address: order.shipping_address,
+      // Discount breakdown
+      discount: totalDiscount,
+      product_discount: productDiscount,
+      shipping_discount: shippingDiscount,
       // Nested helpers
       shipping: {
         name: order.first_name + ' ' + order.last_name,
@@ -137,7 +169,8 @@ async function getOrderById(req, res) {
         payment_method: order.payment_method,
         transaction_id: order.transaction_id
       },
-      items: itemRows
+      items: itemRows,
+      promotions: promotionRows
     };
 
     return res.json(responseData);

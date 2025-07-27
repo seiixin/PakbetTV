@@ -96,7 +96,10 @@ function OrderConfirmation() {
             total_product_price: response.data.total_product_price,
             total_shipping_fee: response.data.total_shipping_fee,
             shipping_fee: response.data.shipping_fee,
-            subtotal: response.data.subtotal
+            subtotal: response.data.subtotal,
+            discount: response.data.discount,
+            product_discount: response.data.product_discount,
+            shipping_discount: response.data.shipping_discount
           });
         } else {
           setOrder(response.data);
@@ -107,7 +110,10 @@ function OrderConfirmation() {
             total_product_price: response.data.total_product_price,
             total_shipping_fee: response.data.total_shipping_fee,
             shipping_fee: response.data.shipping_fee,
-            subtotal: response.data.subtotal
+            subtotal: response.data.subtotal,
+            discount: response.data.discount,
+            product_discount: response.data.product_discount,
+            shipping_discount: response.data.shipping_discount
           });
         }
         
@@ -337,10 +343,10 @@ function OrderConfirmation() {
                   (order.total_price - parseFloat(order.total_shipping_fee || 0))
                 ).toFixed(2)}</span>
               </div>
-              {order.discount > 0 && (
+              {order.product_discount > 0 && (
                 <div className="summary-row">
-                  <span>Discount:</span>
-                  <span>-₱{parseFloat(order.discount).toFixed(2)}</span>
+                  <span>Product Discount:</span>
+                  <span>-₱{parseFloat(order.product_discount).toFixed(2)}</span>
                 </div>
               )}
               <div className="summary-row">
@@ -351,6 +357,12 @@ function OrderConfirmation() {
                   0
                 ).toFixed(2)}</span>
               </div>
+              {order.shipping_discount > 0 && (
+                <div className="summary-row">
+                  <span>Shipping Discount:</span>
+                  <span>-₱{parseFloat(order.shipping_discount).toFixed(2)}</span>
+                </div>
+              )}
               <div className="summary-row total">
                 <span>Total:</span>
                 <span>₱{parseFloat(order.total_price).toFixed(2)}</span>

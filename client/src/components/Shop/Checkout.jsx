@@ -47,7 +47,7 @@ const Checkout = () => {
   const [showManualRedirect, setShowManualRedirect] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('dragonpay');
   
-  // Voucher state
+  // Promotion state
   const [voucherCode, setVoucherCode] = useState('');
   const [voucherDiscount, setVoucherDiscount] = useState(0);
   const [voucherLoading, setVoucherLoading] = useState(false);
@@ -512,7 +512,7 @@ const Checkout = () => {
       console.log('[Checkout] Shipping details:', updatedShippingDetails);
       console.log('[Checkout] Address serviceable:', isAddressServiceable);
       
-      // Create the order with shipping fee, payment method, and voucher code
+      // Create the order with shipping fee, payment method, and promotion code
       const orderResult = await createOrder(
         user.id, 
         shippingFee, 
@@ -676,10 +676,10 @@ const Checkout = () => {
     }
   };
 
-  // Voucher validation function
+  // Promotion validation function
   const validateVoucher = async () => {
     if (!voucherCode.trim()) {
-      setVoucherError('Please enter a voucher code');
+      setVoucherError('Please enter a promotion code');
       return;
     }
 
@@ -688,7 +688,7 @@ const Checkout = () => {
 
     try {
       const token = getAuthToken();
-      const response = await fetch(`${API_BASE_URL}/api/vouchers/validate`, {
+      const response = await fetch(`${API_BASE_URL}/api/promotions/validate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -696,24 +696,53 @@ const Checkout = () => {
         },
         body: JSON.stringify({
           code: voucherCode.trim(),
-          order_amount: getTotalPrice()
+          order_amount: getTotalPrice(),
+          shipping_fee: shippingFee, // Include actual shipping fee
+          items: cartItems.map(item => ({
+            product_id: item.product_id,
+            price: item.price,
+            quantity: item.quantity
+          }))
         })
       });
 
       const data = await response.json();
 
-      if (response.ok) {
-        setAppliedVoucher(data.voucher);
-        setVoucherDiscount(data.voucher.discount_amount);
-        notify.success('Voucher applied successfully!');
+      if (response.ok && data.valid) {
+        // Transform the new promotion response to match old voucher format
+        const promotionAsVoucher = {
+          code: data.promotion.code,
+          name: data.promotion.name,
+          description: data.promotion.description,
+          discount_amount: data.discount.total_discount,
+          type: data.promotion.type,
+          // Additional promotion data
+          product_discount: data.discount.product_discount,
+          shipping_discount: data.discount.shipping_discount
+        };
+        
+        setAppliedVoucher(promotionAsVoucher);
+        setVoucherDiscount(data.discount.total_discount);
+        
+        // Show more detailed success message
+        const shippingDiscount = parseFloat(data.discount.shipping_discount) || 0;
+        const productDiscount = parseFloat(data.discount.product_discount) || 0;
+        
+        if (shippingDiscount > 0) {
+          notify.success(`Promotion applied! Shipping discount: ₱${shippingDiscount.toFixed(2)}`);
+        } else if (productDiscount > 0) {
+          notify.success(`Promotion applied! Product discount: ₱${productDiscount.toFixed(2)}`);
+        } else {
+          notify.success('Promotion applied successfully!');
+        }
       } else {
-        setVoucherError(data.message || 'Invalid voucher code');
+        setVoucherError(data.message || 'Invalid promotion code');
         setAppliedVoucher(null);
         setVoucherDiscount(0);
       }
     } catch (error) {
-      console.error('Error validating voucher:', error);
-      setVoucherError('Failed to validate voucher. Please try again.');
+      console.error('Error validating promotion:', error);
+      setVoucherError('Failed to validate promotion code. Please try again.');
       setAppliedVoucher(null);
       setVoucherDiscount(0);
     } finally {
@@ -939,15 +968,15 @@ const Checkout = () => {
           </div>
         </div>
 
-        {/* Voucher Section */}
+        {/* Promotion Section */}
         <div className="checkout-section">
-          <h3>Voucher Code</h3>
+          <h3>Promotion Code</h3>
           <div className="voucher-section">
             {!appliedVoucher ? (
               <div className="voucher-input-group">
                 <input
                   type="text"
-                  placeholder="Enter voucher code"
+                  placeholder="Enter promotion code"
                   value={voucherCode}
                   onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
                   className="voucher-input"

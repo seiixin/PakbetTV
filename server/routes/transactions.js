@@ -3,7 +3,7 @@ const router = express.Router();
 const { auth } = require('../middleware/auth');
 const transactionsController = require('../controllers/transactionsController');
 
-// Main transaction routes
+// Main transaction routes - using unified controller that supports both voucher and promotion systems
 router.post('/orders', auth, transactionsController.createOrder);
 router.post('/payment', auth, transactionsController.processPayment);
 router.get('/verify', transactionsController.verifyPayment);
