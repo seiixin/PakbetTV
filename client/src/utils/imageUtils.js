@@ -1,7 +1,7 @@
 import API_BASE_URL from '../config';
 
 // Use a reliable placeholder image service or existing image
-const PLACEHOLDER_IMAGE = '/Logo.png'; // Using your existing logo as placeholder
+const PLACEHOLDER_IMAGE = '/ImageFallBack.png'; // Using the same fallback image consistently
 
 export const getFullImageUrl = (url) => {
   if (!url) {

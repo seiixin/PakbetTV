@@ -55,6 +55,7 @@ function OrderConfirmation() {
 
   const handleImageError = (event) => {
     console.log('Image failed to load, using fallback');
+    event.target.onerror = null; // Prevent infinite loop
     event.target.src = '/ImageFallBack.png';
   };
 
