@@ -8,6 +8,7 @@ const db = require('../config/db');
 const { v4: uuidv4 } = require('uuid');
 const deliveryRouter = require('../routes/delivery');
 const { sendOrderConfirmationEmail } = require('../services/emailService');
+const cacheManager = require('../utils/cacheManager');
 const paymentStatusChecker = require('../services/paymentStatusChecker');
 const dragonpayService = require('../services/dragonpayService');
 const { runManualPaymentCheck, getPaymentStatusCheckerStatus } = require('../cron/paymentStatusChecker');
@@ -471,6 +472,9 @@ exports.createOrder = async (req, res) => {
       }
       
       // Return success response for COD order
+      // Clear user caches after successful COD order creation
+      cacheManager.clearUserCache(user_id, 'all');
+      
       return res.status(201).json({
         success: true,
         message: 'COD order created successfully',
@@ -491,6 +495,9 @@ exports.createOrder = async (req, res) => {
     // For non-COD orders, commit and return response
     await connection.commit();
     console.log('Transaction committed successfully');
+    
+    // Clear user caches after successful order creation
+    cacheManager.clearUserCache(user_id, 'all');
     
     return res.status(201).json({
       success: true,

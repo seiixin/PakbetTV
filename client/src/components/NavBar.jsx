@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useCart } from '../context/CartContext';
+import { useCartSummary } from '../hooks/useCart';
 import API_BASE_URL from '../config';
 import { getFullImageUrl } from '../utils/imageUtils';
 import './NavBar.css';
@@ -19,7 +19,7 @@ const NavBar = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState(null);
   const { user, logout, loggingOut } = useAuth();
-  const { getTotalCount } = useCart();
+  const { totalCount: getTotalCount } = useCartSummary();
   const dropdownRef = useRef(null);
   const searchRef = useRef(null);
   const mobileMenuRef = useRef(null);
@@ -444,8 +444,8 @@ const NavBar = () => {
                   disabled={loggingOut}
                   onClick={() => navigate('/cart')}
                 >
-                  <span className="cart-text">Cart ({getTotalCount()})</span>
-                  <span className="cart-count-mobile">({getTotalCount()})</span>
+                  <span className="cart-text">Cart ({getTotalCount || 0})</span>
+                  <span className="cart-count-mobile">({getTotalCount || 0})</span>
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="navbar-cart-icon">
                     <circle cx="9" cy="21" r="1"></circle>
                     <circle cx="20" cy="21" r="1"></circle>

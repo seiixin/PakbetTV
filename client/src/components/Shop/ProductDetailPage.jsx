@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { useCart } from '../../context/CartContext';
+import { useCartData } from '../../hooks/useCart';
 import { useAuth } from '../../context/AuthContext';
 import { useProducts } from '../../hooks/useProducts';
 import './ProductDetail.css';
@@ -21,7 +21,7 @@ const GlobalStyle = createGlobalStyle`
 const ProductDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { addToCart } = useCart();
+  const { addToCart } = useCartData();
   const { user, token, loading: authLoading } = useAuth();
   const { getProduct } = useProducts();
   const { data: product, isLoading: loading, error } = getProduct(id);
@@ -244,7 +244,7 @@ const ProductDetailPage = () => {
       variant_attributes: selectedVariant ? selectedVariant.attributes : null
     };
     try {
-      addToCart(itemToAdd, quantity);
+      addToCart({ product: itemToAdd, quantity: quantity });
       let variantText = '';
       if (selectedVariant && selectedVariant.attributes) {
         variantText = Object.entries(selectedVariant.attributes)
@@ -435,30 +435,51 @@ const ProductDetailPage = () => {
   const formatProductDescription = (description) => {
     if (!description) return '';
     
-    // Replace asterisks at the beginning of lines with proper HTML list items
-    let formatted = description
-      // Replace multiple asterisks in a row with bullet points
-      .replace(/^\s*\*\s+(.+)/gm, '<li>$1</li>')
-      // Wrap consecutive list items in ul tags
-      .replace(/(<li>.*<\/li>\s*)+/gs, (match) => {
-        return `<ul>${match}</ul>`;
-      })
-      // Replace line breaks with paragraph breaks for non-list content
-      .replace(/\n\n+/g, '</p><p>')
-      // Wrap the entire content in paragraphs if it doesn't start with a list
-      .replace(/^(?!<ul>)(.+?)(?=<ul>|$)/gs, '<p>$1</p>')
-      // Clean up any empty paragraphs
-      .replace(/<p>\s*<\/p>/g, '')
-      // Ensure proper spacing around lists
-      .replace(/<\/p>\s*<ul>/g, '</p><ul>')
-      .replace(/<\/ul>\s*<p>/g, '</ul><p>');
-
-    // If the content doesn't start with a paragraph or list, wrap it
-    if (!formatted.startsWith('<p>') && !formatted.startsWith('<ul>')) {
-      formatted = `<p>${formatted}</p>`;
+    // First, let's handle the basic structure
+    let formatted = description;
+    
+    // Handle bullet points (lines starting with *)
+    const hasBulletPoints = /^\s*\*\s+/m.test(formatted);
+    
+    if (hasBulletPoints) {
+      // Split into sections to handle mixed content (paragraphs and lists)
+      const sections = formatted.split(/\n\s*\n/);
+      
+      const processedSections = sections.map(section => {
+        const lines = section.split('\n');
+        const sectionHasBullets = lines.some(line => /^\s*\*\s+/.test(line));
+        
+        if (sectionHasBullets) {
+          // Convert bullet points to HTML list
+          const listItems = lines
+            .filter(line => line.trim()) // Remove empty lines
+            .map(line => {
+              if (/^\s*\*\s+(.+)/.test(line)) {
+                return line.replace(/^\s*\*\s+(.+)/, '<li>$1</li>');
+              } else {
+                // Non-bullet line in a bullet section - treat as regular text before/after list
+                return `<p class="list-context">${line.trim()}</p>`;
+              }
+            })
+            .join('');
+          
+          // Wrap consecutive list items in <ul> tags
+          return listItems.replace(/(<li>.*?<\/li>)+/g, '<ul>$&</ul>');
+        } else {
+          // Regular paragraph section - preserve line breaks
+          return `<p class="description-paragraph">${section.replace(/\n/g, '<br>')}</p>`;
+        }
+      });
+      
+      return processedSections.join('');
+    } else {
+      // No bullet points - treat as regular paragraphs with preserved line breaks
+      const paragraphs = formatted.split(/\n\s*\n/);
+      return paragraphs
+        .filter(p => p.trim())
+        .map(paragraph => `<p class="description-paragraph">${paragraph.replace(/\n/g, '<br>')}</p>`)
+        .join('');
     }
-
-    return formatted;
   };
 
   // Get the primary image URL

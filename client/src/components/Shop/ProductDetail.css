@@ -487,20 +487,54 @@
 
 .product-description-container {
   margin-top: 1.5rem;
-  line-height: 1.6;
+  line-height: 1.7;
+  color: #444;
+  font-size: 1rem;
+}
+
+.product-description-container .description-paragraph {
+  margin: 1.5rem 0;
+  line-height: 1.7;
+  text-align: justify;
+}
+
+.product-description-container .description-paragraph:first-child {
+  margin-top: 0;
+}
+
+.product-description-container .description-paragraph:last-child {
+  margin-bottom: 0;
+}
+
+.product-description-container .description-paragraph br {
+  line-height: 1.8;
+}
+
+.product-description-container .list-context {
+  margin: 1rem 0;
+  line-height: 1.7;
+  font-weight: 500;
+}
+
+.product-description-container .list-context:first-child {
+  margin-top: 0;
+}
+
+.product-description-container .list-context:last-child {
+  margin-bottom: 0;
 }
 
 .product-description-container ul {
-  margin: 1rem 0;
-  padding-left: 1.5rem;
+  margin: 1.5rem 0;
+  padding-left: 2rem;
   list-style-type: none;
 }
 
 .product-description-container li {
-  margin: 0.5rem 0;
+  margin: 0.75rem 0;
   position: relative;
-  line-height: 1.6;
-  padding-left: 1rem;
+  line-height: 1.7;
+  padding-left: 1.5rem;
 }
 
 .product-description-container li::before {
@@ -509,12 +543,14 @@
   font-weight: bold;
   position: absolute;
   left: 0;
-  font-size: 1.2em;
+  font-size: 1.3em;
+  line-height: 1.3;
 }
 
 .product-description-container p {
-  margin: 1rem 0;
-  line-height: 1.6;
+  margin: 1.5rem 0;
+  line-height: 1.7;
+  text-align: justify;
 }
 
 .product-description-container p:first-child {

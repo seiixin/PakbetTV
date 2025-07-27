@@ -1,9 +1,13 @@
 const { body, validationResult } = require('express-validator');
 const db = require('../config/db');
 const NodeCache = require('node-cache');
+const cacheManager = require('../utils/cacheManager');
 
 // Initialize cache with 1 minute TTL for cart (shorter than products since cart changes more frequently)
 const cartCache = new NodeCache({ stdTTL: 60 });
+
+// Register cache with cache manager
+cacheManager.register('cart', cartCache);
 
 // Add rate limiting
 const userOperations = new Map();
@@ -49,16 +53,17 @@ async function getCart(req, res) {
       return res.status(429).json({ message: 'Too many cart operations. Please try again later.' });
     }
 
-    // Check cache first (temporarily disabled for debugging)
+    // Check cache first
     const cacheKey = `cart_${userId}`;
-    // const cached = cartCache.get(cacheKey);
-    // if (cached) {
-    //   return res.json(cached);
-    // }
+    const cached = cartCache.get(cacheKey);
+    if (cached) {
+      console.log('Returning cached cart for user:', userId);
+      return res.json(cached);
+    }
 
     console.log('Fetching cart for user ID:', userId);
     
-    // Optimized query with better JOIN conditions and selective columns
+    // Highly optimized cart query with better performance
     const [cartItems] = await db.query(`
       SELECT 
         c.cart_id,
@@ -68,34 +73,26 @@ async function getCart(req, res) {
         p.name AS product_name,
         p.product_code,
         
-        -- Efficient price calculation
-        COALESCE(
-          pv.price,
-          p.price,
-          0
-        ) AS price,
+        -- Optimized price selection with COALESCE
+        COALESCE(pv.price, p.price, 0) AS price,
         
-        -- Include discount information
+        -- Efficient discount calculation
         p.discount_percentage,
         CASE 
           WHEN p.discount_percentage > 0 THEN
             CASE 
               WHEN p.discount_percentage <= 1 THEN
-                COALESCE(pv.price, p.price) * (1 - p.discount_percentage)
+                COALESCE(pv.price, p.price, 0) * (1 - p.discount_percentage)
               ELSE 
-                COALESCE(pv.price, p.price) * (1 - p.discount_percentage / 100)
+                COALESCE(pv.price, p.price, 0) * (1 - p.discount_percentage / 100)
             END
           ELSE 0
         END AS discounted_price,
         
-        -- Efficient stock calculation
-        COALESCE(
-          pv.stock,
-          p.stock,
-          0
-        ) AS stock,
+        -- Optimized stock selection
+        COALESCE(pv.stock, p.stock, 0) AS stock,
         
-        -- Efficient image selection
+        -- Get image from variant or use fallback to product_images table
         COALESCE(
           pv.image_url,
           (
@@ -108,12 +105,16 @@ async function getCart(req, res) {
           '/placeholder-product.jpg'
         ) AS image_url,
         
-        -- Variant attributes
-        CASE WHEN pv.variant_id IS NOT NULL THEN
-          JSON_UNQUOTE(JSON_EXTRACT(pv.attributes, '$.Size'))
+        -- Variant attributes with safer JSON extraction
+        CASE 
+          WHEN pv.variant_id IS NOT NULL AND pv.attributes IS NOT NULL THEN
+            JSON_UNQUOTE(JSON_EXTRACT(pv.attributes, '$.Size'))
+          ELSE NULL
         END AS size,
-        CASE WHEN pv.variant_id IS NOT NULL THEN
-          JSON_UNQUOTE(JSON_EXTRACT(pv.attributes, '$.Color'))
+        CASE 
+          WHEN pv.variant_id IS NOT NULL AND pv.attributes IS NOT NULL THEN
+            JSON_UNQUOTE(JSON_EXTRACT(pv.attributes, '$.Color'))
+          ELSE NULL
         END AS color,
         pv.sku
         
@@ -121,7 +122,6 @@ async function getCart(req, res) {
       INNER JOIN products p ON c.product_id = p.product_id
       LEFT JOIN product_variants pv ON c.variant_id = pv.variant_id
       WHERE c.user_id = ?
-      GROUP BY c.cart_id
       ORDER BY c.created_at DESC
       LIMIT 50
     `, [userId]);
@@ -140,9 +140,15 @@ async function getCart(req, res) {
       image_url: item.image_url || '/placeholder-product.jpg'
     }));
 
-    console.log('[CartController] Sending processed cart items:', JSON.stringify(processedCartItems, null, 2));
+    console.log('[CartController] Sending processed cart items:', processedCartItems.map(item => ({
+      name: item.product_name,
+      price: item.price,
+      discount_percentage: item.discount_percentage,
+      discounted_price: item.discounted_price,
+      quantity: item.quantity
+    })));
 
-    // Cache the results
+    // Cache the results for 2 minutes
     cartCache.set(cacheKey, processedCartItems);
 
     res.json(processedCartItems);
@@ -286,10 +292,14 @@ async function updateCartItem(req, res) {
       return res.status(400).json({ message: 'Not enough stock available' });
     }
 
+    // Update cart item
     await db.query(
       'UPDATE cart SET quantity = ?, updated_at = NOW() WHERE cart_id = ?',
       [quantity, cartId]
     );
+
+    // Clear user cache after cart update
+    cacheManager.clearUserCache(userId, 'cart');
 
     // Invalidate cache
     cartCache.del(`cart_${userId}`);
@@ -325,6 +335,10 @@ async function deleteCartItem(req, res) {
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: 'Cart item not found' });
     }
+    
+    // Clear user cache after cart deletion
+    cacheManager.clearUserCache(userId, 'cart');
+    
     console.log('Cart item deleted successfully');
     res.json({ message: 'Item removed from cart' });
   } catch (err) {

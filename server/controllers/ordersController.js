@@ -1,9 +1,18 @@
 const { body, validationResult } = require('express-validator');
 const db = require('../config/db');
+const NodeCache = require('node-cache');
 const axios = require('axios');
 const config = require('../config/keys');
 const { v4: uuidv4 } = require('uuid');
 const ninjaVanAuth = require('../services/ninjaVanAuth');
+const cacheManager = require('../utils/cacheManager');
+
+// Initialize cache with 30 second TTL for orders (orders change less frequently than cart)
+const orderCache = new NodeCache({ stdTTL: 30 });
+
+// Register cache with cache manager
+cacheManager.register('orders', orderCache);
+
 const API_BASE_URL = config.NINJAVAN_API_URL || 'https://api.ninjavan.co';
 const COUNTRY_CODE = config.NINJAVAN_COUNTRY_CODE || 'PH';
 
@@ -21,6 +30,16 @@ async function getOrders(req, res) {
     if (!userId) {
       return res.status(401).json({ message: 'Authentication required' });
     }
+
+    // Add simple caching for orders (30 seconds)
+    const cacheKey = `orders_${userId}`;
+    const cached = orderCache.get(cacheKey);
+    if (cached) {
+      console.log('Returning cached orders for user:', userId);
+      return res.json(cached);
+    }
+
+    // Optimized orders query with better performance
     const [orders] = await db.query(
       `SELECT 
          o.order_id,
@@ -31,19 +50,25 @@ async function getOrders(req, res) {
          o.total_product_price,
          o.total_shipping_fee,
          o.created_at,
-         COALESCE(s.tracking_number, '')       AS tracking_number,
-         COALESCE(s.address, '')              AS shipping_address,
-         COALESCE(p.payment_method, '')       AS payment_method,
-         COUNT(oi.order_item_id)               AS item_count
+         COALESCE(s.tracking_number, '')    AS tracking_number,
+         COALESCE(s.address, '')           AS shipping_address,
+         COALESCE(p.payment_method, '')    AS payment_method,
+         (
+           SELECT COUNT(*) 
+           FROM order_items oi 
+           WHERE oi.order_id = o.order_id
+         ) AS item_count
        FROM orders o
-       LEFT JOIN order_items oi ON oi.order_id = o.order_id
-       LEFT JOIN shipping     s ON s.order_id  = o.order_id
-       LEFT JOIN payments     p ON p.order_id  = o.order_id
+       LEFT JOIN shipping s ON s.order_id = o.order_id
+       LEFT JOIN payments p ON p.order_id = o.order_id
        WHERE o.user_id = ?
-       GROUP BY o.order_id
-       ORDER BY o.created_at DESC`,
+       ORDER BY o.created_at DESC
+       LIMIT 50`,
        [userId]
     );
+
+    // Cache the results for 30 seconds
+    orderCache.set(cacheKey, orders);
 
     res.json(orders);
   } catch (error) {

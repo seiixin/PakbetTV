@@ -95,6 +95,15 @@ export const useCartData = () => {
     mutationFn: async ({ product, quantity = 1 }) => {
       console.log('[useCart] Adding to cart:', { product, quantity });
       
+      // Validate input parameters
+      if (!product) {
+        throw new Error('Product information is required');
+      }
+      
+      if (!product.id && !product.product_id) {
+        throw new Error('Product ID is required');
+      }
+      
       // Ensure image URL is properly formatted
       const productWithProperImageUrl = {
         ...product,

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useCart } from '../../context/CartContext';
+import { useCartData } from '../../hooks/useCart';
 import { toast } from 'react-toastify';
 import API_BASE_URL from '../../config';
 import { getFullImageUrl } from '../../utils/imageUtils';
@@ -8,7 +8,7 @@ import './ProductCard.css';
 
 const ProductCard = ({ product }) => {
   const [isAdded, setIsAdded] = useState(false);
-  const { addToCart } = useCart();
+  const { addToCart } = useCartData();
 
   // Debug product data
   useEffect(() => {
@@ -183,7 +183,7 @@ const ProductCard = ({ product }) => {
         product_code: product.product_code
       };
 
-      addToCart(itemToAdd, 1)
+      addToCart({ product: itemToAdd, quantity: 1 })
         .then(() => {
           toast.success(`${product.name} added to cart successfully!`);
           // Show visual feedback
