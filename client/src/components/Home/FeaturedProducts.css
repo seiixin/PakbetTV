@@ -62,7 +62,7 @@
 }
 
 .add-to-cart-btn:hover {
-  background: #3b82f6;
+  background: #162f58ff;
   transition: background-color 0.5s ease;
   color: white;
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.35);
@@ -73,7 +73,7 @@
 .cart-icon-container {
   width: 24px;
   height: 24px;
-  background-color: #3b82f6; /* 🔵 Blue circle */
+  background-color: #162f58ff; /* 🔵 Blue circle */
   border-radius: 50%;
   display: flex;
   align-items: center;

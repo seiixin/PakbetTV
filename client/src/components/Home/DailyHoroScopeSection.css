@@ -20,20 +20,13 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+
+
   text-align: center;
   color: white;
   overflow: hidden;
 }
 
-.hero-content {
-  position: relative;
-  z-index: 2;
-  user-select: none;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
 
 .hero-title {
   font-size: 1.8rem; /* Reduced from 3rem */
@@ -43,7 +36,7 @@ body {
   margin: 0;
   text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.5);
 }
-
+ 
 .highlight {
   color: #dcf027ff;
 }
@@ -69,13 +62,6 @@ body {
 }
 
 /* 🔸 Foreground Text */
-.hero-content {
-  position: relative;
-  z-index: 2;
-  max-width: 1100px;
-  margin: 0 auto;
-  user-select: none;
-}
 
 .hero-title {
   font-size: 3rem;
@@ -136,10 +122,8 @@ body {
   background: white;
   padding: 1.5rem;
   border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   cursor: pointer;
   user-select: none;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
@@ -147,6 +131,25 @@ body {
   transform: translateY(-4px);
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.25);
 }
+
+.hero-content {
+  position: absolute;     /* make sure it's placed at the top-left */
+  top: 0;
+  left: 0;
+  z-index: 2;
+  user-select: none;
+
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;  /* ✅ makes content align left inside */
+  justify-content: flex-start;
+
+  padding: 2rem;            /* adjust as needed */
+  text-align: left;         /* ✅ ensure text aligns left */
+  width: auto;              /* or 100% if you want full width */
+  max-width: 600px;         /* optional: avoid text being too wide */
+}
+  
 
 /* 🔸 Content Header & Text */
 .content-header {
@@ -161,7 +164,7 @@ body {
 
 .content-header .plus {
   color: #0c1a4b;
-  font-weight: 800;
+  font-weight: 750;
   font-size: 1.2rem;
   user-select: none;
   line-height: 1;
