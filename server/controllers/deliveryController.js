@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const config = require('../config/keys');
 const ninjaVanAuth = require('../services/ninjaVanAuth');
 const { sendOrderDispatchedEmail } = require('../services/emailService');
+const NinjaVanWebhookV2Handler = require('../services/ninjaVanWebhookV2Handler');
 const API_BASE_URL = config.NINJAVAN_API_URL || 'https://api.ninjavan.co';
 const COUNTRY_CODE = config.NINJAVAN_COUNTRY_CODE || 'PH';
 const db = require('../config/db');
@@ -14,15 +15,45 @@ function verifyNinjaVanSignature(req, res, next) {
       console.error('Missing NinjaVan HMAC signature');
       return res.status(401).json({ message: 'Unauthorized: Missing signature' });
     }
-    const rawBody = JSON.stringify(req.body);
+    
+    // CRITICAL: Use rawBody buffer, not JSON.stringify(req.body)
+    // NinjaVan generates signature from original raw body
+    let rawBody = req.rawBody;
+    if (!rawBody) {
+      console.error('Raw body not available for signature verification');
+      return res.status(401).json({ message: 'Unauthorized: Cannot verify signature' });
+    }
+    
+    // Convert buffer to string if needed
+    if (Buffer.isBuffer(rawBody)) {
+      rawBody = rawBody.toString('utf8');
+    }
+    
     const clientSecret = config.NINJAVAN_CLIENT_SECRET;
+    if (!clientSecret) {
+      console.error('NinjaVan client secret not configured');
+      return res.status(500).json({ message: 'Server configuration error' });
+    }
+    
     const calculatedHmac = crypto.createHmac('sha256', clientSecret)
       .update(rawBody)
       .digest('base64');
+      
+    console.log('🔐 Signature verification:', {
+      received: receivedHmac,
+      calculated: calculatedHmac,
+      rawBodyLength: rawBody.length,
+      clientSecretLength: clientSecret.length
+    });
+    
     if (calculatedHmac !== receivedHmac) {
       console.error('Invalid NinjaVan HMAC signature');
+      console.error('Expected:', calculatedHmac);
+      console.error('Received:', receivedHmac);
       return res.status(401).json({ message: 'Unauthorized: Invalid signature' });
     }
+    
+    console.log('✅ NinjaVan signature verified successfully');
     next();
   } catch (error) {
     console.error('Error verifying webhook signature:', error);
@@ -965,10 +996,12 @@ async function createShippingOrder(orderId) {
     
     while (retryCount < maxRetries && orders.length === 0) {
       [orders] = await connection.query(
-        'SELECT o.*, u.first_name, u.last_name, u.email, u.phone, u.user_id, p.payment_method ' +
+        'SELECT o.*, u.first_name, u.last_name, u.email, u.phone, u.user_id, p.payment_method, ' +
+        's.phone AS shipping_phone, s.email AS shipping_email, s.name AS shipping_name, s.address AS shipping_address ' +
         'FROM orders o ' +
         'JOIN users u ON o.user_id = u.user_id ' +
         'LEFT JOIN payments p ON o.order_id = p.order_id ' +
+        'LEFT JOIN shipping s ON o.order_id = s.order_id ' +
         'WHERE o.order_id = ?',
         [orderId]
       );
@@ -1009,23 +1042,30 @@ async function createShippingOrder(orderId) {
     
     console.log(`Payment confirmed for order ${orderId} (${order.payment_status}), proceeding with shipping order creation`);
     
+    // Validate required customer information - Use shipping table data if available, fallback to user table
+    const customerPhone = order.shipping_phone || order.phone;
+    const customerEmail = order.shipping_email || order.email;
+    const customerName = order.shipping_name || `${order.first_name} ${order.last_name}`.trim();
+    
+    console.log(`Customer data source: phone=${order.shipping_phone ? 'shipping table' : 'user table'}, email=${order.shipping_email ? 'shipping table' : 'user table'}, name=${order.shipping_name ? 'shipping table' : 'user table'}`);
+    
     // Validate required customer information - STRICT: No fallbacks allowed
-    if (!order.phone || !order.phone.trim()) {
+    if (!customerPhone || !customerPhone.trim()) {
       await connection.rollback();
       throw new Error(`Customer phone number is required for shipping. Order ${orderId} cannot proceed without a valid phone number. Please ensure the customer provides their phone number before creating shipping orders.`);
     }
     
-    if (!order.email || !order.email.trim()) {
+    if (!customerEmail || !customerEmail.trim()) {
       await connection.rollback();
       throw new Error(`Customer email is required for shipping. Order ${orderId} cannot proceed without a valid email.`);
     }
     
-    if (!order.first_name || !order.first_name.trim()) {
+    if (!customerName || !customerName.trim()) {
       await connection.rollback();
       throw new Error(`Customer name is required for shipping. Order ${orderId} cannot proceed without a valid name.`);
     }
     
-    console.log(`Customer information validated for order ${orderId}: phone=${order.phone}, email=${order.email}, name=${order.first_name} ${order.last_name}`);
+    console.log(`Customer information validated for order ${orderId}: phone=${customerPhone}, email=${customerEmail}, name=${customerName}`);
     
     // Get user's shipping details
     const [shippingDetails] = await connection.query(
@@ -1267,7 +1307,7 @@ async function createShippingOrder(orderId) {
     console.log(`🌏 Formatted for ${COUNTRY_CODE}:`, {
       from: `${senderAddress.address1}, ${senderAddress.city}, ${senderAddress.country}`,
       to: `${recipientAddress.address1}, ${recipientAddress.city}, ${recipientAddress.country}`,
-      phone: formatPhoneNumber(order.phone, COUNTRY_CODE)
+      phone: formatPhoneNumber(customerPhone, COUNTRY_CODE)
     });
 
     const orderPayload = {
@@ -1284,9 +1324,9 @@ async function createShippingOrder(orderId) {
         address: senderAddress
       },
       to: {
-        name: `${order.first_name} ${order.last_name}`,
-        phone_number: formatPhoneNumber(order.phone, COUNTRY_CODE),
-        email: order.email,
+        name: customerName,
+        phone_number: formatPhoneNumber(customerPhone, COUNTRY_CODE),
+        email: customerEmail,
         address: recipientAddress
       },
       parcel_job: {
@@ -1478,10 +1518,16 @@ async function createShippingOrder(orderId) {
   }
 }
 
+// V2 Webhook Handlers
+const ninjavanV2WebhookHandler = (req, res) => NinjaVanWebhookV2Handler.handleWebhook(req, res);
+const verifyNinjaVanV2Signature = (req, res, next) => NinjaVanWebhookV2Handler.verifySignature(req, res, next);
+
 module.exports = {
   verifyNinjaVanSignature,
+  verifyNinjaVanV2Signature,
   ninjavanWebhookHandler: ninjavanUnifiedWebhookHandler, // Use the new unified handler
   ninjavanUnifiedWebhookHandler,
+  ninjavanV2WebhookHandler, // New V2 handler
   processAutoCompletions,
   mapNinjaVanStatusToOrderStatus,
   createOrder,

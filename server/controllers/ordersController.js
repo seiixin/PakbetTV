@@ -98,17 +98,20 @@ async function getOrderById(req, res) {
          o.total_shipping_fee,
          o.created_at,
          o.updated_at,
-         -- Shipping details (nullable)
+         -- Shipping details (nullable) - prioritize shipping table data over user table
          s.tracking_number            AS tracking_number,
          s.address                    AS shipping_address,
+         s.phone                      AS shipping_phone,
+         s.email                      AS shipping_email,
+         s.name                       AS shipping_name,
          -- Payment details (nullable)
          pay.payment_method           AS payment_method,
          pay.transaction_id           AS transaction_id,
-         -- Customer info
+         -- Customer info (fallback from user table)
          u.first_name                 AS first_name,
          u.last_name                  AS last_name,
-         u.email                      AS email,
-         u.phone                      AS phone
+         u.email                      AS user_email,
+         u.phone                      AS user_phone
        FROM orders o
        LEFT JOIN shipping     s   ON s.order_id  = o.order_id
        LEFT JOIN payments     pay ON pay.order_id = o.order_id
@@ -168,6 +171,11 @@ async function getOrderById(req, res) {
       }
     });
 
+    // Use shipping table data if available, fallback to user table
+    const customerName = order.shipping_name || `${order.first_name} ${order.last_name}`.trim();
+    const customerPhone = order.shipping_phone || order.user_phone;
+    const customerEmail = order.shipping_email || order.user_email;
+
     // Structure the response to match front-end expectations
     const responseData = {
       order_id: order.order_id,
@@ -185,11 +193,11 @@ async function getOrderById(req, res) {
       discount: totalDiscount,
       product_discount: productDiscount,
       shipping_discount: shippingDiscount,
-      // Nested helpers
+      // Nested helpers - use correct customer data from shipping table
       shipping: {
-        name: order.first_name + ' ' + order.last_name,
-        phone: order.phone,
-        email: order.email,
+        name: customerName,
+        phone: customerPhone,
+        email: customerEmail,
         address: order.shipping_address
       },
       payment: {

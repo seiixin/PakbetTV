@@ -403,21 +403,28 @@ class PaymentStatusChecker {
         [order.order_id]
       );
 
-      // Get shipping address - try both shipping_details and shipping tables
-      const [shippingDetails] = await db.query(
+      // Get shipping address - prioritize shipping table (actual checkout data)
+      const [shippingInfo] = await db.query(
+        'SELECT * FROM shipping WHERE order_id = ?',
+        [order.order_id]
+      );
+      
+      const [userShippingDetails] = await db.query(
         'SELECT * FROM user_shipping_details WHERE user_id = ? AND is_default = 1',
         [order.user_id]
       );
       
-      const [shippingInfo] = await db.query(
-        'SELECT address FROM shipping WHERE order_id = ?',
-        [order.order_id]
-      );
+      // Use shipping table data if available, fallback to user data
+      const customerName = shippingInfo[0]?.name || `${order.first_name} ${order.last_name}`;
+      const customerEmail = shippingInfo[0]?.email || order.email;
+      const customerPhone = shippingInfo[0]?.phone || order.phone || 'N/A';
       
       // Build complete address
       let fullAddress = 'Address not available';
-      if (shippingDetails.length > 0) {
-        const addr = shippingDetails[0];
+      if (shippingInfo.length > 0) {
+        fullAddress = shippingInfo[0].address;
+      } else if (userShippingDetails.length > 0) {
+        const addr = userShippingDetails[0];
         
         // Use detailed address fields if available (newer format)
         if (addr.house_number || addr.building || addr.street_name) {
@@ -446,15 +453,13 @@ class PaymentStatusChecker {
           
           fullAddress = addressParts.join(', ');
         }
-      } else if (shippingInfo.length > 0) {
-        fullAddress = shippingInfo[0].address;
       }
 
       const emailDetails = {
         orderNumber: order.order_code || order.order_id,
-        customerName: `${order.first_name} ${order.last_name}`,
-        customerEmail: order.email,
-        customerPhone: order.phone || 'N/A',
+        customerName: customerName,
+        customerEmail: customerEmail,
+        customerPhone: customerPhone,
         items: orderItems.map(item => ({
           name: item.name,
           quantity: item.quantity,

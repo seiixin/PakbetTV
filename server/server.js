@@ -145,6 +145,7 @@ const emailRoutes = require('./routes/email');
 const locationRoutes = require('./routes/locations');
 const voucherRoutes = require('./routes/vouchers');
 const promotionRoutes = require('./routes/promotions');
+const userWebhookRoutes = require('./routes/userWebhooks');
 
 // Import cron jobs
 const { scheduleOrderConfirmation } = require('./cron/orderConfirmation');
@@ -173,6 +174,7 @@ app.use('/api/email', emailRoutes);
 app.use('/api/locations', locationRoutes);
 app.use('/api/vouchers', voucherRoutes); // Keep for backward compatibility
 app.use('/api/promotions', promotionRoutes); // New promotions API
+app.use('/api/user', userWebhookRoutes); // User webhook monitoring
 
 app.get('/transaction-complete', (req, res) => {
   console.log(`Received Dragonpay return:`, req.query.txnid, req.query.status);

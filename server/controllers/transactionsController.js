@@ -58,16 +58,20 @@ async function sendOrderConfirmationEmailForIPN(order, referenceNumber, tracking
       [order.order_id]
     );
 
-    // Get shipping details
+    // Get shipping details - this contains the actual customer info from checkout
     const [shippingDetails] = await db.query(
       'SELECT * FROM shipping WHERE order_id = ?',
       [order.order_id]
     );
 
+    // Use shipping data if available, fallback to user data
+    const customerName = shippingDetails[0]?.name || `${order.first_name} ${order.last_name}`;
+    const customerEmail = shippingDetails[0]?.email || order.email;
+
     const emailDetails = {
       orderNumber: order.order_code || order.order_id,
-      customerName: `${order.first_name} ${order.last_name}`,
-      customerEmail: order.email,
+      customerName: customerName,
+      customerEmail: customerEmail,
       items: orderItems.map(item => ({
         name: item.name,
         quantity: item.quantity,
@@ -380,7 +384,7 @@ exports.createOrder = async (req, res) => {
         // Send COD order confirmation email
         try {
           const [orderDetails] = await db.query(
-            'SELECT o.*, u.email, u.first_name, u.last_name FROM orders o ' +
+            'SELECT o.*, u.email, u.first_name, u.last_name, u.phone FROM orders o ' +
             'JOIN users u ON o.user_id = u.user_id WHERE o.order_id = ?',
             [orderId]
           );
@@ -391,22 +395,30 @@ exports.createOrder = async (req, res) => {
             [orderId]
           );
           
+          // Get shipping details from shipping table (contains actual checkout data)
           const [shippingDetails] = await db.query(
+            'SELECT * FROM shipping WHERE order_id = ?',
+            [orderId]
+          );
+          
+          // Get user default shipping details as fallback
+          const [userShippingDetails] = await db.query(
             'SELECT * FROM user_shipping_details WHERE user_id = ? AND is_default = 1',
             [user_id]
           );
           
-          // Get shipping info from shipping table as fallback
-          const [shippingInfo] = await db.query(
-            'SELECT address FROM shipping WHERE order_id = ?',
-            [orderId]
-          );
-          
           if (orderDetails.length > 0) {
+            // Use shipping table data (from checkout) if available, fallback to user data
+            const customerName = shippingDetails[0]?.name || `${orderDetails[0].first_name} ${orderDetails[0].last_name}`;
+            const customerEmail = shippingDetails[0]?.email || orderDetails[0].email;
+            const customerPhone = shippingDetails[0]?.phone || orderDetails[0].phone || 'N/A';
+            
             // Build complete address from shipping details
             let fullAddress = 'Address not available';
             if (shippingDetails.length > 0) {
-              const addr = shippingDetails[0];
+              fullAddress = shippingDetails[0].address;
+            } else if (userShippingDetails.length > 0) {
+              const addr = userShippingDetails[0];
               
               // Use detailed address fields if available (newer format)
               if (addr.house_number || addr.building || addr.street_name) {
@@ -435,14 +447,13 @@ exports.createOrder = async (req, res) => {
                 
                 fullAddress = addressParts.join(', ');
               }
-            } else if (shippingInfo.length > 0) {
-              fullAddress = shippingInfo[0].address;
             }
+            
             const emailData = {
               orderNumber: orderDetails[0].order_code || orderId,
-              customerName: `${orderDetails[0].first_name} ${orderDetails[0].last_name}`,
-              customerEmail: orderDetails[0].email,
-              customerPhone: orderDetails[0].phone || 'N/A',
+              customerName: customerName,
+              customerEmail: customerEmail,
+              customerPhone: customerPhone,
               items: orderItems.map(item => ({
                 name: item.name,
                 quantity: item.quantity,
