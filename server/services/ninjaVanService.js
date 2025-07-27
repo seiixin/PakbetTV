@@ -184,8 +184,8 @@ async function createDeliveryOrder(orderData, shippingAddress, customerInfo) {
     
     // Format addresses for the specific region
     const shopAddress = formatAddressForCountry({
-      address1: COUNTRY_CODE === 'SG' ? "1 Raffles Place" : "Unit 1004 Cityland Shaw Tower",
-      address2: COUNTRY_CODE === 'SG' ? "#12-34" : "Corner St. Francis, Shaw Blvd.",
+      address1: COUNTRY_CODE === 'SG' ? "1 Raffles Place" : "Unit 1004 Cityland Shaw Tower Corner St. Francis, Shaw Blvd.",
+      address2: COUNTRY_CODE === 'SG' ? "#12-34" : "",
       area: COUNTRY_CODE === 'SG' ? "Central Singapore" : "Mandaluyong City",
       city: COUNTRY_CODE === 'SG' ? "Singapore" : "Mandaluyong City",
       state: COUNTRY_CODE === 'SG' ? "Singapore" : "NCR",
@@ -236,7 +236,7 @@ async function createDeliveryOrder(orderData, shippingAddress, customerInfo) {
           timezone: COUNTRY_CODE === 'SG' ? "Asia/Singapore" : "Asia/Manila"
         },
         pickup_instructions: "Pickup with care!",
-        delivery_instructions: "If recipient is not around, leave parcel in power riser.",
+        delivery_instructions: "Please handle with care",
         delivery_start_date: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString().split('T')[0],
         delivery_timeslot: {
           start_time: "09:00",

@@ -1290,8 +1290,8 @@ async function createShippingOrder(orderId) {
 
     // Create the NinjaVan order payload with environment-based formatting
     const senderAddress = formatAddressForCountry({
-      address1: "Unit 1004 Cityland Shaw Tower",
-      address2: "Corner St. Francis, Shaw Blvd.",
+      address1: "Unit 1004 Cityland Shaw Tower Corner St. Francis, Shaw Blvd.",
+      address2: "",
       area: "Mandaluyong City",
       city: "Mandaluyong City", 
       state: "NCR",
