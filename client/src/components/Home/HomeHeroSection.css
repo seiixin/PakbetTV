@@ -290,6 +290,7 @@ body {
     position: relative;
     margin-top: 1.5rem;
     text-align: center;
+    background: transparent; /* light background for readability */
     padding: 0.8rem 1rem;
     border-radius: 12px;
     z-index: 2;

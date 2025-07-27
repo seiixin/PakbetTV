@@ -62,7 +62,7 @@ const DailyHoroScopeSection = () => {
     className="hero-title"
     style={{
       fontSize: '2.2rem',
-      fontWeight: 800,
+      fontWeight: 750,
       color: 'white',
       margin: 0,
       lineHeight: 1.2,
