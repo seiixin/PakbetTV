@@ -43,20 +43,23 @@ const FeaturedProducts = () => {
               aria-label={`Add ${product.title} to cart`}
               onClick={handleClick}
             >
-              <svg
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                className="cart-icon"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 7M7 13l-2 6h13m-6-6v6"
-                />
-              </svg>
+              <span className="cart-icon-container">
+                <svg
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  className="cart-icon"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 7M7 13l-2 6h13m-6-6v6"
+                  />
+                </svg>
+              </span>
               Add to Cart
             </button>
+
           </article>
         ))}
       </div>
