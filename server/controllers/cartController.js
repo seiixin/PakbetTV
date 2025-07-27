@@ -49,12 +49,12 @@ async function getCart(req, res) {
       return res.status(429).json({ message: 'Too many cart operations. Please try again later.' });
     }
 
-    // Check cache first
+    // Check cache first (temporarily disabled for debugging)
     const cacheKey = `cart_${userId}`;
-    const cached = cartCache.get(cacheKey);
-    if (cached) {
-      return res.json(cached);
-    }
+    // const cached = cartCache.get(cacheKey);
+    // if (cached) {
+    //   return res.json(cached);
+    // }
 
     console.log('Fetching cart for user ID:', userId);
     
@@ -139,6 +139,8 @@ async function getCart(req, res) {
       stock: Number(item.stock) || 0,
       image_url: item.image_url || '/placeholder-product.jpg'
     }));
+
+    console.log('[CartController] Sending processed cart items:', JSON.stringify(processedCartItems, null, 2));
 
     // Cache the results
     cartCache.set(cacheKey, processedCartItems);

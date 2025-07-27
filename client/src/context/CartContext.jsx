@@ -18,17 +18,22 @@ export const CartProvider = ({ children }) => {
   useEffect(() => {
     let isSubscribed = true;
     const loadCart = async () => {
+      console.log('[CartContext] LoadCart useEffect triggered, user:', user);
       if (user?.id) {
         // User is logged in - fetch cart from database
+        console.log('[CartContext] User is logged in, fetching cart from database');
         await fetchCartFromDatabase();
         // Only merge guest cart once per session
         const hasMerged = sessionStorage.getItem(`cart_merged_${user.id}`);
+        console.log('[CartContext] Has merged guest cart?', hasMerged);
         if (!hasMerged) {
+          console.log('[CartContext] Merging guest cart with user cart');
           await mergeGuestCartWithUserCart();
           sessionStorage.setItem(`cart_merged_${user.id}`, 'true');
         }
       } else {
         // User is not logged in - load from localStorage
+        console.log('[CartContext] User not logged in, loading from storage');
         loadCartFromStorage();
       }
     };
@@ -56,29 +61,56 @@ export const CartProvider = ({ children }) => {
 
   // Fetch cart from database for authenticated users
   const fetchCartFromDatabase = async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      console.log('[CartContext] No user ID, skipping fetchCartFromDatabase');
+      return;
+    }
     
-    if (!rateLimitedOperation('fetch')) return;
+    // Temporarily disable rate limiting for debugging
+    // if (!rateLimitedOperation('fetch')) return;
     
+    console.log('[CartContext] Starting fetchCartFromDatabase for user:', user.id);
     setLoading(true);
     try {
       const response = await api.get('/cart');
-      const dbCartItems = response.data.map(item => ({
-        cart_id: item.cart_id,
-        id: item.product_id,
-        product_id: item.product_id,
-        variant_id: item.variant_id,
-        name: item.product_name,
-        product_name: item.product_name,
-        price: parseFloat(item.price),
-        quantity: item.quantity,
-        stock: item.stock,
-        image_url: getFullImageUrl(item.image_url),
-        size: item.size,
-        color: item.color,
-        sku: item.sku,
-        selected: true // Default to selected
-      }));
+      console.log('[CartContext] Raw API response:', response.data);
+      
+      const dbCartItems = response.data.map(item => {
+        console.log('[CartContext] Processing cart item:', item);
+        console.log('[CartContext] Raw discount values:', {
+          discount_percentage: item.discount_percentage,
+          discounted_price: item.discounted_price,
+          price: item.price
+        });
+        
+        const processedItem = {
+          cart_id: item.cart_id,
+          id: item.product_id,
+          product_id: item.product_id,
+          variant_id: item.variant_id,
+          name: item.product_name,
+          product_name: item.product_name,
+          price: parseFloat(item.price),
+          discount_percentage: parseFloat(item.discount_percentage || 0),
+          discounted_price: parseFloat(item.discounted_price || 0),
+          quantity: item.quantity,
+          stock: item.stock,
+          image_url: getFullImageUrl(item.image_url),
+          size: item.size,
+          color: item.color,
+          sku: item.sku,
+          selected: true // Default to selected
+        };
+        
+        console.log('[CartContext] Processed cart item:', {
+          name: processedItem.name,
+          price: processedItem.price,
+          discount_percentage: processedItem.discount_percentage,
+          discounted_price: processedItem.discounted_price
+        });
+        
+        return processedItem;
+      });
       
       // Validate cart items
       const validatedItems = dbCartItems.filter(item => {
@@ -87,11 +119,21 @@ export const CartProvider = ({ children }) => {
           typeof item.quantity === 'number' && 
           item.quantity > 0 &&
           typeof item.price === 'number' && 
-          item.price >= 0
+          item.price >= 0 &&
+          typeof item.discount_percentage === 'number' &&
+          typeof item.discounted_price === 'number'
         );
       });
       
       console.log('[CartContext] Loaded cart from database:', validatedItems);
+      console.log('[CartContext] Setting cart items with discount data:', 
+        validatedItems.map(item => ({
+          name: item.name,
+          price: item.price,
+          discount_percentage: item.discount_percentage,
+          discounted_price: item.discounted_price
+        }))
+      );
       setCartItems(validatedItems);
     } catch (error) {
       console.error('[CartContext] Error fetching cart from database:', error);
@@ -111,8 +153,10 @@ export const CartProvider = ({ children }) => {
       console.log('[CartContext] Loaded cart data from storage:', savedCart);
       
       if (Array.isArray(savedCart) && savedCart.length > 0) {
+        console.log('[CartContext] Setting cart items from storage (these may not have discount data):', savedCart);
         setCartItems(savedCart);
       } else {
+        console.log('[CartContext] No saved cart found, setting empty array');
         setCartItems([]);
       }
     } catch (error) {
@@ -166,7 +210,8 @@ export const CartProvider = ({ children }) => {
         
         console.log('[CartContext] Item added to database cart:', response.data);
         
-        // Refresh cart from database
+        // Refresh cart from database after adding item
+        console.log('[CartContext] Refreshing cart from database after adding item');
         await fetchCartFromDatabase();
         return Promise.resolve(response.data);
       } catch (error) {
@@ -430,9 +475,11 @@ export const CartProvider = ({ children }) => {
     
     try {
       const guestCart = getCart('guest');
-      console.log('Merging guest cart', guestCart?.length || 0, 'items) with user cart');
+      console.log('[CartContext] Merging guest cart (', guestCart?.length || 0, 'items) with user cart');
+      console.log('[CartContext] Guest cart items:', guestCart);
       
       if (!Array.isArray(guestCart) || guestCart.length === 0) {
+        console.log('[CartContext] No guest cart items to merge');
         return;
       }
 
@@ -447,12 +494,15 @@ export const CartProvider = ({ children }) => {
         );
       });
 
+      console.log('[CartContext] Valid guest items for merging:', validGuestItems.length);
+
       // Add items to user cart with rate limiting
       for (const item of validGuestItems) {
         if (!rateLimitedOperation('merge')) {
           await new Promise(resolve => setTimeout(resolve, 500));
         }
         
+        console.log('[CartContext] Adding guest item to user cart:', item);
         await addToCart(item, item.quantity);
       }
 
@@ -583,7 +633,12 @@ export const CartProvider = ({ children }) => {
     return cartItems
       .filter(item => item.selected)
       .reduce((total, item) => {
-        return total + (parseFloat(item.price) * item.quantity);
+        // Use discounted price if it exists and is greater than 0, otherwise use original price
+        const itemPrice = (item.discounted_price && item.discounted_price > 0) 
+          ? parseFloat(item.discounted_price) 
+          : parseFloat(item.price);
+        console.log(`[CartContext] getTotalPrice - Item: ${item.name}, Original: ${item.price}, Discounted: ${item.discounted_price}, Using: ${itemPrice}`);
+        return total + (itemPrice * item.quantity);
       }, 0);
   };
 
@@ -616,6 +671,15 @@ export const CartProvider = ({ children }) => {
     getSelectedCount,
     getTotalCount
   };
+
+  // Debug: Log current cartItems state
+  console.log('[CartContext] Current cartItems state:', cartItems.map(item => ({
+    name: item.name,
+    price: item.price,
+    discount_percentage: item.discount_percentage,
+    discounted_price: item.discounted_price,
+    cart_id: item.cart_id
+  })));
 
   return (
     <CartContext.Provider value={value}>

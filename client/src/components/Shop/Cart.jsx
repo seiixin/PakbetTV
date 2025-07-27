@@ -137,9 +137,19 @@ const Cart = () => {
   };
 
   const calculateDiscountedPrice = (item) => {
-    if (item.discount_percentage && item.discounted_price > 0) { 
+    console.log('[Cart] calculateDiscountedPrice called with item:', {
+      name: item.name,
+      price: item.price,
+      discount_percentage: item.discount_percentage,
+      discounted_price: item.discounted_price
+    });
+    
+    // Use discounted price if it exists and is greater than 0, otherwise use original price
+    if (item.discounted_price && item.discounted_price > 0) { 
+      console.log('[Cart] Using discounted price:', item.discounted_price);
       return parseFloat(item.discounted_price);
     }
+    console.log('[Cart] Using original price:', item.price);
     return parseFloat(item.price);
   };
 

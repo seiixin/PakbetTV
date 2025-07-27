@@ -65,6 +65,14 @@ const Checkout = () => {
 
   const selectedItems = cartItems.filter(item => item.selected);
 
+  // Helper function to get the effective price (discounted if available)
+  const getEffectivePrice = (item) => {
+    // Use discounted price if it exists and is greater than 0, otherwise use original price
+    return (item.discounted_price && item.discounted_price > 0) 
+      ? parseFloat(item.discounted_price) 
+      : parseFloat(item.price);
+  };
+
   // Create order function
   const createOrder = async (userId, shippingFee = 0, shippingDetails = {}, paymentMethod = 'dragonpay', voucherCode = null) => {
     try {
@@ -82,7 +90,8 @@ const Checkout = () => {
         product_id: item.id || item.product_id,
         variant_id: item.variant_id || null,
         quantity: item.quantity,
-        price: item.price,
+        // Use discounted price if available, otherwise use original price
+        price: getEffectivePrice(item),
         variant_attributes: item.variant_attributes || {}
       }));
 
@@ -700,7 +709,8 @@ const Checkout = () => {
           shipping_fee: shippingFee, // Include actual shipping fee
           items: cartItems.map(item => ({
             product_id: item.product_id,
-            price: item.price,
+            // Use discounted price if available, otherwise use original price
+            price: getEffectivePrice(item),
             quantity: item.quantity
           }))
         })
@@ -920,7 +930,7 @@ const Checkout = () => {
                       </button>
                     </div>
                   </div>
-                  <div className="item-price">{formatPrice(item.price * item.quantity)}</div>
+                  <div className="item-price">{formatPrice(getEffectivePrice(item) * item.quantity)}</div>
                 </div>
               </div>
             ))}

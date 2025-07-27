@@ -16,8 +16,20 @@ const Checkout = () => {
   const location = useLocation();
   const { user } = useAuth();
   
-  // Use the new cart hook instead of manual state management
+  // Use the cart hook - let it handle its own data loading
   const { cartItems, loading: cartLoading } = useCartData();
+  
+  // Debug: Log cart items when they change
+  useEffect(() => {
+    console.log('[Checkout] Cart items received:', cartItems.map(item => ({
+      name: item.name,
+      price: item.price,
+      discount_percentage: item.discount_percentage, 
+      discounted_price: item.discounted_price,
+      quantity: item.quantity
+    })));
+    console.log('[Checkout] Current subtotal will be:', calculateSubtotal());
+  }, [cartItems, calculateSubtotal]);
   
   const [loading, setLoading] = useState(true);
   const [processingOrder, setProcessingOrder] = useState(false);
@@ -107,11 +119,25 @@ const Checkout = () => {
     setPaymentMethod(e.target.value);
   };
   
-  const calculateSubtotal = () => {
-    return cartItems
-      .reduce((total, item) => total + (parseFloat(item.price) * item.quantity), 0)
-      .toFixed(2);
-  };
+  // Calculate subtotal - use the exact same logic as the order summary display
+  const calculateSubtotal = React.useCallback(() => {
+    console.log('[Checkout] calculateSubtotal - using order summary logic');
+    
+    const subtotal = cartItems.reduce((total, item) => {
+      // Use the EXACT same logic as the order summary display
+      const itemTotal = (
+        (item.discount_percentage && item.discounted_price > 0) 
+          ? parseFloat(item.discounted_price) 
+          : parseFloat(item.price)
+      ) * item.quantity;
+      
+      console.log(`[Checkout] Item: ${item.name}, Price: ${item.price}, Discounted: ${item.discounted_price}, Quantity: ${item.quantity}, Item Total: ${itemTotal}`);
+      return total + itemTotal;
+    }, 0);
+    
+    console.log(`[Checkout] Final subtotal: ${subtotal.toFixed(2)}`);
+    return subtotal.toFixed(2);
+  }, [cartItems]);
   
   const handleShippingDetailsChange = (e) => {
     const { name, value } = e.target;
@@ -388,7 +414,11 @@ const Checkout = () => {
                   <span className="item-quantity">Qty: {item.quantity}</span>
                 </div>
                 <div className="item-price">
-                  RM {(parseFloat(item.price) * item.quantity).toFixed(2)}
+                  RM {((
+                    (item.discount_percentage && item.discounted_price > 0) 
+                      ? parseFloat(item.discounted_price) 
+                      : parseFloat(item.price)
+                  ) * item.quantity).toFixed(2)}
                 </div>
               </div>
             ))}

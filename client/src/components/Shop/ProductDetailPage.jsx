@@ -231,7 +231,8 @@ const ProductDetailPage = () => {
       name: product.name,
       price: priceInfo.hasDiscount ? parseFloat(priceInfo.discounted) : parseFloat(priceInfo.original),
       original_price: parseFloat(priceInfo.original),
-      discount_percentage: product.discount_percentage,
+      discount_percentage: product.discount_percentage || 0,
+      discounted_price: priceInfo.hasDiscount ? parseFloat(priceInfo.discounted) : 0,
       image_url: selectedVariant && selectedVariant.image_url 
         ? getFullImageUrl(selectedVariant.image_url)
         : getFullImageUrl(product.image_url || (product.images && product.images[0] ? product.images[0].url : null)),

@@ -24,6 +24,8 @@ export const useCartData = () => {
             name: item.product_name,
             product_name: item.product_name,
             price: parseFloat(item.price),
+            discount_percentage: parseFloat(item.discount_percentage || 0),
+            discounted_price: parseFloat(item.discounted_price || 0),
             quantity: item.quantity,
             stock: item.stock,
             image_url: getFullImageUrl(item.image_url),
@@ -34,6 +36,14 @@ export const useCartData = () => {
             selected: true // Default to selected
           }));
           console.log('[useCart] Loaded cart from database:', dbCartItems);
+          console.log('[useCart] Cart items with discount data:', 
+            dbCartItems.map(item => ({
+              name: item.name,
+              price: item.price,
+              discount_percentage: item.discount_percentage,
+              discounted_price: item.discounted_price
+            }))
+          );
           return dbCartItems;
         } catch (error) {
           console.error('[useCart] Error fetching cart from database:', error);
@@ -324,7 +334,12 @@ export const useCartData = () => {
     return cartItems
       .filter(item => item.selected)
       .reduce((total, item) => {
-        return total + (parseFloat(item.price) * item.quantity);
+        // Use discounted price if available, otherwise use original price
+        const itemPrice = (item.discounted_price && item.discounted_price > 0) 
+          ? parseFloat(item.discounted_price) 
+          : parseFloat(item.price);
+        console.log(`[useCart] getTotalPrice - Item: ${item.name}, Original: ${item.price}, Discounted: ${item.discounted_price}, Using: ${itemPrice}`);
+        return total + (itemPrice * item.quantity);
       }, 0);
   };
 
@@ -375,10 +390,11 @@ export const useCartData = () => {
   };
 
   return {
-    // Query data
+    // Query data and controls
     cartItems: getCartData.data || [],
     loading: getCartData.isLoading,
     error: getCartData.error,
+    refetch: getCartData.refetch, // Add refetch function
     
     // Mutations
     addToCart: addToCartMutation.mutateAsync,
@@ -452,7 +468,11 @@ export const useCartSummary = () => {
   
   const getTotalPrice = () => {
     return cartItems.reduce((total, item) => {
-      return total + (parseFloat(item.price) * item.quantity);
+      // Use discounted price if available, otherwise use original price
+      const itemPrice = (item.discount_percentage && item.discounted_price > 0) 
+        ? parseFloat(item.discounted_price) 
+        : parseFloat(item.price);
+      return total + (itemPrice * item.quantity);
     }, 0);
   };
   
