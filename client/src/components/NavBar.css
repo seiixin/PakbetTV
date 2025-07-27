@@ -107,7 +107,7 @@ body {
 
 /* SECOND ROW - MAIN CONTENT */
 .navbar-main-row {
-  background: linear-gradient(to left, black, #3e0505ff);
+  background: linear-gradient(to left, #0e053eff, #3e0505ff);
   padding: 12px 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
@@ -124,7 +124,7 @@ body {
 
 /* THIRD ROW - NAVIGATION */
 .navbar-nav-row {
-  background: linear-gradient(to left, black, #3e0505ff);
+  background: linear-gradient(to left, #0e053eff, #3e0505ff);
   padding: 12px 0;
 }
 

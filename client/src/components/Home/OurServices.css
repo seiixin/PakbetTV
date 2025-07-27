@@ -3,12 +3,12 @@
   padding: 1rem 0;
   overflow: hidden;
 }
+
 .our-service-title {
   position: absolute;
   top: 1rem;
   left: 1.5rem;
-  font-size: 1.5rem; /* Smaller size */
-  color: white;
+  font-size: 1.5rem;
   z-index: 2;
   font-weight: bold;
 }
@@ -19,35 +19,36 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(to top left, darkblue, #3e0505ff);
-  opacity: 0.8;
+  background: linear-gradient(to left, darkblue, #3e0505ff);
   z-index: 1;
 }
 
-
-
+/* Main Slider Wrapper */
 .our-service-slider-wrapper {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-wrap: wrap;
   z-index: 2;
+  padding: 2rem 0;
 }
 
+/* Layout for center and side cards */
 .our-service-slider {
   display: flex;
-  align-items: center;
-  gap: 1rem;
-  position: relative;
-  width: 100%;
   justify-content: center;
+  align-items: center;
+  position: relative;
+  gap: 0; /* No gap so we can control spacing via transform */
 }
 
-.center-wrapper {
-  position: relative;
+/* Wrap center card + arrows */
+.center-container {
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 1rem;
 }
 
 .service-card {
@@ -55,22 +56,37 @@
   overflow: hidden;
   transition: all 0.3s ease;
   flex-shrink: 0;
-  opacity: 0.4;
-  transform: scale(0.8);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+  position: relative;
+  z-index: 1;
 }
+
 
 .service-card.center {
-  opacity: 1;
+  width: 360px;
   transform: scale(1);
   z-index: 3;
-  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.3);
-  width: 100%;
-  max-width: 380px;
 }
 
+
 .service-card.side {
-  width: 240px;
+  width: 300px;
+  transform: scale(0.85);
+  z-index: 2;
+  margin-left: -70px;
+  margin-right: -70px;
+  pointer-events: none; /* 👈 Add this */
+}
+
+/* Overlap effect: use nth-of-type to target left and right side cards */
+.service-card.side:first-of-type {
+  transform: scale(0.9) translateX(40px);
+  opacity: 0.3;
+}
+
+.service-card.side:last-of-type {
+  transform: scale(0.9) translateX(-40px);
+  opacity: 0.3;
 }
 
 .service-img {
@@ -81,44 +97,41 @@
   aspect-ratio: 16 / 9;
 }
 
+/* Repositioned Arrows Beside Center Card */
 .slider-btn {
+  z-index: 99; /* 👈 Ensure this is above all .service-card */
   background: transparent;
   border: none;
   width: 0;
   height: 0;
   padding: 0;
   cursor: pointer;
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 10;
 }
 
 .slider-btn.left {
   border-top: 20px solid transparent;
   border-bottom: 20px solid transparent;
   border-right: 20px solid #f3f652ff;
-  left: 0; /* adjust if needed */
 }
 
 .slider-btn.right {
   border-top: 20px solid transparent;
   border-bottom: 20px solid transparent;
   border-left: 20px solid #f3f652ff;
-  right: 0; /* adjust if needed */
 }
 
 .slider-btn:hover {
   filter: brightness(1.2);
 }
 
+/* Responsive Adjustments */
 @media (max-width: 768px) {
   .slider-btn.left {
-    left: -14px;
+    border-right-width: 16px;
   }
 
   .slider-btn.right {
-    right: -14px;
+    border-left-width: 16px;
   }
 
   .service-card.center {
@@ -129,7 +142,15 @@
     width: 180px;
   }
 
+  .service-card.side:first-of-type {
+    transform: scale(0.9) translateX(20px);
+  }
+
+  .service-card.side:last-of-type {
+    transform: scale(0.9) translateX(-20px);
+  }
+
   .our-service-slider {
-    gap: 0.5rem;
+    gap: 0;
   }
 }

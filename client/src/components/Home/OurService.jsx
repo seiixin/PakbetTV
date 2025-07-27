@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import './OurServices.css';
 import FeaturedProducts from './FeaturedProducts';
 
@@ -29,89 +29,95 @@ const OurService = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
 
   const handleArrow = (dir) => {
-    const nextIndex =
+    setCurrentIndex((prevIndex) =>
       dir === 'left'
-        ? (currentIndex - 1 + services.length) % services.length
-        : (currentIndex + 1) % services.length;
-    setCurrentIndex(nextIndex);
+        ? (prevIndex - 1 + services.length) % services.length
+        : (prevIndex + 1) % services.length
+    );
   };
 
-  // ✅ Auto-slide every 3 seconds
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentIndex((prevIndex) => (prevIndex + 1) % services.length);
+      setCurrentIndex((prev) => (prev + 1) % services.length);
     }, 5000);
-
-    return () => clearInterval(interval); // Cleanup
+    return () => clearInterval(interval);
   }, []);
 
   const visibleServices = useMemo(() => {
-    const visible = [];
+    const output = [];
     for (let i = -1; i <= 1; i++) {
       const index = (currentIndex + i + services.length) % services.length;
-      visible.push({
+      output.push({
         ...services[index],
         position: i,
-        index: index,
+        index,
       });
     }
-    return visible;
+    return output;
   }, [currentIndex]);
 
   return (
     <>
       <section className="our-service-section">
         <div className="gradient-overlay"></div>
-        <h1 className="our-service-title">Our Services</h1>
+        <h1 className="our-service-title">
+          <span style={{ color: '#ffffff', fontWeight: 700 }}>Our</span>{' '}
+          <span style={{ color: '#fdea18', fontWeight: 700 }}>Services</span>
+        </h1>
 
         <div className="our-service-slider-wrapper">
-          <div className="our-service-slider">
-            {visibleServices.map((service) => {
-              const isCenter = service.position === 0;
+          {visibleServices.map((service) => {
+            const isCenter = service.position === 0;
 
-              if (isCenter) {
-                return (
-<div className="our-service-slider-wrapper">
-  <button
-    className="slider-btn left"
-    onClick={() => handleArrow('left')}
-    aria-label="Previous"
-  ></button>
+            if (isCenter) {
+              return (
+                <div key={service.index} className="center-container">
+                  <button
+                    className="slider-btn left"
+                    onClick={() => handleArrow('left')}
+                    aria-label="Previous"
+                  ></button>
 
-  <div className="our-service-slider">
-    {visibleServices.map((service) => {
-      const isCenter = service.position === 0;
-      return (
-        <div
-          key={service.index}
-          className={`service-card ${isCenter ? 'center' : 'side'}`}
-          style={{
-            transition: 'transform 0.5s ease-in-out',
-            transform: isCenter ? 'scale(1)' : 'scale(0.9)',
-            opacity: isCenter ? 1 : 0.5,
-          }}
-        >
-          <img
-            src={service.image}
-            alt={service.title}
-            className="service-img"
-          />
-        </div>
-      );
-    })}
-  </div>
+                  <div
+                    className="service-card center"
+                    style={{
+                      transition: 'transform 0.5s ease-in-out',
+                    }}
+                  >
+                    <img
+                      src={service.image}
+                      alt={service.title}
+                      className="service-img"
+                    />
+                  </div>
 
-  <button
-    className="slider-btn right"
-    onClick={() => handleArrow('right')}
-    aria-label="Next"
-  ></button>
-</div>
-                );
-              }
+                  <button
+                    className="slider-btn right"
+                    onClick={() => handleArrow('right')}
+                    aria-label="Next"
+                  ></button>
+                </div>
+              );
+            }
 
-            })}
-          </div>
+            return (
+              <div
+                key={service.index}
+                className={`service-card side`}
+                style={{
+                  transition: 'transform 0.5s ease-in-out',
+                  transform: 'scale(0.9)',
+                  opacity: 0.5,
+                }}
+              >
+                <img
+                  src={service.image}
+                  alt={service.title}
+                  className="service-img"
+                />
+              </div>
+            );
+          })}
         </div>
       </section>
 

@@ -1,10 +1,9 @@
-/* Fullscreen layout */
+/* Fullscreen layout - NO SPACE TOP/BOTTOM */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
-
 
 html, body {
   margin: 0;
@@ -14,12 +13,27 @@ html, body {
 }
 
 .home-hero-section {
+  padding: 0;
+  margin: 0;
   position: relative;
   width: 100vw;
-  min-height: 100vh;
+  height: 100vh;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
+.hero-content-wrapper {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  height: 100vh; /* Full viewport height */
+  width: 100vw; /* Full viewport width */
+  position: relative;
+  z-index: 2;
+  padding: 0;
+  margin: 0;
+}
 
 .video-background {
   position: absolute;
@@ -42,16 +56,7 @@ html, body {
   z-index: 1;
 }
 
-.hero-content {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  align-items: stretch; /* ⬅️ stretch content to full height */
-  justify-content: center;
-  padding: 2rem;
-  min-height: 100vh; /* keep this to ensure full screen */
-  height: 100%;
-}
+/* Remove unused hero-content styles */
 
 .hero-container {
   display: flex;
@@ -60,20 +65,52 @@ html, body {
   max-width: 1200px;
   width: 100%;
   color: white;
+  align-items: flex-end;
+  height: 100%;
+  padding: 0 1rem 0 1rem; /* No top and bottom padding */
+  margin: 0;
 }
 
 /* Text content styling */
-.text-content,
-.image-container {
+.text-content {
   flex: 1;
   display: flex;
   flex-direction: column;
   justify-content: center;
+  align-items: flex-start;
+  text-align: left;
+}
+
+/* Image container - FORCED TO BOTTOM */
+.image-container {
+  flex: 1;
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: flex-end;
+  position: relative;
+  margin-bottom: -5vh;
+  padding-bottom: 0;
+}
+
+/* Image - EXTREMELY LOW POSITIONING */
+.image-container img {
+  width: auto;
+  height: 700vh;
+  max-height: 90vh;
+  min-height: 60vh;
+  object-fit: contain;
+  display: block;
+  max-width: 100%;
+  transform: translateY(5vh);
 }
 
 .headline {
+  text-align: left;
+  align-self: flex-start;
   font-weight: 800;
-  font-size: clamp(2.8rem, 5vw, 5.5rem);
+  font-size: clamp(2rem, 5vw, 5.5rem);
   line-height: 1.1;
   margin-bottom: 1rem;
 }
@@ -90,7 +127,8 @@ html, body {
 
 .buttons {
   display: flex;
-  gap: 24px;
+  justify-content: flex-start;
+  gap: 16px;
   margin-top: 24px;
   flex-wrap: wrap;
 }
@@ -98,13 +136,17 @@ html, body {
 .btn-ask {
   background-color: #05263e;
   border-radius: 40px;
-  padding: 14px 32px;
+  padding: 12px 28px;
   font-weight: 600;
-  font-size: 1.125rem;
+  font-size: clamp(0.9rem, 2.5vw, 1.125rem);
   color: #fff;
   border: none;
   cursor: pointer;
   transition: background-color 0.3s ease;
+  min-width: 120px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
 }
 
 .btn-ask strong {
@@ -120,12 +162,16 @@ html, body {
   background: transparent;
   color: #fdea18;
   font-weight: 700;
-  font-size: 1.125rem;
+  font-size: clamp(0.9rem, 2.5vw, 1.125rem);
   border: 2px solid #fdea18;
   border-radius: 40px;
-  padding: 14px 30px;
+  padding: 12px 26px;
   cursor: pointer;
   transition: background 0.3s ease, color 0.3s ease;
+  min-width: 120px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
 }
 
 .btn-shop:hover {
@@ -135,13 +181,12 @@ html, body {
 
 .features {
   display: flex;
-  justify-content: center;
-  gap: 32px;
+  justify-content: flex-start;
+  gap: 24px;
   padding: 20px 0;
-  flex-wrap: nowrap; /* ONE line only */
-  overflow-x: auto;   /* scrolls on small screens */
+  flex-wrap: wrap;
+  margin-top: 1rem;
 }
-
 
 .feature-item {
   display: flex;
@@ -149,44 +194,247 @@ html, body {
   align-items: center;
   color: #fdea18;
   font-weight: 600;
-  font-size: 0.75rem;
-  white-space: nowrap;
+  font-size: clamp(0.6rem, 2vw, 0.75rem);
+  text-align: center;
+  min-width: 60px;
 }
 
-
-
 .feature-icon {
-  width: 28px;
-  height: 28px;
+  width: clamp(24px, 5vw, 28px);
+  height: clamp(24px, 5vw, 28px);
   stroke: #fdea18;
   stroke-width: 2.5;
   fill: none;
   margin-bottom: 6px;
 }
-/* Image */
-.image-container {
-  flex: 1;
-  display: flex;
-  align-items: flex-end;  /* ⬅️ ilalagay ang image sa pinakailalim ng container */
-  justify-content: center;
-  height: 100%;
+
+/* Large screens - even more extreme positioning */
+@media (min-width: 1200px) {
+  .image-container {
+    margin-bottom: -8vh;
+  }
+  
+  .image-container img {
+    max-height: 95vh;
+    min-height: 70vh;
+    transform: translateY(8vh);
+  }
 }
 
-.image-container img {
-  width: auto;
-  height: 100%;
-  object-fit: contain; /* or cover if you want it to crop/fill */
-  display: block;
+/* Tablet responsive */
+@media (max-width: 1024px) {
+  .image-container {
+    margin-bottom: -3vh;
+  }
+  
+  .image-container img {
+    max-height: 80vh;
+    min-height: 50vh;
+    transform: translateY(3vh);
+  }
 }
 
-/* Responsive tweaks */
+/* Remove unused hero-content class and update mobile padding */
+/* Mobile optimizations */
 @media (max-width: 768px) {
+  .hero-content-wrapper {
+    height: 100vh;
+    padding: 0;
+  }
+  
   .hero-container {
     flex-direction: column;
     align-items: center;
     text-align: center;
+    gap: 1.5rem;
+    justify-content: flex-end;
+    padding: 0 0.5rem 0 0.5rem; /* No top and bottom padding */
+    height: 100vh;
   }
+  
+  .text-content {
+    order: 1;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .image-container {
+    flex: 1;
+    display: flex;
+    height: 100%;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: flex-end;
+    position: relative;
+    margin-bottom: -5vh;
+    padding-bottom: 0;
+  }
+
+  .image-container img {
+    width: auto;
+    height: auto;
+    max-height: 90vh;
+    min-height: 60vh;
+    object-fit: contain;
+    display: block;
+    max-width: 100%;
+    transform: translateY(5vh);
+  }
+  
+  .features {
+    justify-content: center;
+    gap: 16px;
+  }
+  
   .buttons {
     justify-content: center;
+    gap: 8px;
+    flex-wrap: nowrap;
+  }
+  
+  .btn-ask,
+  .btn-shop {
+    flex: 1;
+    min-width: 0;
+    max-width: none;
+    padding: 12px 8px;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  .feature-item {
+    min-width: 45px;
+    font-size: 0.6rem;
+  }
+}
+
+/* Small mobile screens */
+@media (max-width: 500px) {
+  .hero-container {
+    padding: 0 0.5rem 0 0.5rem; /* No top and bottom padding */
+  }
+  
+  .image-container {
+    max-width: 250px;
+    margin-bottom: -1vh;
+  }
+  
+  .image-container img {
+    max-height: 40vh;
+    min-height: 150px;
+    transform: translateY(1vh);
+  }
+  
+  .headline {
+    font-size: clamp(1.5rem, 8vw, 2.5rem);
+    margin-bottom: 0.5rem;
+  }
+  
+  .buttons {
+    gap: 6px;
+  }
+  
+  .btn-ask,
+  .btn-shop {
+    max-width: 120px;
+    padding: 10px 8px;
+    font-size: 0.75rem;
+  }
+  
+  .features {
+    gap: 12px;
+  }
+  
+  .feature-item {
+    font-size: 0.55rem;
+    min-width: 40px;
+  }
+  
+  .feature-icon {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+/* Landscape mobile orientation */
+@media (max-width: 768px) and (orientation: landscape) {
+  .hero-content-wrapper {
+    flex-direction: row;
+    align-items: flex-end;
+    height: 100vh;
+  }
+  
+  .hero-container {
+    flex-direction: row;
+    text-align: left;
+    align-items: flex-end;
+    height: 100vh;
+  }
+  
+  .text-content {
+    order: 1;
+    flex: 1.2;
+    justify-content: center;
+  }
+  
+  .image-container {
+    order: 2;
+    flex: 0.8;
+    margin-bottom: -3vh;
+  }
+  
+  .image-container img {
+    max-height: 70vh;
+    transform: translateY(3vh);
+  }
+  
+  .headline {
+    font-size: clamp(1.5rem, 4vw, 2.5rem);
+  }
+  
+  .buttons {
+    justify-content: flex-start;
+    flex-direction: row;
+  }
+  
+  .btn-ask,
+  .btn-shop {
+    flex: none;
+    min-width: 100px;
+    max-width: 140px;
+  }
+  
+  .features {
+    justify-content: flex-start;
+  }
+}
+
+/* Very small screens */
+@media (max-width: 320px) {
+  .image-container img {
+    max-height: 35vh;
+    min-height: 120px;
+  }
+}
+
+/* Touch-friendly improvements */
+@media (hover: none) and (pointer: coarse) {
+  .btn-ask,
+  .btn-shop {
+    padding: 16px 28px;
+    font-size: 1rem;
+  }
+  
+  .feature-item {
+    padding: 8px;
+  }
+}
+
+/* High DPI screens */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .feature-icon {
+    stroke-width: 2;
   }
 }
