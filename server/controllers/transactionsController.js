@@ -75,7 +75,7 @@ async function sendOrderConfirmationEmailForIPN(order, referenceNumber, tracking
       items: orderItems.map(item => ({
         name: item.name,
         quantity: item.quantity,
-        price: item.price
+        price: parseFloat(item.price) || 0
       })),
       totalAmount: order.total_price,
       shippingFee: 0, // Add if you have this info
@@ -1024,7 +1024,7 @@ exports.simulatePayment = async (req, res) => {
             items: orderItems.map(item => ({
               name: item.name,
               quantity: item.quantity,
-              price: item.price
+              price: parseFloat(item.price) || 0
             })),
             totalAmount: orders[0].total_price,
             shippingFee: 0,

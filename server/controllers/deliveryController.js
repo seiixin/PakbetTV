@@ -1187,25 +1187,41 @@ async function createShippingOrder(orderId) {
 
     /**
      * Format phone number based on country code
+     * Handle both PH and SG numbers regardless of API endpoint
      */
     function formatPhoneNumber(phone, countryCode) {
       if (!phone) return '';
       
       const cleanPhone = phone.replace(/[\s\-\(\)\.]/g, '');
       
-      if (countryCode === 'SG') {
-        // Singapore format: +65XXXXXXXX
-        if (cleanPhone.startsWith('+65')) return cleanPhone;
-        if (cleanPhone.startsWith('65')) return '+' + cleanPhone;
-        if (cleanPhone.match(/^[89]\d{7}$/)) return '+65' + cleanPhone;
-        return '+6591234567'; // Default Singapore number for testing
-      } else {
-        // Philippines format: +63XXXXXXXXXX
+      // First, detect if it's a Philippine number regardless of country code
+      if (cleanPhone.startsWith('+63') || cleanPhone.startsWith('63') || 
+          cleanPhone.startsWith('09') || cleanPhone.match(/^9\d{9}$/)) {
+        // Philippine number - format properly
         if (cleanPhone.startsWith('+63')) return cleanPhone;
         if (cleanPhone.startsWith('63')) return '+' + cleanPhone;
         if (cleanPhone.startsWith('0')) return '+63' + cleanPhone.substring(1);
         if (cleanPhone.match(/^9\d{9}$/)) return '+63' + cleanPhone;
-        return cleanPhone; // Return as is if already formatted
+      }
+      
+      // Then handle Singapore numbers
+      if (cleanPhone.startsWith('+65') || cleanPhone.startsWith('65') || 
+          cleanPhone.match(/^[89]\d{7}$/)) {
+        if (cleanPhone.startsWith('+65')) return cleanPhone;
+        if (cleanPhone.startsWith('65')) return '+' + cleanPhone;
+        if (cleanPhone.match(/^[89]\d{7}$/)) return '+65' + cleanPhone;
+      }
+      
+      // If using SG sandbox but have PH number, keep the PH number format
+      if (countryCode === 'SG' && cleanPhone.startsWith('+63')) {
+        return cleanPhone; // Keep Philippine format even for SG sandbox
+      }
+      
+      // Default fallback based on country code
+      if (countryCode === 'SG') {
+        return '+6591234567'; // Default Singapore number for testing
+      } else {
+        return '+639123456789'; // Default Philippines number for testing
       }
     }
 
