@@ -1023,4 +1023,207 @@ body.modal-open * {
 
 .back-to-home-btn:hover svg {
   transform: translateX(-2px);
+}
+
+/* Modern Email Verification UI Styles */
+.verification-loading-state,
+.verification-result-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 2rem 1rem;
+  min-height: 300px;
+  justify-content: center;
+}
+
+.verification-icon-container {
+  margin-bottom: 1.5rem;
+  position: relative;
+}
+
+.verification-icon-container.success .verification-icon-bg {
+  background: linear-gradient(135deg, #28a745, #20c997);
+  color: white;
+  box-shadow: 0 8px 32px rgba(40, 167, 69, 0.3);
+}
+
+.verification-icon-container.already-verified .verification-icon-bg {
+  background: linear-gradient(135deg, #17a2b8, #20c997);
+  color: white;
+  box-shadow: 0 8px 32px rgba(23, 162, 184, 0.3);
+}
+
+.verification-icon-container.error .verification-icon-bg {
+  background: linear-gradient(135deg, #dc3545, #e74c3c);
+  color: white;
+  box-shadow: 0 8px 32px rgba(220, 53, 69, 0.3);
+}
+
+.verification-icon-bg {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--primary-color), #c72c21);
+  color: white;
+  box-shadow: 0 8px 32px rgba(162, 32, 26, 0.3);
+  margin: 0 auto;
+  position: relative;
+  overflow: hidden;
+}
+
+.verification-icon-bg::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.verification-pulse-animation {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary-color), #c72c21);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  position: relative;
+  animation: pulse 1.5s ease-in-out infinite;
+  box-shadow: 0 8px 32px rgba(162, 32, 26, 0.3);
+}
+
+.verification-pulse-animation::before,
+.verification-pulse-animation::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 2px solid var(--primary-color);
+  opacity: 0;
+  animation: ripple 1.5s ease-out infinite;
+}
+
+.verification-pulse-animation::after {
+  animation-delay: 0.5s;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+@keyframes ripple {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+.verification-pulse-animation svg {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.verification-content {
+  margin-bottom: 2rem;
+  max-width: 400px;
+}
+
+.verification-content h2 {
+  font-size: 1.5rem;
+  color: var(--text-color);
+  margin-bottom: 0.75rem;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+}
+
+.verification-content p {
+  color: var(--light-text-color);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  margin: 0;
+  font-weight: 400;
+}
+
+.verification-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 300px;
+}
+
+.auth-button.secondary {
+  background: linear-gradient(135deg, #6c757d, #5a6268);
+  color: white;
+  border: 1px solid #6c757d;
+}
+
+.auth-button.secondary:hover {
+  background: linear-gradient(135deg, #5a6268, #495057);
+  border-color: #5a6268;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
+}
+
+.auth-button.secondary:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(108, 117, 125, 0.2);
+}
+
+/* Responsive Design for Verification */
+@media (max-width: 480px) {
+  .verification-loading-state,
+  .verification-result-container {
+    padding: 1.5rem 0.75rem;
+    min-height: 250px;
+  }
+  
+  .verification-icon-bg,
+  .verification-pulse-animation {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .verification-icon-bg svg,
+  .verification-pulse-animation svg {
+    width: 24px;
+    height: 24px;
+  }
+  
+  .verification-content h2 {
+    font-size: 1.25rem;
+  }
+  
+  .verification-content p {
+    font-size: 0.85rem;
+  }
+  
+  .verification-actions {
+    gap: 0.5rem;
+  }
 } 

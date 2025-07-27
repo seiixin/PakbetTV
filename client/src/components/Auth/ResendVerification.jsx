@@ -58,26 +58,28 @@ function ResendVerification() {
                 <path d="M19 12H5"></path>
                 <polyline points="12,19 5,12 12,5"></polyline>
               </svg>
+              Back to Home
             </Link>
           </div>
 
-          <div className="auth-header">
-            <h2>Verification Email Sent</h2>
-          </div>
-
-          <div className="verification-success">
-            <div className="success-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: '#28a745' }}>
-                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-                <polyline points="22,6 12,13 2,6"></polyline>
-              </svg>
+          <div className="verification-result-container">
+            <div className="verification-icon-container success">
+              <div className="verification-icon-bg">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                  <polyline points="22,6 12,13 2,6"></polyline>
+                </svg>
+              </div>
             </div>
-            <h3>Check Your Email</h3>
-            <p>We've sent a new verification email to <strong>{email}</strong></p>
-            <p>Please check your inbox and click the verification link to activate your account.</p>
-            
-            <div className="auth-redirect">
-              <Link to="/login">Back to Login</Link>
+            <div className="verification-content">
+              <h2>Verification Email Sent</h2>
+              <p>We've sent a new verification email to <strong>{email}</strong></p>
+              <p>Please check your inbox and click the verification link to activate your account.</p>
+            </div>
+            <div className="verification-actions">
+              <button className="auth-button" onClick={() => window.location.href = '/login'}>
+                Back to Login
+              </button>
             </div>
           </div>
         </div>
@@ -94,6 +96,7 @@ function ResendVerification() {
               <path d="M19 12H5"></path>
               <polyline points="12,19 5,12 12,5"></polyline>
             </svg>
+            Back to Home
           </Link>
         </div>
 

@@ -70,13 +70,28 @@ function EmailVerification() {
     return (
       <div className="auth-container">
         <div className="auth-form">
-          <div className="auth-header">
-            <h2>Verifying Email...</h2>
-            <p>Please wait while we verify your email address.</p>
+          <div className="auth-back-button">
+            <Link to="/" className="back-to-home-btn">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 12H5"></path>
+                <polyline points="12,19 5,12 12,5"></polyline>
+              </svg>
+              Back to Home
+            </Link>
           </div>
-          <div className="loading-spinner">
-            <div className="spinner-border" role="status">
-              <span className="visually-hidden">Loading...</span>
+
+          <div className="verification-loading-state">
+            <div className="verification-icon-container">
+              <div className="verification-pulse-animation">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 12a8 8 0 0 1 8-8V2.5"/>
+                  <circle cx="12" cy="12" r="8" opacity="0.3"/>
+                </svg>
+              </div>
+            </div>
+            <div className="verification-content">
+              <h2>Verifying Your Email</h2>
+              <p>Please wait while we verify your email address. This will only take a moment.</p>
             </div>
           </div>
         </div>
@@ -93,71 +108,73 @@ function EmailVerification() {
               <path d="M19 12H5"></path>
               <polyline points="12,19 5,12 12,5"></polyline>
             </svg>
+            Back to Home
           </Link>
         </div>
 
-        <div className="auth-header">
-          <h2>Email Verification</h2>
-        </div>
-
         {verified && (
-          <div className="verification-success">
-            <div className="success-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: '#28a745' }}>
-                <polyline points="20,6 9,17 4,12"></polyline>
-              </svg>
+          <div className="verification-result-container">
+            <div className="verification-icon-container success">
+              <div className="verification-icon-bg">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20,6 9,17 4,12"></polyline>
+                </svg>
+              </div>
             </div>
-            <h3>Email Verified Successfully!</h3>
-            <p>Your email address has been verified. You can now log in to your account and access all features.</p>
-            <button 
-              className="auth-button" 
-              onClick={handleLoginRedirect}
-            >
-              Go to Login
-            </button>
+            <div className="verification-content">
+              <h2>Email Verified Successfully!</h2>
+              <p>Your email address has been verified. You can now log in to your account and access all features.</p>
+            </div>
+            <div className="verification-actions">
+              <button className="auth-button" onClick={handleLoginRedirect}>
+                Continue to Login
+              </button>
+            </div>
           </div>
         )}
 
         {alreadyVerified && (
-          <div className="verification-success">
-            <div className="success-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: '#17a2b8' }}>
-                <polyline points="20,6 9,17 4,12"></polyline>
-              </svg>
+          <div className="verification-result-container">
+            <div className="verification-icon-container already-verified">
+              <div className="verification-icon-bg">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 12l2 2 4-4"/>
+                  <circle cx="12" cy="12" r="9"/>
+                </svg>
+              </div>
             </div>
-            <h3>Email Already Verified</h3>
-            <p>Your email address is already verified. You can log in to your account.</p>
-            <button 
-              className="auth-button" 
-              onClick={handleLoginRedirect}
-            >
-              Go to Login
-            </button>
+            <div className="verification-content">
+              <h2>Email Already Verified</h2>
+              <p>Your email address is already verified. You can log in to your account.</p>
+            </div>
+            <div className="verification-actions">
+              <button className="auth-button" onClick={handleLoginRedirect}>
+                Go to Login
+              </button>
+            </div>
           </div>
         )}
 
         {error && (
-          <div className="verification-error">
-            <div className="error-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: '#dc3545' }}>
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="15" y1="9" x2="9" y2="15"></line>
-                <line x1="9" y1="9" x2="15" y2="15"></line>
-              </svg>
+          <div className="verification-result-container">
+            <div className="verification-icon-container error">
+              <div className="verification-icon-bg">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="15" y1="9" x2="9" y2="15"/>
+                  <line x1="9" y1="9" x2="15" y2="15"/>
+                </svg>
+              </div>
             </div>
-            <h3>Verification Failed</h3>
-            <p>{error}</p>
-            <div className="error-actions">
-              <button 
-                className="auth-button secondary" 
-                onClick={handleRequestNewLink}
-              >
+            <div className="verification-content">
+              <h2>Verification Failed</h2>
+              <p>{error}</p>
+            </div>
+            <div className="verification-actions">
+              <button className="auth-button secondary" onClick={handleRequestNewLink}>
                 Request New Verification Link
               </button>
-              <button 
-                className="auth-button" 
-                onClick={handleLoginRedirect}
-              >
+              <button className="auth-button" onClick={handleLoginRedirect}>
                 Go to Login
               </button>
             </div>
