@@ -113,10 +113,8 @@ const ProductDetailPage = () => {
         setSelectedAttributes(initialSelections);
       }
 
-      // Set initial selected image
-      if (product.images && product.images.length > 0) {
-        setSelectedImageUrl(product.images[0].url);
-      }
+      // Set initial selected image using getPrimaryImage function
+      setSelectedImageUrl(getPrimaryImage());
 
       // Fetch reviews
       fetchReviews(product.product_id);
@@ -462,6 +460,27 @@ const ProductDetailPage = () => {
     return formatted;
   };
 
+  // Get the primary image URL
+  const getPrimaryImage = () => {
+    if (product.variants && product.variants.length > 0 && product.variants[0].image_url) {
+      return getFullImageUrl(product.variants[0].image_url);
+    }
+    if (product.images && product.images.length > 0) {
+      return getFullImageUrl(product.images[0].url);
+    }
+    if (product.image_url) {
+      return getFullImageUrl(product.image_url);
+    }
+    return '/ImageFallBack.png'; // Use ImageFallBack.png as fallback
+  };
+
+  // Handle image loading errors
+  const handleImageError = (e) => {
+    console.error('Image load error:', e.target.src);
+    e.target.onerror = null; // Prevent infinite loop
+    e.target.src = '/ImageFallBack.png'; // Use ImageFallBack.png when image fails to load
+  };
+
   // Update the scroll detection useEffect
   useEffect(() => {
     const handleScroll = () => {
@@ -520,12 +539,19 @@ const ProductDetailPage = () => {
             {/* Product Images */}
             <div className="product-detail-image-gallery">
               <div className="main-image-container">
-                {selectedImageUrl && (
-                  <img 
-                    src={selectedImageUrl} 
-                    alt={product.name} 
-                    className="main-product-image" 
-                  />
+                {selectedImageUrl ? (
+                    <img 
+                      src={selectedImageUrl} 
+                      alt={product.name || "Product image"} 
+                      className="main-product-image"
+                      onError={handleImageError} 
+                    />
+                ) : (
+                    <img 
+                      src="/ImageFallBack.png" 
+                      alt="Product image not available" 
+                      className="main-product-image"
+                    />
                 )}
               </div>
               <div className="thumbnail-container">
@@ -535,7 +561,11 @@ const ProductDetailPage = () => {
                     className={`thumbnail-item ${selectedImageUrl === getFullImageUrl(image.url) ? 'active' : ''}`}
                     onClick={() => setSelectedImageUrl(getFullImageUrl(image.url))}
                   >
-                    <img src={getFullImageUrl(image.url)} alt={`${product.name} thumbnail ${index + 1}`} />
+                    <img 
+                      src={getFullImageUrl(image.url)} 
+                      alt={`${product.name} thumbnail ${index + 1}`} 
+                      onError={handleImageError}
+                    />
                   </div>
                 ))}
                 {product.variants && product.variants.length > 0 && 
@@ -562,7 +592,11 @@ const ProductDetailPage = () => {
                           }
                         }}
                       >
-                        <img src={getFullImageUrl(variant.image_url)} alt={`${product.name} variant ${index + 1}`} />
+                        <img 
+                          src={getFullImageUrl(variant.image_url)} 
+                          alt={`${product.name} variant ${index + 1}`} 
+                          onError={handleImageError}
+                        />
                       </div>
                     ))
                 }

@@ -957,22 +957,7 @@ async function createShippingOrder(orderId) {
   try {
     await connection.beginTransaction();
     
-    // DEBUGGING: First, let's verify the shipping table structure from this connection
-    try {
-      console.log(`🔍 [DEBUG] Checking shipping table structure for order ${orderId}`);
-      const [tableStructure] = await connection.query('DESCRIBE shipping');
-      const orderIdColumn = tableStructure.find(col => col.Field === 'order_id');
-      if (orderIdColumn) {
-        console.log(`✅ [DEBUG] order_id column confirmed: ${JSON.stringify(orderIdColumn)}`);
-      } else {
-        console.log(`❌ [DEBUG] order_id column NOT FOUND! Available columns:`, tableStructure.map(col => col.Field));
-        throw new Error('order_id column does not exist in shipping table');
-      }
-    } catch (debugError) {
-      console.error(`❌ [DEBUG] Error checking table structure:`, debugError.message);
-      throw debugError;
-    }
-    
+    // Verify shipping table structure (production debugging removed)
     // Get order details including payment status with retry mechanism
     let orders = [];
     let retryCount = 0;
@@ -980,8 +965,10 @@ async function createShippingOrder(orderId) {
     
     while (retryCount < maxRetries && orders.length === 0) {
       [orders] = await connection.query(
-        'SELECT o.*, u.first_name, u.last_name, u.email, u.phone, u.user_id FROM orders o ' +
+        'SELECT o.*, u.first_name, u.last_name, u.email, u.phone, u.user_id, p.payment_method ' +
+        'FROM orders o ' +
         'JOIN users u ON o.user_id = u.user_id ' +
+        'LEFT JOIN payments p ON o.order_id = p.order_id ' +
         'WHERE o.order_id = ?',
         [orderId]
       );
@@ -1002,6 +989,10 @@ async function createShippingOrder(orderId) {
     
     const order = orders[0];
     console.log(`Order details: payment_status=${order.payment_status}, order_status=${order.order_status}`);
+    
+    // Detect COD orders - check both payment_method and payment_status
+    const isCODOrder = order.payment_method === 'cod' || order.payment_status === 'cod_pending';
+    console.log(`🔍 COD Detection: payment_method="${order.payment_method}", payment_status="${order.payment_status}", isCOD=${isCODOrder}`);
     
     // IMPORTANT: Check payment status before creating shipping order
     if (order.payment_status !== 'paid' && order.payment_status !== 'cod_pending') {
@@ -1048,7 +1039,7 @@ async function createShippingOrder(orderId) {
     }
 
     const userShipping = shippingDetails[0];
-    console.log(`Shipping address found: ${userShipping.address1}, ${userShipping.city}, ${userShipping.state} ${userShipping.postcode}`);
+    console.log(`📦 Using shipping address: ${userShipping.address1}, ${userShipping.city}, ${userShipping.state} ${userShipping.postcode}`);
     
     // Create shipping address string for shipping table
     const shippingAddressString = `${userShipping.address1}, ${userShipping.address2 || ''}, ${userShipping.city}, ${userShipping.state}, ${userShipping.postcode}, ${userShipping.country}`.trim().replace(/, ,/g, ',').replace(/,$/g, '');
@@ -1056,40 +1047,36 @@ async function createShippingOrder(orderId) {
     // FIXED: Check if shipping record exists using safer query with explicit column validation
     let existingShipping = [];
     try {
-      console.log(`🔍 [DEBUG] Attempting to query shipping table for order_id = ${orderId}`);
       [existingShipping] = await connection.query(
         'SELECT shipping_id, order_id, user_id, address, status FROM shipping WHERE order_id = ?',
         [orderId]
       );
-      console.log(`✅ [DEBUG] Shipping query successful. Found ${existingShipping.length} records`);
     } catch (shippingQueryError) {
-      console.error(`❌ [DEBUG] Shipping query failed:`, shippingQueryError.message);
+      console.error(`❌ Database error when querying shipping table: ${shippingQueryError.message}`);
       throw new Error(`Database error when querying shipping table: ${shippingQueryError.message}`);
     }
 
     // FIXED: Create or update shipping record with explicit column names and error handling
     if (existingShipping.length === 0) {
       try {
-        console.log(`🔍 [DEBUG] Creating new shipping record for order ${orderId}`);
         await connection.query(
           'INSERT INTO shipping (order_id, user_id, address, status, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())',
           [orderId, order.user_id, shippingAddressString, 'pending']
         );
         console.log(`✅ Created shipping record for order ${orderId}`);
       } catch (insertError) {
-        console.error(`❌ [DEBUG] Failed to insert shipping record:`, insertError.message);
+        console.error(`❌ Failed to insert shipping record: ${insertError.message}`);
         throw new Error(`Failed to create shipping record: ${insertError.message}`);
       }
     } else {
       try {
-        console.log(`🔍 [DEBUG] Updating existing shipping record for order ${orderId}`);
         await connection.query(
           'UPDATE shipping SET status = ?, updated_at = NOW() WHERE order_id = ?',
           ['pending', orderId]
         );
         console.log(`✅ Updated shipping record for order ${orderId}`);
       } catch (updateError) {
-        console.error(`❌ [DEBUG] Failed to update shipping record:`, updateError.message);
+        console.error(`❌ Failed to update shipping record: ${updateError.message}`);
         throw new Error(`Failed to update shipping record: ${updateError.message}`);
       }
     }
@@ -1097,21 +1084,18 @@ async function createShippingOrder(orderId) {
     // Check if shipping_details record exists
     let existingShippingDetails = [];
     try {
-      console.log(`🔍 [DEBUG] Querying shipping_details table for order_id = ${orderId}`);
       [existingShippingDetails] = await connection.query(
         'SELECT * FROM shipping_details WHERE order_id = ?',
         [orderId]
       );
-      console.log(`✅ [DEBUG] shipping_details query successful. Found ${existingShippingDetails.length} records`);
     } catch (shippingDetailsError) {
-      console.error(`❌ [DEBUG] shipping_details query failed:`, shippingDetailsError.message);
+      console.error(`❌ Database error when querying shipping_details table: ${shippingDetailsError.message}`);
       throw new Error(`Database error when querying shipping_details table: ${shippingDetailsError.message}`);
     }
 
     // Create or update shipping_details record
     if (existingShippingDetails.length === 0) {
       try {
-        console.log(`🔍 [DEBUG] Creating new shipping_details record for order ${orderId}`);
         await connection.query(
           `INSERT INTO shipping_details (
             order_id, address1, address2, area, city, state, postcode, country, 
@@ -1124,9 +1108,9 @@ async function createShippingOrder(orderId) {
             userShipping.barangay || ''
           ]
         );
-        console.log(`✅ [DEBUG] Created shipping_details record for order ${orderId}`);
+        console.log(`✅ Created shipping_details record for order ${orderId}`);
       } catch (insertDetailsError) {
-        console.error(`❌ [DEBUG] Failed to insert shipping_details record:`, insertDetailsError.message);
+        console.error(`❌ Failed to insert shipping_details record: ${insertDetailsError.message}`);
         throw new Error(`Failed to create shipping_details record: ${insertDetailsError.message}`);
       }
     }
@@ -1134,16 +1118,14 @@ async function createShippingOrder(orderId) {
     // Get order items
     let orderItems = [];
     try {
-      console.log(`🔍 [DEBUG] Querying order_items table for order_id = ${orderId}`);
       [orderItems] = await connection.query(
         'SELECT oi.*, p.name as product_name FROM order_items oi ' +
         'JOIN products p ON oi.product_id = p.product_id ' +
         'WHERE oi.order_id = ?',
         [orderId]
       );
-      console.log(`✅ [DEBUG] order_items query successful. Found ${orderItems.length} items for order ${orderId}`);
     } catch (orderItemsError) {
-      console.error(`❌ [DEBUG] order_items query failed:`, orderItemsError.message);
+      console.error(`❌ Order items query failed: ${orderItemsError.message}`);
       throw new Error(`Database error when querying order_items table: ${orderItemsError.message}`);
     }
 
@@ -1163,13 +1145,83 @@ async function createShippingOrder(orderId) {
     const uniqueTrackingNumber = `${orderId}${timestamp}`.slice(-9);
     console.log(`Generated tracking number: ${uniqueTrackingNumber}`);
 
+    /**
+     * Format phone number based on country code
+     */
+    function formatPhoneNumber(phone, countryCode) {
+      if (!phone) return '';
+      
+      const cleanPhone = phone.replace(/[\s\-\(\)\.]/g, '');
+      
+      if (countryCode === 'SG') {
+        // Singapore format: +65XXXXXXXX
+        if (cleanPhone.startsWith('+65')) return cleanPhone;
+        if (cleanPhone.startsWith('65')) return '+' + cleanPhone;
+        if (cleanPhone.match(/^[89]\d{7}$/)) return '+65' + cleanPhone;
+        return '+6591234567'; // Default Singapore number for testing
+      } else {
+        // Philippines format: +63XXXXXXXXXX
+        if (cleanPhone.startsWith('+63')) return cleanPhone;
+        if (cleanPhone.startsWith('63')) return '+' + cleanPhone;
+        if (cleanPhone.startsWith('0')) return '+63' + cleanPhone.substring(1);
+        if (cleanPhone.match(/^9\d{9}$/)) return '+63' + cleanPhone;
+        return cleanPhone; // Return as is if already formatted
+      }
+    }
+
+    /**
+     * Format address for NinjaVan based on country code
+     */
+    function formatAddressForCountry(address, countryCode) {
+      if (countryCode === 'SG') {
+        // For Singapore sandbox, override country and format postcode
+        let singaporePostcode = address.postcode || "018956";
+        
+        // If postcode is 4 digits (like Philippines 6000), add leading zeros to make it 6 digits
+        if (singaporePostcode.length === 4) {
+          singaporePostcode = `0${singaporePostcode}0`; // 6000 becomes 060000
+        } else if (singaporePostcode.length < 6) {
+          singaporePostcode = singaporePostcode.padStart(6, '0');
+        }
+        
+        return {
+          address1: address.address1 || "123 Singapore Street",
+          address2: address.address2 || "",
+          area: address.area || address.city || "Central Singapore",
+          city: "Singapore", // Must be Singapore for SG
+          state: "Singapore", // Must be Singapore for SG  
+          address_type: address.address_type || "home",
+          country: "SG", // Override to SG for sandbox
+          postcode: singaporePostcode
+        };
+      }
+      
+      // For Philippines (production), use as provided but with validation
+      return {
+        address1: address.address1 || "",
+        address2: address.address2 || "",
+        area: address.area || address.city || "",
+        city: address.city || "",
+        state: address.state || "",
+        address_type: address.address_type || "home",  
+        country: "PH",
+        postcode: address.postcode || ""
+      };
+    }
+
     // Format postal code function
     function formatPostalCode(postcode) {
-      if (!postcode) return "000000";
+      if (!postcode) return COUNTRY_CODE === 'SG' ? '018956' : "000000";
       
       // Convert to string and trim any whitespace
       const cleanPostcode = postcode.toString().trim();
       
+      if (COUNTRY_CODE === 'SG') {
+        // Singapore postcode format (6 digits)
+        return cleanPostcode.padStart(6, '0');
+      }
+      
+      // Philippines postcode format
       // If it's already 6 digits, return as is
       if (cleanPostcode.length === 6) return cleanPostcode;
       
@@ -1180,7 +1232,44 @@ async function createShippingOrder(orderId) {
       return cleanPostcode.padStart(6, '0');
     }
 
-    // Create the NinjaVan order payload
+    // Create the NinjaVan order payload with environment-based formatting
+    const senderAddress = formatAddressForCountry({
+      address1: "Unit 1004 Cityland Shaw Tower",
+      address2: "Corner St. Francis, Shaw Blvd.",
+      area: "Mandaluyong City",
+      city: "Mandaluyong City", 
+      state: "NCR",
+      address_type: "office",
+      postcode: COUNTRY_CODE === 'SG' ? "018956" : "1550" // Use Singapore postcode for sandbox
+    }, COUNTRY_CODE);
+
+    // Map detailed address fields to NinjaVan format - BUILD COMPLETE ADDRESS
+    const fullAddress = [
+      userShipping.house_number,
+      userShipping.building,
+      userShipping.street_name,
+      userShipping.barangay,
+      userShipping.city_municipality,
+      userShipping.province
+    ].filter(Boolean).join(', ');
+
+    const recipientAddressData = {
+      address1: userShipping.address1 || fullAddress || "Default Address",
+      address2: userShipping.address2 || "",
+      area: userShipping.area || userShipping.barangay || userShipping.district || "Default Area",
+      city: userShipping.city || userShipping.city_municipality || "Default City", 
+      state: userShipping.state || userShipping.province || "Default State",
+      postcode: userShipping.postcode
+    };
+
+    const recipientAddress = formatAddressForCountry(recipientAddressData, COUNTRY_CODE);
+
+    console.log(`🌏 Formatted for ${COUNTRY_CODE}:`, {
+      from: `${senderAddress.address1}, ${senderAddress.city}, ${senderAddress.country}`,
+      to: `${recipientAddress.address1}, ${recipientAddress.city}, ${recipientAddress.country}`,
+      phone: formatPhoneNumber(order.phone, COUNTRY_CODE)
+    });
+
     const orderPayload = {
       service_type: "Parcel",
       service_level: "Standard",
@@ -1190,33 +1279,15 @@ async function createShippingOrder(orderId) {
       },
       from: {
         name: "Feng Shui by Pakbet TV",
-        phone_number: "+639811949999",
+        phone_number: formatPhoneNumber("+639811949999", COUNTRY_CODE),
         email: "store@fengshui-ecommerce.com",
-        address: {
-          address1: "Unit 1004 Cityland Shaw Tower",
-          address2: "Corner St. Francis, Shaw Blvd.",
-          area: "Mandaluyong City",
-          city: "Mandaluyong City",
-          state: "NCR",
-          address_type: "office",
-          country: "PH",
-          postcode: "486015"
-        }
+        address: senderAddress
       },
       to: {
         name: `${order.first_name} ${order.last_name}`,
-        phone_number: order.phone,
+        phone_number: formatPhoneNumber(order.phone, COUNTRY_CODE),
         email: order.email,
-        address: {
-          address1: userShipping.address1,
-          address2: userShipping.address2 || "",
-          area: userShipping.area || userShipping.district || "Default Area",
-          city: userShipping.city,
-          state: userShipping.state,
-          address_type: "home",
-          country: "PH",
-          postcode: formatPostalCode(userShipping.postcode)
-        }
+        address: recipientAddress
       },
       parcel_job: {
         is_pickup_required: true,
@@ -1226,7 +1297,7 @@ async function createShippingOrder(orderId) {
         pickup_timeslot: {
           start_time: "09:00",
           end_time: "12:00",
-          timezone: "Asia/Manila"
+          timezone: COUNTRY_CODE === 'SG' ? "Asia/Singapore" : "Asia/Manila"
         },
         pickup_instructions: "Pickup with care!",
         delivery_instructions: "If recipient is not around, leave parcel in power riser.",
@@ -1234,7 +1305,7 @@ async function createShippingOrder(orderId) {
         delivery_timeslot: {
           start_time: "09:00",
           end_time: "12:00",
-          timezone: "Asia/Manila"
+          timezone: COUNTRY_CODE === 'SG' ? "Asia/Singapore" : "Asia/Manila"
         },
         dimensions: {
           weight: totalWeight
@@ -1243,20 +1314,37 @@ async function createShippingOrder(orderId) {
       }
     };
 
-    if (order.payment_method === 'cod') {
-      orderPayload.parcel_job.cash_on_delivery = parseFloat(order.total_price);
-      orderPayload.parcel_job.cash_on_delivery_currency = "PHP"; // Adjust based on your country
+    if (isCODOrder) {
+      console.log(`🔍 DEBUG: Raw order.total_price = "${order.total_price}" (type: ${typeof order.total_price})`);
       
-      console.log(`COD enabled for order ${orderId}: ${orderPayload.parcel_job.cash_on_delivery} PHP`);
+      let codAmount = parseFloat(order.total_price);
+      let codCurrency = COUNTRY_CODE === 'SG' ? "SGD" : "PHP";
+      
+      // Currency conversion for sandbox testing (PHP to SGD)
+      if (COUNTRY_CODE === 'SG' && codAmount > 0) {
+        // Approximate conversion: 1 SGD = 42 PHP (adjust as needed)
+        const PHP_TO_SGD_RATE = 0.024; // 1 PHP = 0.024 SGD (approximate)
+        codAmount = Math.round((codAmount * PHP_TO_SGD_RATE) * 100) / 100; // Round to 2 decimal places
+        console.log(`💱 Currency Conversion: ${order.total_price} PHP → ${codAmount} SGD (rate: ${PHP_TO_SGD_RATE})`);
+      }
+      
+      orderPayload.parcel_job.cash_on_delivery = codAmount;
+      orderPayload.parcel_job.cash_on_delivery_currency = codCurrency;
+      
+      console.log(`💰 COD Order - Customer will pay: ${orderPayload.parcel_job.cash_on_delivery} ${orderPayload.parcel_job.cash_on_delivery_currency} on delivery`);
+      console.log(`🔍 DEBUG: Parsed COD amount = ${orderPayload.parcel_job.cash_on_delivery} (type: ${typeof orderPayload.parcel_job.cash_on_delivery})`);
     }
 
     console.log(`Preparing to call NinjaVan API for order ${orderId}`);
     console.log(`API URL: ${API_BASE_URL}/${COUNTRY_CODE}/4.2/orders`);
-    console.log(`Payload preview:`, {
-      requested_tracking_number: orderPayload.requested_tracking_number,
-      from: orderPayload.from.name,
-      to: orderPayload.to.name,
-      items_count: orderPayload.parcel_job.items.length
+    console.log(`🚚 [NINJAVAN] Order details:`, {
+      tracking_number: orderPayload.requested_tracking_number,
+      from: `${orderPayload.from.name} (${orderPayload.from.address.city})`,
+      to: `${orderPayload.to.name} (${orderPayload.to.address.address1}, ${orderPayload.to.address.city})`,
+      phone: orderPayload.to.phone_number,
+      items_count: orderPayload.parcel_job.items.length,
+      weight: orderPayload.parcel_job.dimensions.weight,
+      cod: isCODOrder ? `${orderPayload.parcel_job.cash_on_delivery || 0} ${orderPayload.parcel_job.cash_on_delivery_currency || 'N/A'}` : 'No'
     });
 
     try {
@@ -1267,6 +1355,7 @@ async function createShippingOrder(orderId) {
 
       // Create the order with NinjaVan
       console.log(`Calling NinjaVan API...`);
+      console.log(`🔍 DEBUG: Complete payload being sent to NinjaVan:`, JSON.stringify(orderPayload, null, 2));
       
       // Real NinjaVan API call
       const response = await axios.post(
@@ -1280,12 +1369,10 @@ async function createShippingOrder(orderId) {
         }
       );
 
-      console.log(`NinjaVan API call successful!`);
-      console.log(`NinjaVan response:`, {
-        tracking_number: response.data?.tracking_number,
-        status: response.data?.status,
-        order_id: response.data?.order_id
-      });
+      console.log(`🎉 NinjaVan order created successfully!`);
+      console.log(`📦 Tracking Number: ${response.data?.tracking_number}`);
+      console.log(`📋 Order Status: ${response.data?.granular_status?.status || 'Pending'}`);
+      console.log(`🔍 Complete Response Structure:`, response.data);
 
       // Store tracking information with retry mechanism
       if (response.data && response.data.tracking_number) {
@@ -1307,14 +1394,12 @@ async function createShippingOrder(orderId) {
             
             // Also store in tracking_events table
             try {
-              console.log(`🔍 [DEBUG] Creating tracking_events record for order ${orderId}`);
               await connection.query(
                 'INSERT INTO tracking_events (tracking_number, order_id, status, description, created_at) VALUES (?, ?, ?, ?, NOW())',
                 [response.data.tracking_number, orderId, 'pending', 'Shipping order created']
               );
-              console.log(`✅ [DEBUG] tracking_events record created for order ${orderId}`);
             } catch (trackingEventsError) {
-              console.error(`❌ [DEBUG] tracking_events insert failed:`, trackingEventsError.message);
+              console.error(`❌ Failed to create tracking_events record: ${trackingEventsError.message}`);
               throw new Error(`Failed to create tracking_events record: ${trackingEventsError.message}`);
             }
             
@@ -1347,7 +1432,32 @@ async function createShippingOrder(orderId) {
 
     } catch (shippingError) {
       console.error(`❌ Error creating shipping order for order ${orderId}:`, shippingError.message);
+      
       if (shippingError.response) {
+        console.error(`🚨 [NINJAVAN] Enhanced API Error Details:`);
+        console.error(`   Status: ${shippingError.response.status}`);
+        console.error(`   Status Text: ${shippingError.response.statusText}`);
+        console.error(`   Request URL: ${API_BASE_URL}/${COUNTRY_CODE}/4.2/orders`);
+        
+        if (shippingError.response.data?.error) {
+          const errorData = shippingError.response.data.error;
+          console.error(`   Error Title: ${errorData.title}`);
+          console.error(`   Error Message: ${errorData.message}`);
+          console.error(`   Request ID: ${errorData.request_id}`);
+          
+          // Log detailed validation errors
+          if (errorData.details && Array.isArray(errorData.details)) {
+            console.error(`   📋 Detailed Validation Errors:`);
+            errorData.details.forEach((detail, index) => {
+              console.error(`      ${index + 1}. ${JSON.stringify(detail, null, 6)}`);
+            });
+          }
+        }
+        
+        // Log the complete response for full debugging
+        console.error(`   🔍 Complete Error Response:`);
+        console.error(JSON.stringify(shippingError.response.data, null, 4));
+        
         console.error(`📋 NinjaVan API Error Details:`, {
           status: shippingError.response.status,
           statusText: shippingError.response.statusText,

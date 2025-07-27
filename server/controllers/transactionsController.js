@@ -261,6 +261,8 @@ exports.createOrder = async (req, res) => {
     console.log('Attempting to create order with values:', {
       user_id,
       finalTotalAmount,
+      subtotal: subtotal || (total_amount - shipping_fee),
+      shipping_fee,
       initialOrderStatus,
       initialPaymentStatus,
       orderCode
@@ -268,9 +270,9 @@ exports.createOrder = async (req, res) => {
     
     const [orderResult] = await connection.query(
       `INSERT INTO orders 
-       (user_id, total_price, order_status, payment_status, order_code, created_at, updated_at) 
-       VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
-      [user_id, finalTotalAmount, initialOrderStatus, initialPaymentStatus, orderCode]
+       (user_id, total_price, total_product_price, total_shipping_fee, order_status, payment_status, order_code, created_at, updated_at) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      [user_id, finalTotalAmount, subtotal || (total_amount - shipping_fee), shipping_fee, initialOrderStatus, initialPaymentStatus, orderCode]
     );
     
     console.log('Order insert result:', orderResult);
@@ -334,9 +336,10 @@ exports.createOrder = async (req, res) => {
     try {
       await connection.query(
         `INSERT INTO shipping_details (
-          country_code, province, city_municipality, created_at, updated_at
-        ) VALUES (?, ?, ?, NOW(), NOW())`,
+          order_id, country, province, city_municipality, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, NOW(), NOW())`,
         [
+          orderId,
           'PH', // Default to Philippines
           shipping_details.province || null,
           shipping_details.city || null
@@ -440,6 +443,96 @@ exports.createOrder = async (req, res) => {
             updateConn.release();
           }
         }
+        
+        // Send COD order confirmation email
+        try {
+          const [orderDetails] = await db.query(
+            'SELECT o.*, u.email, u.first_name, u.last_name FROM orders o ' +
+            'JOIN users u ON o.user_id = u.user_id WHERE o.order_id = ?',
+            [orderId]
+          );
+          
+          const [orderItems] = await db.query(
+            'SELECT oi.*, p.name, p.price FROM order_items oi ' +
+            'JOIN products p ON oi.product_id = p.product_id WHERE oi.order_id = ?',
+            [orderId]
+          );
+          
+          const [shippingDetails] = await db.query(
+            'SELECT * FROM user_shipping_details WHERE user_id = ? AND is_default = 1',
+            [user_id]
+          );
+          
+          // Get shipping info from shipping table as fallback
+          const [shippingInfo] = await db.query(
+            'SELECT address FROM shipping WHERE order_id = ?',
+            [orderId]
+          );
+          
+          if (orderDetails.length > 0) {
+            // Build complete address from shipping details
+            let fullAddress = 'Address not available';
+            if (shippingDetails.length > 0) {
+              const addr = shippingDetails[0];
+              
+              // Use detailed address fields if available (newer format)
+              if (addr.house_number || addr.building || addr.street_name) {
+                const detailedAddressParts = [
+                  addr.house_number,
+                  addr.building,
+                  addr.street_name,
+                  addr.barangay,
+                  addr.city_municipality,
+                  addr.province,
+                  addr.postcode,
+                  addr.country
+                ].filter(part => part && part.trim() !== '' && part !== 'null');
+                
+                fullAddress = detailedAddressParts.join(', ');
+              } else {
+                // Fallback to basic address fields
+                const addressParts = [
+                  addr.address1,
+                  addr.address2,
+                  addr.city,
+                  addr.state || addr.province,
+                  addr.postcode,
+                  addr.country
+                ].filter(part => part && part.trim() !== '' && part !== 'null');
+                
+                fullAddress = addressParts.join(', ');
+              }
+            } else if (shippingInfo.length > 0) {
+              fullAddress = shippingInfo[0].address;
+            }
+            const emailData = {
+              orderNumber: orderDetails[0].order_code || orderId,
+              customerName: `${orderDetails[0].first_name} ${orderDetails[0].last_name}`,
+              customerEmail: orderDetails[0].email,
+              customerPhone: orderDetails[0].phone || 'N/A',
+              items: orderItems.map(item => ({
+                name: item.name,
+                quantity: item.quantity,
+                price: parseFloat(item.price)
+              })),
+              totalAmount: parseFloat(orderDetails[0].total_price),
+              shippingFee: parseFloat(shipping_fee) || 50, // Use the shipping fee from order creation
+              discount: 0,
+              shippingAddress: fullAddress,
+              paymentMethod: 'Cash on Delivery',
+              paymentReference: `COD-${orderCode}`,
+              trackingNumber: shippingResult?.tracking_number || null
+            };
+            
+            console.log('📧 Sending COD confirmation email to:', emailData.customerEmail);
+            await sendOrderConfirmationEmail(emailData);
+            console.log('✅ COD order confirmation email sent successfully');
+          }
+        } catch (emailError) {
+          console.error('❌ Failed to send COD confirmation email:', emailError.message);
+          // Don't fail the order creation
+        }
+        
       } catch (shippingError) {
         console.error('Failed to create shipping order for COD:', shippingError.message);
         // Don't fail the order creation, just log the error
@@ -552,13 +645,14 @@ exports.processPayment = async (req, res) => {
       queryParams.append('returnurl', returnUrl);
       queryParams.append('cancelurl', `${process.env.CLIENT_URL || process.env.FRONTEND_URL || 'https://michaeldemesa.com'}/cart`);
       
-      const redirectUrl = `https://gw.dragonpay.ph/Pay.aspx?${queryParams.toString()}`;
+      // Use environment-based Dragonpay URL (sandbox vs production)
+      const redirectUrl = `${config.DRAGONPAY_BASE_URL}/Pay.aspx?${queryParams.toString()}`;
+      console.log(`🏦 DragonPay Environment: ${config.DRAGONPAY_ENV}`);
       console.log('Redirecting to Dragonpay URL:', redirectUrl);
       
       // Test URL accessibility (optional - for debugging)
       try {
-        const testUrl = 'https://test.dragonpay.ph/Pay.aspx';
-        console.log('Testing DragonPay URL accessibility...');
+        console.log(`Testing DragonPay ${config.DRAGONPAY_ENV} URL accessibility...`);
         // Note: In production, you might want to remove this test
       } catch (urlTestError) {
         console.warn('DragonPay URL test failed:', urlTestError.message);

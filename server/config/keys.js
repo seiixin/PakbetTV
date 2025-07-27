@@ -20,7 +20,19 @@ if (missingVars.length > 0 && process.env.NODE_ENV === 'production') {
 
 // NinjaVan Environment Configuration
 const NINJAVAN_ENV = process.env.NINJAVAN_ENV || 'sandbox';
-const NINJAVAN_COUNTRY = process.env.NINJAVAN_COUNTRY_CODE || 'PH';
+
+// Determine NinjaVan country code based on environment
+function getNinjaVanCountryCode() {
+  // Override country code based on environment
+  if (NINJAVAN_ENV === 'sandbox') {
+    return 'SG'; // Always use SG for sandbox testing
+  }
+  
+  // For production, use PH (Philippines) or from env variable
+  return process.env.NINJAVAN_COUNTRY_CODE || 'PH';
+}
+
+const NINJAVAN_COUNTRY = getNinjaVanCountryCode();
 
 // DragonPay Environment Configuration
 const DRAGONPAY_ENV = process.env.DRAGONPAY_ENV || 'sandbox';

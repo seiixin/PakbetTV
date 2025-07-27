@@ -403,23 +403,67 @@ class PaymentStatusChecker {
         [order.order_id]
       );
 
-      // Get shipping address
+      // Get shipping address - try both shipping_details and shipping tables
       const [shippingDetails] = await db.query(
+        'SELECT * FROM user_shipping_details WHERE user_id = ? AND is_default = 1',
+        [order.user_id]
+      );
+      
+      const [shippingInfo] = await db.query(
         'SELECT address FROM shipping WHERE order_id = ?',
         [order.order_id]
       );
+      
+      // Build complete address
+      let fullAddress = 'Address not available';
+      if (shippingDetails.length > 0) {
+        const addr = shippingDetails[0];
+        
+        // Use detailed address fields if available (newer format)
+        if (addr.house_number || addr.building || addr.street_name) {
+          const detailedAddressParts = [
+            addr.house_number,
+            addr.building,
+            addr.street_name,
+            addr.barangay,
+            addr.city_municipality,
+            addr.province,
+            addr.postcode,
+            addr.country
+          ].filter(part => part && part.trim() !== '' && part !== 'null');
+          
+          fullAddress = detailedAddressParts.join(', ');
+        } else {
+          // Fallback to basic address fields
+          const addressParts = [
+            addr.address1,
+            addr.address2,
+            addr.city,
+            addr.state || addr.province,
+            addr.postcode,
+            addr.country
+          ].filter(part => part && part.trim() !== '' && part !== 'null');
+          
+          fullAddress = addressParts.join(', ');
+        }
+      } else if (shippingInfo.length > 0) {
+        fullAddress = shippingInfo[0].address;
+      }
 
       const emailDetails = {
         orderNumber: order.order_code || order.order_id,
         customerName: `${order.first_name} ${order.last_name}`,
         customerEmail: order.email,
+        customerPhone: order.phone || 'N/A',
         items: orderItems.map(item => ({
           name: item.name,
           quantity: item.quantity,
-          price: item.price
+          price: parseFloat(item.price)
         })),
-        totalAmount: order.total_price,
-        shippingAddress: shippingDetails.length > 0 ? shippingDetails[0].address : 'Address not available',
+        totalAmount: parseFloat(order.total_price),
+        shippingFee: 50, // Standard shipping fee - you can make this dynamic
+        discount: 0,
+        shippingAddress: fullAddress,
         paymentMethod: 'DragonPay',
         paymentReference: order.reference_number,
         trackingNumber: trackingNumber

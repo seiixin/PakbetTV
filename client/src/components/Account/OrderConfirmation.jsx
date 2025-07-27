@@ -10,6 +10,7 @@ import NavBar from '../NavBar';
 import Footer from '../Footer';
 import { notify } from '../../utils/notifications';
 import { FaArrowLeft } from 'react-icons/fa';
+import { getFullImageUrl } from '../../utils/imageUtils';
 
 function OrderConfirmation() {
   const { orderId } = useParams();
@@ -20,8 +21,7 @@ function OrderConfirmation() {
   const [error, setError] = useState(null);
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
 
-  // Handle opening cancel modal
-  const handleCancelOrder = () => {
+  const handleCancelOrder = async () => {
     setCancelModalOpen(true);
   };
 
@@ -51,6 +51,11 @@ function OrderConfirmation() {
       console.error('Mark received error:', err);
       notify.error(err.response?.data?.message || 'Failed to update order');
     }
+  };
+
+  const handleImageError = (event) => {
+    console.log('Image failed to load, using fallback');
+    event.target.src = '/ImageFallBack.png';
   };
 
   useEffect(() => {
@@ -83,8 +88,26 @@ function OrderConfirmation() {
             ...response.data,
             items: itemsWithImages
           });
+          
+          // Debug: Log the order data to see what values we're getting
+          console.log('Order data received:', {
+            total_price: response.data.total_price,
+            total_product_price: response.data.total_product_price,
+            total_shipping_fee: response.data.total_shipping_fee,
+            shipping_fee: response.data.shipping_fee,
+            subtotal: response.data.subtotal
+          });
         } else {
           setOrder(response.data);
+          
+          // Debug: Log the order data to see what values we're getting
+          console.log('Order data received (no items):', {
+            total_price: response.data.total_price,
+            total_product_price: response.data.total_product_price,
+            total_shipping_fee: response.data.total_shipping_fee,
+            shipping_fee: response.data.shipping_fee,
+            subtotal: response.data.subtotal
+          });
         }
         
         setLoading(false);
@@ -285,13 +308,11 @@ function OrderConfirmation() {
               {order.items && order.items.map((item, index) => (
                 <div key={index} className="item-row">
                   <div className="item-image">
-                    {item.image_url ? (
-                      <img src={item.image_url} alt={item.product_name} />
-                    ) : (
-                      <div className="no-image-placeholder">
-                        <i className="fas fa-image"></i>
-                      </div>
-                    )}
+                    <img 
+                      src={getFullImageUrl(item.image_url)} 
+                      alt={item.product_name}
+                      onError={handleImageError}
+                    />
                   </div>
                   <div className="item-info">
                     <h4>{item.product_name}</h4>
@@ -309,7 +330,11 @@ function OrderConfirmation() {
             <div className="order-summary">
               <div className="summary-row">
                 <span>Subtotal:</span>
-                <span>₱{parseFloat(order.subtotal || order.total_price).toFixed(2)}</span>
+                <span>₱{parseFloat(
+                  order.total_product_price || 
+                  order.subtotal || 
+                  (order.total_price - parseFloat(order.total_shipping_fee || 0))
+                ).toFixed(2)}</span>
               </div>
               {order.discount > 0 && (
                 <div className="summary-row">
@@ -319,7 +344,11 @@ function OrderConfirmation() {
               )}
               <div className="summary-row">
                 <span>Shipping:</span>
-                <span>₱{parseFloat(order.shipping_fee || 0).toFixed(2)}</span>
+                <span>₱{parseFloat(
+                  order.total_shipping_fee || 
+                  order.shipping_fee || 
+                  0
+                ).toFixed(2)}</span>
               </div>
               <div className="summary-row total">
                 <span>Total:</span>

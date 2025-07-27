@@ -4,12 +4,76 @@ const ninjaVanAuth = require('./ninjaVanAuth');
 
 const API_BASE_URL = config.NINJAVAN_API_URL;
 const COUNTRY_CODE = config.NINJAVAN_COUNTRY_CODE;
+const NINJAVAN_ENV = config.NINJAVAN_ENV;
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // 1 second
 
 // Cache for waybills
 const waybillCache = new Map();
 
+console.log('🚚 NinjaVan Service Configuration:', {
+  environment: NINJAVAN_ENV,
+  apiUrl: API_BASE_URL,
+  countryCode: COUNTRY_CODE,
+  note: NINJAVAN_ENV === 'sandbox' ? 'Using SG country code for sandbox testing' : 'Using actual country code for production'
+});
+
+/**
+ * Format phone number based on country code
+ */
+function formatPhoneNumber(phone, countryCode) {
+  if (!phone) return '';
+  
+  // Clean the phone number
+  const cleanPhone = phone.replace(/[\s\-\(\)\.]/g, '');
+  
+  if (countryCode === 'SG') {
+    // Singapore format: +65XXXXXXXX
+    if (cleanPhone.startsWith('+65')) return cleanPhone;
+    if (cleanPhone.startsWith('65')) return '+' + cleanPhone;
+    if (cleanPhone.match(/^[89]\d{7}$/)) return '+65' + cleanPhone;
+    return '+6591234567'; // Default Singapore number for testing
+  } else {
+    // Philippines format: +63XXXXXXXXXX
+    if (cleanPhone.startsWith('+63')) return cleanPhone;
+    if (cleanPhone.startsWith('63')) return '+' + cleanPhone;
+    if (cleanPhone.startsWith('0')) return '+63' + cleanPhone.substring(1);
+    if (cleanPhone.match(/^9\d{9}$/)) return '+63' + cleanPhone;
+    return cleanPhone; // Return as is if already formatted
+  }
+}
+
+/**
+ * Format address for NinjaVan based on country code
+ */
+function formatAddressForCountry(address, countryCode) {
+  if (countryCode === 'SG') {
+    // For Singapore sandbox, use Singapore-format addresses with proper validation
+    // Use more realistic Singapore addresses that match their postal system
+    return {
+      address1: address.address1 ? `${address.address1} Singapore Street` : "123 Singapore Street",
+      address2: address.address2 || "",
+      area: "Central Singapore", // Use a standard Singapore area
+      city: "Singapore", // Must be Singapore for SG
+      state: "Singapore", // Must be Singapore for SG  
+      address_type: address.address_type || "home",
+      country: "SG",
+      postcode: "018956" // Use a real Singapore postcode format
+    };
+  }
+  
+  // For Philippines (production), use as provided but with validation
+  return {
+    address1: address.address1 || "",
+    address2: address.address2 || "",
+    area: address.area || address.city || "",
+    city: address.city || "",
+    state: address.state || "",
+    address_type: address.address_type || "home",  
+    country: "PH",
+    postcode: address.postcode || ""
+  };
+}
 /**
  * Sleep function for retry delays
  */
@@ -114,6 +178,33 @@ async function createDeliveryOrder(orderData, shippingAddress, customerInfo) {
     const totalWeight = orderData.items ? 
       orderData.items.reduce((total, item) => total + ((item.quantity || 1) * 0.5), 0) : 0.5;
     
+    // Format phone numbers for the specific region
+    const formattedCustomerPhone = formatPhoneNumber(customerInfo.phone, COUNTRY_CODE);
+    const formattedShopPhone = formatPhoneNumber("+639811949999", COUNTRY_CODE);
+    
+    // Format addresses for the specific region
+    const shopAddress = formatAddressForCountry({
+      address1: COUNTRY_CODE === 'SG' ? "1 Raffles Place" : "Unit 1004 Cityland Shaw Tower",
+      address2: COUNTRY_CODE === 'SG' ? "#12-34" : "Corner St. Francis, Shaw Blvd.",
+      area: COUNTRY_CODE === 'SG' ? "Central Singapore" : "Mandaluyong City",
+      city: COUNTRY_CODE === 'SG' ? "Singapore" : "Mandaluyong City",
+      state: COUNTRY_CODE === 'SG' ? "Singapore" : "NCR",
+      address_type: "office",
+      country: COUNTRY_CODE,
+      postcode: COUNTRY_CODE === 'SG' ? "048616" : "486015"
+    }, COUNTRY_CODE);
+
+    const customerAddress = formatAddressForCountry({
+      address1: address1,
+      address2: address2,
+      area: area || city,
+      city: city,
+      state: state,
+      address_type: "home",
+      country: COUNTRY_CODE,
+      postcode: postcode
+    }, COUNTRY_CODE);
+    
     // Create delivery request with validated address and updated from address
     const deliveryRequest = {
       requested_tracking_number: requestedTrackingNumber,
@@ -124,33 +215,15 @@ async function createDeliveryOrder(orderData, shippingAddress, customerInfo) {
       },
       from: {
         name: "Feng Shui by Pakbet TV",
-        phone_number: "+639811949999",
+        phone_number: formattedShopPhone,
         email: "store@fengshui-ecommerce.com",
-        address: {
-          address1: "Unit 1004 Cityland Shaw Tower",
-          address2: "Corner St. Francis, Shaw Blvd.",
-          area: "Mandaluyong City",
-          city: "Mandaluyong City",
-          state: "NCR",
-          address_type: "office",
-          country: COUNTRY_CODE,
-          postcode: "486015"
-        }
+        address: shopAddress
       },
       to: {
         name: `${customerInfo.first_name} ${customerInfo.last_name || ''}`.trim(),
-        phone_number: customerInfo.phone,
+        phone_number: formattedCustomerPhone,
         email: customerInfo.email,
-        address: {
-          address1: address1,
-          address2: address2,
-          area: area || city,
-          city: city,
-          state: state,
-          address_type: "home",
-          country: COUNTRY_CODE,
-          postcode: postcode
-        }
+        address: customerAddress
       },
       parcel_job: {
         is_pickup_required: true,
@@ -160,18 +233,16 @@ async function createDeliveryOrder(orderData, shippingAddress, customerInfo) {
         pickup_timeslot: {
           start_time: "09:00",
           end_time: "12:00",
-          timezone: "Asia/Singapore"
+          timezone: COUNTRY_CODE === 'SG' ? "Asia/Singapore" : "Asia/Manila"
         },
-        pickup_approximate_volume: "Less than 3 Parcels",
         pickup_instructions: "Pickup with care!",
+        delivery_instructions: "If recipient is not around, leave parcel in power riser.",
         delivery_start_date: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString().split('T')[0],
         delivery_timeslot: {
           start_time: "09:00",
           end_time: "12:00",
-          timezone: "Asia/Singapore"
+          timezone: COUNTRY_CODE === 'SG' ? "Asia/Singapore" : "Asia/Manila"
         },
-        delivery_instructions: "If recipient is not around, leave parcel in power riser.",
-        allow_weekend_delivery: true,
         dimensions: {
           weight: totalWeight > 0 ? totalWeight : 0.5
         },
@@ -189,11 +260,25 @@ async function createDeliveryOrder(orderData, shippingAddress, customerInfo) {
 
     // Add COD parameters if payment method is 'cod'
     if (orderData.payment_method === 'cod') {
-      deliveryRequest.parcel_job.cash_on_delivery = parseFloat(orderData.total_amount);
-      deliveryRequest.parcel_job.cash_on_delivery_currency = COUNTRY_CODE === 'SG' ? 'SGD' : 'PHP';
+      let codAmount = parseFloat(orderData.total_amount);
+      let codCurrency = COUNTRY_CODE === 'SG' ? 'SGD' : 'PHP';
       
-      console.log(`COD enabled for order ${orderData.order_id}: ${deliveryRequest.parcel_job.cash_on_delivery} ${deliveryRequest.parcel_job.cash_on_delivery_currency}`);
+      // For Singapore sandbox, convert PHP to SGD (rough conversion for testing)
+      if (COUNTRY_CODE === 'SG') {
+        codAmount = Math.round((codAmount * 0.027) * 100) / 100; // Convert PHP to SGD (approximate rate)
+        // Ensure minimum SGD amount for testing
+        if (codAmount < 1) codAmount = 10.00;
+      }
+      
+      deliveryRequest.parcel_job.cash_on_delivery = codAmount;
+      deliveryRequest.parcel_job.cash_on_delivery_currency = codCurrency;
+      
+      console.log(`COD enabled for order ${orderData.order_id}: ${codAmount} ${codCurrency}`);
     }
+    
+    // Log the request payload for debugging
+    console.log('🚚 [NINJAVAN] Creating order with payload:', JSON.stringify(deliveryRequest, null, 2));
+    console.log('🚚 [NINJAVAN] API URL:', `${API_BASE_URL}/${COUNTRY_CODE}/4.2/orders`);
     
     // Get NinjaVan token and create delivery with retries
     const token = await ninjaVanAuth.getValidToken();
@@ -214,13 +299,30 @@ async function createDeliveryOrder(orderData, shippingAddress, customerInfo) {
 
     return await retryWithBackoff(createOrder);
   } catch (error) {
-    // Log 4xx errors for debugging
+    // Enhanced error logging for 4xx errors
     if (error.response?.status >= 400 && error.response?.status < 500) {
-      console.error('NinjaVan API client error:', {
-        status: error.response.status,
-        data: error.response.data,
-        orderData: orderData.order_id
-      });
+      console.error('🚨 [NINJAVAN] API Validation Error:');
+      console.error('   Status:', error.response.status);
+      console.error('   Status Text:', error.response.statusText);
+      console.error('   Order ID:', orderData.order_id);
+      console.error('   Request URL:', `${API_BASE_URL}/${COUNTRY_CODE}/4.2/orders`);
+      
+      if (error.response.data?.error) {
+        console.error('   Error Title:', error.response.data.error.title);
+        console.error('   Error Message:', error.response.data.error.message);
+        console.error('   Request ID:', error.response.data.error.request_id);
+        
+        // Log detailed validation errors
+        if (error.response.data.error.details && Array.isArray(error.response.data.error.details)) {
+          console.error('   📋 Validation Details:');
+          error.response.data.error.details.forEach((detail, index) => {
+            console.error(`      ${index + 1}. ${JSON.stringify(detail, null, 6)}`);
+          });
+        }
+      }
+      
+      // Log the entire response data for complete debugging
+      console.error('   🔍 Full Response Data:', JSON.stringify(error.response.data, null, 4));
     }
     throw error;
   }

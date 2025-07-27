@@ -69,7 +69,8 @@ exports.getShippingAddresses = async (req, res) => {
       [req.user.id]
     );
 
-    console.log('Fetched shipping addresses for user', req.user.id, ':', addresses);
+    console.log(`📦 Fetched ${addresses.length} shipping addresses for user ${req.user.id}`);
+    // Note: Detailed address logging removed to reduce log noise
 
     res.json(addresses);
   } catch (err) {
