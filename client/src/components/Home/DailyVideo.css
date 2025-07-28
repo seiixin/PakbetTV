@@ -1,20 +1,43 @@
 .daily-container {
   display: flex;
-  flex-wrap: wrap;
-  min-height: 100vh;
-  background: linear-gradient(115deg, #2a132f 15%, #1E0E2A 70%);
-  color: white;
+  width: 100%;
+  height: 70vh;
+  background: linear-gradient(to left, #1b1338, #3e0505ff);
   font-family: 'Inter', sans-serif;
+  color: white;
 }
 
 .daily-text-section {
-  flex: 1 1 400px;
-  padding: 3rem 4rem;
+  flex: 1;
+  height: 70vh;
+  padding: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative; /* for gradient overlay if needed */
+  overflow: hidden;
+}
+
+.daily-text-content {
+  max-width: 600px;
+  text-align: left;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  max-width: 600px;
+  align-items: flex-start;
+  gap: 0.5rem; /* reduced from 1rem to tighten spacing */
+  position: relative;
+  z-index: 2;
+  padding: 1rem 1rem; /* add light padding if needed */
 }
+
+.daily-text-content h1,
+.daily-text-content p,
+.daily-text-content a {
+  margin: 0;
+}
+
+
+
 
 .daily-subtitle {
   font-size: 1rem;
@@ -36,23 +59,22 @@
   font-size: 1.125rem;
   color: #ddd;
   line-height: 1.7;
-  margin-bottom: 3rem;
-  max-width: 450px;
+  margin-bottom: 2rem;
 }
 
 .daily-btn-watch {
   background-color: #fff82c;
   color: #1b1338;
   font-weight: 700;
-  padding: 0.75rem 2.5rem;
+  padding: 0.75rem 2rem;
   border-radius: 9999px;
   font-size: 1.25rem;
   cursor: pointer;
   width: max-content;
   box-shadow: 0 6px 10px rgb(255 248 44 / 0.35);
+  text-decoration: none;
   border: none;
-  transition: background-color 0.3s ease, color 0.3s ease;
-}
+  align-self: flex-end; }
 
 .daily-btn-watch:hover,
 .daily-btn-watch:focus {
@@ -60,71 +82,45 @@
   outline: none;
 }
 
+/* ✅ Video occupies full screen height */
 .daily-video-section {
-  flex: 1 1 480px;
-  background: #1b1338;
+  flex: 1;
+  height: 70vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
   overflow: hidden;
-  min-height: 320px;
 }
 
-.daily-video-wrapper {
-  position: relative;
-  width: 100%;
-  max-width: 560px;
-  aspect-ratio: 16 / 9;
-  cursor: pointer;
-  z-index: 1;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 0 25px rgb(255 255 255 / 0.1);
-  background: #241841;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.daily-wrapper {
-  display: flex;
-  width: 100%;
-  height: 100vh; /* full screen height or adjust as needed */
-}
-
-
-/* 🟩 Make video fill the full area */
 .daily-video-wrapper {
   width: 100%;
   height: 100%;
   position: relative;
-  cursor: pointer;
   border-radius: 0;
   overflow: hidden;
-  z-index: 1;
+  cursor: pointer;
+  background: #000;
 }
 
-/* 🟩 Make thumbnail fill the entire area */
 .daily-video-wrapper img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  display: block;
 }
 
-/* 🟦 Gradient overlay (above thumbnail) */
-.daily-video-wrapper .gradient-overlay {
+.daily-container .gradient-overlay {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(to top left, darkblue, #3e0505ff);
-  opacity: 0.5;
+  /* More visible gradient: dark at bottom fading to transparent top */
+  background: linear-gradient(to right, #38132aff, #1b1338) ;
   z-index: 2;
+  pointer-events: none; /* So clicks go to play button or wrapper */
 }
 
-/* 🔴 Optional: play button */
+
 .play-button {
   position: absolute;
   top: 50%;
@@ -138,55 +134,32 @@
   clip-path: polygon(40% 30%, 40% 70%, 70% 50%);
 }
 
-.daily-play-button {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 68px;
-  height: 68px;
-  background-color: rgba(255, 255, 255, 0.9);
-  clip-path: polygon(35% 25%, 75% 50%, 35% 75%);
-  transform: translate(-50%, -50%);
-  transition: background-color 0.3s ease;
-  user-select: none;
-  box-shadow: 0 0 12px rgba(255, 255, 255, 0.8);
-}
-
-.daily-play-button:hover {
-  background-color: rgba(255, 255, 255, 1);
-  box-shadow: 0 0 18px rgba(255, 255, 255, 0.95);
-}
-
+/* Responsive */
 @media (max-width: 768px) {
   .daily-container {
     flex-direction: column;
-    padding: 2rem 1.5rem;
   }
 
-  .daily-text-section {
-    max-width: 100%;
-    padding: 1.5rem 0;
-  }
-
+  .daily-text-section,
   .daily-video-section {
-    min-height: 230px;
-    margin-top: 2rem;
+    width: 100%;
+    height: auto;
   }
 
   .daily-video-wrapper {
-    max-width: 100%;
     aspect-ratio: 16 / 9;
+    height: auto;
   }
 
   .daily-main-title {
     font-size: 2rem;
   }
 
-  .daily-subtitle {
-    font-size: 0.9rem;
-  }
-
   .daily-description {
     font-size: 1rem;
+  }
+
+  .daily-btn-watch {
+    margin-top: 1rem;
   }
 }
