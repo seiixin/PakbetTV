@@ -157,31 +157,44 @@
 }
 
 @media (max-width: 480px) {
-  .text-content {
-    position: relative;
-    margin-top: 1.2rem;
-    text-align: center;
-    background: rgba(255, 255, 255, 0.85); /* light background for readability */
-    padding: 0.8rem 1rem;
-    border-radius: 12px;
-    z-index: 2;
-    width: 90%;
-    max-width: 340px;
-    margin-left: auto;
-    margin-right: auto;
+  .service-card.side {
+    display: none !important;
   }
 
-  .image-container {
-    display: flex;
+  .slider-btn {
+    display: block !important;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 10;
+    background-color: transparent; /* optional: dark semi-transparent background */
+    color: white;
+  }
+
+  .slider-btn.left {
+    left: 10px;
+        margin-bottom: -5vh;
+
+  }
+
+  .slider-btn.right {
+    right: 10px;
+    
+  }
+
+  .service-card.center {
+    max-width: 90vw;
+    width: 100%;
+    transform: scale(1);
+  }
+
+  .center-container {
+    gap: 1rem;
+    position: relative; /* important for absolute children */
+  }
+
+  .our-service-slider {
     justify-content: center;
-    align-items: flex-start;
-    padding-top: 1rem;
-    height: auto;
-  }
-
-  .image-container img {
-    max-height: 55vh;
-    width: auto;
-    object-fit: contain;
+    position: relative; /* to contain the absolute buttons */
   }
 }
