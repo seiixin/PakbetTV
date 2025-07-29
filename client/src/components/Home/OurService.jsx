@@ -66,6 +66,8 @@ const OurService = () => {
         </h1>
 
         <div className="our-service-slider-wrapper">
+          <div className="center-gradient-overlay"></div>
+
           {visibleServices.map((service) => {
             const isCenter = service.position === 0;
 
@@ -78,12 +80,7 @@ const OurService = () => {
                     aria-label="Previous"
                   ></button>
 
-                  <div
-                    className="service-card center"
-                    style={{
-                      transition: 'transform 0.5s ease-in-out',
-                    }}
-                  >
+                  <div className="service-card center">
                     <img
                       src={service.image}
                       alt={service.title}
@@ -101,15 +98,7 @@ const OurService = () => {
             }
 
             return (
-              <div
-                key={service.index}
-                className={`service-card side`}
-                style={{
-                  transition: 'transform 0.5s ease-in-out',
-                  transform: 'scale(0.9)',
-                  opacity: 0.5,
-                }}
-              >
+              <div key={service.index} className="service-card side">
                 <img
                   src={service.image}
                   alt={service.title}

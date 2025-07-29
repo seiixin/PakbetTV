@@ -11,20 +11,19 @@ body {
   background: white;
   line-height: 1.6;
 }
-
-/* 🔹 Hero Section */.herosection {
+.herosection {
   position: relative;
   width: 100%;
-  height: 45vh; /* Only 45% of the screen height */
-  padding: 0 1rem;
+  height: 45vh;
   display: flex;
   align-items: center;
   justify-content: center;
-
-
   text-align: center;
   color: white;
   overflow: hidden;
+
+  background: url('/HoroscopeBackground.jpg') no-repeat center center;
+  background-size: cover;
 }
 
 
@@ -42,24 +41,17 @@ body {
 }
 
 
-/* 🔸 Background Video */
-.hero-video-bg {
-  position: absolute;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  object-fit: cover;
-  z-index: 0;
-  pointer-events: none;
-}
 
 /* 🔸 Overlay */
 .herosection::before {
   content: "";
   position: absolute;
   inset: 0;
-  background: rgba(96, 0, 0, 0.85);
+  background: linear-gradient(to right,  #09053eff, #3e0505ff);
+  opacity: 0.8;
   z-index: 1;
 }
+
 
 /* 🔸 Foreground Text */
 
@@ -110,10 +102,10 @@ body {
   flex-wrap: wrap;
   justify-content: center;
   gap: 1.5rem;
-  background: url('/HomeHeroVideo.mp4') no-repeat center center/cover;
   overflow: hidden;
   z-index: 1;
 }
+
 
 /* 🔸 Content Box */
 .content-box {

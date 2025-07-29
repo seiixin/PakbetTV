@@ -36,9 +36,6 @@
   margin: 0;
 }
 
-
-
-
 .daily-subtitle {
   font-size: 1rem;
   font-weight: 500;
@@ -120,7 +117,6 @@
   pointer-events: none; /* So clicks go to play button or wrapper */
 }
 
-
 .play-button {
   position: absolute;
   top: 50%;
@@ -135,31 +131,143 @@
 }
 
 /* Responsive */
+/* Large Tablet */
+@media (max-width: 1024px) {
+  .daily-container {
+    height: 60vh;
+  }
+
+  .daily-text-section {
+    height: 60vh;
+    padding: 1.5rem;
+  }
+
+  .daily-video-section {
+    height: 60vh;
+  }
+
+  .daily-main-title {
+    font-size: clamp(2rem, 5vw, 2.8rem);
+    margin-bottom: 1rem;
+  }
+
+  .daily-subtitle {
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+  }
+
+  .daily-description {
+    font-size: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .daily-btn-watch {
+    font-size: 1.125rem;
+    padding: 0.625rem 1.75rem;
+  }
+}
+
+/* Tablet */
 @media (max-width: 768px) {
   .daily-container {
     flex-direction: column;
+    height: auto;
+    min-height: 80vh;
   }
 
-  .daily-text-section,
+  .daily-text-section {
+    width: 100%;
+    height: auto;
+    min-height: 40vh;
+    padding: 2rem 1.5rem;
+  }
+
   .daily-video-section {
     width: 100%;
     height: auto;
+    min-height: 40vh;
+  }
+
+  .daily-text-content {
+    max-width: 100%;
+    padding: 0;
+    gap: 1rem;
   }
 
   .daily-video-wrapper {
     aspect-ratio: 16 / 9;
     height: auto;
+    min-height: 300px;
   }
 
   .daily-main-title {
-    font-size: 2rem;
+    font-size: clamp(1.8rem, 6vw, 2.5rem);
+    margin-bottom: 1rem;
+  }
+
+  .daily-subtitle {
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
   }
 
   .daily-description {
-    font-size: 1rem;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    margin-bottom: 1.5rem;
   }
 
   .daily-btn-watch {
-    margin-top: 1rem;
+    font-size: 1.125rem;
+    padding: 0.75rem 2rem;
+    align-self: flex-start;
+  }
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+  .daily-container {
+    min-height: 70vh;
+  }
+
+  .daily-text-section {
+    padding: 1.5rem 1rem;
+    min-height: 35vh;
+  }
+
+  .daily-video-section {
+    min-height: 35vh;
+  }
+
+  .daily-text-content {
+    gap: 0.75rem;
+  }
+
+  .daily-video-wrapper {
+    min-height: 250px;
+  }
+
+  .daily-main-title {
+    font-size: clamp(1.5rem, 7vw, 2rem);
+    margin-bottom: 0.75rem;
+  }
+
+  .daily-subtitle {
+    font-size: 0.85rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .daily-description {
+    display: none;
+  }
+
+  .daily-btn-watch {
+    font-size: 1rem;
+    padding: 0.625rem 1.5rem;
+    margin-top: 0.5rem;
+  }
+
+  .play-button {
+    width: 50px;
+    height: 50px;
   }
 }

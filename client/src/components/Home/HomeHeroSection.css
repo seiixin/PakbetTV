@@ -93,6 +93,11 @@ body {
   justify-content: flex-start;
   align-items: flex-start;
   color: white;
+  text-align: left;
+}
+
+.text-content * {
+  text-align: left !important;
 }
 
 .headline {
@@ -100,11 +105,13 @@ body {
   font-weight: 800;
   line-height: 1.1;
   margin-bottom: 1rem;
+  text-align: left !important;
 }
 
 .yellow-bold {
   color: #fdea18;
   font-weight: 900;
+  font-size: 0.9em;
 }
 
 .white-bold {
@@ -117,6 +124,8 @@ body {
   gap: 1rem;
   margin: 1.5rem 0;
   flex-wrap: wrap;
+  justify-content: flex-start !important;
+  align-items: center;
 }
 
 .btn-ask,
@@ -148,6 +157,11 @@ body {
   background: transparent;
   color: #fdea18;
   border: 2px solid #fdea18;
+  font-size: 0.9rem;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn-shop:hover {
@@ -202,22 +216,26 @@ body {
 
   .hero-content-wrapper {
     padding: 0 1rem;
+    justify-content: flex-start;
+    align-items: flex-start;
   }
   
   .hero-container {
     flex-direction: column;
-    align-items: center;
+    align-items: flex-start;
     justify-content: flex-start;
     padding-top: 2vh;
     gap: 2rem;
     margin-bottom: -3vh;
+    margin-left: 0;
+    margin-right: auto;
   }
 
   .text-content {
     flex: none;
     width: 100%;
-    text-align: center;
-    align-items: center;
+    text-align: left;
+    align-items: flex-start;
     order: 1;
   }
 
@@ -245,7 +263,7 @@ body {
   }
 
   .buttons {
-    justify-content: center;
+    justify-content: flex-start;
     margin: 1rem 0;
   }
 
@@ -258,11 +276,21 @@ body {
 @media (max-width: 768px) {
   .hero-content-wrapper {
     padding: 0 0.5rem;
+    justify-content: flex-start;
+    align-items: flex-start;
   }
   
   .hero-container {
     padding-top: 1vh;
     gap: 1.5rem;
+    align-items: flex-start;
+    margin-left: 0;
+    margin-right: auto;
+  }
+
+  .text-content {
+    text-align: left;
+    align-items: flex-start;
   }
 
   .image-container img {
@@ -288,18 +316,32 @@ body {
 
 /* Responsive: Mobile */
 @media (max-width: 480px) {
+  .hero-content-wrapper {
+    justify-content: flex-start;
+    align-items: flex-start;
+    padding: 0 1rem;
+  }
+
+  .hero-container {
+    align-items: flex-start;
+    margin-left: 0;
+    margin-right: auto;
+    width: 100%;
+  }
+
   .text-content {
     position: relative;
     margin-top: 1.5rem;
-    text-align: center;
-    background: transparent; /* light background for readability */
-    padding: 0.8rem 1rem;
+    text-align: left;
+    background: transparent;
+    padding: 0.8rem 0;
     border-radius: 12px;
     z-index: 2;
-    width: 90%;
-    max-width: 340px;
-    margin-left: auto;
-    margin-right: auto;
+    width: 100%;
+    max-width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+    align-items: flex-start;
   }
 
   .image-container {

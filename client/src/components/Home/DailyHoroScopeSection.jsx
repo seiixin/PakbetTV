@@ -31,65 +31,54 @@ const DailyHoroScopeSection = () => {
 
   return (
     <div>
-      {/* Hero Section */}
-      <section className="herosection" aria-label="Daily horoscope banner">
-        <video
-          className="hero-video-bg"
-          src="/HomeHeroVideo.mp4"
-          autoPlay
-          muted
-          loop
-          playsInline
-        />
-<div
-  className="hero-content"
-  style={{
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    zIndex: 2,
-    userSelect: 'none',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-    justifyContent: 'flex-start',
-    padding: '1rem',
-    textAlign: 'left',
-    maxWidth: '600px', // optional: limits text width
-  }}
->
-  <h1
-    className="hero-title"
+<section className="herosection" aria-label="Daily horoscope banner">
+  <div
+    className="hero-content"
     style={{
-      fontSize: '2.2rem',
-      fontWeight: 750,
-      color: 'white',
-      margin: 0,
-      lineHeight: 1.2,
-      textShadow: '1px 1px 4px rgba(0,0,0,0.5)',
-      textAlign: 'left', // ensure it's not center
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      zIndex: 2,
+      userSelect: 'none',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'flex-start',
+      justifyContent: 'flex-start',
+      padding: '1rem',
+      textAlign: 'left',
+      maxWidth: '600px',
     }}
   >
-    Daily Horoscope by<br />
-    Master <span className="highlight">Michael De Mesa</span>
-  </h1>
-</div>
+    <h1
+      className="hero-title"
+      style={{
+        fontSize: '2.2rem',
+        fontWeight: 750,
+        color: 'white',
+        margin: 0,
+        lineHeight: 1.2,
+        textShadow: '1px 1px 4px rgba(0,0,0,0.5)',
+        textAlign: 'left',
+      }}
+    >
+      Daily Horoscope by<br />
+      Master <span className="highlight">Michael De Mesa</span>
+    </h1>
+  </div>
 
-
-        {/* Carousel Dots */}
-        <div className="carousel-dots" aria-label="Carousel navigation dots">
-          {groupedSlides.map((_, i) => (
-            <button
-              key={i}
-              className={`carousel-dot ${i === activeGroup ? 'active' : ''}`}
-              aria-current={i === activeGroup ? 'true' : undefined}
-              onClick={() => setActiveGroup(i)}
-              aria-label={`Group ${i + 1}`}
-            />
-          ))}
-        </div>
-      </section>
-
+  {/* Carousel Dots */}
+  <div className="carousel-dots" aria-label="Carousel navigation dots">
+    {groupedSlides.map((_, i) => (
+      <button
+        key={i}
+        className={`carousel-dot ${i === activeGroup ? 'active' : ''}`}
+        aria-current={i === activeGroup ? 'true' : undefined}
+        onClick={() => setActiveGroup(i)}
+        aria-label={`Group ${i + 1}`}
+      />
+    ))}
+  </div>
+</section>
       {/* Content Cards */}
       <section className="content-section" aria-label="Daily horoscope cards">
         {groupedSlides[activeGroup].map((slide, i) => (
