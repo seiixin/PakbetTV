@@ -1,14 +1,25 @@
+/* Disable smooth scroll globally */
+html,
+body,
+section,
+div,
+main,
+article {
+  scroll-behavior: auto !important;
+}
+
+
 .our-service-section {
   position: relative;
   padding: 1rem 0;
   overflow: hidden;
 }
+
 .our-service-title {
   position: absolute;
   top: 1rem;
   left: 1.5rem;
-  font-size: 1.5rem; /* Smaller size */
-  color: white;
+  font-size: 1.5rem;
   z-index: 2;
   font-weight: bold;
 }
@@ -19,35 +30,52 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(to top left, darkblue, #3e0505ff);
-  opacity: 0.8;
-  z-index: 1;
+  background: linear-gradient(to left, darkblue, #3e0505ff);
+  opacity: 0.9;
+  z-index: 0;
 }
 
-
+/* 💫 Center gradient behind center-container */
+.center-gradient-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(to left, darkblue, #3e0505ff);
+  opacity: 0.6;
+  z-index: 3;
+  pointer-events: none;
+  mask-image: linear-gradient(to right, transparent, black 30%, black 70%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 30%, black 70%, transparent);
+  transition: opacity 0.5s ease-in-out;
+}
 
 .our-service-slider-wrapper {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-wrap: wrap;
   z-index: 2;
+  padding: 2rem 0;
 }
 
 .our-service-slider {
   display: flex;
-  align-items: center;
-  gap: 1rem;
-  position: relative;
-  width: 100%;
   justify-content: center;
+  align-items: center;
+  position: relative;
+  gap: 0;
 }
 
-.center-wrapper {
-  position: relative;
+.center-container {
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 1rem;
+  position: relative;
+  z-index: 3;
 }
 
 .service-card {
@@ -55,22 +83,34 @@
   overflow: hidden;
   transition: all 0.3s ease;
   flex-shrink: 0;
-  opacity: 0.4;
-  transform: scale(0.8);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+  position: relative;
+  z-index: 1;
 }
 
 .service-card.center {
-  opacity: 1;
+  width: 600px;
   transform: scale(1);
   z-index: 3;
-  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.3);
-  width: 100%;
-  max-width: 380px;
 }
 
 .service-card.side {
-  width: 240px;
+  width: 400px;
+  transform: scale(0.85);
+  z-index: 2;
+  margin-left: -150px;
+  margin-right: -150px;
+  pointer-events: none;
+}
+
+.service-card.side:first-of-type {
+  transform: scale(0.9) translateX(40px);
+  opacity: 0.3;
+}
+
+.service-card.side:last-of-type {
+  transform: scale(0.9) translateX(-40px);
+  opacity: 0.3;
 }
 
 .service-img {
@@ -82,30 +122,25 @@
 }
 
 .slider-btn {
+  z-index: 99;
   background: transparent;
   border: none;
   width: 0;
   height: 0;
   padding: 0;
   cursor: pointer;
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 10;
 }
 
 .slider-btn.left {
   border-top: 20px solid transparent;
   border-bottom: 20px solid transparent;
   border-right: 20px solid #f3f652ff;
-  left: 0; /* adjust if needed */
 }
 
 .slider-btn.right {
   border-top: 20px solid transparent;
   border-bottom: 20px solid transparent;
   border-left: 20px solid #f3f652ff;
-  right: 0; /* adjust if needed */
 }
 
 .slider-btn:hover {
@@ -114,11 +149,11 @@
 
 @media (max-width: 768px) {
   .slider-btn.left {
-    left: -14px;
+    border-right-width: 16px;
   }
 
   .slider-btn.right {
-    right: -14px;
+    border-left-width: 16px;
   }
 
   .service-card.center {
@@ -129,7 +164,56 @@
     width: 180px;
   }
 
+  .service-card.side:first-of-type {
+    transform: scale(0.9) translateX(20px);
+  }
+
+  .service-card.side:last-of-type {
+    transform: scale(0.9) translateX(-20px);
+  }
+
   .our-service-slider {
-    gap: 0.5rem;
+    gap: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .service-card.side {
+    display: none !important;
+  }
+
+  .slider-btn {
+    display: block !important;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 10;
+    background-color: transparent;
+    color: white;
+  }
+
+  .slider-btn.left {
+    left: 10px;
+    margin-bottom: -5vh;
+  }
+
+  .slider-btn.right {
+    right: 10px;
+  }
+
+  .service-card.center {
+    max-width: 90vw;
+    width: 100%;
+    transform: scale(1);
+  }
+
+  .center-container {
+    gap: 1rem;
+    position: relative;
+  }
+
+  .our-service-slider {
+    justify-content: center;
+    position: relative;
   }
 }

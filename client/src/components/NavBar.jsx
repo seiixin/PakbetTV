@@ -212,6 +212,7 @@ const NavBar = () => {
     if (!showSearchDropdown) return null;
     
     return (
+      
       <div className="search-dropdown">
         {searchResults.zodiacs.length > 0 && (
           <div className="search-section">
@@ -341,9 +342,18 @@ const NavBar = () => {
 
   return (
     <>
-      <nav className={navClassName}>
-        {/* First Row - Shipping Banner */}
 
+    <nav className={navClassName} style={{ position: "relative", overflow: "hidden" }}>                    {/* Background video */}
+      <video
+        id="video2"
+        className="navbar-video-bg"
+        src="/HomeHeroVideo.mp4"
+        autoPlay
+        muted
+        loop
+        playsInline
+      />
+      <div className="gradient-overlay"></div>
 
         {/* Second Row - Logo, Search, Actions */}
         <div className="navbar-main-row">
@@ -360,14 +370,20 @@ const NavBar = () => {
             </button>
 
             {/* Logo */}
-            <div className="navbar-navbar-logo">
-              <Link to="/" className="navbar-logo-link">
-                <div className="navbar-logo-text">
-                  <h3>MICHAEL DE MESA</h3>
-                  <p>BAZI & FENG SHUI CONSULTANCY</p>
-                </div>
-              </Link>
-            </div>
+<table className="logo-table">
+  <tbody>
+    <tr>
+      <td className="logo-img-cell">
+        <img src="/Logo.png" alt="Logo" className="logo-img" />
+      </td>
+      <td className="logo-text-cell">
+        <h3>MICHAEL DE MESA</h3>
+        <p>BAZI & FENG SHUI CONSULTANCY</p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
 
             {/* Desktop Search */}
             <div className="navbar-search-container desktop-search" ref={searchRef}>
@@ -382,7 +398,7 @@ const NavBar = () => {
                       setShowSearchDropdown(true);
                     }
                   }}
-                />
+                />  <button className="search-button">Search</button>
               </div>
               {renderSearchResults()}
             </div>
@@ -433,8 +449,8 @@ const NavBar = () => {
                   </div>
                 ) : (
                   <div className="navbar-auth-buttons desktop-auth">
-                    <Link to="/login" className="navbar-login-button">Login</Link>
-                    <Link to="/signup" className="navbar-signup-button">Sign Up</Link>
+                    <Link to="/login" className="navbar-login-button">LOGIN</Link>
+                    <Link to="/signup" className="navbar-signup-button">SIGN UP</Link>
                   </div>
                 )}
                 
@@ -444,8 +460,8 @@ const NavBar = () => {
                   disabled={loggingOut}
                   onClick={() => navigate('/cart')}
                 >
-                  <span className="cart-text">Cart ({getTotalCount || 0})</span>
-                  <span className="cart-count-mobile">({getTotalCount || 0})</span>
+                  <span className="cart-text">({getTotalCount()})</span>
+                  <span className="cart-count-mobile">({getTotalCount()})</span>
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="navbar-cart-icon">
                     <circle cx="9" cy="21" r="1"></circle>
                     <circle cx="20" cy="21" r="1"></circle>

@@ -1,25 +1,45 @@
-/* Fullscreen layout */
+/* HomeHeroSection.css */
+
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-
-html, body {
-  margin: 0;
-  padding: 0;
+html,
+body {
   height: 100%;
-  overflow: hidden;
+  overflow-x: hidden;
+  font-family: sans-serif;
 }
 
 .home-hero-section {
   position: relative;
-  width: 100vw;
-  min-height: 100vh;
+  height: 90vh;
+  background: url('/your-hero-image.jpg') center/cover no-repeat;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-bottom: 5vh;
   overflow: hidden;
 }
 
+.home-hero-section::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 80px;
+  width: 100%;
+  background: linear-gradient(
+    to top,
+    #140b47ff 0%,
+    rgba(20, 11, 71, 0.85) 40%,
+    rgba(20, 11, 71, 0.5) 70%,
+    rgba(20, 11, 71, 0) 100%
+  );
+  z-index: 2;
+}
 
 .video-background {
   position: absolute;
@@ -29,6 +49,8 @@ html, body {
   height: 100%;
   object-fit: cover;
   z-index: 0;
+  object-fit: cover;
+  object-position: center 98.5%;
 }
 
 .home-hero-section .gradient-overlay {
@@ -37,95 +59,109 @@ html, body {
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(to top left, darkblue, #3e0505ff);
+  background: linear-gradient(to left, #0a0b38ff, #3e0505ff);
   opacity: 0.8;
   z-index: 1;
 }
 
-.hero-content {
+.hero-content-wrapper {
   position: relative;
   z-index: 2;
   display: flex;
-  align-items: stretch; /* ⬅️ stretch content to full height */
-  justify-content: center;
-  padding: 2rem;
-  min-height: 100vh; /* keep this to ensure full screen */
-  height: 100%;
+  justify-content: flex-start;
+  align-items: flex-start;
+  height: 100vh;
+  width: 100vw;
+  padding: 0 2rem;
 }
 
 .hero-container {
   display: flex;
   flex-direction: row;
-  gap: 2rem;
-  max-width: 1200px;
+  align-items: flex-start;
+  justify-content: space-between;
   width: 100%;
-  color: white;
+  max-width: 1200px;
+  margin: auto;
+  padding-top: 2vh;
 }
 
-/* Text content styling */
-.text-content,
-.image-container {
+.text-content {
   flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
+  align-items: flex-start;
+  color: white;
+  text-align: left;
+}
+
+.text-content * {
+  text-align: left !important;
 }
 
 .headline {
+  font-size: clamp(2rem, 5vw, 5rem);
   font-weight: 800;
-  font-size: clamp(2.8rem, 5vw, 5.5rem);
   line-height: 1.1;
   margin-bottom: 1rem;
+  text-align: left !important;
 }
 
 .yellow-bold {
   color: #fdea18;
   font-weight: 900;
+  font-size: 0.9em;
 }
 
 .white-bold {
-  color: #fff;
+  color: #ffffff;
   font-weight: 700;
 }
 
 .buttons {
   display: flex;
-  gap: 24px;
-  margin-top: 24px;
+  gap: 1rem;
+  margin: 1.5rem 0;
   flex-wrap: wrap;
+  justify-content: flex-start !important;
+  align-items: center;
+}
+
+.btn-ask,
+.btn-shop {
+  border-radius: 40px;
+  padding: 12px 24px;
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  text-align: center;
+  cursor: pointer;
+  transition: 0.3s;
 }
 
 .btn-ask {
-  background-color: #05263e;
-  border-radius: 40px;
-  padding: 14px 32px;
-  font-weight: 600;
-  font-size: 1.125rem;
+  background: #05263e;
   color: #fff;
-  border: none;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
 }
 
 .btn-ask strong {
   color: #fdea18;
-  font-weight: 700;
 }
 
 .btn-ask:hover {
-  background-color: #093354;
+  background: #093354;
 }
 
 .btn-shop {
   background: transparent;
   color: #fdea18;
-  font-weight: 700;
-  font-size: 1.125rem;
   border: 2px solid #fdea18;
-  border-radius: 40px;
-  padding: 14px 30px;
-  cursor: pointer;
-  transition: background 0.3s ease, color 0.3s ease;
+  font-size: 0.9rem;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn-shop:hover {
@@ -135,13 +171,10 @@ html, body {
 
 .features {
   display: flex;
-  justify-content: center;
-  gap: 32px;
-  padding: 20px 0;
-  flex-wrap: nowrap; /* ONE line only */
-  overflow-x: auto;   /* scrolls on small screens */
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  margin-top: 1rem;
 }
-
 
 .feature-item {
   display: flex;
@@ -150,10 +183,8 @@ html, body {
   color: #fdea18;
   font-weight: 600;
   font-size: 0.75rem;
-  white-space: nowrap;
+  text-align: center;
 }
-
-
 
 .feature-icon {
   width: 28px;
@@ -161,32 +192,171 @@ html, body {
   stroke: #fdea18;
   stroke-width: 2.5;
   fill: none;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
-/* Image */
+
 .image-container {
   flex: 1;
   display: flex;
-  align-items: flex-end;  /* ⬅️ ilalagay ang image sa pinakailalim ng container */
-  justify-content: center;
+  align-items: flex-start;
+  justify-content: flex-end;
   height: 100%;
+  margin-bottom: -5vh;
 }
 
 .image-container img {
+  max-height: 90vh;
+  height: auto;
   width: auto;
-  height: 100%;
-  object-fit: contain; /* or cover if you want it to crop/fill */
-  display: block;
+  object-fit: contain;
 }
 
-/* Responsive tweaks */
-@media (max-width: 768px) {
+/* Responsive: Large Tablet */
+@media (max-width: 1024px) {
+
+  .hero-content-wrapper {
+    padding: 0 1rem;
+    justify-content: flex-start;
+    align-items: flex-start;
+  }
+  
   .hero-container {
     flex-direction: column;
-    align-items: center;
-    text-align: center;
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding-top: 2vh;
+    gap: 2rem;
+    margin-bottom: -3vh;
+    margin-left: 0;
+    margin-right: auto;
   }
-  .buttons {
+
+  .text-content {
+    flex: none;
+    width: 100%;
+    text-align: left;
+    align-items: flex-start;
+    order: 1;
+  }
+
+  .image-container {
+    flex: none;
+    width: 100%;
+    height: auto;
     justify-content: center;
+    align-items: center;
+    margin-bottom: 0;
+    order: 2;
+  }
+
+  .image-container img {
+    max-width: 80%;
+    max-height: 50vh;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+  }
+
+  .headline {
+    font-size: clamp(1.8rem, 4vw, 3rem);
+    margin-bottom: 0.8rem;
+  }
+
+  .buttons {
+    justify-content: flex-start;
+    margin: 1rem 0;
+  }
+
+  .features {
+    display: none;
+  }
+}
+
+/* Responsive: Tablet */
+@media (max-width: 768px) {
+  .hero-content-wrapper {
+    padding: 0 0.5rem;
+    justify-content: flex-start;
+    align-items: flex-start;
+  }
+  
+  .hero-container {
+    padding-top: 1vh;
+    gap: 1.5rem;
+    align-items: flex-start;
+    margin-left: 0;
+    margin-right: auto;
+  }
+
+  .text-content {
+    text-align: left;
+    align-items: flex-start;
+  }
+
+  .image-container img {
+    max-width: 90%;
+    max-height: 45vh;
+  }
+
+  .headline {
+    font-size: clamp(1.5rem, 4vw, 2.5rem);
+    margin-bottom: 0.6rem;
+  }
+
+  .btn-ask,
+  .btn-shop {
+    font-size: 0.9rem;
+    padding: 10px 20px;
+  }
+
+  .features {
+    display: none;
+  }
+}
+
+/* Responsive: Mobile */
+@media (max-width: 480px) {
+  .hero-content-wrapper {
+    justify-content: flex-start;
+    align-items: flex-start;
+    padding: 0 1rem;
+  }
+
+  .hero-container {
+    align-items: flex-start;
+    margin-left: 0;
+    margin-right: auto;
+    width: 100%;
+  }
+
+  .text-content {
+    position: relative;
+    margin-top: 1.5rem;
+    text-align: left;
+    background: transparent;
+    padding: 0.8rem 0;
+    border-radius: 12px;
+    z-index: 2;
+    width: 100%;
+    max-width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+    align-items: flex-start;
+  }
+
+  .image-container {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding-top: 1rem;
+    height: auto;
+    margin-top: -10vh;
+  }
+
+  .image-container img {
+    max-height: 70vh;
+    min-width: 100%;
+    width: auto;
+    object-fit: contain;
   }
 }

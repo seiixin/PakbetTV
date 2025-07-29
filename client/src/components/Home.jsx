@@ -25,6 +25,50 @@ const constructUrl = (baseUrl, path) => {
   return path.startsWith('/') ? baseUrl + path : baseUrl + '/' + path;
 };
 
+const HomePage = () => {
+  useEffect(() => {
+    const video1 = document.getElementById("video1");
+    const video2 = document.getElementById("video2");
+
+    if (video1 && video2) {
+      // Play/Pause sync
+      video1.addEventListener("play", () => video2.play());
+      video1.addEventListener("pause", () => video2.pause());
+
+      // Seek sync
+      video1.addEventListener("seeked", () => {
+        video2.currentTime = video1.currentTime;
+      });
+
+      // Time sync check every frame
+      video1.addEventListener("timeupdate", () => {
+        const diff = Math.abs(video1.currentTime - video2.currentTime);
+        if (diff > 0.2) {
+          video2.currentTime = video1.currentTime;
+        }
+      });
+    }
+  }, []);
+
+  return (
+    <>
+      <NavBar />
+      <section className="home-hero-section">
+        <video
+          id="video2"
+          src="/HomeHeroVideo.mp4"
+          autoPlay
+          muted
+          loop
+          playsInline
+          className="video-background"
+        />
+      </section>
+    </>
+  );
+};
+
+
 const Home = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -157,126 +201,113 @@ const Home = () => {
 
 const renderNewArrivals = () => (
   <section className="home-new-arrivals">
-    {newArrivalsLoading || newArrivalsError || newArrivals.length > 0 ? (
-      <>
-        <div className="home-section-header">
-          <h2>New Arrivals</h2>
-        </div>
-
-        {newArrivalsLoading ? (
-          <div className="home-new-arrivals-loading-container">
-            <div className="spinner-border" role="status">
-              <span className="visually-hidden">Loading...</span>
-            </div>
-          </div>
-        ) : newArrivalsError ? (
-          <div className="error-message">{newArrivalsError.message}</div>
-        ) : (
-          <div className="home-new-arrivals-grid">
-            {newArrivals.slice(0, 10).map(product => (
-              <ProductCard key={product.product_id} product={product} />
-            ))}
-          </div>
-        )}
-
-        <Link to="/shop" className="view-all-btn">View All Products</Link>
-      </>
-    ) : null}
+    <style dangerouslySetInnerHTML={{ __html: `
+      html, body {
+        scroll-behavior: auto !important;
+      }
+    ` }} />
+    {/* Your arrivals content here */}
   </section>
 );
+
   return (
     <div className="home-page">
            <NavBar />
 
 <section className="home-hero-section">
-  {/* Background video */}
-  <video
-    className="video-background"
-    src="/HomeHeroVideo.mp4"
-    autoPlay
-    muted
-    loop
-    playsInline
-  />
+      {/* Background video */}
+      <video
+        id="video1"
+        className="video-background"
+        src="/HomeHeroVideo.mp4"
+        autoPlay
+        muted
+        loop
+        playsInline
+      />
 
-  {/* Gradient overlay */}
-  <div className="gradient-overlay"></div>
+      {/* Gradient overlay */}
+      <div className="gradient-overlay"></div>
+      
+      {/* Foreground content - Fixed structure */}
+      <div className="hero-content-wrapper">
+        <div className="hero-container">
+          {/* Left Text Content */}
+          <div className="text-content">
+            <h1 className="headline">
+              <span className="yellow-bold">Simplifying</span><br />
+              <span className="white-bold">Feng Shui</span><br />
+              <span className="yellow-bold">for everyone.</span>
+            </h1>
 
-  {/* Foreground content */}
-  <div className="hero-content">
-    <main className="hero-container" role="main" aria-label="Simplifying Feng Shui">
+            <section className="buttons" aria-label="Primary actions">
+              <a href="/contact" className="btn-ask">
+                Ask <strong>Master Michael</strong> now
+              </a>
+              <a href="/shop" className="btn-shop">
+                Go to Shop
+              </a>
+            </section>
 
-      {/* Left content */}
-      <div className="text-content">
-        <h1 className="headline">
-          <span className="yellow-bold">Simplifying</span><br />
-          <span className="white-bold">Feng Shui</span><br />
-          <span className="yellow-bold">for everyone.</span>
-        </h1>
+            <section className="features" aria-label="Key Features and Benefits">
+              <article className="feature-item">
+                <svg className="feature-icon" viewBox="0 0 24 24">
+                  <path d="M12 2L15 8H9L12 2Z" />
+                  <circle cx="12" cy="16" r="6" />
+                </svg>
+                <br />
+                Expert<br />Guidance
+              </article>
+              <article className="feature-item">
+                <svg className="feature-icon" viewBox="0 0 24 24">
+                  <path d="M4 4h16v16H4z" />
+                  <path d="M4 9h16" />
+                </svg>
+                <br />  
+                Personalized<br />Analysis
+              </article>
+              <article className="feature-item">
+                <svg className="feature-icon" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M8 12h8" />
+                </svg>
+                <br />
+                Realistic<br />Solution
+              </article>
+              <article className="feature-item">
+                <svg className="feature-icon" viewBox="0 0 24 24">
+                  <path d="M12 2a10 10 0 0 1 10 10" />
+                  <path d="M2 12a10 10 0 0 0 10 10" />
+                </svg>
+                <br />
+                Modern<br />Practice
+              </article>
+              <article className="feature-item">
+                <svg className="feature-icon" viewBox="0 0 24 24">
+                  <path d="M3 12h18M12 3v18" />
+                </svg>
+                <br />
+                Life<br />Harmony
+              </article>
+              <article className="feature-item">
+                <svg className="feature-icon" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M12 6v6l4 2" />
+                </svg>
+                <br />
+                Timely<br />Advice
+              </article>
+            </section>
+          </div>
 
-        <section className="buttons" aria-label="Primary actions">
-          <Link to="/contact"  style={{ textDecoration: 'none' }} className="btn-ask">
-            Ask <strong>Master Michael</strong> now
-          </Link>
-        <Link to="/shop" style={{ textDecoration: 'none' }} className="btn-shop">
-          Go to Shop
-        </Link>
-        </section>
-
-        <section className="features" aria-label="Key Features and Benefits">
-          <article className="feature-item">
-            <svg className="feature-icon" viewBox="0 0 24 24">
-              <path d="M12 2L15 8H9L12 2Z" />
-              <circle cx="12" cy="16" r="6" />
-            </svg>
-            Expert<br />Guidance
-          </article>
-          <article className="feature-item">
-            <svg className="feature-icon" viewBox="0 0 24 24">
-              <path d="M4 4h16v16H4z" />
-              <path d="M4 9h16" />
-            </svg>
-            Personalized<br />Analysis
-          </article>
-          <article className="feature-item">
-            <svg className="feature-icon" viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M8 12h8" />
-            </svg>
-            Realistic<br />Solution
-          </article>
-          <article className="feature-item">
-            <svg className="feature-icon" viewBox="0 0 24 24">
-              <path d="M12 2a10 10 0 0 1 10 10" />
-              <path d="M2 12a10 10 0 0 0 10 10" />
-            </svg>
-            Modern<br />Practice
-          </article>
-          <article className="feature-item">
-            <svg className="feature-icon" viewBox="0 0 24 24">
-              <path d="M3 12h18M12 3v18" />
-            </svg>
-            Life<br />Harmony
-          </article>
-          <article className="feature-item">
-            <svg className="feature-icon" viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 6v6l4 2" />
-            </svg>
-            Timely<br />Advice
-          </article>
-        </section>
+          {/* Bottom-right Image */}
+          <div className="image-container">
+            <img src="/MasterMichael.png" alt="Master Michael" />
+          </div>
+        </div>
       </div>
-
-      {/* Right picture */}
-      <div className="image-container">
-        <img src="/MasterMichael.png" alt="Master Michael" />
-      </div>
-
-    </main>
-  </div>
-</section>
-      {renderNewArrivals()}
+    </section>
+          {renderNewArrivals()}
 <OurService />
 <DailyHoroScopeSection />
 <DailyVideo />
