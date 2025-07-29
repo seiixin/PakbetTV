@@ -1,3 +1,14 @@
+/* Disable smooth scroll globally */
+html,
+body,
+section,
+div,
+main,
+article {
+  scroll-behavior: auto !important;
+}
+
+
 .our-service-section {
   position: relative;
   padding: 1rem 0;

@@ -345,6 +345,7 @@ const NavBar = () => {
 
     <nav className={navClassName} style={{ position: "relative", overflow: "hidden" }}>                    {/* Background video */}
       <video
+        id="video2"
         className="navbar-video-bg"
         src="/HomeHeroVideo.mp4"
         autoPlay

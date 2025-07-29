@@ -1,4 +1,16 @@
 @import url('https://fonts.googleapis.com/css2?family=ZCOOL+XiaoWei&display=swap');
+//removing transition
+html,
+body,
+section,
+div,
+main,
+article {
+  scroll-behavior: auto !important;
+}
+
+/* Keep carousel smooth scrolling only */
+
 body {
   font-family: 'ZCOOL XiaoWei', serif; 
   margin: 0;
