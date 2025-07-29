@@ -158,58 +158,68 @@ const Checkout = () => {
     }
   };
   
-  // Validate shipping details
+  // Validate shipping details with strict rules
   const validateShippingDetails = () => {
     const required = ['name', 'phone', 'email', 'address', 'city', 'state', 'postal_code'];
     const missing = required.filter(field => !shippingDetails[field]);
-    
     if (missing.length > 0) {
       setError(`Please fill in all required fields: ${missing.join(', ')}`);
       return false;
     }
-    
-    // Validate email format
+    // Name: max 50 chars
+    if (shippingDetails.name.length > 50) {
+      setError('Name must not exceed 50 characters');
+      return false;
+    }
+    // Phone: min 5 chars, max 15 chars
+    const phone = shippingDetails.phone.replace(/[\s-]/g, '');
+    if (phone.length < 5 || phone.length > 15) {
+      setError('Phone number must be between 5 and 15 characters');
+      return false;
+    }
+    // Validate Philippine phone format
+    const phoneRegex = /^(\+63|0)[0-9]{10}$/;
+    if (!phoneRegex.test(phone)) {
+      setError('Please enter a valid Philippine phone number (e.g., +639123456789 or 09123456789)');
+      return false;
+    }
+    // Address: max 125 chars
+    if (shippingDetails.address.length > 125) {
+      setError('Address must not exceed 125 characters');
+      return false;
+    }
+    // Email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(shippingDetails.email)) {
       setError('Please enter a valid email address');
       return false;
     }
-    
-    // Enhanced phone number validation for Philippines format
-    const phoneRegex = /^(\+63|0)[0-9]{10}$/;
-    if (!phoneRegex.test(shippingDetails.phone.replace(/[\s-]/g, ''))) {
-      setError('Please enter a valid Philippine phone number (e.g., +639123456789 or 09123456789)');
-      return false;
-    }
-    
     return true;
   };
-  
-  // Add a function to check if form is valid for submit button
+
   const isFormValid = () => {
-    return (
-      addressValid && 
-      shippingDetails.name && 
-      shippingDetails.email &&
-      shippingDetails.phone && // Check for phone presence
-      shippingDetails.phone.replace(/[\s-]/g, '').match(/^(\+63|0)[0-9]{10}$/) // Validate phone format
-    );
+    if (!shippingDetails.name || shippingDetails.name.length > 50) return false;
+    if (!shippingDetails.address || shippingDetails.address.length > 125) return false;
+    const phone = shippingDetails.phone ? shippingDetails.phone.replace(/[\s-]/g, '') : '';
+    if (!phone || phone.length < 5 || phone.length > 15) return false;
+    if (!/^(\+63|0)[0-9]{10}$/.test(phone)) return false;
+    if (!shippingDetails.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(shippingDetails.email)) return false;
+    if (!addressValid) return false;
+    return true;
   };
-  
+
   const handlePlaceOrder = async () => {
+    // Strict validation before placing order
     if (!validateShippingDetails()) {
       return;
     }
-
     if (!addressValid) {
       setError('Please fill in all required address fields correctly');
       return;
     }
-
     try {
       setProcessingOrder(true);
       setError(null);
-      
       // Combine shipping details with address form data
       const combinedAddress = {
         address_line1: address.address1,
@@ -221,7 +231,6 @@ const Checkout = () => {
         country: address.country,
         address_type: address.address_type
       };
-      
       const orderData = {
         shipping_details: {
           ...shippingDetails,
@@ -230,9 +239,7 @@ const Checkout = () => {
         items: cartItems,
         payment_method: paymentMethod
       };
-
       console.log('Placing order with data:', orderData);
-
       const response = await axios.post('/api/orders', orderData, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,

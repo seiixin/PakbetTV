@@ -531,6 +531,17 @@ async function createOrder(req, res) {
   try {
     const token = await ninjaVanAuth.getValidToken();
     const orderData = req.body;
+    
+    // DEBUG: Log token and payload information (server-side only)
+    console.log('🚚 [NINJAVAN] Creating order via API endpoint:', {
+      tokenLength: token ? token.length : 0,
+      tokenStart: token ? token.substring(0, 20) + '...' : 'No token',
+      apiUrl: `${API_BASE_URL}/${COUNTRY_CODE}/4.2/orders`,
+      payloadKeys: Object.keys(orderData || {}),
+      timestamp: new Date().toISOString()
+    });
+    console.log('📤 [NINJAVAN] Order payload:', JSON.stringify(orderData, null, 2));
+    
     const response = await axios.post(
       `${API_BASE_URL}/${COUNTRY_CODE}/4.2/orders`, 
       orderData,
@@ -541,6 +552,14 @@ async function createOrder(req, res) {
         } 
       }
     );
+    
+    console.log('📥 [NINJAVAN] Order creation response:', {
+      status: response.status,
+      statusText: response.statusText,
+      trackingNumber: response.data?.tracking_number,
+      responseDataKeys: Object.keys(response.data || {})
+    });
+    
     res.status(200).json(response.data);
   } catch (error) {
     console.error('Error creating NinjaVan order:', error.response?.data || error.message);
@@ -854,8 +873,20 @@ async function cancelOrder(req, res) {
       });
     }
     const token = await ninjaVanAuth.getValidToken();
+    
+    // DEBUG: Log token and request information (server-side only)
+    console.log('❌ [NINJAVAN] Cancelling order:', {
+      trackingId: trackingId,
+      tokenLength: token ? token.length : 0,
+      tokenStart: token ? token.substring(0, 20) + '...' : 'No token',
+      apiUrl: `${API_BASE_URL}/${COUNTRY_CODE}/2.2/orders/${trackingId}`,
+      timestamp: new Date().toISOString()
+    });
+    
     let ninjaVanResponse;
     try {
+      console.log('📤 [NINJAVAN] Making cancel API request...');
+      
       const ninjaVanCancelResponse = await axios.delete(
         `${API_BASE_URL}/${COUNTRY_CODE}/2.2/orders/${trackingId}`,
         { 
@@ -865,6 +896,13 @@ async function cancelOrder(req, res) {
           } 
         }
       );
+      
+      console.log('📥 [NINJAVAN] Cancel response received:', {
+        status: ninjaVanCancelResponse.status,
+        statusText: ninjaVanCancelResponse.statusText,
+        dataKeys: Object.keys(ninjaVanCancelResponse.data || {})
+      });
+      
       ninjaVanResponse = ninjaVanCancelResponse.data;
     } catch (ninjaVanError) {
       await connection.rollback();
@@ -1408,10 +1446,24 @@ async function createShippingOrder(orderId) {
       console.log(`Getting NinjaVan token...`);
       const token = await ninjaVanAuth.getValidToken();
       console.log(`NinjaVan token obtained successfully`);
+      
+      // DEBUG: Log token information (server-side only)
+      console.log('🔐 [NINJAVAN] Token Debug Info:', {
+        tokenLength: token ? token.length : 0,
+        tokenStart: token ? token.substring(0, 20) + '...' : 'No token',
+        environment: config.NINJAVAN_ENV,
+        apiUrl: `${API_BASE_URL}/${COUNTRY_CODE}/4.2/orders`,
+        countryCode: COUNTRY_CODE,
+        timestamp: new Date().toISOString()
+      });
 
       // Create the order with NinjaVan
       console.log(`Calling NinjaVan API...`);
       console.log(`🔍 DEBUG: Complete payload being sent to NinjaVan:`, JSON.stringify(orderPayload, null, 2));
+      console.log('📋 [NINJAVAN] Request Headers:', {
+        'Authorization': `Bearer ${token.substring(0, 20)}...`,
+        'Content-Type': 'application/json'
+      });
       
       // Real NinjaVan API call
       const response = await axios.post(

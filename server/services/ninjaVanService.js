@@ -131,14 +131,11 @@ async function createDeliveryOrder(orderData, shippingAddress, customerInfo) {
     if (typeof shippingAddress === 'string') {
       // Parse string address
       const addressParts = shippingAddress.split(',').map(part => part.trim());
-      
       // Extract address components more reliably
       address1 = addressParts[0] || '';
-      
       // Extract postcode with validation
       const postcodeMatch = shippingAddress.match(/\b\d{5,6}\b/);
       postcode = postcodeMatch ? postcodeMatch[0] : '';
-      
       // Extract city and state more reliably
       const remainingParts = addressParts.filter(part => !part.match(/\b\d{5,6}\b/));
       if (remainingParts.length >= 2) {
@@ -283,7 +280,23 @@ async function createDeliveryOrder(orderData, shippingAddress, customerInfo) {
     // Get NinjaVan token and create delivery with retries
     const token = await ninjaVanAuth.getValidToken();
     
+    // DEBUG: Log token information (server-side only)
+    console.log('🔐 [NINJAVAN] Token Debug Info:', {
+      tokenLength: token ? token.length : 0,
+      tokenStart: token ? token.substring(0, 20) + '...' : 'No token',
+      environment: NINJAVAN_ENV,
+      apiUrl: API_BASE_URL,
+      countryCode: COUNTRY_CODE,
+      timestamp: new Date().toISOString()
+    });
+    
     const createOrder = async () => {
+      console.log('📤 [NINJAVAN] Making API request to create order...');
+      console.log('📋 [NINJAVAN] Request Headers:', {
+        'Authorization': `Bearer ${token.substring(0, 20)}...`,
+        'Content-Type': 'application/json'
+      });
+      
       const response = await axios.post(
         `${API_BASE_URL}/${COUNTRY_CODE}/4.2/orders`, 
         deliveryRequest,
@@ -294,6 +307,14 @@ async function createDeliveryOrder(orderData, shippingAddress, customerInfo) {
           } 
         }
       );
+      
+      console.log('📥 [NINJAVAN] API Response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        trackingNumber: response.data?.tracking_number,
+        responseDataKeys: Object.keys(response.data || {})
+      });
+      
       return response.data;
     };
 
@@ -337,7 +358,18 @@ async function getTrackingInfo(trackingNumber) {
   try {
     const token = await ninjaVanAuth.getValidToken();
     
+    // DEBUG: Log token and request info (server-side only)
+    console.log('📍 [NINJAVAN] Getting tracking info:', {
+      trackingNumber: trackingNumber,
+      tokenLength: token ? token.length : 0,
+      tokenStart: token ? token.substring(0, 20) + '...' : 'No token',
+      apiUrl: `${API_BASE_URL}/${COUNTRY_CODE}/2.2/orders/${trackingNumber}/tracking`,
+      timestamp: new Date().toISOString()
+    });
+    
     const getTracking = async () => {
+      console.log('📤 [NINJAVAN] Making tracking API request...');
+      
       const response = await axios.get(
         `${API_BASE_URL}/${COUNTRY_CODE}/2.2/orders/${trackingNumber}/tracking`,
         { 
@@ -347,6 +379,13 @@ async function getTrackingInfo(trackingNumber) {
           } 
         }
       );
+      
+      console.log('📥 [NINJAVAN] Tracking response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        dataKeys: Object.keys(response.data || {})
+      });
+      
       return response.data;
     };
 
@@ -364,12 +403,24 @@ async function generateWaybill(trackingNumber) {
   try {
     // Check cache first
     if (waybillCache.has(trackingNumber)) {
+      console.log('📄 [NINJAVAN] Waybill found in cache:', trackingNumber);
       return waybillCache.get(trackingNumber);
     }
 
     const token = await ninjaVanAuth.getValidToken();
     
+    // DEBUG: Log token and request info (server-side only)
+    console.log('📄 [NINJAVAN] Generating waybill:', {
+      trackingNumber: trackingNumber,
+      tokenLength: token ? token.length : 0,
+      tokenStart: token ? token.substring(0, 20) + '...' : 'No token',
+      apiUrl: `${API_BASE_URL}/${COUNTRY_CODE}/4.1/orders/${trackingNumber}/waybill`,
+      timestamp: new Date().toISOString()
+    });
+    
     const generateWaybillRequest = async () => {
+      console.log('📤 [NINJAVAN] Making waybill API request...');
+      
       const response = await axios.post(
         `${API_BASE_URL}/${COUNTRY_CODE}/4.1/orders/${trackingNumber}/waybill`,
         {},
@@ -380,6 +431,14 @@ async function generateWaybill(trackingNumber) {
           } 
         }
       );
+      
+      console.log('📥 [NINJAVAN] Waybill response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        contentType: response.headers['content-type'],
+        dataSize: response.data ? JSON.stringify(response.data).length : 0
+      });
+      
       return response.data;
     };
 
@@ -404,7 +463,18 @@ async function cancelDelivery(trackingNumber) {
   try {
     const token = await ninjaVanAuth.getValidToken();
     
+    // DEBUG: Log token and request info (server-side only)
+    console.log('❌ [NINJAVAN] Cancelling delivery:', {
+      trackingNumber: trackingNumber,
+      tokenLength: token ? token.length : 0,
+      tokenStart: token ? token.substring(0, 20) + '...' : 'No token',
+      apiUrl: `${API_BASE_URL}/${COUNTRY_CODE}/2.2/orders/${trackingNumber}`,
+      timestamp: new Date().toISOString()
+    });
+    
     const cancelOrder = async () => {
+      console.log('📤 [NINJAVAN] Making cancel API request...');
+      
       const response = await axios.delete(
         `${API_BASE_URL}/${COUNTRY_CODE}/2.2/orders/${trackingNumber}`,
         { 
@@ -414,6 +484,13 @@ async function cancelDelivery(trackingNumber) {
           } 
         }
       );
+      
+      console.log('📥 [NINJAVAN] Cancel response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        dataKeys: Object.keys(response.data || {})
+      });
+      
       return response.data;
     };
 

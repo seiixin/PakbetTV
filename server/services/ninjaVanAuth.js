@@ -17,11 +17,20 @@ class NinjaVanAuthService {
     try {
       // Check if we have a valid cached token
       if (this.tokenCache && this.tokenExpiry && Date.now() < this.tokenExpiry) {
+        console.log('🔄 [NINJAVAN] Using cached token:', {
+          tokenLength: this.tokenCache.length,
+          tokenStart: this.tokenCache.substring(0, 20) + '...',
+          expiresAt: new Date(this.tokenExpiry).toISOString(),
+          timeUntilExpiry: Math.round((this.tokenExpiry - Date.now()) / 1000) + ' seconds'
+        });
         return this.tokenCache;
       }
 
+      console.log('🔄 [NINJAVAN] Token expired or missing, generating new token...');
+
       // If a token refresh is already in progress, wait for it
       if (this.tokenRefreshPromise) {
+        console.log('⏳ [NINJAVAN] Token refresh already in progress, waiting...');
         return await this.tokenRefreshPromise;
       }
 
@@ -38,6 +47,16 @@ class NinjaVanAuthService {
 
   async generateNewToken() {
     try {
+      // DEBUG: Log token generation request (server-side only)
+      console.log('🔐 [NINJAVAN] Generating new token:', {
+        apiUrl: `${this.API_BASE_URL}/${this.COUNTRY_CODE}/2.0/oauth/access_token`,
+        clientIdLength: this.CLIENT_ID ? this.CLIENT_ID.length : 0,
+        clientIdStart: this.CLIENT_ID ? this.CLIENT_ID.substring(0, 8) + '...' : 'Not set',
+        clientSecretLength: this.CLIENT_SECRET ? this.CLIENT_SECRET.length : 0,
+        environment: config.NINJAVAN_ENV,
+        timestamp: new Date().toISOString()
+      });
+      
       const response = await axios.post(
         `${this.API_BASE_URL}/${this.COUNTRY_CODE}/2.0/oauth/access_token`,
         {
@@ -54,6 +73,15 @@ class NinjaVanAuthService {
 
       const { access_token, expires_in } = response.data;
       
+      // DEBUG: Log successful token generation (server-side only)
+      console.log('✅ [NINJAVAN] Token generated successfully:', {
+        tokenLength: access_token ? access_token.length : 0,
+        tokenStart: access_token ? access_token.substring(0, 20) + '...' : 'No token',
+        expiresIn: expires_in,
+        expiresAt: new Date(Date.now() + (expires_in * 1000)).toISOString(),
+        timestamp: new Date().toISOString()
+      });
+      
       // Cache the token and set expiry (subtract 5 minutes for safety margin)
       this.tokenCache = access_token;
       this.tokenExpiry = Date.now() + ((expires_in - 300) * 1000);
@@ -63,7 +91,7 @@ class NinjaVanAuthService {
       
       return access_token;
     } catch (error) {
-      console.error('NinjaVan token error:', error.response?.data || error.message);
+      console.error('❌ [NINJAVAN] Token generation failed:', error.response?.data || error.message);
       
       // Log failed attempts
       try {
