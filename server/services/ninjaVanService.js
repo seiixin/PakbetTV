@@ -232,7 +232,7 @@ async function createDeliveryOrder(orderData, shippingAddress, customerInfo) {
         pickup_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         pickup_timeslot: {
           start_time: "09:00",
-          end_time: "12:00",
+          end_time: "18:00",
           timezone: COUNTRY_CODE === 'SG' ? "Asia/Singapore" : "Asia/Manila"
         },
         pickup_instructions: "Pickup with care!",
@@ -240,7 +240,7 @@ async function createDeliveryOrder(orderData, shippingAddress, customerInfo) {
         delivery_start_date: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString().split('T')[0],
         delivery_timeslot: {
           start_time: "09:00",
-          end_time: "12:00",
+          end_time: "22:00",
           timezone: COUNTRY_CODE === 'SG' ? "Asia/Singapore" : "Asia/Manila"
         },
         dimensions: {
