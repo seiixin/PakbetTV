@@ -435,6 +435,7 @@ button.navbar-search-button svg {
 /* FREE TOOLS DROPDOWN */
 .navbar-dropdown-wrapper {
   position: relative;
+  z-index: 10000;
 }
 
 .navbar-submenu {

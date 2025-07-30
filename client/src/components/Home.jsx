@@ -142,16 +142,18 @@ const Home = () => {
     { name: 'PIG', image: '/Prosper-12.png' },
   ];
 
-  const aspirations = [
-    { name: 'Balance', image: '/Aspiration-1.png' },
-    { name: 'Health', image: '/Aspiration-2.png' },
-    { name: 'Love', image: '/Aspiration-3.png' },
-    { name: 'Luck', image: '/Aspiration-4.png' },
-    { name: 'Positivity', image: '/Aspiration-5.png' },
-    { name: 'Protection', image: '/Aspiration-6.png' },
-    { name: 'Wealth', image: '/Aspiration-7.png' },
-    { name: 'Wisdom', image: '/Aspiration-8.png' },
-  ];
+const aspirations = [
+  { name: "Balance", icon: "/AspirationImg/1balance.html" },
+  { name: "Health", icon: "/AspirationImg/2health.html" },
+  { name: "Prosperity", icon: "/AspirationImg/3love.html" },
+  { name: "Love", icon: "/AspirationImg/4luck.html" },
+  { name: "Spirituality", icon: "/AspirationImg/5box.html" },
+  { name: "Protection", icon: "/AspirationImg/6protection.html" },
+    { name: "Wealth", icon: "/AspirationImg/7wealth.html" },
+      { name: "Wisdom", icon: "/AspirationImg/8wisdom.html" },
+
+];
+
 
   const homeCategories = [
     { name: 'Best Sellers', image: '/Categories-1.png', filterId: 'best-sellers' },
@@ -326,22 +328,34 @@ const renderNewArrivals = () => (
         </div>
       </section>
 
-      <section className="home-shop-aspirations">
-        <div className="home-section-header-aspirations">
-          <h2>SHOP BY ASPIRATION</h2>
-          <p>Find products aligned with your life goals</p>
+<section className="home-shop-aspirations">
+  <div className="home-section-header-aspirations">
+    <h2>SHOP BY ASPIRATION</h2>
+    <p>Find products aligned with your life goals</p>
+  </div>
+
+  <div className="home-aspirations-grid">
+    {aspirations.map((item, index) => (
+      <a href="/shop" className="home-aspiration-card" key={index}>
+        <div className="home-aspiration-icon">
+          <iframe
+            src={item.icon}
+            title={item.name}
+            width="100"
+            height="100"
+            allowTransparency={true}
+            style={{
+              border: "none",
+              backgroundColor: "transparent",
+            }}
+          />
         </div>
-        <div className="home-aspirations-grid">
-          {aspirations.map(item => (
-            <Link to="/shop" key={item.name} className="home-aspiration-card" style={{ textDecoration: 'none', color: 'inherit' }}>
-              <div className="home-aspiration-icon">
-                <img src={item.image} alt={`${item.name} Icon`} />
-              </div>
-              <h3>{item.name}</h3>
-            </Link>
-          ))}
-        </div>
-      </section>
+        <h3>{item.name}</h3>
+      </a>
+    ))}
+  </div>
+</section>
+
   <Footer forceShow={false} />
     </div>
   );

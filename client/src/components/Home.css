@@ -393,6 +393,13 @@ body {
   margin: 0;
   padding: 4rem 0;
 }
+.home-aspiration-icon iframe {
+  width: 100px;
+  height: 100px;
+  border: none;
+  background-color: transparent;
+}
+
 .home-aspirations-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
@@ -417,7 +424,7 @@ body {
 }
 .home-aspiration-icon {
   height: 128px;
-  background-image: linear-gradient(to bottom, #A2201A, #800000);
+  background-image: white;
   width: 100%;
   display: flex;
   align-items: center;
@@ -436,11 +443,13 @@ body {
 .home-aspiration-card h3 {
   padding: 0.8rem;
   font-size: 0.88rem;
-  color: var(--primary-color);
+  color: white;
   margin: 0;
-  background-color: var(--white-color);
+  background: linear-gradient(to bottom, #A2201A, #800000); /* ✅ FIXED: use `background`, not `background-color` for gradients */
   border-top: 1px solid #eee;
+  text-decoration: none; /* ✅ Removes underline */
 }
+
 
 
 .footer {

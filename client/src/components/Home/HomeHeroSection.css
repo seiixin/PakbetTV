@@ -4,13 +4,13 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  font-weight: 400;
 }
 
 html,
 body {
   height: 100%;
   overflow-x: hidden;
-  font-family: sans-serif;
 }
 
 .home-hero-section {
@@ -98,25 +98,47 @@ body {
 
 .text-content * {
   text-align: left !important;
+
 }
 
 .headline {
+  font-family: Calibri, 'Segoe UI', Arial, sans-serif;
+  font-weight: 900;
   font-size: clamp(2rem, 5vw, 5rem);
-  font-weight: 800;
-  line-height: 1.1;
-  margin-bottom: 1rem;
+  line-height: 0.9;           /* Very close line spacing */
+  letter-spacing: -2px;       /* Much tighter character spacing */
+  word-spacing: -2px;         /* Also reduce space between words */
   text-align: left !important;
+  margin: 0;
+  padding: 0;
 }
+
+.yellow-bold,
+.white-bold {
+  font-family: Calibri, 'Segoe UI', Arial, sans-serif;
+  font-weight: 900 !important;
+  letter-spacing: -1.5px;     /* Condense characters more */
+  line-height: 1;
+  word-spacing: -1px;
+}
+
 
 .yellow-bold {
   color: #fdea18;
   font-weight: 900;
   font-size: 0.9em;
+  font-family:  Tahoma;
+  font-weight: bold !important;
+  line-height: -1.25 !important;       /* Reduce line height */
+  letter-spacing: -0.5px; /* Slightly tighten letters */
 }
 
 .white-bold {
   color: #ffffff;
   font-weight: 700;
+  font-family:  Tahoma;
+  font-weight: bold !important;
+  letter-spacing: -2.99px; /* Slightly tighten letters */
 }
 
 .buttons {
@@ -131,9 +153,7 @@ body {
 .btn-ask,
 .btn-shop {
   border-radius: 40px;
-  padding: 12px 24px;
   font-size: 1rem;
-  font-weight: 600;
   text-decoration: none;
   text-align: center;
   cursor: pointer;
@@ -143,6 +163,11 @@ body {
 .btn-ask {
   background: #05263e;
   color: #fff;
+    font-size: 1.5rem;
+  padding: 20px 70px;
+  align-items: center;     /* vertical centering */
+  justify-content: center; /* horizontal centering */
+  line-height: 1;          /* avoid extra space around text */
 }
 
 .btn-ask strong {
@@ -155,10 +180,10 @@ body {
 
 .btn-shop {
   background: transparent;
+  padding: 5px 30px;
   color: #fdea18;
   border: 2px solid #fdea18;
   font-size: 0.9rem;
-  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -331,11 +356,9 @@ body {
 
   .text-content {
     position: relative;
-    margin-top: 1.5rem;
     text-align: left;
     background: transparent;
     padding: 0.8rem 0;
-    border-radius: 12px;
     z-index: 2;
     width: 100%;
     max-width: 100%;
@@ -360,3 +383,4 @@ body {
     object-fit: contain;
   }
 }
+

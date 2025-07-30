@@ -62,7 +62,10 @@ const DailyHoroScopeSection = () => {
       }}
     >
       Daily Horoscope by<br />
-      Master <span className="highlight">Michael De Mesa</span>
+      Master <span className="highlight" style={{ fontWeight: 'bold' }}>
+      Michael De Mesa
+    </span>
+
     </h1>
   </div>
 
