@@ -950,6 +950,28 @@ button.mobile-search-button svg {
   border: 1px solid #e0e0e0;
 }
 
+/* Hide mobile cart count by default */
+.cart-count-mobile {
+  display: none;
+}
+
+/* Show cart-text by default */
+.cart-text {
+  display: inline;
+}
+
+/* At screen widths <= 768px (tablet and below), switch visibility */
+@media (max-width: 768px) {
+  .cart-count-mobile {
+    display: inline;
+  }
+
+  .cart-text {
+    display: none;
+  }
+}
+
+
 .mobile-user-text {
   display: flex;
   flex-direction: column;

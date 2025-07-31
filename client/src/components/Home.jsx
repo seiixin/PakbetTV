@@ -247,8 +247,9 @@ const renderNewArrivals = () => (
                 Ask <strong>Master Michael</strong> now
               </a>
               <a href="/shop" className="btn-shop">
-                Go to Shop
-              </a>
+                Go to 
+                <span className="text-white"> Shop</span>
+                </a>
             </section>
 
             <section className="features" aria-label="Key Features and Benefits">
@@ -336,8 +337,7 @@ const renderNewArrivals = () => (
 
   <div className="home-aspirations-grid">
     {aspirations.map((item, index) => (
-      <a href="/shop" className="home-aspiration-card" key={index}>
-        <div className="home-aspiration-icon">
+      <a href="/shop" className="home-aspiration-card" key={index} style={{ textDecoration: 'none' }}>        <div className="home-aspiration-icon">
           <iframe
             src={item.icon}
             title={item.name}

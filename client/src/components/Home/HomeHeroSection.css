@@ -122,6 +122,14 @@ body {
   word-spacing: -1px;
 }
 
+.text-white {
+  color: white;
+  font-family: Arial;
+  font-weight: bold;
+}
+.btn-shop:hover .text-white {
+  color: black !important;
+}
 
 .yellow-bold {
   color: #fdea18;
@@ -140,6 +148,8 @@ body {
   font-weight: bold !important;
   letter-spacing: -2.99px; /* Slightly tighten letters */
 }
+
+
 
 .buttons {
   display: flex;
@@ -164,7 +174,7 @@ body {
   background: #05263e;
   color: #fff;
     font-size: 1.5rem;
-  padding: 20px 70px;
+  padding: 20px 40px;
   align-items: center;     /* vertical centering */
   justify-content: center; /* horizontal centering */
   line-height: 1;          /* avoid extra space around text */
@@ -180,13 +190,15 @@ body {
 
 .btn-shop {
   background: transparent;
-  padding: 5px 30px;
+  padding: 5px 20px;
   color: #fdea18;
   border: 2px solid #fdea18;
-  font-size: 0.9rem;
+  font-size: 1.3rem;
   display: flex;
   align-items: center;
   justify-content: center;
+  white-space: pre;
+
 }
 
 .btn-shop:hover {
@@ -382,5 +394,22 @@ body {
     width: auto;
     object-fit: contain;
   }
+
+ .btn-ask {
+    font-size: 1rem;          /* bigger font */
+    padding: 16px 30px;         /* more space around */
+    text-align: center;
+    justify-content: center;
+    align-items: center;
+    white-space: normal;        /* allow two lines */
+  }
+
+  .btn-shop {
+    font-size: .8rem;            /* smaller than ask */
+    padding: 10px 20px !important;
+    text-align: center;
+  }
+
+
 }
 
