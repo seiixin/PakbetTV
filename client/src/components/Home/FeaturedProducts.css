@@ -62,7 +62,7 @@
   min-height: 48px; /* Ensure button is tappable on mobile */
 }
 
-.add-to-cart-btn:hover {
+.featured-product:hover .add-to-cart-btn {
   background: #162f58ff;
   transition: background-color 0.5s ease;
   color: white;

@@ -5,20 +5,20 @@ import { useNavigate } from 'react-router-dom';
 const products = [
   {
     title: 'Keychain with Buddha',
-    image: 'https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/af130cc2-3eb3-4d07-80a5-f2379b1ac3b1.png',
+    image: 'public/FeaturedProduct1.jpg'
   },
   {
     title: 'Amber Bracelet',
-    image: 'https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/2ba3b027-2b42-4131-9fee-079275ca5d20.png',
+    image: 'public/FeaturedProduct2.jpg'
   },
   {
     title: 'Wooden Incense Holder',
-    image: 'https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/f6ec745d-5df6-4666-8cad-3b7a5cfba0b3.png',
+    image: 'public/FeaturedProduct3.jpg'
   },
   {
     title: 'Silver Ring with Inscriptions',
-    image: 'https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/71b6e0a6-2bdc-4f5c-a0e3-fc9410ba92a1.png',
-  },
+    image: 'public/FeaturedProduct4.jpg'
+  }
 ];
 
 const FeaturedProducts = () => {
