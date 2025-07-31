@@ -47,7 +47,7 @@ const NavBar = () => {
     });
   };
 
-
+  
   useEffect(() => {
     const handleScroll = () => {
       if (window.scrollY > 50) {
@@ -212,7 +212,6 @@ const NavBar = () => {
     if (!showSearchDropdown) return null;
     
     return (
-      
       <div className="search-dropdown">
         {searchResults.zodiacs.length > 0 && (
           <div className="search-section">
@@ -342,19 +341,20 @@ const NavBar = () => {
 
   return (
     <>
+    <div className="Navbar">  
+      <nav className={navClassName}>
+        {/* First Row - Shipping Banner */}
+        <div className="navbar-gradient-overlay"></div>
 
-    <nav className={navClassName} style={{ position: "relative", overflow: "hidden" }}>                    {/* Background video */}
-      <video
-        id="video2"
-        className="navbar-video-bg"
-        src="/HomeHeroVideo.mp4"
-        autoPlay
-        muted
-        loop
-        playsInline
-      />
-      <div className="gradient-overlay"></div>
 
+          <video
+            className="navbar-video-bg"
+            src="/HomeHeroVideo.mp4"
+            autoPlay
+            muted
+            loop
+            playsInline
+          />
         {/* Second Row - Logo, Search, Actions */}
         <div className="navbar-main-row">
           <div className="navbar-main-container">
@@ -370,20 +370,19 @@ const NavBar = () => {
             </button>
 
             {/* Logo */}
-<table className="logo-table">
-  <tbody>
-    <tr>
-      <td className="logo-img-cell">
-        <img src="/Logo.png" alt="Logo" className="logo-img" />
-      </td>
-      <td className="logo-text-cell">
-        <h3>MICHAEL DE MESA</h3>
-        <p>BAZI & FENG SHUI CONSULTANCY</p>
-      </td>
-    </tr>
-  </tbody>
-</table>
-
+            <table className="logo-table">
+              <tbody>
+                <tr>
+                  <td className="logo-img-cell">
+                    <img src="/Logo.png" alt="Logo" className="logo-img" />
+                  </td>
+                  <td className="logo-text-cell">
+                    <h3>MICHAEL DE MESA</h3>
+                    <p>BAZI & FENG SHUI CONSULTANCY</p>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
 
             {/* Desktop Search */}
             <div className="navbar-search-container desktop-search" ref={searchRef}>
@@ -402,7 +401,6 @@ const NavBar = () => {
               </div>
               {renderSearchResults()}
             </div>
-
             {/* Actions */}
             <div className="navbar-navbar-actions">
               <div className="navbar-navbar-buttons">
@@ -460,8 +458,13 @@ const NavBar = () => {
                   disabled={loggingOut}
                   onClick={() => navigate('/cart')}
                 >
-                  <span className="cart-text">({getTotalCount()})</span>
-                  <span className="cart-count-mobile">({getTotalCount()})</span>
+                    {getTotalCount() > 0 && (
+                      <>
+                        <span className="cart-text">({getTotalCount()})</span>
+                        <span className="cart-count-mobile">({getTotalCount()})</span>
+                      </>
+                    )}
+
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="navbar-cart-icon">
                     <circle cx="9" cy="21" r="1"></circle>
                     <circle cx="20" cy="21" r="1"></circle>
@@ -703,6 +706,7 @@ const NavBar = () => {
           )}
         </div>
       </div>
+    </div>
     </>
   );
 };

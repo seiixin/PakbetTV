@@ -101,3 +101,6 @@ button:focus-visible {
   scrollbar-width: thin;
   scrollbar-color: #c1c1c1 #f1f1f1;
 }
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

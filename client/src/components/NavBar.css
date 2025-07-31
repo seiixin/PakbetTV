@@ -1,18 +1,4 @@
 /* Remove global body padding since navbar will be in normal flow */
-.navbar {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  z-index: 10;
-  background: transparent; /* transparent background */
-  padding: 1rem 2rem; /* optional padding */
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-
 body {
   margin: 0;
   padding: 0;
@@ -71,16 +57,8 @@ body {
   }
 }
 
-nav .gradient-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(to left, #0a0b38ff, #3e0505ff);
-  opacity: 0.8;
-  z-index: 1;
-}
+
+
 
 /* MAIN NAVBAR CONTAINER - Now part of normal page flow */
 .navbar-navbar {
@@ -96,17 +74,6 @@ nav .gradient-overlay {
   box-sizing: border-box;
 }
 
-
-.navbar-fixed {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  z-index: 5; /* HIGHER than gradient-overlay */
-}
-
-
-/* video bg */
 .navbar-video-bg {
   position: absolute;
   top: 0;
@@ -115,22 +82,40 @@ nav .gradient-overlay {
   height: 100%;
   object-fit: cover;
   object-position: center 15%;
-  z-index: -1;
+  z-index: 0;
 }
 
-.navbar-main-row,
-.navbar-nav-row {
-  position: relative;
-  z-index: 1;
-  background-color: transparent; /* Make sure no background blocks the video */
+.navbar-fixed {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 5; /* HIGHER than gradient-overlay */
 }
+.Navbar {
+  position: relative;
+  width: 100%;
+  z-index: 100; /* Put on top of page content */
+}
+.Navbar .navbar-gradient-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%; /* or use exact height of navbar */
+  background: linear-gradient(to left, #0a0b38ff, #3e0505ff);
+  opacity: 0.8;
+  z-index: 1;
+}
+
+/* FIRST ROW - SHIPPING BANNER */
 
 
 /* SECOND ROW - MAIN CONTENT */
 .navbar-main-row {
-  background: transparent;
   padding: 12px 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  backgroud-color: transparent;
 }
 
 .navbar-main-container {
@@ -141,12 +126,15 @@ nav .gradient-overlay {
   padding: 0 20px;
   max-width: 1400px;
   margin: 0 auto;
+  backgroud-color: transparent;
+
 }
 
 /* THIRD ROW - NAVIGATION */
 .navbar-nav-row {
-  background: transparent;
   padding: 12px 0;
+  backgroud-color: transparent;
+
 }
 
 .navbar-nav-container {
@@ -157,52 +145,72 @@ nav .gradient-overlay {
   padding: 0 20px;
   max-width: 1400px;
   margin: 0 auto;
+  backgroud-color: transparent;
 }
 
 /* LOGO STYLING */
-.navbar-navbar-logo {
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
+// LOGO
+.logo-table {
+  border-collapse: collapse;
+  z-index: 1;
 }
 
-.navbar-logo-link {
-  text-decoration: none;
-  color: inherit;
+.logo-img-cell {
+  padding-right: 0.5rem;
+  vertical-align: middle;
 }
 
-.navbar-logo-text {
-  display: flex;
-  flex-direction: column;
+.logo-img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  filter: brightness(0) invert(1); /* Makes image solid white */
 }
 
-.navbar-logo-text h3 {
-  color: white;
-  font-size: 18px;
-  font-weight: bold;
+.logo-table{
+  z-index: 1;
+}
+
+.logo-text-cell h3,
+.logo-text-cell p {
   margin: 0;
-  text-transform: uppercase;
+  color: white;
   line-height: 1.2;
+  text-align: left;
+  z-index: 5;
 }
 
-.navbar-logo-text p {
-  color: white;
-  font-size: 11px;
-  margin: 0;
-  text-transform: uppercase;
-  line-height: 1;
+/* Optional: responsive scaling */
+@media (max-width: 768px) {
+  .logo-img {
+    width: 30px;
+    height: 30px;
+  }
+
+  .logo-text-cell h3 {
+    font-size: 1rem;
+  }
+
+  .logo-text-cell p {
+    font-size: 0.75rem;
+  }
 }
 
 /* SEARCH BAR STYLING */
 .navbar-search-container {
   position: relative;
   flex: 1;
+  max-width: 600px;
   max-width: 400px;
   margin: 0 30px;
+  z-index: 2;
 }
 
 .navbar-search-bar {
+  display: flex;
   position: relative;
+  align-items: center;
+  height: 44px;
   width: 100%;
   max-width: 400px;
 }
@@ -211,9 +219,12 @@ nav .gradient-overlay {
 .navbar-search-bar input {
   width: 100%;
   padding: 12px 20px;
+  padding-right: 50px;
   padding-right: 80px; /* Make room for button */
   border-radius: 25px;
   border: 2px solid white;
+  background-color: white;
+  color: #333333;
   background: #fff;
   color: #000;
   font-size: 15px;
@@ -245,6 +256,13 @@ nav .gradient-overlay {
 .search-button:hover {
   background-color: #d3c616ff;
   color: #fff;
+}
+
+.navbar-search-bar input:focus {
+  border-color: var(--secondary-color, #FEC16E);
+  box-shadow: 0 0 0 3px rgba(254, 193, 110, 0.1);
+@@ -275,28 +320,28 @@ button.navbar-search-button svg {
+}
 }
 
 .navbar-search-bar input:focus {
@@ -317,31 +335,28 @@ button.navbar-search-button svg {
   padding: 10px 20px;
   border-radius: 25px;
   transition: all 0.3s ease;
+  z-index: 10;
 }
 
 .navbar-login-button {
-  color: #fff;
-  background: transparent;
+  color: white;
 }
 
 .navbar-signup-button {
-  color: #fff;
-  background: transparent;
+  color: white;
 }
 
 .navbar-login-button:hover {
-  color:var(--primary-color, #ab1125);
-  background: transparent;
+  color: red;
 }
 
 .navbar-signup-button:hover {
-  color: var(--primary-color, #ab1125);
-  background: transparent;
+  color: red;
+  background: --secondary-color, #FEC16E;
 }
 
 /* PROFILE BUTTON */
 .navbar-profile-button {
-  background-color: transparent;
   border: none;
   color: white;
   font-size: 14px;
@@ -353,11 +368,11 @@ button.navbar-search-button svg {
   height: 44px;
   gap: 8px;
   transition: all 0.3s ease;
+  z-index: 2005;
 }
 
 .navbar-profile-button:hover {
-  background-color: white;
-  color: var(--primary-color, #ab1125);
+  color: red;
 }
 
 .navbar-profile-button svg {
@@ -377,7 +392,6 @@ button.navbar-search-button svg {
 
 /* CART BUTTON */
 .navbar-cart-button {
-  background-color: transparent;
   border: none;
   color: white;
   font-size: 14px;
@@ -390,10 +404,10 @@ button.navbar-search-button svg {
   height: 44px;
   gap: 8px;
   transition: all 0.3s ease;
+  z-index: 10;
 }
 
 .navbar-cart-button:hover {
-  background-color: white;
   color: var(--primary-color, #ab1125);
 }
 
@@ -435,7 +449,6 @@ button.navbar-search-button svg {
 /* FREE TOOLS DROPDOWN */
 .navbar-dropdown-wrapper {
   position: relative;
-  z-index: 10000;
 }
 
 .navbar-submenu {
@@ -484,47 +497,6 @@ button.navbar-search-button svg {
   color: var(--primary-color, #ab1125);
 }
 
-// LOGO
-.logo-table {
-  border-collapse: collapse;
-}
-
-.logo-img-cell {
-  padding-right: 0.5rem;
-  vertical-align: middle;
-}
-
-.logo-img {
-  width: 40px;
-  height: 40px;
-  object-fit: contain;
-  filter: brightness(0) invert(1); /* Makes image solid white */
-}
-
-.logo-text-cell h3,
-.logo-text-cell p {
-  margin: 0;
-  color: white;
-  line-height: 1.2;
-  text-align: left;
-}
-
-/* Optional: responsive scaling */
-@media (max-width: 768px) {
-  .logo-img {
-    width: 30px;
-    height: 30px;
-  }
-
-  .logo-text-cell h3 {
-    font-size: 1rem;
-  }
-
-  .logo-text-cell p {
-    font-size: 0.75rem;
-  }
-}
-
 /* PHONE INFO */
 .navbar-phone-info {
   display: flex;
@@ -533,6 +505,7 @@ button.navbar-search-button svg {
   color: white;
   font-weight: 500;
   font-size: 15px;
+  z-index:  10;
 }
 
 .navbar-phone-info svg {
@@ -713,6 +686,7 @@ button.navbar-search-button svg {
   padding: 4px;
   margin-right: 15px;
   transition: all 0.3s ease;
+  z-index: 1;
 }
 
 .mobile-menu-toggle:hover {
@@ -950,28 +924,6 @@ button.mobile-search-button svg {
   border: 1px solid #e0e0e0;
 }
 
-/* Hide mobile cart count by default */
-.cart-count-mobile {
-  display: none;
-}
-
-/* Show cart-text by default */
-.cart-text {
-  display: inline;
-}
-
-/* At screen widths <= 768px (tablet and below), switch visibility */
-@media (max-width: 768px) {
-  .cart-count-mobile {
-    display: inline;
-  }
-
-  .cart-text {
-    display: none;
-  }
-}
-
-
 .mobile-user-text {
   display: flex;
   flex-direction: column;
@@ -1076,6 +1028,9 @@ button:disabled {
   background: #999;
 }
 
+.navbar-navbar-item {
+  z-index: 5;
+}
 /* RESPONSIVE DESIGN */
 
 /* Tablet and Small Desktop */
@@ -1097,6 +1052,9 @@ button:disabled {
 
 /* Large Tablets */
 @media screen and (max-width: 1024px) {
+    .navbar-profile-button {
+    display: none !important;
+  }
   .navbar-nav-row {
     display: none;
   }

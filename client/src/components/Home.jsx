@@ -25,48 +25,6 @@ const constructUrl = (baseUrl, path) => {
   return path.startsWith('/') ? baseUrl + path : baseUrl + '/' + path;
 };
 
-const HomePage = () => {
-  useEffect(() => {
-    const video1 = document.getElementById("video1");
-    const video2 = document.getElementById("video2");
-
-    if (video1 && video2) {
-      // Play/Pause sync
-      video1.addEventListener("play", () => video2.play());
-      video1.addEventListener("pause", () => video2.pause());
-
-      // Seek sync
-      video1.addEventListener("seeked", () => {
-        video2.currentTime = video1.currentTime;
-      });
-
-      // Time sync check every frame
-      video1.addEventListener("timeupdate", () => {
-        const diff = Math.abs(video1.currentTime - video2.currentTime);
-        if (diff > 0.2) {
-          video2.currentTime = video1.currentTime;
-        }
-      });
-    }
-  }, []);
-
-  return (
-    <>
-      <NavBar />
-      <section className="home-hero-section">
-        <video
-          id="video2"
-          src="/HomeHeroVideo.mp4"
-          autoPlay
-          muted
-          loop
-          playsInline
-          className="video-background"
-        />
-      </section>
-    </>
-  );
-};
 
 
 const Home = () => {
