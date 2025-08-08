@@ -444,6 +444,10 @@ const toggleNotifications = () => {
   )}
 </div>
 
+{/* Help Link */}
+<div className="navbar-help-link desktop-auth">
+  <Link to="/help" className="navbar-help-button">? HELP</Link>
+</div>
 
               
                 
