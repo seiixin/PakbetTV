@@ -155,6 +155,18 @@ const NavBar = () => {
     }
   };
 
+const [notificationOpen, setNotificationOpen] = useState(false);
+const [notifications, setNotifications] = useState([
+  { id: 1, message: "Welcome! You have a new offer.", read: false },
+  { id: 2, message: "Order #1234 has been shipped.", read: false },
+]);
+
+const toggleNotifications = () => {
+  setNotificationOpen(!notificationOpen);
+};
+
+
+
   useEffect(() => {
     const debounceTimeout = setTimeout(() => {
       handleSearch(searchQuery);
@@ -402,8 +414,39 @@ const NavBar = () => {
               {renderSearchResults()}
             </div>
             {/* Actions */}
+
+            
             <div className="navbar-navbar-actions">
               <div className="navbar-navbar-buttons">
+
+                {/* Notifications Dropdown */}
+<div className="navbar-notification-wrapper desktop-auth" ref={dropdownRef}>
+  <button className="navbar-notification-button" onClick={toggleNotifications}>
+    <span className="notification-text">NOTIFICATIONS</span>
+    {notifications.some(n => !n.read) && (
+      <span className="notification-badge">{notifications.filter(n => !n.read).length}</span>
+    )}
+  </button>
+
+  {notificationOpen && (
+    <div className="navbar-dropdown-menu notification-dropdown">
+      <div className="notification-header">Notifications</div>
+      {notifications.length === 0 ? (
+        <div className="notification-item">No new notifications</div>
+      ) : (
+        notifications.map((notif) => (
+          <div key={notif.id} className={`notification-item ${notif.read ? '' : 'unread'}`}>
+            {notif.message}
+          </div>
+        ))
+      )}
+    </div>
+  )}
+</div>
+
+
+              
+                
                 {/* Desktop Auth/Profile */}
                 {user ? (
                   <div className="navbar-user-menu desktop-auth" ref={dropdownRef}>
