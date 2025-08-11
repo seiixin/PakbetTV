@@ -20,7 +20,7 @@ article {
   top: 1rem;
   left: 1.5rem;
   font-size: 1.5rem;
-  z-index: 2;
+  z-index: 5;
   font-weight: bold;
 }
 
@@ -30,7 +30,7 @@ article {
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(to left, darkblue, #3e0505ff);
+  background: linear-gradient(to left, #09254f, #3D0A0E);
   opacity: 0.9;
   z-index: 0;
 }
@@ -40,10 +40,10 @@ article {
   position: absolute;
   top: 0;
   left: 0;
-  width: 100%;
+  width: 93%;
   height: 100%;
-  background: linear-gradient(to left, darkblue, #3e0505ff);
-  opacity: 0.6;
+  background: linear-gradient(to left, #09254f, #3D0A0E);
+  opacity: 1;
   z-index: 3;
   pointer-events: none;
   mask-image: linear-gradient(to right, transparent, black 30%, black 70%, transparent);
@@ -132,15 +132,15 @@ article {
 }
 
 .slider-btn.left {
-  border-top: 20px solid transparent;
-  border-bottom: 20px solid transparent;
-  border-right: 20px solid #f3f652ff;
+  border-top: 50px solid transparent;  /* increased from 20px */
+  border-bottom: 50px solid transparent; /* increased from 20px */
+  border-right: 20px solid #f3f652ff; /* same width */
 }
 
 .slider-btn.right {
-  border-top: 20px solid transparent;
-  border-bottom: 20px solid transparent;
-  border-left: 20px solid #f3f652ff;
+  border-top: 50px solid transparent;  /* increased from 20px */
+  border-bottom: 50px solid transparent; /* increased from 20px */
+  border-left: 20px solid #f3f652ff; /* same width */
 }
 
 .slider-btn:hover {

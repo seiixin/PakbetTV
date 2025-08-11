@@ -85,20 +85,20 @@ const Home = () => {
     }
   ];
 
-  const zodiacSigns = [
-    { name: 'RAT', image: '/Prosper-1.png' },
-    { name: 'OX', image: '/Prosper-2.png' },
-    { name: 'TIGER', image: '/Prosper-3.png' },
-    { name: 'RABBIT', image: '/Prosper-4.png' },
-    { name: 'DRAGON', image: '/Prosper-5.png' },
-    { name: 'SNAKE', image: '/Prosper-6.png' },
-    { name: 'HORSE', image: '/Prosper-7.png' },
-    { name: 'GOAT', image: '/Prosper-8.png' },
-    { name: 'MONKEY', image: '/Prosper-9.png' },
-    { name: 'ROOSTER', image: '/Prosper-10.png' },
-    { name: 'DOG', image: '/Prosper-11.png' },
-    { name: 'PIG', image: '/Prosper-12.png' },
-  ];
+const zodiacSigns = [
+  { name: 'RAT', image: '/Prosper-1.png', frontImage: '/2025ProsperGuide/RatFront.png' },
+  { name: 'OX', image: '/Prosper-2.png', frontImage: '/2025ProsperGuide/OxFront.png' },
+  { name: 'TIGER', image: '/Prosper-3.png', frontImage: '/2025ProsperGuide/TigerFront.png' },
+  { name: 'RABBIT', image: '/Prosper-4.png', frontImage: '/2025ProsperGuide/RabbitFront.png' },
+  { name: 'DRAGON', image: '/Prosper-5.png', frontImage: '/2025ProsperGuide/DragonFront.png' },
+  { name: 'SNAKE', image: '/Prosper-6.png', frontImage: '/2025ProsperGuide/SnakeFront.png' },
+  { name: 'HORSE', image: '/Prosper-7.png', frontImage: '/2025ProsperGuide/HorseFront.png' },
+  { name: 'GOAT', image: '/Prosper-8.png', frontImage: '/2025ProsperGuide/GoatFront.png' },
+  { name: 'MONKEY', image: '/Prosper-9.png', frontImage: '/2025ProsperGuide/MonkeyFront.png' },
+  { name: 'ROOSTER', image: '/Prosper-10.png', frontImage: '/2025ProsperGuide/RoosterFront.png' },
+  { name: 'DOG', image: '/Prosper-11.png', frontImage: '/2025ProsperGuide/DogFront.png' },
+  { name: 'PIG', image: '/Prosper-12.png', frontImage: '/2025ProsperGuide/PigFront.png' },
+];
 
 const aspirations = [
   { name: "Balance", icon: "/AspirationImg/1balance.html" },
@@ -272,15 +272,29 @@ const renderNewArrivals = () => (
 <OurService />
 <DailyHoroScopeSection />
 <DailyVideo />
+      {/* PROSPER GUIDE with hover flip */}
       <section className="home-prosper-guide-section">
         <div className="home-section-header home-prosper-header">
-          <h2>2025 PROSPER GUIDE</h2>
-          <p>Career, Health, Love, & Wealth</p>
+          <h2>2025 Prosper Guide</h2>
+          <p>Career, Health, Love, and Wealth</p>
         </div>
         <div className="home-zodiac-icons-container">
-          {zodiacSigns.map(sign => (
-            <Link to={`/prosper-guide/${sign.name.toLowerCase()}`} key={sign.name} className="home-zodiac-item">
-              <img src={sign.image} alt={sign.name} className="home-zodiac-icon" />
+          {zodiacSigns.map((sign) => (
+            <Link
+              to={`/prosper-guide/${sign.name.toLowerCase()}`}
+              key={sign.name}
+              className="home-zodiac-item"
+            >
+              <div className="zodiac-flip-card">
+                <div className="zodiac-flip-inner">
+                  <img src={sign.image} alt={sign.name} className="zodiac-flip-front" />
+                  <img
+                    src={sign.frontImage}
+                    alt={`${sign.name} Front`}
+                    className="zodiac-flip-back"
+                  />
+                </div>
+              </div>
               <p className="home-zodiac-name">{sign.name}</p>
             </Link>
           ))}
@@ -289,7 +303,7 @@ const renderNewArrivals = () => (
 
 <section className="home-shop-aspirations">
   <div className="home-section-header-aspirations">
-    <h2>SHOP BY ASPIRATION</h2>
+    <h2>Shop by Aspiration</h2>
     <p>Find products aligned with your life goals</p>
   </div>
 

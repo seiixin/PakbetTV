@@ -12,11 +12,23 @@ article {
 /* Keep carousel smooth scrolling only */
 
 body {
-  font-family: 'ZCOOL XiaoWei', serif; 
+  font-family: 'Montserrat', 'Gilroy', sans-serif;
   margin: 0;
   padding: 0;
   box-sizing: border-box;
   background-color: #130466ff; 
+}
+
+/* 1️⃣ Montserrat Bold from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700&display=swap');
+
+/* 2️⃣ Gilroy Bold via local files (must be in /public/fonts/) */
+@font-face {
+  font-family: 'Gilroy';
+  src: url('/fonts/Gilroy-Bold.woff2') format('woff2'),
+       url('/fonts/Gilroy-Bold.woff') format('woff');
+  font-weight: 700;
+  font-style: normal;
 }
 
 .navbar {
@@ -53,20 +65,23 @@ body {
   margin-bottom: 2.4rem;
   padding: 0 1.6rem;
 }
+
 .home-section-header-aspirations h2 {
-  font-size: 2.5rem;
-  color: black;
-  margin-bottom: 0.4rem;
+  font-size: 2.25rem; /* similar scale */
+  color: #1a1f3d; /* deep navy */
+  margin-bottom: 0.3rem;
   font-family: 'Poppins', sans-serif;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 1.5px;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+  letter-spacing: -0.3px; /* tighter letter spacing */
+  text-transform: none; /* matches screenshot */
 }
 
 .home-section-header-aspirations p {
-  font-size: 0.88rem;
-  color: var(--black-color);
+  font-size: 1rem;
+  color: #5b5f73; /* muted grayish navy */
+  font-family: 'Poppins', sans-serif;
+  font-weight: 400;
+  margin: 0;
 }
 .home-section-header h2 {
   font-size: 2.5rem;
@@ -74,7 +89,6 @@ body {
   margin-bottom: 0.4rem;
   font-family: 'Poppins', sans-serif;
   font-weight: 700;
-  text-transform: uppercase;
   letter-spacing: 1.5px;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
 }
@@ -304,38 +318,66 @@ body {
   background-color: var(--white-color); 
   border-top: 1px solid #eee; 
 }
+/* Import Poppins font */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
+/* Section container */
+.home-prosper-guide-section {
+  background: linear-gradient(to right, #061a35, #2a0709);
+  width: 100%;
+  height: 50vh;
+  margin: 0;
+  text-align: center;
+
+  /* Center vertically but allow top space */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding-top: 2rem; /* space at top */
+}
+
+/* Header section */
+.home-section-header.home-prosper-header {
+  margin-bottom: 1.2rem; /* tighter space before icons */
+}
+
 .home-section-header.home-prosper-header h2,
 .home-section-header.home-prosper-header p {
   color: white;
 }
 
-.home-prosper-guide-section {
-  background: linear-gradient(to right, #0b053eff, #3e0505ff);
-  width: 100%;
-  margin: 0;
-  padding: 3.2rem 0;
-  text-align: center;
-}
 .home-prosper-header h2 {
-  font-size: 2.24rem;
-  color: black; 
-  margin-bottom: 0.4rem;
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 0.3rem;
+  text-transform: capitalize;
+  font-family: 'Poppins', sans-serif;
+  letter-spacing: 0.5px;
+  line-height: 1.2;
 }
+
 .home-prosper-header p {
-  font-size: 0.96rem;
-  color: #555; 
-  margin-bottom: 2.4rem;
-  font-family: sans-serif; 
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.85);
+  margin: 0;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.3px;
 }
+
+/* Zodiac icons container */
 .home-zodiac-icons-container {
   display: flex;
-  flex-wrap: wrap; 
-  justify-content: center; 
-  gap: 0.8rem;
-  max-width: 1600px;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 0 0.8rem;
+  padding: 0 1rem;
 }
+
+/* Zodiac item */
 .home-zodiac-item {
   display: flex;
   flex-direction: column;
@@ -346,47 +388,63 @@ body {
   cursor: pointer;
   text-decoration: none;
   color: inherit;
-  transition: all 0.75s ease;
-  flex-shrink: 1; 
-  flex-basis: calc(100% / 12 - 0.8rem);
-  position: relative;
-  z-index: 1;
-}
-.home-zodiac-item:hover {
-  transform: translateY(-12.8px);
-  z-index: 2;
-}
-.home-zodiac-icon {
-  height: 160px;
-  width: auto;
-  object-fit: contain;
-  margin-bottom: 2rem;
-  margin-top: -40px;
-  transition: all 0.75s cubic-bezier(0.4, 0, 0.2, 1);
-  filter: brightness(0) saturate(100%) invert(88%) sepia(99%) saturate(624%) hue-rotate(5deg) brightness(100%) contrast(102%);
+  transition: transform 0.75s ease;
+  flex-shrink: 1;
 }
 
-.home-zodiac-item:hover .home-zodiac-icon {
-  transform: scale(1.25);
-  filter: brightness(0) saturate(100%) invert(88%) sepia(99%) saturate(624%) hue-rotate(5deg) brightness(100%) contrast(102%);
-  margin-bottom: 2.8rem;
+.home-zodiac-item:hover {
+  transform: translateY(-12px);
 }
+
+/* Flip card container */
+.zodiac-flip-card {
+  width: 80px;
+  height: 80px;
+  perspective: 1000px;
+}
+
+.zodiac-flip-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.6s ease-in-out;
+  transform-style: preserve-3d;
+}
+
+.home-zodiac-item:hover .zodiac-flip-inner {
+  transform: rotateY(180deg);
+}
+
+.zodiac-flip-front,
+.zodiac-flip-back {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  backface-visibility: hidden;
+  filter: brightness(0) saturate(100%) invert(88%) sepia(99%) 
+          saturate(624%) hue-rotate(5deg) brightness(100%) contrast(102%);
+}
+
+.zodiac-flip-back {
+  transform: rotateY(180deg);
+}
+
+/* Name below icon */
 .home-zodiac-name {
-  font-size: 0.72rem;
-  color: #444;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
-  font-family: serif;
-  margin-top: -48px;
+  font-family: 'Poppins', sans-serif;
   text-align: center;
-  transition: all 0.75s ease;
-  position: relative;
-  z-index: 3;
-  color: #fde50fff;
+  color: #fde50f;
+  transition: color 0.75s ease, transform 0.75s ease;
 }
+
 .home-zodiac-item:hover .home-zodiac-name {
-  color: #c5b311ff;
-  transform: scale(1.1);
+  color: #c5b311;
+  transform: scale(1.05);
 }
 .home-shop-aspirations {
   background-color: var(--white-color);
@@ -442,6 +500,7 @@ body {
   object-fit: contain;
 }
 .home-aspiration-card h3 {
+  font-family: 'Gilroy';
   padding: 0.8rem;
   font-size: 0.88rem;
   color: white;

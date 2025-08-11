@@ -22,9 +22,6 @@ body {
   text-align: center;
   color: white;
   overflow: hidden;
-
-  background: url('/HoroscopeBackground.jpg') no-repeat center center;
-  background-size: cover;
 }
 
 
@@ -183,6 +180,41 @@ body {
   max-height: 500px;
   margin-top: 5px;
 }
+.hero-image-wrapper {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.hero-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  position: absolute;
+  top: 0;
+  left: 0;
+  transition: opacity 0.8s ease;
+}
+
+.hero-image.current {
+  z-index: 1;
+}
+
+.hero-image.next {
+  z-index: 2;
+  transform: translateX(100%);
+}
+
+.hero-image.next.slide-in {
+  animation: slideIn 0.8s ease forwards;
+}
+
+@keyframes slideIn {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
 
 /* 🔹 Responsive */
 @media (max-width: 1024px) {

@@ -401,7 +401,7 @@ const toggleNotifications = () => {
               <div className="navbar-search-bar">
                 <input
                   type="text"
-                  placeholder="Search for products, blogs, guides, and zodiac signs..."
+                  placeholder="Try search something..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onFocus={() => {
@@ -409,7 +409,7 @@ const toggleNotifications = () => {
                       setShowSearchDropdown(true);
                     }
                   }}
-                />  <button className="search-button">Search</button>
+                />  <button className="search-button">search</button>
               </div>
               {renderSearchResults()}
             </div>
@@ -418,11 +418,35 @@ const toggleNotifications = () => {
             
             <div className="navbar-navbar-actions">
               <div className="navbar-navbar-buttons">
+                <div style={{ width: '150px' }}></div>
 
-                {/* Notifications Dropdown */}
+
+               {/* Notifications Dropdown */}
 <div className="navbar-notification-wrapper desktop-auth" ref={dropdownRef}>
-  <button className="navbar-notification-button" onClick={toggleNotifications}>
+  <button
+    className="navbar-notification-button"
+    onClick={toggleNotifications}
+    aria-haspopup="true"
+    aria-expanded={notificationOpen}
+    aria-label="Notifications"
+  >
+    <span className="icon-wrap">
+      {/* Bell SVG */}
+      <svg
+        className="icon bell-icon"
+        viewBox="0 0 24 24"
+        width="20"
+        height="20"
+        aria-hidden="true"
+        focusable="false"
+      >
+        <path d="M12 2a6 6 0 0 0-6 6v3.586L4.707 14.88A1 1 0 0 0 5.5 17h13a1 1 0 0 0 .793-2.12L18 11.586V8a6 6 0 0 0-6-6z" />
+        <path d="M9.5 20a2.5 2.5 0 0 0 5 0" />
+      </svg>
+    </span>
+
     <span className="notification-text">NOTIFICATIONS</span>
+
     {notifications.some(n => !n.read) && (
       <span className="notification-badge">{notifications.filter(n => !n.read).length}</span>
     )}
@@ -444,9 +468,37 @@ const toggleNotifications = () => {
   )}
 </div>
 
+
+
 {/* Help Link */}
 <div className="navbar-help-link desktop-auth">
-  <Link to="/help" className="navbar-help-button">? HELP</Link>
+  <Link to="/faqs?category=Delivery" className="navbar-help-button" aria-label="Help">
+    <span className="icon-wrap">
+      {/* Help Icon: white circle with question mark inside */}
+      <svg
+        className="icon help-icon"
+        viewBox="0 0 24 24"
+        width="20"
+        height="20"
+        aria-hidden="true"
+        focusable="false"
+      >
+        {/* white circle */}
+        <circle cx="12" cy="12" r="10" className="help-circle" />
+        {/* question mark — style is controlled via CSS so you can make it transparent if desired */}
+        <path
+          d="M9.5 9.5a2.5 2.5 0 1 1 5 0c0 1.5-2 2-2 3"
+          className="help-question"
+          fill="none"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <circle cx="12" cy="17.2" r="0.6" className="help-dot" />
+      </svg>
+    </span>
+    <span className="help-text">HELP</span>
+  </Link>
 </div>
 
               
@@ -494,8 +546,9 @@ const toggleNotifications = () => {
                   </div>
                 ) : (
                   <div className="navbar-auth-buttons desktop-auth">
-                    <Link to="/login" className="navbar-login-button">LOGIN</Link>
                     <Link to="/signup" className="navbar-signup-button">SIGN UP</Link>
+                    <p class="pipe-separator">|</p>
+                    <Link to="/login" className="navbar-login-button">LOG IN</Link>
                   </div>
                 )}
                 
@@ -564,14 +617,6 @@ const toggleNotifications = () => {
                 <Link to="/contact" className="navbar-navbar-link">Contact Us</Link>
               </li>
             </ul>
-
-            {/* Phone Number */}
-            <div className="navbar-phone-info">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
-              </svg>
-                  <Link to="/contact" className="navbar-navbar-link">0981-194-9999</Link>
-            </div>
           </div>
         </div>
       </nav>
@@ -607,7 +652,7 @@ const toggleNotifications = () => {
           <div className="mobile-search-bar">
             <input
               type="text"
-              placeholder="Search for products, blogs, guides, and zodiac signs..."
+              placeholder="Try search something..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />

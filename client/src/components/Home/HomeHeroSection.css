@@ -29,17 +29,19 @@ body {
   position: absolute;
   bottom: 0;
   left: 0;
-  height: 80px;
+  height: 70px;
   width: 100%;
   background: linear-gradient(
     to top,
-    #140b47ff 0%,
-    rgba(20, 11, 71, 0.85) 40%,
-    rgba(20, 11, 71, 0.5) 70%,
-    rgba(20, 11, 71, 0) 100%
+    #09254fff 0%,
+    rgba(9, 37, 79, 0.85) 40%,
+    rgba(9, 37, 79, 0.5) 70%,
+    rgba(9, 37, 79, 0) 100%
   );
+  opacity: 0.6; /* new opacity */
   z-index: 2;
 }
+
 
 .video-background {
   position: absolute;

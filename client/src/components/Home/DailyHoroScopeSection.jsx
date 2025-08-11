@@ -13,6 +13,12 @@ const slides = [
   { title: 'Spiritual Guidance', subtitle: 'Angel Number 111', content: 'New beginnings and positive energy await you.' },
 ];
 
+const heroImages = [
+  '/HoroscopeBackground.jpg',
+  '/HoroscopeBackground2.jpg',
+  '/HoroscopeBackground3.jpg',
+];
+
 const groupSlides = (items, size) =>
   Array.from({ length: Math.ceil(items.length / size) }, (_, i) =>
     items.slice(i * size, i * size + size)
@@ -21,76 +27,70 @@ const groupSlides = (items, size) =>
 const DailyHoroScopeSection = () => {
   const groupedSlides = groupSlides(slides, 3);
   const [activeGroup, setActiveGroup] = useState(0);
+  const [nextGroup, setNextGroup] = useState(0);
+  const [animating, setAnimating] = useState(false);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setActiveGroup((prev) => (prev + 1) % groupedSlides.length);
+      startSlide((activeGroup + 1) % groupedSlides.length);
     }, 5000);
     return () => clearInterval(interval);
-  }, [groupedSlides.length]);
+  }, [activeGroup, groupedSlides.length]);
+
+  const startSlide = (index) => {
+    if (animating || index === activeGroup) return;
+    setNextGroup(index);
+    setAnimating(true);
+    setTimeout(() => {
+      setActiveGroup(index);
+      setAnimating(false);
+    }, 800); // match CSS animation duration
+  };
 
   return (
     <div>
-<section className="herosection" aria-label="Daily horoscope banner">
-  <div
-    className="hero-content"
-    style={{
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      zIndex: 2,
-      userSelect: 'none',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'flex-start',
-      justifyContent: 'flex-start',
-      padding: '1rem',
-      textAlign: 'left',
-      maxWidth: '600px',
-    }}
-  >
-    <h1
-      className="hero-title"
-      style={{
-        fontSize: '2.2rem',
-        fontWeight: 750,
-        color: 'white',
-        margin: 0,
-        lineHeight: 1.2,
-        textShadow: '1px 1px 4px rgba(0,0,0,0.5)',
-        textAlign: 'left',
-      }}
-    >
-      Daily Horoscope by<br />
-      Master <span className="highlight" style={{ fontWeight: 'bold' }}>
-      Michael De Mesa
-    </span>
+      <section className="herosection" aria-label="Daily horoscope banner">
+        <div className="hero-image-wrapper">
+          {/* Current visible image */}
+          <img
+            src={heroImages[activeGroup]}
+            alt=""
+            className="hero-image current"
+          />
+          {/* Incoming image */}
+          {animating && (
+            <img
+              src={heroImages[nextGroup]}
+              alt=""
+              className="hero-image next slide-in"
+            />
+          )}
+        </div>
 
-    </h1>
-  </div>
+        <div className="hero-content">
+          <h1 className="hero-title">
+            Daily Horoscope by<br />
+            Master <span className="highlight">Michael De Mesa</span>
+          </h1>
+        </div>
 
-  {/* Carousel Dots */}
-  <div className="carousel-dots" aria-label="Carousel navigation dots">
-    {groupedSlides.map((_, i) => (
-      <button
-        key={i}
-        className={`carousel-dot ${i === activeGroup ? 'active' : ''}`}
-        aria-current={i === activeGroup ? 'true' : undefined}
-        onClick={() => setActiveGroup(i)}
-        aria-label={`Group ${i + 1}`}
-      />
-    ))}
-  </div>
-</section>
+        {/* Carousel Dots */}
+        <div className="carousel-dots" aria-label="Carousel navigation dots">
+          {groupedSlides.map((_, i) => (
+            <button
+              key={i}
+              className={`carousel-dot ${i === activeGroup ? 'active' : ''}`}
+              onClick={() => startSlide(i)}
+              aria-label={`Group ${i + 1}`}
+            />
+          ))}
+        </div>
+      </section>
+
       {/* Content Cards */}
       <section className="content-section" aria-label="Daily horoscope cards">
         {groupedSlides[activeGroup].map((slide, i) => (
-          <article
-            key={i}
-            className="content-box"
-            role="button"
-            aria-expanded="true"
-          >
+          <article key={i} className="content-box" role="button" aria-expanded="true">
             <div className="content-header active">
               <span className="plus">+</span>
               <span>
