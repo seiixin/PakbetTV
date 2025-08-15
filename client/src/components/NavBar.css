@@ -33,6 +33,43 @@ body {
   transition: padding-top 0.3s ease;
 }
 
+@font-face {
+  font-family: 'Gilroy-Bold';
+  src: url('/Gilroy-Bold.ttf') format('truetype');
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Gilroy-Light';
+  src: url('/Gilroy-Light.ttf') format('truetype');
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Gilroy-Medium';
+  src: url('/Gilroy-Medium.ttf') format('truetype');
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  src: url('/Montserrat-Bold.woff') format('woff');
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Montserrat-Light';
+  src: url('/Montserrat-Light.woff') format('woff');
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Montserrat-Italic';
+  src: url('/Montserrat-Italic.woff') format('woff');
+  font-style: normal;
+}
+
+
 /* Mobile responsive body padding */
 @media (max-width: 1024px) {
   body {
@@ -82,7 +119,7 @@ body {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center 10%;
+  object-position: center 15%;
   z-index: 0;
 }
 
@@ -105,7 +142,7 @@ body {
   width: 100%;
   height: 100%; /* or use exact height of navbar */
   background: linear-gradient(to left, #0a0b38ff, #3e0505ff);
-  opacity: 0.8;
+  opacity: 0.95;
   z-index: 1;
 }
 
@@ -153,6 +190,7 @@ body {
 .logo-table {
   border-collapse: collapse;
   z-index: 1;
+    display: inline-table;
 }
 
 .logo-img-cell {
@@ -161,11 +199,15 @@ body {
 }
 
 .logo-img {
-  width: 38px; /* proportion close to screenshot */
-  height: 38px;
+  /* Scales with viewport width but stays within limits */
+  width: clamp(28px, 5vw, 38px);
+  height: clamp(28px, 5vw, 38px);
+
   object-fit: contain;
   filter: brightness(0) invert(1); /* white logo */
+  display: block; /* avoids extra inline spacing issues */
 }
+
 
 .logo-text-cell {
   vertical-align: middle;
@@ -192,10 +234,36 @@ body {
 
 /* Optional: responsive scaling */
 @media (max-width: 768px) {
-  .logo-img {
-    width: 28px;
-    height: 28px;
-  }
+
+.logo-text-cell {
+  vertical-align: middle;
+  line-height: 1.1;
+  width: 100%; /* let text expand horizontally */
+}
+
+.logo-text-cell h3 {
+  font-size: 12px; /* slightly smaller */
+  font-weight: 600;
+  color: white;
+  margin: 0;
+  letter-spacing: 5px;
+  white-space: nowrap; /* prevent text from wrapping */
+}
+
+.logo-text-cell p {
+  font-size: 9px; /* slightly smaller */
+  font-weight: 400;
+  color: white;
+  margin: 0;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* optional: adjust icon spacing for cart */
+.logo-img-cell {
+  padding-right: 0.4rem; /* slightly less space between logo and text */
+}
 
   .logo-text-cell h3 {
     font-size: 0.9rem;
@@ -205,6 +273,29 @@ body {
     font-size: 0.7rem;
   }
 }
+
+/* Force cart button to appear on mobile and dock it to the right */
+@media (max-width: 768px) {
+  .navbar-cart-button {
+    display: flex !important;         /* force visible */
+    position: absolute;               /* float in the navbar */
+    right: 10px;                       /* distance from right edge */
+    top: 50%;                          /* vertically center */
+    transform: translateY(-50%);      
+    z-index: 5;                     /* above everything else */
+    background: transparent;           /* no background unless you want one */
+    padding: 6px 8px;                  /* compact for mobile */
+    height: auto;
+  }
+
+  .navbar-cart-icon {
+    width: 20px;
+    height: 20px;
+    fill: yellow;
+    stroke: yellow;
+  }
+}
+
 
 
 /* SEARCH BAR STYLING */
@@ -257,8 +348,7 @@ body {
   border-bottom-right-radius: 25px;
   background-color: #ffeb00; /* bright yellow from screenshot */
   color: #8A8D03;
-  font-family: 'Montserrat', sans-serif;
-  font-weight: 500;
+  font-family: 'Montserrat-Italic', sans-serif;
   font-size: 14px;
   font-style: italic;
   cursor: pointer;
@@ -284,7 +374,7 @@ body {
 }
 
 .navbar-search-bar input::placeholder {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat-Italic', sans-serif;
   font-style: italic;
   font-size: 14px;
   color: #666666; /* slightly darker gray */
@@ -343,6 +433,7 @@ button.navbar-search-button svg {
   padding: 8px 10px;
   background: transparent;
   border: none;
+  fond-family: 'Montserrat-Light' !important;
   color: white;
   cursor: pointer;
   font-weight: 600;
@@ -389,16 +480,15 @@ button.navbar-search-button svg {
 
 /* Notification text label */
 .notification-text {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Gilroy-Bold', sans-serif;
   text-transform: uppercase;
-  font-weight: 700; /* Bold */
   letter-spacing: 0.4px;
   font-size: 11px;
 }
 
 /* Help text label */
 .help-text {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat';
   text-transform: uppercase;
   font-weight: 700; /* Bold */
   letter-spacing: 0.4px;
@@ -605,15 +695,6 @@ button.navbar-search-button svg {
   position: relative;
 }
 
-/* Import Gilroy Bold */
-@font-face {
-  font-family: 'Gilroy';
-  src: url('/fonts/Gilroy-Bold.woff2') format('woff2'),
-       url('/fonts/Gilroy-Bold.woff') format('woff');
-  font-weight: 700;
-  font-style: normal;
-}
-
 /* Navbar link styling */
 .navbar-navbar-link {
   background: none;
@@ -622,10 +703,9 @@ button.navbar-search-button svg {
   cursor: pointer;
   color: white;
   font-size: 16px;
-  font-weight: 700; /* Bold */
   text-decoration: none;
   transition: color 0.3s ease;
-  font-family: 'Gilroy', sans-serif;
+  font-family: 'Gilroy-Bold';
 }
 
 .navbar-navbar-link:hover {
@@ -936,7 +1016,7 @@ button.navbar-search-button svg {
   align-items: center;
   padding: 1.2rem 1.5rem;
   border-bottom: 1px solid #eee;
-  background-color: var(--primary-color, #ab1125);
+  background: linear-gradient(to left, #0a0b38ff, #3e0505ff);
   color: white;
 }
 
@@ -1162,25 +1242,31 @@ button.mobile-search-button svg {
   transition: all 0.3s ease;
 }
 
-.mobile-auth-btn.login {
-  background-color: white;
-  color: var(--primary-color, #ab1125);
-  border: 2px solid var(--primary-color, #ab1125);
+:root {
+  --primary-dark: #09253f;
 }
 
+
+
+.mobile-auth-btn.login {
+  background-color: white;
+  color: var(--primary-dark);
+  border: 2px solid var(--primary-dark);
+}
+
+
 .mobile-auth-btn.login:hover {
-  background-color: var(--primary-color, #ab1125);
+  background-color: #09253f;
   color: white;
 }
 
 .mobile-auth-btn.signup {
-  background-color: var(--primary-color, #ab1125);
+  background: linear-gradient(to left, #0a0b38ff, #3e0505ff);
   color: white;
-  border: 2px solid var(--primary-color, #ab1125);
 }
 
 .mobile-auth-btn.signup:hover {
-  background-color: var(--secondary-color, #FEC16E);
+  background: #09253f;
   border-color: var(--secondary-color, #FEC16E);
 }
 

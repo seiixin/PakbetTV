@@ -62,7 +62,7 @@ const OurService = () => {
         <div className="gradient-overlay"></div>
         <h1 className="our-service-title">
           <span style={{ color: '#ffffff', fontWeight: 700 }}>Our</span>{' '}
-          <span style={{ color: '#fdea18', fontWeight: 700 }}>Services</span>
+          <span style={{ color: '#FEFF25', fontWeight: 700 }}>Services</span>
         </h1>
 
         <div className="our-service-slider-wrapper">

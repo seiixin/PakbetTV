@@ -28,7 +28,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(139, 29, 14, 0.75);
+  background: linear-gradient(to left, #0a0b38ff, #3e0505ff);
   z-index: 1;
 }
 
@@ -110,7 +110,7 @@
 
 .benefit-item i {
   font-size: 2rem;
-  color: #8b1d0e;
+  color: #0a0b38ff;
   margin-bottom: 1rem;
 }
 
@@ -226,7 +226,7 @@
 }
 
 .book-button {
-  background-color: #8b1d0e;
+  background: linear-gradient(to left, #0a0b38ff, #3e0505ff);
   color: white;
   border: none;
   padding: 0.8rem;
@@ -276,7 +276,7 @@
 .step-number {
   width: 45px;
   height: 45px;
-  background: linear-gradient(135deg, #A2201A 0%, #c72c21 100%);
+  background: linear-gradient(to left, #0a0b38ff, #3e0505ff);
   color: white;
   border-radius: 50%;
   display: flex;
@@ -303,7 +303,7 @@
 /* CTA Section */
 .consultation-cta {
   text-align: center;
-  background-color: #8b1d0e;
+  background: linear-gradient(to left, #0a0b38ff, #3e0505ff);
   padding: 4rem 2rem;
   border-radius: 12px;
   color: white;

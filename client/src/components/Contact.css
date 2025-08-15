@@ -19,7 +19,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(155, 28, 28, 0.85);
+  background: linear-gradient(to left, #0a0b38ff, #3e0505ff);
   z-index: 1;
 }
 
@@ -192,7 +192,7 @@
 
 .submit-button {
   width: 100%;
-  background-color: #9B1C1C;
+  background: linear-gradient(to left, #0a0b38ff, #3e0505ff);
   color: white;
   padding: 0.875rem;
   border-radius: 6px;

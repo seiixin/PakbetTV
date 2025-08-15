@@ -1,0 +1,318 @@
+/* 🔹 Reset & Base */
+* {
+  box-sizing: border-box;
+  border-radius: 0;
+}
+
+body {
+  margin: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #333;
+  background: white;
+  line-height: 1.6;
+}
+
+.herosection {
+  position: relative;
+  width: 100%;
+  height: 45vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: white;
+  overflow: hidden;
+  /* ✅ REMOVED pointer-events: none to allow interactions */
+}
+
+@font-face {
+  font-family: 'Gilroy-Bold';
+  src: url('/Gilroy-Bold.ttf') format('truetype');
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Gilroy-Light';
+  src: url('/Gilroy-Light.ttf') format('truetype');
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Gilroy-Medium';
+  src: url('/Gilroy-Medium.ttf') format('truetype');
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  src: url('/Montserrat-Bold.woff') format('woff');
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Montserrat-Light';
+  src: url('/Montserrat-Light.woff') format('woff');
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Montserrat-Italic';
+  src: url('/Montserrat-Italic.woff') format('woff');
+  font-style: normal;
+}
+
+/* ✅ Static Hero Title - Separate from sliding content */
+.hero-title {
+  position: absolute;
+  top: 2rem;
+  left: 2rem;
+  right: 2rem;
+  z-index: 3;
+  font-size: 2rem;
+  color: white;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0;
+  text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.5);
+  text-align: left;
+  width: 600px;
+  pointer-events: none; /* ✅ Keep this for title only */
+}
+
+.highlight {
+  color: #FEFF25;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+}
+
+/* 🔸 Overlay */
+.herosection::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to right, #09053eff, #3e0505ff);
+  opacity: 0.8;
+  z-index: 1;
+  pointer-events: none; /* ✅ Overlay should not block clicks */
+}
+
+/* 🔹 Smaller Carousel Dots */
+.carousel-dots {
+  position: absolute;
+  bottom: 0.8rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.3rem;
+  z-index: 4;
+  pointer-events: auto; /* ✅ Ensure dots are clickable */
+}
+
+.carousel-dot {
+  width: 10px !important;
+  height: 10px !important;
+  border: 1px solid white;
+  margin: 0 !important;
+  padding: 0 !important;
+  background-color: transparent;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  pointer-events: auto; /* ✅ Ensure individual dots are clickable */
+}
+
+.carousel-dot.active {
+  background-color: white;
+}
+
+/* 🔹 Content Section */
+.content-section {
+  position: relative;
+  padding: 3rem 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1.5rem;
+  overflow: hidden;
+  z-index: 1;
+}
+
+/* 🔸 Content Box */
+.content-box {
+  text-decoration: none;
+  flex: 1 1 calc(33.33% - 2rem);
+  max-width: 360px;
+  background: transparent;
+  padding: 1.5rem;
+  border-radius: 12px;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.content-box:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.25);
+}
+
+/* ✅ Hero content now separate from title - only for other sliding content */
+.hero-content {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  user-select: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 2rem;
+  text-align: left;
+  width: auto;
+  max-width: 600px;
+  pointer-events: none; /* ✅ Keep this for content only */
+}
+
+/* 🔸 Content Header & Text */
+.content-header {
+  font-weight: 900;
+  color: #8B0000;
+  font-size: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 0.5rem;
+}
+
+.content-header .plus {
+  color: #0c1a4b;
+  font-weight: 750;
+  font-size: 1.2rem;
+  user-select: none;
+  line-height: 1;
+  transition: transform 0.2s ease;
+}
+
+.content-header.active .plus {
+  transform: rotate(45deg);
+}
+
+.content-text {
+  color: #6c757d;
+  font-weight: 500;
+  font-size: 1rem;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.4s ease, opacity 0.3s ease;
+}
+
+.content-text.open {
+  opacity: 1;
+  max-height: 500px;
+  margin-top: 5px;
+}
+
+.hero-image-wrapper {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  z-index: 0;
+  pointer-events: auto; /* ✅ Allow clicks on image wrapper */
+}
+
+.hero-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  position: absolute;
+  top: 0;
+  left: 0;
+  cursor: pointer; /* ✅ Show pointer cursor on hover */
+  pointer-events: auto; /* ✅ Make images clickable */
+}
+
+/* ✅ Slide animations only affect hero-content, not hero-title */
+.slide-out {
+  animation: slideOut 0.8s forwards;
+}
+
+.slide-in {
+  animation: slideIn 0.8s forwards;
+}
+
+@keyframes slideOut {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(-100%); opacity: 0; }
+}
+
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* Current image slides out to the left */
+.hero-image.current.slide-out {
+  animation: slideOutLeft 0.8s ease forwards;
+}
+
+.hero-image.current {
+  z-index: 1;
+}
+
+.hero-image.next {
+  z-index: 2;
+  transform: translateX(100%);
+}
+
+/* Next image starts at right, slides in to center */
+.hero-image.next.slide-in {
+  animation: slideInFromRight 0.8s ease forwards;
+}
+
+@keyframes slideInFromRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes slideOutLeft {
+  from { transform: translateX(0); }
+  to { transform: translateX(-100%); }
+}
+
+/* 🔹 Responsive */
+@media (max-width: 1024px) {
+  .content-box {
+    flex: 1 1 calc(50% - 1rem);
+  }
+  
+  .hero-title {
+    font-size: 1.9rem;
+    top: 1.5rem;
+    left: 1.5rem;
+    right: 1.5rem;
+    width: 300px;
+  }
+}
+
+@media (max-width: 640px) {
+  .hero-title {
+    font-size: 1.8rem;
+    top: 1rem;
+    left: 1rem;
+    right: 1rem;
+    width: 150px;
+
+  }
+
+  .herosection {
+    height: 270px;
+    padding: 3rem 1rem 4rem;
+  }
+
+  .content-box {
+    flex: 1 1 100%;
+    max-width: 100%;
+  }
+}

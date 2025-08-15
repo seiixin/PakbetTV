@@ -222,7 +222,7 @@
 .main-content h1,
 .products-content h1 {
   font-size: 1.8rem;
-  background-image: url('/cover.png');
+  background: linear-gradient(to left, #0a0b38ff, #3e0505ff);
   background-size: cover; 
   background-position: center;
   background-repeat: no-repeat;
@@ -3878,8 +3878,8 @@
 }
 
 .products-category-card.active {
-  background-color: #A2201A;
-  border-color: #A2201A;
+  background: linear-gradient(to left, #0a0b38ff, #3e0505ff);
+  border-color: linear-gradient(to left, #0a0b38ff, #3e0505ff);
   box-shadow: 0 2px 8px rgba(162, 32, 26, 0.2);
 }
 

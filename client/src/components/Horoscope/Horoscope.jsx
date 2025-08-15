@@ -11,18 +11,18 @@ const Horoscope = () => {
   const [readings, setReadings] = useState({ daily: '', weekly: '', monthly: '' });
 
   const zodiacSigns = [
-    { id: 'rat', name: 'Rat', years: [1924,1936,1948,1960,1972,1984,1996,2008,2020], image: '/Prosper-1.png' },
-    { id: 'ox', name: 'Ox', years: [1925,1937,1949,1961,1973,1985,1997,2009,2021], image: '/Prosper-2.png' },
-    { id: 'tiger', name: 'Tiger', years: [1926,1938,1950,1962,1974,1986,1998,2010,2022], image: '/Prosper-3.png' },
-    { id: 'rabbit', name: 'Rabbit', years: [1927,1939,1951,1963,1975,1987,1999,2011,2023], image: '/Prosper-4.png' },
-    { id: 'dragon', name: 'Dragon', years: [1928,1940,1952,1964,1976,1988,2000,2012,2024], image: '/Prosper-5.png' },
-    { id: 'snake', name: 'Snake', years: [1929,1941,1953,1965,1977,1989,2001,2013], image: '/Prosper-6.png' },
-    { id: 'horse', name: 'Horse', years: [1930,1942,1954,1966,1978,1990,2002,2014], image: '/Prosper-7.png' },
-    { id: 'goat', name: 'Goat', years: [1931,1943,1955,1967,1979,1991,2003,2015], image: '/Prosper-8.png' },
-    { id: 'monkey', name: 'Monkey', years: [1932,1944,1956,1968,1980,1992,2004,2016], image: '/Prosper-9.png' },
-    { id: 'rooster', name: 'Rooster', years: [1933,1945,1957,1969,1981,1993,2005,2017], image: '/Prosper-10.png' },
-    { id: 'dog', name: 'Dog', years: [1934,1946,1958,1970,1982,1994,2006,2018], image: '/Prosper-11.png' },
-    { id: 'pig', name: 'Pig', years: [1935,1947,1959,1971,1983,1995,2007,2019], image: '/Prosper-12.png' }
+    { id: 'rat', name: 'Rat', years: [1924,1936,1948,1960,1972,1984,1996,2008,2020], image: '/Prosper-1.png', frontImage: '/2025ProsperGuide/RatFront.png' },
+    { id: 'ox', name: 'Ox', years: [1925,1937,1949,1961,1973,1985,1997,2009,2021], image: '/Prosper-2.png', frontImage: '/2025ProsperGuide/OxFront.png' },
+    { id: 'tiger', name: 'Tiger', years: [1926,1938,1950,1962,1974,1986,1998,2010,2022], image: '/Prosper-3.png', frontImage: '/2025ProsperGuide/TigerFront.png' },
+    { id: 'rabbit', name: 'Rabbit', years: [1927,1939,1951,1963,1975,1987,1999,2011,2023], image: '/Prosper-4.png', frontImage: '/2025ProsperGuide/RabbitFront.png' },
+    { id: 'dragon', name: 'Dragon', years: [1928,1940,1952,1964,1976,1988,2000,2012,2024], image: '/Prosper-5.png', frontImage: '/2025ProsperGuide/DragonFront.png' },
+    { id: 'snake', name: 'Snake', years: [1929,1941,1953,1965,1977,1989,2001,2013], image: '/Prosper-6.png', frontImage: '/2025ProsperGuide/SnakeFront.png' },
+    { id: 'horse', name: 'Horse', years: [1930,1942,1954,1966,1978,1990,2002,2014], image: '/Prosper-7.png', frontImage: '/2025ProsperGuide/HorseFront.png' },
+    { id: 'goat', name: 'Goat', years: [1931,1943,1955,1967,1979,1991,2003,2015], image: '/Prosper-8.png', frontImage: '/2025ProsperGuide/GoatFront.png' },
+    { id: 'monkey', name: 'Monkey', years: [1932,1944,1956,1968,1980,1992,2004,2016], image: '/Prosper-9.png', frontImage: '/2025ProsperGuide/MonkeyFront.png' },
+    { id: 'rooster', name: 'Rooster', years: [1933,1945,1957,1969,1981,1993,2005,2017], image: '/Prosper-10.png', frontImage: '/2025ProsperGuide/RoosterFront.png' },
+    { id: 'dog', name: 'Dog', years: [1934,1946,1958,1970,1982,1994,2006,2018], image: '/Prosper-11.png', frontImage: '/2025ProsperGuide/DogFront.png' },
+    { id: 'pig', name: 'Pig', years: [1935,1947,1959,1971,1983,1995,2007,2019], image: '/Prosper-12.png', frontImage: '/2025ProsperGuide/PigFront.png' }
   ];
 
   const handleSignClick = async (signId) => {
@@ -65,23 +65,37 @@ const Horoscope = () => {
 
       <div className="horoscope-container">
         {!showResults ? (
-          <div className="horoscope-selection">
-            <div className="selection-method">
-              <h3>Select Your Chinese Zodiac Sign</h3>
-              <div className="zodiac-grid">
-                {zodiacSigns.map(sign => (
-                  <div
-                    key={sign.id}
-                    className="zodiac-item"
-                    onClick={() => handleSignClick(sign.id)}
-                  >
-                    <img src={sign.image} alt={sign.name} className="zodiac-icon" />
-                    <p className="zodiac-name">{sign.name}</p>
-                  </div>
-                ))}
-              </div>
+<div className="horoscope-selection">
+  <div className="selection-method">
+    <h3>Select Your Chinese Zodiac Sign</h3>
+    <div className="zodiac-grid">
+      {zodiacSigns.map((sign) => (
+        <div
+          key={sign.id}
+          className="zodiac-item"
+          onClick={() => handleSignClick(sign.id)}
+        >
+          <div className="zodiac-flip-card">
+            <div className="zodiac-flip-inner">
+              <img
+                src={sign.image}
+                alt={sign.name}
+                className="zodiac-flip-front-horopage"
+              />
+              <img
+                src={sign.frontImage}
+                alt={`${sign.name} front`}
+                className="zodiac-flip-back-horopage"
+              />
             </div>
           </div>
+          <p className="zodiac-name">{sign.name}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+</div>
+
         ) : (
           <div className="horoscope-results">
             <div className="zodiac-profile">

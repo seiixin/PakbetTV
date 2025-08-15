@@ -409,40 +409,44 @@ const ProductPage = () => {
           <div className="home-carousel">
             <div className="home-carousel-track" style={{ transform: `translateX(-${currentSlide * 100}%)` }}>
               {carouselData.map((slide, index) => (
-                <div className="home-carousel-slide" key={index}>
-                  <div className="home-carousel-content">
-                    <div 
-                      className="home-carousel-section"
-                      style={{ 
-                        background: slide.side === "left" 
-                          ? slide.leftBackground || slide.leftColor 
-                          : slide.rightBackground || slide.rightColor,
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
-                        order: slide.side === "left" ? 1 : 2
-                      }}
-                    />
-                    <div 
-                      className="home-carousel-text-section"
-                      style={{ 
-                        background: slide.side === "left" 
-                          ? slide.rightBackground || slide.rightColor 
-                          : slide.leftBackground || slide.leftColor,
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
-                        order: slide.side === "left" ? 2 : 1
-                      }}
-                    >
-                      <div className="home-carousel-text">
-                        <h2>{slide.title}</h2>
-                        <p>{slide.description}</p>
-                        <Link to={slide.buttonLink} className="home-carousel-button">
-                          {slide.buttonText}
-                        </Link>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+<div className="home-carousel-slide" key={index}>
+  <div className="home-carousel-content">
+
+    {/* Image side */}
+    <div
+      className="home-carousel-section"
+      style={{
+        background: slide.side === "left"
+          ? slide.leftBackground || slide.leftColor
+          : slide.rightBackground || slide.rightColor,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        order: slide.side === "left" ? 1 : 2
+      }}
+    />
+
+    {/* Text side with gradient */}
+    <div
+      className="home-carousel-text-section"
+      style={{
+        background: slide.side === "left"
+          ? `linear-gradient(to right, #3e0505, #0a0b38)` // red → blue when text is right
+          : `linear-gradient(to left, #3e0505, #0a0b38)`, // red → blue when text is left
+        order: slide.side === "left" ? 2 : 1
+      }}
+    >
+      <div className="home-carousel-text">
+        <h2>{slide.title}</h2>
+        <p>{slide.description}</p>
+        <Link to={slide.buttonLink} className="home-carousel-button">
+          {slide.buttonText}
+        </Link>
+      </div>
+    </div>
+
+  </div>
+</div>
+
               ))}
             </div>
             <button className="home-carousel-nav prev" onClick={handlePrevSlide}>❮</button>

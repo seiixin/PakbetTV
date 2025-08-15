@@ -38,7 +38,7 @@
 .guide-section h3 {
   padding: 15px 20px;
   margin: 0;
-  background-color: #A2201A;
+  background: linear-gradient(to left, #0a0b38ff, #3e0505ff);
   color: white;
   font-size: 20px;
   font-weight: 600;

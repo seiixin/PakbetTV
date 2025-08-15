@@ -1,3 +1,39 @@
+@font-face {
+  font-family: 'Gilroy-Bold';
+  src: url('/Gilroy-Bold.ttf') format('truetype');
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Gilroy-Light';
+  src: url('/Gilroy-Light.ttf') format('truetype');
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Gilroy-Medium';
+  src: url('/Gilroy-Medium.ttf') format('truetype');
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  src: url('/Montserrat-Bold.woff') format('woff');
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Montserrat-Light';
+  src: url('/Montserrat-Light.woff') format('woff');
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Montserrat-Italic';
+  src: url('/Montserrat-Italic.woff') format('woff');
+  font-style: normal;
+}
+
 .daily-container {
   display: flex;
   width: 100%;
@@ -39,6 +75,7 @@
 .daily-subtitle {
   font-size: 1rem;
   font-weight: 500;
+  font-family: 'Gilroy-Light';
   margin-bottom: 1.5rem;
   color: #ECECEC;
   line-height: 1.3;
@@ -46,14 +83,16 @@
 
 .daily-main-title {
   font-size: clamp(2.5rem, 6vw, 3.5rem);
-  font-weight: 900;
+  font-family: 'Gilroy-Bold';
   color: #fff82c;
   margin-bottom: 1.5rem;
   line-height: 1.1;
+  text-align: left;
 }
 
+
 .daily-description {
-  font-size: 1.125rem;
+  font-size: 1rem;
   color: #ddd;
   line-height: 1.7;
   margin-bottom: 2rem;

@@ -162,24 +162,31 @@ const FAQs = () => {
   }, []);
 
   // Handle category filtering based on URL params and state changes
-  useEffect(() => {
-    const searchParams = new URLSearchParams(location.search);
-    const categoryParam = searchParams.get('category');
-    
-    let targetCategory = 'All';
-    if (categoryParam) {
-      targetCategory = categoryParam;
-      setActiveCategory(categoryParam);
-    }
-    
-    // Apply filtering
-    if (targetCategory === 'All') {
-      setFilteredFaqs(faqs);
-    } else {
-      const filtered = faqs.filter(faq => faq.category === targetCategory);
-      setFilteredFaqs(filtered);
-    }
-  }, [faqs, location.search]);
+// Make sure you have this state:
+const [searchQuery, setSearchQuery] = useState("");
+
+useEffect(() => {
+  const searchParams = new URLSearchParams(location.search);
+  const categoryParam = searchParams.get("category") || "All";
+
+  setActiveCategory(categoryParam);
+
+  const filtered = faqs.filter(faq => {
+    const matchesCategory =
+      categoryParam === "All" || faq.category === categoryParam;
+
+    const query = (searchQuery || "").toLowerCase();
+    const matchesSearch =
+      query === "" ||
+      faq.question?.toLowerCase().includes(query) ||
+      faq.answer?.toLowerCase().includes(query);
+
+    return matchesCategory && matchesSearch;
+  });
+
+  setFilteredFaqs(filtered);
+}, [faqs, location.search, searchQuery]);
+
 
   // Filter FAQs based on selected category
   const filterByCategory = (category) => {
@@ -198,11 +205,23 @@ const FAQs = () => {
       <div className="faq-hero">
         <div className="container">
           <h1>Frequently Asked Questions</h1>
-          <p>Find answers to common questions about our products and services</p>
-        </div>
+        <input
+          type="text"
+          className="faq-search"
+          placeholder="Find answers to common questions about our products and services"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+                </div>
       </div>
       
       <div className="container faq-container">
+        <div className="faq-contact mt-5 mb-5">
+          <h3>Still have questions?</h3>
+          <p>If you couldn't find the answer to your question, please feel free to contact us.</p>
+          <Link to="/contact" className="contact-btn">Contact Us</Link>
+        </div>
+        
         {loading ? (
           <div className="text-center mt-5 mb-5">
             <div className="spinner-border" role="status">
@@ -301,11 +320,7 @@ const FAQs = () => {
               )}
             </div>
             
-            <div className="faq-contact mt-5 mb-5">
-              <h3>Still have questions?</h3>
-              <p>If you couldn't find the answer to your question, please feel free to contact us.</p>
-              <Link to="/contact" className="contact-btn">Contact Us</Link>
-            </div>
+
           </>
         )}
       </div>

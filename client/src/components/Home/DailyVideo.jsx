@@ -27,10 +27,13 @@ const DailyVideo = () => {
       {/* Right Side: Full Height Video */}
       <article className="daily-video-section">
         <div className="daily-video-wrapper">
-          <img
-            src="https://img.youtube.com/vi/HZXVQRdUReI/maxresdefault.jpg"
-            alt="Thumbnail"
-          />
+<a href={videoLink} target="_blank" rel="noopener noreferrer">
+  <img
+    src="https://img.youtube.com/vi/HZXVQRdUReI/maxresdefault.jpg"
+    alt="Thumbnail"
+    style={{ cursor: 'pointer' }}
+  />
+</a>
           <div className="gradient-overlay" />
           <div className="play-button" />
         </div>

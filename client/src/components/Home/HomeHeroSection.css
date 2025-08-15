@@ -29,18 +29,23 @@ body {
   position: absolute;
   bottom: 0;
   left: 0;
-  height: 70px;
+  height: 120px;
   width: 100%;
-  background: linear-gradient(
-    to top,
-    #09254fff 0%,
-    rgba(9, 37, 79, 0.85) 40%,
-    rgba(9, 37, 79, 0.5) 70%,
-    rgba(9, 37, 79, 0) 100%
-  );
-  opacity: 0.6; /* new opacity */
+
+  /* horizontal color */
+  background: linear-gradient(to left, #0a0b38, #3e0505);
+
+  /* vertical fade mask */
+  -webkit-mask-image: linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%);
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+  mask-image: linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%);
+  mask-repeat: no-repeat;
+  mask-size: 100% 100%;
+
   z-index: 2;
 }
+
 
 
 .video-background {
@@ -62,7 +67,7 @@ body {
   width: 100%;
   height: 100%;
   background: linear-gradient(to left, #0a0b38ff, #3e0505ff);
-  opacity: 0.8;
+  opacity: .95;
   z-index: 1;
 }
 
@@ -102,6 +107,13 @@ body {
   text-align: left !important;
 
 }
+.text-content .features,
+.text-content .features * {
+  text-align: center !important;
+}
+
+
+
 
 .headline {
   font-family: Calibri, 'Segoe UI', Arial, sans-serif;
@@ -115,29 +127,56 @@ body {
   padding: 0;
 }
 
-.yellow-bold,
-.white-bold {
-  font-family: Calibri, 'Segoe UI', Arial, sans-serif;
-  font-weight: 900 !important;
-  letter-spacing: -1.5px;     /* Condense characters more */
-  line-height: 1;
-  word-spacing: -1px;
+@font-face {
+  font-family: 'Gilroy-Bold';
+  src: url('/Gilroy-Bold.ttf') format('truetype');
+  font-style: normal;
 }
 
+@font-face {
+  font-family: 'Gilroy-Light';
+  src: url('/Gilroy-Light.ttf') format('truetype');
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Gilroy-Medium';
+  src: url('/Gilroy-Medium.ttf') format('truetype');
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  src: url('/Montserrat-Bold.woff') format('woff');
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Montserrat-Light';
+  src: url('/Montserrat-Light.woff') format('woff');
+  font-style: normal;
+}
+
+.yellow-bold {
+  font-family: 'Gilroy-Bold', sans-serif !important;
+}
+
+.white-bold {
+  font-family: 'Montserrat', sans-serif !important;
+  font-weight: 700 !important;
+}
 .text-white {
   color: white;
-  font-family: Arial;
-  font-weight: bold;
+  font-family: 'Gilroy-Bold';
 }
 .btn-shop:hover .text-white {
   color: black !important;
 }
 
 .yellow-bold {
-  color: #fdea18;
+  color: #FEFF25;
   font-weight: 900;
   font-size: 0.9em;
-  font-family:  Tahoma;
   font-weight: bold !important;
   line-height: -1.25 !important;       /* Reduce line height */
   letter-spacing: -0.5px; /* Slightly tighten letters */
@@ -146,18 +185,16 @@ body {
 .white-bold {
   color: #ffffff;
   font-weight: 700;
-  font-family:  Tahoma;
   font-weight: bold !important;
   letter-spacing: -2.99px; /* Slightly tighten letters */
 }
-
-
 
 .buttons {
   display: flex;
   gap: 1rem;
   margin: 1.5rem 0;
   flex-wrap: wrap;
+  font-family: 'Gilroy-Bold', sans-serif !important;
   justify-content: flex-start !important;
   align-items: center;
 }
@@ -175,7 +212,7 @@ body {
 .btn-ask {
   background: #05263e;
   color: #fff;
-    font-size: 1.5rem;
+  font-size: 1.5rem;
   padding: 20px 40px;
   align-items: center;     /* vertical centering */
   justify-content: center; /* horizontal centering */
@@ -191,6 +228,7 @@ body {
 }
 
 .btn-shop {
+  font-family: 'Gilroy-Bold', sans-serif !important;
   background: transparent;
   padding: 5px 20px;
   color: #fdea18;
@@ -207,27 +245,28 @@ body {
   background: #fdea18;
   color: #05263e;
 }
-
 .features {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center; /* Center items horizontally */
   gap: 1.5rem;
-  margin-top: 1rem;
+  text-align: center; /* Center all text inside */
 }
 
 .feature-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  color: #fdea18;
-  font-weight: 600;
+  color: #fff;
+  font-family: 'Montserrat-Light' !important;
   font-size: 0.75rem;
   text-align: center;
 }
 
 .feature-icon {
-  width: 28px;
-  height: 28px;
+  margin-top: 2rem;
+  width: 38px;
+  height: 38px;
   stroke: #fdea18;
   stroke-width: 2.5;
   fill: none;

@@ -19,7 +19,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(139, 29, 14, 0.85);
+  background: linear-gradient(to left, #0a0b38ff, #3e0505ff);
   z-index: 1;
 }
 

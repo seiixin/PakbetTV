@@ -355,7 +355,7 @@
 }
 
 .cart-continue-shopping-button {
-  background: var(--primary-color, #A2201A);
+  background: linear-gradient(to left, #0a0b38ff, #3e0505ff);
   color: white;
   border: none;
   padding: 0.75rem 2rem;

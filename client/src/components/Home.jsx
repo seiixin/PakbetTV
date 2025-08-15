@@ -11,10 +11,11 @@ import axios from 'axios';
 import Swal from 'sweetalert2';
 import './Home/HomeHeroSection.css';
 import OurService from './Home/OurService';
-import DailyHoroScopeSection from './Home/DailyHoroScopeSection';
+import DailyHoroScopeSection from './DailyHoroScopeSection';
 import './Home/Banner.css'; // Import the CSS for the banner
 import Banner from './Home/Banner';
 import DailyVideo from './Home/DailyVideo';
+import Ads from "./Home/ads";
 
 const constructUrl = (baseUrl, path) => {
   const defaultImageUrl = '/images/default-placeholder.png'; 
@@ -161,14 +162,34 @@ const aspirations = [
 
 const renderNewArrivals = () => (
   <section className="home-new-arrivals">
-    <style dangerouslySetInnerHTML={{ __html: `
-      html, body {
-        scroll-behavior: auto !important;
-      }
-    ` }} />
-    {/* Your arrivals content here */}
+    {newArrivalsLoading || newArrivalsError || newArrivals.length > 0 ? (
+      <>
+        {newArrivalsLoading ? (
+          <div className="home-new-arrivals-loading-container">
+            <div className="spinner-border" role="status">
+              <span className="visually-hidden">Loading...</span>
+            </div>
+          </div>
+        ) : newArrivalsError ? (
+          <div className="error-message">{newArrivalsError.message}</div>
+        ) : (
+          <div className="ticker-container">
+            <div className="ticker-track">
+              {[...newArrivals, ...newArrivals] // duplicate para seamless
+                .slice(0, 20) // twice ng 10 products
+                .map((product, index) => (
+                  <div className="ticker-item" key={index}>
+                    <ProductCard product={product} />
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
+      </>
+    ) : null}
   </section>
 );
+
 
   return (
     <div className="home-page">
@@ -191,84 +212,68 @@ const renderNewArrivals = () => (
       
       {/* Foreground content - Fixed structure */}
       <div className="hero-content-wrapper">
-        <div className="hero-container">
-          {/* Left Text Content */}
-          <div className="text-content">
-            <h1 className="headline">
-              <span className="yellow-bold">Simplifying</span><br />
-              <span className="white-bold">Feng Shui</span><br />
-              <span className="yellow-bold">for everyone.</span>
-            </h1>
+<div className="hero-container">
+  {/* Left Text Content */}
+  <div className="text-content">
+    <h1 className="headline">
+      <span className="yellow-bold">Simplifying</span><br />
+      <span className="white-bold">Feng Shui</span><br />
+      <span className="yellow-bold">for everyone.</span>
+    </h1>
 
-            <section className="buttons" aria-label="Primary actions">
-              <a href="/contact" className="btn-ask">
-                Ask <strong>Master Michael</strong> now
-              </a>
-              <a href="/shop" className="btn-shop">
-                Go to 
-                <span className="text-white"> Shop</span>
-                </a>
-            </section>
+    <section className="buttons" aria-label="Primary actions">
+      <a href="/contact" className="btn-ask">
+        Ask <strong>Master Michael</strong> now
+      </a>
+      <a href="/shop" className="btn-shop">
+        Go to 
+        <span className="text-white"> Shop</span>
+      </a>
+    </section>
 
-            <section className="features" aria-label="Key Features and Benefits">
-              <article className="feature-item">
-                <svg className="feature-icon" viewBox="0 0 24 24">
-                  <path d="M12 2L15 8H9L12 2Z" />
-                  <circle cx="12" cy="16" r="6" />
-                </svg>
-                <br />
-                Expert<br />Guidance
-              </article>
-              <article className="feature-item">
-                <svg className="feature-icon" viewBox="0 0 24 24">
-                  <path d="M4 4h16v16H4z" />
-                  <path d="M4 9h16" />
-                </svg>
-                <br />  
-                Personalized<br />Analysis
-              </article>
-              <article className="feature-item">
-                <svg className="feature-icon" viewBox="0 0 24 24">
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M8 12h8" />
-                </svg>
-                <br />
-                Realistic<br />Solution
-              </article>
-              <article className="feature-item">
-                <svg className="feature-icon" viewBox="0 0 24 24">
-                  <path d="M12 2a10 10 0 0 1 10 10" />
-                  <path d="M2 12a10 10 0 0 0 10 10" />
-                </svg>
-                <br />
-                Modern<br />Practice
-              </article>
-              <article className="feature-item">
-                <svg className="feature-icon" viewBox="0 0 24 24">
-                  <path d="M3 12h18M12 3v18" />
-                </svg>
-                <br />
-                Life<br />Harmony
-              </article>
-              <article className="feature-item">
-                <svg className="feature-icon" viewBox="0 0 24 24">
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M12 6v6l4 2" />
-                </svg>
-                <br />
-                Timely<br />Advice
-              </article>
-            </section>
-          </div>
+    <section className="features" aria-label="Key Features and Benefits">
+      <article className="feature-item">
+        <img src="/cleaned_icon_1.png" alt="Expert Guidance" className="feature-icon" />
+        <br />
+        International<br />Feng Shui <br />Affiliate <br />Member
+      </article>
+      <article className="feature-item">
+        <img src="/cleaned_icon_2.png" alt="Personalized Analysis" className="feature-icon" />
+        <br />  
+        Realistic<br />Solution
+      </article>
+      <article className="feature-item">
+        <img src="/cleaned_icon_3.png" alt="Realistic Solution" className="feature-icon" />
+        <br />
+        Over 96%<br />Customer<br />Satisfaction
+      </article>
+      <article className="feature-item">
+        <img src="/cleaned_icon_4.png" alt="Modern Practice" className="feature-icon" />
+        <br />
+        Expert<br />Team
+      </article>
+      <article className="feature-item">
+        <img src="/cleaned_icon_5.png" alt="Life Harmony" className="feature-icon" />
+        <br />
+        Reasonable<br />Pricing
+      </article>
+      <article className="feature-item">
+        <img src="/cleaned_icon_6.png" alt="Timely Advice" className="feature-icon" />
+        <br />
+        Comprehensive<br />Advices
+      </article>
+    </section>
+  </div>
+
 
           {/* Bottom-right Image */}
           <div className="image-container">
-            <img src="/MasterMichael.png" alt="Master Michael" />
+            <img src="/MasterMichaelYellowBG.png" alt="Master Michael" />
           </div>
         </div>
       </div>
     </section>
-          {renderNewArrivals()}
+     <Ads />
 <OurService />
 <DailyHoroScopeSection />
 <DailyVideo />

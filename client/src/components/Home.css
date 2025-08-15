@@ -31,6 +31,43 @@ body {
   font-style: normal;
 }
 
+@font-face {
+  font-family: 'Gilroy-Bold';
+  src: url('/Gilroy-Bold.ttf') format('truetype');
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Gilroy-Light';
+  src: url('/Gilroy-Light.ttf') format('truetype');
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Gilroy-Medium';
+  src: url('/Gilroy-Medium.ttf') format('truetype');
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  src: url('/Montserrat-Bold.woff') format('woff');
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Montserrat-Light';
+  src: url('/Montserrat-Light.woff') format('woff');
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Montserrat-Italic';
+  src: url('/Montserrat-Italic.woff') format('woff');
+  font-style: normal;
+}
+
+
 .navbar {
   position: absolute;
   top: 0;
@@ -87,7 +124,7 @@ body {
   font-size: 2.5rem;
   color: white;
   margin-bottom: 0.4rem;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Montserrat';
   font-weight: 700;
   letter-spacing: 1.5px;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
@@ -325,7 +362,7 @@ body {
 .home-prosper-guide-section {
   background: linear-gradient(to right, #061a35, #2a0709);
   width: 100%;
-  height: 50vh;
+  height: auto;
   margin: 0;
   text-align: center;
 
@@ -335,6 +372,7 @@ body {
   justify-content: center;
   align-items: center;
   padding-top: 2rem; /* space at top */
+  padding-bottom: 2rem; /* space at bottom */
 }
 
 /* Header section */
@@ -352,7 +390,7 @@ body {
   font-weight: 700;
   margin-bottom: 0.3rem;
   text-transform: capitalize;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Gilroy-Bold';
   letter-spacing: 0.5px;
   line-height: 1.2;
 }
@@ -366,6 +404,13 @@ body {
   letter-spacing: 0.3px;
 }
 
+.buttons {
+  font-family: 'Gilroy', sans-serif !important;
+  font-weight: 0 !important; /* or whatever weight you want */
+}
+
+
+/* Zodiac icons container */
 /* Zodiac icons container */
 .home-zodiac-icons-container {
   display: flex;
@@ -374,8 +419,35 @@ body {
   gap: 1rem;
   max-width: 1400px;
   margin: 0 auto;
-  padding: 0 1rem;
+  padding: 0 1rem 2rem; /* added bottom padding */
+  box-sizing: border-box; /* prevent overflow */
+  overflow: hidden; /* keep items inside */
 }
+
+/* Mobile-friendly adjustments */
+@media (max-width: 768px) {
+  .home-zodiac-icons-container {
+    max-width: 100%;               /* allow full width */
+    justify-content: space-between; /* stretch to fit items */
+    gap: 0.75rem;
+    padding: 0 0.5rem 2rem;
+  }
+
+  .home-zodiac-item {
+    flex: 1 1 calc(25% - 0.75rem); /* 4 per row on mobile */
+    max-width: calc(25% - 0.75rem);
+    box-sizing: border-box;
+  }
+}
+
+/* Even smaller screens */
+@media (max-width: 480px) {
+  .home-zodiac-item {
+    flex: 1 1 calc(33.333% - 0.75rem); /* 3 per row */
+    max-width: calc(33.333% - 0.75rem);
+  }
+}
+
 
 /* Zodiac item */
 .home-zodiac-item {
@@ -436,7 +508,7 @@ body {
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'ZCOOL XiaoWei', serif;
   text-align: center;
   color: #fde50f;
   transition: color 0.75s ease, transform 0.75s ease;
@@ -500,7 +572,7 @@ body {
   object-fit: contain;
 }
 .home-aspiration-card h3 {
-  font-family: 'Gilroy';
+  font-family: 'Gilroy-bold';
   padding: 0.8rem;
   font-size: 0.88rem;
   color: white;
@@ -893,7 +965,7 @@ body {
 }
 /* View All Products Button */
 .view-all-btn {
-  background-color: #A2201A;
+  background: #09254f;
   color: white;
   padding: 8px 16px;
   border-radius: 4px;
@@ -924,6 +996,33 @@ body {
   background-color: var(--white-color);
   border-top: 1px solid #eee;
 }
+
+.ticker-container {
+  overflow: hidden;
+  white-space: nowrap;
+  width: 100%;
+  position: relative;
+}
+
+.ticker-track {
+  display: flex;
+  animation: ticker-scroll 30s linear infinite;
+}
+
+.ticker-item {
+  flex: 0 0 auto;
+  margin-right: 1rem;
+}
+
+@keyframes ticker-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
 
 .home-new-arrivals-loading-container {
   display: flex;
@@ -1114,6 +1213,8 @@ body {
   height: 400px;
   overflow: hidden;
 }
+
+
 
 .home-carousel-track {
   display: flex;

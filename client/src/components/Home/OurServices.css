@@ -8,6 +8,42 @@ article {
   scroll-behavior: auto !important;
 }
 
+@font-face {
+  font-family: 'Gilroy-Bold';
+  src: url('/Gilroy-Bold.ttf') format('truetype');
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Gilroy-Light';
+  src: url('/Gilroy-Light.ttf') format('truetype');
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Gilroy-Medium';
+  src: url('/Gilroy-Medium.ttf') format('truetype');
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  src: url('/Montserrat-Bold.woff') format('woff');
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Montserrat-Light';
+  src: url('/Montserrat-Light.woff') format('woff');
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Montserrat-Italic';
+  src: url('/Montserrat-Italic.woff') format('woff');
+  font-style: normal;
+}
+
 
 .our-service-section {
   position: relative;
@@ -16,12 +52,12 @@ article {
 }
 
 .our-service-title {
+  font-family: 'Montserrat';
   position: absolute;
   top: 1rem;
-  left: 1.5rem;
+  left: 4rem;
   font-size: 1.5rem;
   z-index: 5;
-  font-weight: bold;
 }
 
 .gradient-overlay {
@@ -30,7 +66,7 @@ article {
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(to left, #09254f, #3D0A0E);
+  background: linear-gradient(to left, #0a0b38ff, #3e0505ff);
   opacity: 0.9;
   z-index: 0;
 }
@@ -42,7 +78,7 @@ article {
   left: 0;
   width: 93%;
   height: 100%;
-  background: linear-gradient(to left, #09254f, #3D0A0E);
+  background: linear-gradient(to left, #0a0b38ff, #3e0505ff);
   opacity: 1;
   z-index: 3;
   pointer-events: none;
